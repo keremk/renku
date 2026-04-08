@@ -2,11 +2,15 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WorkspaceLayout } from './workspace-layout';
 import type { BlueprintGraphData } from '@/types/blueprint-graph';
 import type { BuildInfo, BuildManifestResponse } from '@/types/builds';
+
+const { mockUseBuildInputs } = vi.hoisted(() => ({
+  mockUseBuildInputs: vi.fn(),
+}));
 
 vi.mock('@/contexts/execution-context', () => ({
   ExecutionProvider: ({ children }: { children: React.ReactNode }) => (
@@ -31,14 +35,7 @@ vi.mock('@/hooks', async () => {
 
   return {
     ...actual,
-    useBuildInputs: () => ({
-      inputs: null,
-      models: [],
-      isLoading: false,
-      hasLoadedInputs: true,
-      saveInputs: vi.fn(),
-      saveModels: vi.fn(),
-    }),
+    useBuildInputs: mockUseBuildInputs,
     useProducerModels: () => ({
       producerModels: {},
       isLoading: false,
@@ -91,12 +88,15 @@ vi.mock('./detail-panel', () => ({
   DetailPanel: ({
     activeTab,
     onTabChange,
+    isInputValuesLoading,
   }: {
     activeTab: string;
     onTabChange: (tab: 'inputs' | 'models' | 'outputs' | 'preview') => void;
+    isInputValuesLoading?: boolean;
   }) => (
     <div>
       <div data-testid='detail-active-tab'>{activeTab}</div>
+      <div data-testid='detail-input-loading'>{String(Boolean(isInputValuesLoading))}</div>
       <button type='button' onClick={() => onTabChange('inputs')}>
         detail-inputs
       </button>
@@ -199,7 +199,7 @@ const selectedBuildManifest: BuildManifestResponse = {
   createdAt: '2026-03-12T00:00:00.000Z',
 };
 
-function renderWorkspaceLayout() {
+function renderWorkspaceLayout(buildsOverride: BuildInfo[] = builds) {
   render(
     <WorkspaceLayout
       graphData={graphData}
@@ -209,7 +209,7 @@ function renderWorkspaceLayout() {
       blueprintName='test-blueprint'
       blueprintPath='/tmp/test-blueprint.yaml'
       catalogRoot={null}
-      builds={builds}
+      builds={buildsOverride}
       buildsLoading={false}
       selectedBuildId='movie-1'
       selectedBuildManifest={selectedBuildManifest}
@@ -218,6 +218,17 @@ function renderWorkspaceLayout() {
 }
 
 describe('WorkspaceLayout', () => {
+  beforeEach(() => {
+    mockUseBuildInputs.mockReturnValue({
+      inputs: null,
+      models: [],
+      isLoading: false,
+      hasLoadedInputs: true,
+      saveInputs: vi.fn(),
+      saveModels: vi.fn(),
+    });
+  });
+
   it('keeps Preview and Timeline tabs synchronized after switching away', () => {
     renderWorkspaceLayout();
 
@@ -257,5 +268,27 @@ describe('WorkspaceLayout', () => {
     expect(screen.getByTestId('bottom-active-tab').textContent).toBe(
       'timeline'
     );
+  });
+
+  it('stops showing input-value loading when fetch has failed', () => {
+    const editableBuilds: BuildInfo[] = [
+      {
+        ...builds[0],
+        hasInputsFile: true,
+      },
+    ];
+
+    mockUseBuildInputs.mockReturnValue({
+      inputs: null,
+      models: [],
+      isLoading: false,
+      hasLoadedInputs: false,
+      saveInputs: vi.fn(),
+      saveModels: vi.fn(),
+    });
+
+    renderWorkspaceLayout(editableBuilds);
+
+    expect(screen.getByTestId('detail-input-loading').textContent).toBe('false');
   });
 });

@@ -153,8 +153,7 @@ export function useModelSelectionEditor({
 
         const updated: ModelSelectionValue = {
           ...existing,
-          config:
-            Object.keys(existingConfig).length > 0 ? existingConfig : undefined,
+          config: Object.keys(existingConfig).length > 0 ? existingConfig : {},
         };
 
         const next = new Map(prev);

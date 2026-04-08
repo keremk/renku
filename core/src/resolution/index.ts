@@ -21,6 +21,14 @@ export {
   buildProducerBindingSummary,
   buildProducerRuntimeBindingSnapshot,
 } from './producer-binding-summary.js';
+export {
+  buildBlueprintParseGraphProjection,
+  convertTreeToGraph,
+  collectNodesAndEdges,
+  normalizeProducerName,
+  resolveEdgeEndpoints,
+  resolveEndpoint,
+} from './viewer-parse-projection.js';
 export type {
   BindingSourceKind,
   ProducerBindingSummaryMode,
@@ -29,3 +37,18 @@ export type {
   ProducerRuntimeBindingInstance,
   ProducerRuntimeBindingSnapshot,
 } from './producer-binding-summary.js';
+export type {
+  BlueprintParseGraphData,
+  BlueprintParseGraphNode,
+  BlueprintParseGraphEdge,
+  BlueprintParseInputDef,
+  BlueprintParseOutputDef,
+  BlueprintParseConditionDef,
+  BindingEndpointType,
+  BindingSelector,
+  BindingEndpointSegment,
+  ProducerBindingEndpoint,
+  ProducerBinding,
+  BlueprintLoopGroupMember,
+  BlueprintLoopGroup,
+} from './viewer-parse-projection.js';

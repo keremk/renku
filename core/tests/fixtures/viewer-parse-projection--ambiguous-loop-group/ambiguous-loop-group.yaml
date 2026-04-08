@@ -1,0 +1,50 @@
+meta:
+  id: ViewerParseAmbiguousLoopGroup
+  name: Viewer Parse Ambiguous Loop Group
+
+inputs:
+  - name: DualPrompt
+    type: array
+    itemType: text
+    required: true
+  - name: NumOfScenes
+    type: int
+    required: true
+  - name: NumOfShots
+    type: int
+    required: true
+
+artifacts:
+  - name: SceneOutputs
+    type: array
+    itemType: text
+    countInput: NumOfScenes
+  - name: ShotOutputs
+    type: array
+    itemType: text
+    countInput: NumOfShots
+
+loops:
+  - name: scene
+    countInput: NumOfScenes
+  - name: shot
+    countInput: NumOfShots
+
+producers:
+  - name: SceneProducer
+    producer: prompt/director
+    loop: scene
+  - name: ShotProducer
+    producer: prompt/director
+    loop: shot
+
+connections:
+  - from: DualPrompt[scene]
+    to: SceneProducer[scene].Prompt
+  - from: SceneProducer[scene].Prompt
+    to: SceneOutputs[scene]
+
+  - from: DualPrompt[shot]
+    to: ShotProducer[shot].Prompt
+  - from: ShotProducer[shot].Prompt
+    to: ShotOutputs[shot]

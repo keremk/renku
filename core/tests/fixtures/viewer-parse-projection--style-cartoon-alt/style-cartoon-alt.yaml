@@ -1,0 +1,82 @@
+meta:
+  id: ViewerParseStyleCartoonAlt
+  name: Viewer Parse Style Cartoon Alt
+
+inputs:
+  - name: CharacterImagePrompt
+    type: array
+    itemType: text
+    required: true
+  - name: StoryboardImagePrompt
+    type: array
+    itemType: text
+    required: true
+  - name: SceneVideoPrompt
+    type: array
+    itemType: text
+    required: true
+  - name: StyleReferenceImages
+    type: array
+    itemType: image
+    required: true
+  - name: NumOfCharacters
+    type: int
+    required: true
+  - name: NumOfSegments
+    type: int
+    required: true
+
+artifacts:
+  - name: CharacterImages
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+  - name: StoryboardImages
+    type: array
+    itemType: image
+    countInput: NumOfSegments
+  - name: SceneVideos
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+
+loops:
+  - name: character
+    countInput: NumOfCharacters
+  - name: scene
+    countInput: NumOfSegments
+    countInputOffset: 1
+  - name: shot
+    parent: scene
+    countInput: NumOfSegments
+
+producers:
+  - name: CharacterImageProducer
+    producer: image/image-compose
+    loop: character
+  - name: StoryboardImageProducer
+    producer: image/image-compose
+    loop: scene
+  - name: SceneVideoProducer
+    producer: video/image-to-video
+    loop: scene
+
+connections:
+  - from: StyleReferenceImages
+    to: CharacterImageProducer[character].SourceImages
+  - from: CharacterImagePrompt[character]
+    to: CharacterImageProducer[character].Prompt
+  - from: CharacterImageProducer[character].ComposedImage
+    to: CharacterImages[character]
+
+  - from: StoryboardImagePrompt[scene][shot]
+    to: StoryboardImageProducer[scene][shot].Prompt
+  - from: StoryboardImageProducer[scene].ComposedImage
+    to: StoryboardImages[scene]
+
+  - from: SceneVideoPrompt[scene]
+    to: SceneVideoProducer[scene].Prompt
+  - from: StoryboardImageProducer[scene].ComposedImage
+    to: SceneVideoProducer[scene].StartImage
+  - from: SceneVideoProducer[scene].GeneratedVideo
+    to: SceneVideos[scene]

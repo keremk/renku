@@ -284,7 +284,37 @@ describe('useModelSelectionEditor', () => {
         result.current.updateConfig('producer1', 'stt.diarize', undefined);
       });
 
-      expect(result.current.currentSelections[0].config).toBeUndefined();
+      expect(result.current.currentSelections[0].config).toEqual({});
+    });
+
+    it('sends explicit empty config in save payload when user clears the last config field', async () => {
+      const saved = [
+        makeSelection('producer1', 'renku', 'speech/transcription', {
+          stt: {
+            diarize: true,
+          },
+        }),
+      ];
+      const onSave = vi.fn().mockResolvedValue(undefined);
+
+      const { result } = renderHook(() =>
+        useModelSelectionEditor({ savedSelections: saved, onSave })
+      );
+
+      act(() => {
+        result.current.updateConfig('producer1', 'stt.diarize', undefined);
+      });
+
+      await act(async () => {
+        await result.current.save();
+      });
+
+      expect(onSave).toHaveBeenCalledWith([
+        expect.objectContaining({
+          producerId: 'producer1',
+          config: {},
+        }),
+      ]);
     });
 
     it('removes legacy timeline root keys when timeline config is updated', () => {

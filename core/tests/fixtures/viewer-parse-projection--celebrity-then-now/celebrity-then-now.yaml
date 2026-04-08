@@ -1,0 +1,56 @@
+meta:
+  id: ViewerParseCelebrityThenNow
+  name: Viewer Parse Celebrity Then Now
+
+inputs:
+  - name: CelebrityThenImages
+    type: array
+    itemType: image
+    required: true
+  - name: CelebrityNowImages
+    type: array
+    itemType: image
+    required: true
+  - name: SettingImage
+    type: image
+    required: true
+  - name: NumOfCharacters
+    type: int
+    required: true
+
+artifacts:
+  - name: ConsistentThenImages
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+  - name: ConsistentNowImages
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+
+loops:
+  - name: character
+    countInput: NumOfCharacters
+
+producers:
+  - name: ThenImageProducer
+    producer: image/image-compose
+    loop: character
+  - name: NowImageProducer
+    producer: image/image-compose
+    loop: character
+
+connections:
+  - from: CelebrityThenImages[character]
+    to: ThenImageProducer[character].SourceImages[0]
+  - from: SettingImage
+    to: ThenImageProducer[character].SourceImages[1]
+  - from: ThenImageProducer[character].ComposedImage
+    to: ConsistentThenImages[character]
+
+  - from: CelebrityNowImages[character]
+    to: NowImageProducer[character].SourceImages[0]
+  - from: SettingImage
+    to: NowImageProducer[character].SourceImages[1]
+  - from: NowImageProducer[character].ComposedImage
+    to: ConsistentNowImages[character]

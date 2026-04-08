@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { resolvePromptArtifactForMedia } from './artifact-prompt-resolver';
 import type { ArtifactInfo } from '@/types/builds';
-import type { BlueprintGraphData } from '@/types/blueprint-graph';
+import type {
+  BindingEndpointSegment,
+  BindingSelector,
+  BlueprintGraphData,
+  ProducerBindingEndpoint,
+} from '@/types/blueprint-graph';
 
 function makeArtifact(id: string, mimeType = 'text/plain'): ArtifactInfo {
   return {
@@ -29,6 +34,8 @@ function makeGraph(
           ...binding,
           sourceType: 'producer',
           targetType: 'producer',
+          sourceEndpoint: createProducerEndpoint(binding.from, 'source'),
+          targetEndpoint: createProducerEndpoint(binding.to, 'target'),
           isConditional: false,
         })),
         outputBindings: [],
@@ -37,6 +44,81 @@ function makeGraph(
     edges: [],
     inputs: [],
     outputs: [],
+  };
+}
+
+function createProducerEndpoint(
+  reference: string,
+  role: 'source' | 'target'
+): ProducerBindingEndpoint {
+  const segments = parseSegments(reference);
+  const anchor = segments[0];
+  if (!anchor) {
+    throw new Error(`Expected at least one endpoint segment in "${reference}".`);
+  }
+
+  const loopSelectors = anchor.selectors.filter(
+    (selector): selector is Extract<BindingSelector, { kind: 'loop' }> =>
+      selector.kind === 'loop'
+  );
+  const constantSelectors = anchor.selectors.filter(
+    (selector): selector is Extract<BindingSelector, { kind: 'const' }> =>
+      selector.kind === 'const'
+  );
+  const collectionSelectors = segments.flatMap((segment, segmentIndex) =>
+    segmentIndex === 0
+      ? []
+      : segment.selectors.map((selector) => ({
+          segment: segment.name,
+          segmentIndex,
+          selector,
+        }))
+  );
+
+  return {
+    kind: 'producer',
+    reference,
+    producerName: anchor.name,
+    inputName: role === 'target' ? segments[1]?.name : undefined,
+    outputName: role === 'source' ? segments[1]?.name : undefined,
+    segments,
+    loopSelectors,
+    constantSelectors,
+    collectionSelectors,
+  };
+}
+
+function parseSegments(reference: string): BindingEndpointSegment[] {
+  return reference.split('.').map((segment) => {
+    const nameMatch = segment.match(/^[^[]+/);
+    if (!nameMatch) {
+      throw new Error(`Invalid endpoint segment "${segment}" in "${reference}".`);
+    }
+    const rawSelectors = segment.match(/\[[^\]]+]/g) ?? [];
+    return {
+      name: nameMatch[0],
+      selectors: rawSelectors.map((raw) => parseSelector(raw.slice(1, -1))),
+    };
+  });
+}
+
+function parseSelector(raw: string): BindingSelector {
+  if (/^\d+$/.test(raw)) {
+    return {
+      kind: 'const',
+      raw,
+      value: Number.parseInt(raw, 10),
+    };
+  }
+  const match = /^([A-Za-z_][A-Za-z0-9_]*)([+-]\d+)?$/.exec(raw);
+  if (!match) {
+    throw new Error(`Invalid selector "${raw}" in test binding metadata.`);
+  }
+  return {
+    kind: 'loop',
+    raw,
+    symbol: match[1],
+    offset: match[2] ? Number.parseInt(match[2], 10) : 0,
   };
 }
 
@@ -159,5 +241,27 @@ describe('resolvePromptArtifactForMedia', () => {
     });
 
     expect(resolved?.id).toBe('Artifact:PromptProducer.VideoPrompt[3]');
+  });
+
+  it('does not double-apply selector offsets while resolving source artifact ids', () => {
+    const artifacts = [
+      makeArtifact('Artifact:PromptProducer.ImagePrompt[4]'),
+      makeArtifact('Artifact:MediaProducer.GeneratedImage[3]', 'image/png'),
+    ];
+
+    const graphData = makeGraph([
+      {
+        from: 'PromptProducer.ImagePrompt[scene+1]',
+        to: 'MediaProducer[scene+1].Prompt',
+      },
+    ]);
+
+    const resolved = resolvePromptArtifactForMedia({
+      mediaArtifactId: 'Artifact:MediaProducer.GeneratedImage[3]',
+      artifacts,
+      graphData,
+    });
+
+    expect(resolved?.id).toBe('Artifact:PromptProducer.ImagePrompt[4]');
   });
 });

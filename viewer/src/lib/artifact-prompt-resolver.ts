@@ -1,7 +1,9 @@
 import type { ArtifactInfo } from '@/types/builds';
 import type {
+  BindingSelector,
   BlueprintGraphData,
   ProducerBinding,
+  ProducerBindingEndpoint,
 } from '@/types/blueprint-graph';
 
 interface IndexLookup {
@@ -64,21 +66,31 @@ export function resolvePromptArtifactForMedia(args: {
 
   const mediaIndices = parseIndices(parsedMedia.outputPath);
   const candidateBindings = producerNode.inputBindings
-    .filter(
-      (binding) =>
-        binding.sourceType === 'producer' &&
-        extractProducerAlias(binding.to) === parsedMedia.producer
-    )
+    .filter((binding) => {
+      const sourceEndpoint = binding.sourceEndpoint;
+      const targetEndpoint = binding.targetEndpoint;
+      return (
+        sourceEndpoint?.kind === 'producer' &&
+        targetEndpoint?.kind === 'producer' &&
+        targetEndpoint.producerName === parsedMedia.producer
+      );
+    })
     .sort((a, b) => scorePromptBinding(b) - scorePromptBinding(a));
 
   for (const binding of candidateBindings) {
-    const resolvedIndices = resolveBindingIndices(binding.to, mediaIndices);
+    const sourceEndpoint = binding.sourceEndpoint;
+    const targetEndpoint = binding.targetEndpoint;
+    if (!sourceEndpoint || !targetEndpoint) {
+      continue;
+    }
+
+    const resolvedIndices = resolveBindingIndices(targetEndpoint, mediaIndices);
     if (!resolvedIndices) {
       continue;
     }
 
     const normalizedSourceArtifactId = materializeSourceArtifactId(
-      binding.from,
+      sourceEndpoint,
       resolvedIndices
     );
     if (!normalizedSourceArtifactId) {
@@ -135,150 +147,167 @@ function parseIndices(path: string): IndexLookup {
   return { ordered, named };
 }
 
-function extractProducerAlias(path: string): string {
-  const [producerSegment] = path.split('.');
-  return producerSegment.replace(/\[[^\]]*\]/g, '');
-}
-
 function resolveBindingIndices(
-  bindingTo: string,
-  mediaIndices: IndexLookup
+  endpoint: ProducerBindingEndpoint,
+  artifactIndices: IndexLookup
 ): ResolvedBindingIndices | null {
   const ordered: number[] = [];
   const named = new Map<string, number>();
-  const bracketPattern = /\[([^\]]+)\]/g;
 
   let fallbackIndex = 0;
-  for (const match of bindingTo.matchAll(bracketPattern)) {
-    const token = match[1];
-
-    const numericToken = parseNumericToken(token);
-    if (numericToken !== null) {
-      ordered.push(numericToken);
-      fallbackIndex += 1;
-      continue;
-    }
-
-    const namedToken = parseNamedToken(token);
-    if (namedToken) {
-      ordered.push(namedToken.value);
-      named.set(namedToken.name, namedToken.value);
-      fallbackIndex += 1;
-      continue;
-    }
-
-    const namedValue = mediaIndices.named.get(token);
-    if (namedValue !== undefined) {
-      ordered.push(namedValue);
-      named.set(token, namedValue);
-      fallbackIndex += 1;
-      continue;
-    }
-
-    const positionalValue = mediaIndices.ordered[fallbackIndex];
-    if (positionalValue === undefined) {
+  for (const selector of flattenEndpointSelectors(endpoint)) {
+    const resolvedValue = resolveSelectorFromArtifactIndices(
+      selector,
+      artifactIndices,
+      fallbackIndex
+    );
+    if (resolvedValue === null) {
       return null;
     }
 
-    ordered.push(positionalValue);
-    named.set(token, positionalValue);
+    ordered.push(resolvedValue);
+    if (selector.kind === 'loop') {
+      named.set(selector.symbol, resolvedValue);
+    }
     fallbackIndex += 1;
   }
 
   return { ordered, named };
 }
 
+function flattenEndpointSelectors(endpoint: ProducerBindingEndpoint): BindingSelector[] {
+  const selectors: BindingSelector[] = [];
+  for (const segment of endpoint.segments) {
+    selectors.push(...segment.selectors);
+  }
+  return selectors;
+}
+
+function resolveSelectorFromArtifactIndices(
+  selector: BindingSelector,
+  artifactIndices: IndexLookup,
+  fallbackIndex: number
+): number | null {
+  if (selector.kind === 'const') {
+    return selector.value;
+  }
+
+  const namedValue = artifactIndices.named.get(selector.symbol);
+  if (namedValue !== undefined) {
+    return namedValue + selector.offset;
+  }
+
+  const positionalValue = artifactIndices.ordered[fallbackIndex];
+  if (positionalValue === undefined) {
+    return null;
+  }
+
+  return positionalValue + selector.offset;
+}
+
 function materializeSourceArtifactId(
-  bindingFrom: string,
+  endpoint: ProducerBindingEndpoint,
   resolved: ResolvedBindingIndices
 ): string | null {
-  const firstDot = bindingFrom.indexOf('.');
-  if (firstDot === -1) {
+  if (endpoint.kind !== 'producer' || !endpoint.producerName) {
     return null;
   }
 
-  const sourceProducer = extractProducerAlias(bindingFrom);
-  const sourceOutputTemplate = bindingFrom.slice(firstDot + 1);
+  const outputSegments = endpoint.segments.slice(1);
+  if (outputSegments.length === 0) {
+    return null;
+  }
+
+  const outputPath = materializeEndpointPath(outputSegments, resolved);
+  if (!outputPath) {
+    return null;
+  }
+
+  return normalizeArtifactId(`Artifact:${endpoint.producerName}.${outputPath}`);
+}
+
+function materializeEndpointPath(
+  segments: ProducerBindingEndpoint['segments'],
+  resolved: ResolvedBindingIndices
+): string | null {
+  const pathParts: string[] = [];
   let positionalIndex = 0;
 
-  const normalizedOutputPath = sourceOutputTemplate.replace(
-    /\[([^\]]+)\]/g,
-    (_full, token: string) => {
-      const numericToken = parseNumericToken(token);
-      if (numericToken !== null) {
-        return `[${numericToken}]`;
-      }
-
-      const namedToken = parseNamedToken(token);
-      if (namedToken) {
-        return `[${namedToken.value}]`;
-      }
-
-      const namedValue = resolved.named.get(token);
-      if (namedValue !== undefined) {
-        return `[${namedValue}]`;
-      }
-
-      const positionalValue = resolved.ordered[positionalIndex];
+  for (const segment of segments) {
+    let part = segment.name;
+    for (const selector of segment.selectors) {
+      const resolvedValue = materializeSelectorValue(
+        selector,
+        resolved,
+        positionalIndex
+      );
       positionalIndex += 1;
-
-      if (positionalValue === undefined) {
-        return '[unresolved]';
+      if (resolvedValue === null) {
+        return null;
       }
-
-      return `[${positionalValue}]`;
+      part += `[${resolvedValue}]`;
     }
-  );
-
-  if (normalizedOutputPath.includes('[unresolved]')) {
-    return null;
+    pathParts.push(part);
   }
 
-  return normalizeArtifactId(
-    `Artifact:${sourceProducer}.${normalizedOutputPath}`
-  );
+  return pathParts.join('.');
 }
 
-function parseNumericToken(token: string): number | null {
-  if (!/^\d+$/.test(token)) {
-    return null;
+function materializeSelectorValue(
+  selector: BindingSelector,
+  resolved: ResolvedBindingIndices,
+  positionalIndex: number
+): number | null {
+  if (selector.kind === 'const') {
+    return selector.value;
   }
-  return Number.parseInt(token, 10);
-}
 
-function parseNamedToken(
-  token: string
-): { name: string; value: number } | null {
-  const match = /^(\w+)=(\d+)$/.exec(token);
-  if (!match) {
+  const namedValue = resolved.named.get(selector.symbol);
+  if (namedValue !== undefined) {
+    return namedValue;
+  }
+
+  const positionalValue = resolved.ordered[positionalIndex];
+  if (positionalValue === undefined) {
     return null;
   }
-  return {
-    name: match[1],
-    value: Number.parseInt(match[2], 10),
-  };
+
+  return positionalValue;
 }
 
 function scorePromptBinding(binding: ProducerBinding): number {
-  const fromPath = binding.from.toLowerCase();
-  const toPath = binding.to.toLowerCase();
+  const fromTokens = [
+    ...(binding.sourceEndpoint?.segments.map((segment) => segment.name) ?? []),
+    binding.sourceEndpoint?.outputName,
+  ]
+    .filter((token): token is string => typeof token === 'string')
+    .join('.')
+    .toLowerCase();
+
+  const toTokens = [
+    ...(binding.targetEndpoint?.segments.map((segment) => segment.name) ?? []),
+    binding.targetEndpoint?.inputName,
+  ]
+    .filter((token): token is string => typeof token === 'string')
+    .join('.')
+    .toLowerCase();
 
   let score = 0;
 
   for (const keyword of PRIMARY_PROMPT_KEYWORDS) {
-    if (fromPath.includes(keyword)) {
+    if (fromTokens.includes(keyword)) {
       score += 100;
     }
-    if (toPath.includes(keyword)) {
+    if (toTokens.includes(keyword)) {
       score += 60;
     }
   }
 
   for (const keyword of SECONDARY_PROMPT_KEYWORDS) {
-    if (fromPath.includes(keyword)) {
+    if (fromTokens.includes(keyword)) {
       score += 25;
     }
-    if (toPath.includes(keyword)) {
+    if (toTokens.includes(keyword)) {
       score += 10;
     }
   }

@@ -15,6 +15,11 @@ import {
 } from '../parsing/dimension-selectors.js';
 import { decomposeJsonSchema } from './schema-decomposition.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
+import {
+  parseGraphReference,
+  type ParsedGraphReference,
+  type ParsedGraphReferenceSegment,
+} from './reference-parser.js';
 
 /**
  * Well-known system input names that are automatically recognized.
@@ -77,15 +82,8 @@ export interface BlueprintGraph {
   loops: Map<string, BlueprintLoopDefinition[]>;
 }
 
-interface ParsedSegment {
-  name: string;
-  dimensions: string[];
-}
-
-interface ParsedReference {
-  namespaceSegments: ParsedSegment[];
-  node: ParsedSegment;
-}
+type ParsedSegment = ParsedGraphReferenceSegment;
+type ParsedReference = ParsedGraphReference;
 
 interface DimensionSymbol {
   raw: string;
@@ -1028,49 +1026,7 @@ function findNodeByNamespace(
 }
 
 function parseReference(reference: string): ParsedReference {
-  if (typeof reference !== 'string' || reference.trim().length === 0) {
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_REFERENCE,
-      `Invalid reference: "${reference}"`
-    );
-  }
-  const parts = reference.split('.');
-  const segments = parts.map(parseSegment);
-  const node = segments.pop();
-  if (!node) {
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_REFERENCE,
-      `Malformed reference: "${reference}"`
-    );
-  }
-  return {
-    namespaceSegments: segments,
-    node,
-  };
-}
-
-function parseSegment(segment: string): ParsedSegment {
-  const dims: string[] = [];
-  const nameMatch = segment.match(/^[^[]+/);
-  const name = nameMatch ? nameMatch[0] : '';
-  if (!name) {
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_REFERENCE,
-      `Invalid segment "${segment}"`
-    );
-  }
-  const dimMatches = segment.slice(name.length).match(/\[[^\]]*]/g) ?? [];
-  for (const match of dimMatches) {
-    const symbol = match.slice(1, -1).trim();
-    if (!symbol) {
-      throw createRuntimeError(
-        RuntimeErrorCode.INVALID_DIMENSION_SELECTOR,
-        `Invalid dimension in "${segment}"`
-      );
-    }
-    dims.push(symbol);
-  }
-  return { name, dimensions: dims };
+  return parseGraphReference(reference);
 }
 
 function collectNamespacePrefixDims(

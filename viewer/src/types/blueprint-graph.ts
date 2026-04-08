@@ -75,17 +75,69 @@ export interface BlueprintGraphData {
   layerAssignments?: Record<string, number>;
   /** Total number of layers in the blueprint topology */
   layerCount?: number;
+  /** Loop-indexed grouped input metadata for paged input editing */
+  loopGroups?: BlueprintLoopGroup[];
+  /** Count inputs that are managed by grouped loop controls */
+  managedCountInputs?: string[];
 }
 
 export type BindingEndpointType = 'input' | 'producer' | 'output' | 'unknown';
+
+export type BindingSelector =
+  | {
+      kind: 'loop';
+      raw: string;
+      symbol: string;
+      offset: number;
+    }
+  | {
+      kind: 'const';
+      raw: string;
+      value: number;
+    };
+
+export interface BindingEndpointSegment {
+  name: string;
+  selectors: BindingSelector[];
+}
+
+export interface ProducerBindingEndpoint {
+  kind: Exclude<BindingEndpointType, 'unknown'>;
+  reference: string;
+  producerName?: string;
+  inputName?: string;
+  outputName?: string;
+  segments: BindingEndpointSegment[];
+  loopSelectors: Array<Extract<BindingSelector, { kind: 'loop' }>>;
+  constantSelectors: Array<Extract<BindingSelector, { kind: 'const' }>>;
+  collectionSelectors: Array<{
+    segment: string;
+    segmentIndex: number;
+    selector: BindingSelector;
+  }>;
+}
 
 export interface ProducerBinding {
   from: string;
   to: string;
   sourceType: BindingEndpointType;
   targetType: BindingEndpointType;
+  sourceEndpoint?: ProducerBindingEndpoint;
+  targetEndpoint?: ProducerBindingEndpoint;
   conditionName?: string;
   isConditional: boolean;
+}
+
+export interface BlueprintLoopGroupMember {
+  inputName: string;
+}
+
+export interface BlueprintLoopGroup {
+  groupId: string;
+  primaryDimension: string;
+  countInput: string;
+  countInputOffset: number;
+  members: BlueprintLoopGroupMember[];
 }
 
 export interface InputTemplateData {

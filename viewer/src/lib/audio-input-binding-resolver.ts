@@ -1,4 +1,8 @@
-import type { BlueprintGraphData } from '@/types/blueprint-graph';
+import type {
+  BindingSelector,
+  BlueprintGraphData,
+  ProducerBindingEndpoint,
+} from '@/types/blueprint-graph';
 
 interface IndexLookup {
   ordered: number[];
@@ -40,22 +44,30 @@ export function resolveAudioInputBindingSource(args: {
   }
 
   const audioIndices = parseIndices(parsedAudio.outputPath);
-  const candidateBindings = producerNode.inputBindings.filter(
-    (binding) =>
-      binding.targetType === 'producer' &&
-      extractProducerAlias(binding.to) === parsedAudio.producer &&
-      extractInputAlias(binding.to) === inputName
-  );
+  const candidateBindings = producerNode.inputBindings.filter((binding) => {
+    const targetEndpoint = binding.targetEndpoint;
+    return (
+      targetEndpoint?.kind === 'producer' &&
+      targetEndpoint.producerName === parsedAudio.producer &&
+      targetEndpoint.inputName === inputName
+    );
+  });
 
   for (const binding of candidateBindings) {
-    const resolvedIndices = resolveBindingIndices(binding.to, audioIndices);
+    const sourceEndpoint = binding.sourceEndpoint;
+    const targetEndpoint = binding.targetEndpoint;
+    if (!sourceEndpoint || !targetEndpoint) {
+      continue;
+    }
+
+    const resolvedIndices = resolveBindingIndices(targetEndpoint, audioIndices);
     if (!resolvedIndices) {
       continue;
     }
 
-    if (binding.sourceType === 'input') {
+    if (sourceEndpoint.kind === 'input') {
       const resolvedInputName = materializeInputName(
-        binding.from,
+        sourceEndpoint,
         resolvedIndices
       );
       if (!resolvedInputName) {
@@ -64,9 +76,9 @@ export function resolveAudioInputBindingSource(args: {
       return { kind: 'input', inputName: resolvedInputName };
     }
 
-    if (binding.sourceType === 'producer') {
+    if (sourceEndpoint.kind === 'producer') {
       const resolvedArtifactId = materializeSourceArtifactId(
-        binding.from,
+        sourceEndpoint,
         resolvedIndices
       );
       if (!resolvedArtifactId) {
@@ -110,180 +122,141 @@ function parseIndices(path: string): IndexLookup {
   return { ordered, named };
 }
 
-function extractProducerAlias(path: string): string {
-  const [producerSegment] = path.split('.');
-  return producerSegment.replace(/\[[^\]]*\]/g, '');
-}
-
-function extractInputAlias(path: string): string | null {
-  const firstDot = path.indexOf('.');
-  if (firstDot < 0) {
-    return null;
-  }
-
-  const remainder = path.slice(firstDot + 1);
-  const [inputSegment] = remainder.split('.');
-  if (!inputSegment) {
-    return null;
-  }
-
-  return inputSegment.replace(/\[[^\]]*\]/g, '');
-}
-
 function resolveBindingIndices(
-  bindingTo: string,
-  mediaIndices: IndexLookup
+  endpoint: ProducerBindingEndpoint,
+  artifactIndices: IndexLookup
 ): ResolvedBindingIndices | null {
   const ordered: number[] = [];
   const named = new Map<string, number>();
-  const bracketPattern = /\[([^\]]+)\]/g;
 
   let fallbackIndex = 0;
-  for (const match of bindingTo.matchAll(bracketPattern)) {
-    const token = match[1];
-
-    const numericToken = parseNumericToken(token);
-    if (numericToken !== null) {
-      ordered.push(numericToken);
-      fallbackIndex += 1;
-      continue;
-    }
-
-    const namedToken = parseNamedToken(token);
-    if (namedToken) {
-      ordered.push(namedToken.value);
-      named.set(namedToken.name, namedToken.value);
-      fallbackIndex += 1;
-      continue;
-    }
-
-    const namedValue = mediaIndices.named.get(token);
-    if (namedValue !== undefined) {
-      ordered.push(namedValue);
-      named.set(token, namedValue);
-      fallbackIndex += 1;
-      continue;
-    }
-
-    const positionalValue = mediaIndices.ordered[fallbackIndex];
-    if (positionalValue === undefined) {
+  for (const selector of flattenEndpointSelectors(endpoint)) {
+    const resolvedValue = resolveSelectorFromArtifactIndices(
+      selector,
+      artifactIndices,
+      fallbackIndex
+    );
+    if (resolvedValue === null) {
       return null;
     }
 
-    ordered.push(positionalValue);
-    named.set(token, positionalValue);
+    ordered.push(resolvedValue);
+    if (selector.kind === 'loop') {
+      named.set(selector.symbol, resolvedValue);
+    }
     fallbackIndex += 1;
   }
 
   return { ordered, named };
 }
 
-function materializeInputName(
-  bindingFrom: string,
-  resolved: ResolvedBindingIndices
-): string | null {
-  let positionalIndex = 0;
-  const resolvedName = bindingFrom
-    .replace(/^Input\./, '')
-    .replace(/\[([^\]]+)\]/g, (_full, token: string) => {
-      const numericToken = parseNumericToken(token);
-      if (numericToken !== null) {
-        return `[${numericToken}]`;
-      }
+function flattenEndpointSelectors(endpoint: ProducerBindingEndpoint): BindingSelector[] {
+  const selectors: BindingSelector[] = [];
+  for (const segment of endpoint.segments) {
+    selectors.push(...segment.selectors);
+  }
+  return selectors;
+}
 
-      const namedToken = parseNamedToken(token);
-      if (namedToken) {
-        return `[${namedToken.value}]`;
-      }
+function resolveSelectorFromArtifactIndices(
+  selector: BindingSelector,
+  artifactIndices: IndexLookup,
+  fallbackIndex: number
+): number | null {
+  if (selector.kind === 'const') {
+    return selector.value;
+  }
 
-      const namedValue = resolved.named.get(token);
-      if (namedValue !== undefined) {
-        return `[${namedValue}]`;
-      }
+  const namedValue = artifactIndices.named.get(selector.symbol);
+  if (namedValue !== undefined) {
+    return namedValue + selector.offset;
+  }
 
-      const positionalValue = resolved.ordered[positionalIndex];
-      positionalIndex += 1;
-
-      if (positionalValue === undefined) {
-        return '[unresolved]';
-      }
-
-      return `[${positionalValue}]`;
-    });
-
-  if (resolvedName.includes('[unresolved]')) {
+  const positionalValue = artifactIndices.ordered[fallbackIndex];
+  if (positionalValue === undefined) {
     return null;
   }
 
-  return resolvedName;
+  return positionalValue + selector.offset;
+}
+
+function materializeInputName(
+  endpoint: ProducerBindingEndpoint,
+  resolved: ResolvedBindingIndices
+): string | null {
+  if (endpoint.kind !== 'input') {
+    return null;
+  }
+
+  return materializeEndpointPath(endpoint.segments, resolved);
 }
 
 function materializeSourceArtifactId(
-  bindingFrom: string,
+  endpoint: ProducerBindingEndpoint,
   resolved: ResolvedBindingIndices
 ): string | null {
-  const firstDot = bindingFrom.indexOf('.');
-  if (firstDot === -1) {
+  if (endpoint.kind !== 'producer' || !endpoint.producerName) {
     return null;
   }
 
-  const sourceProducer = extractProducerAlias(bindingFrom);
-  const sourceOutputTemplate = bindingFrom.slice(firstDot + 1);
+  const outputSegments = endpoint.segments.slice(1);
+  if (outputSegments.length === 0) {
+    return null;
+  }
+
+  const outputPath = materializeEndpointPath(outputSegments, resolved);
+  if (!outputPath) {
+    return null;
+  }
+
+  return `Artifact:${endpoint.producerName}.${outputPath}`;
+}
+
+function materializeEndpointPath(
+  segments: ProducerBindingEndpoint['segments'],
+  resolved: ResolvedBindingIndices
+): string | null {
+  const parts: string[] = [];
   let positionalIndex = 0;
 
-  const outputPath = sourceOutputTemplate.replace(
-    /\[([^\]]+)\]/g,
-    (_full, token: string) => {
-      const numericToken = parseNumericToken(token);
-      if (numericToken !== null) {
-        return `[${numericToken}]`;
-      }
-
-      const namedToken = parseNamedToken(token);
-      if (namedToken) {
-        return `[${namedToken.value}]`;
-      }
-
-      const namedValue = resolved.named.get(token);
-      if (namedValue !== undefined) {
-        return `[${namedValue}]`;
-      }
-
-      const positionalValue = resolved.ordered[positionalIndex];
+  for (const segment of segments) {
+    let part = segment.name;
+    for (const selector of segment.selectors) {
+      const resolvedValue = materializeSelectorValue(
+        selector,
+        resolved,
+        positionalIndex
+      );
       positionalIndex += 1;
-
-      if (positionalValue === undefined) {
-        return '[unresolved]';
+      if (resolvedValue === null) {
+        return null;
       }
-
-      return `[${positionalValue}]`;
+      part += `[${resolvedValue}]`;
     }
-  );
-
-  if (outputPath.includes('[unresolved]')) {
-    return null;
+    parts.push(part);
   }
 
-  return `Artifact:${sourceProducer}.${outputPath}`;
+  return parts.join('.');
 }
 
-function parseNumericToken(token: string): number | null {
-  if (!/^\d+$/.test(token)) {
-    return null;
-  }
-  return Number.parseInt(token, 10);
-}
-
-function parseNamedToken(
-  token: string
-): { name: string; value: number } | null {
-  const match = /^(\w+)=(\d+)$/.exec(token);
-  if (!match) {
-    return null;
+function materializeSelectorValue(
+  selector: BindingSelector,
+  resolved: ResolvedBindingIndices,
+  positionalIndex: number
+): number | null {
+  if (selector.kind === 'const') {
+    return selector.value;
   }
 
-  return {
-    name: match[1],
-    value: Number.parseInt(match[2], 10),
-  };
+  const namedValue = resolved.named.get(selector.symbol);
+  if (namedValue !== undefined) {
+    return namedValue + selector.offset;
+  }
+
+  const positionalValue = resolved.ordered[positionalIndex];
+  if (positionalValue === undefined) {
+    return null;
+  }
+
+  return positionalValue + selector.offset;
 }

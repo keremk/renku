@@ -111,6 +111,7 @@ function WorkspaceLayoutInner({
     () => builds.find((b) => b.movieId === selectedBuildId),
     [builds, selectedBuildId]
   );
+  const selectedBuildHasInputs = selectedBuild?.hasInputsFile ?? false;
 
   // Custom hooks for data fetching and panel resizing
   const { producerModels } = useProducerModels({
@@ -135,9 +136,10 @@ function WorkspaceLayoutInner({
     blueprintFolder,
     blueprintPath,
     selectedBuildId,
-    hasInputsFile: selectedBuild?.hasInputsFile ?? false,
+    hasInputsFile: selectedBuildHasInputs,
     catalogRoot,
   });
+  const isInputValuesLoading = selectedBuildHasInputs && buildInputsLoading;
 
   const {
     percent: blueprintFlowPercent,
@@ -270,8 +272,6 @@ function WorkspaceLayoutInner({
 
   // Merge input data from build inputs or manifest
   const effectiveInputData = useMemo<InputTemplateData | null>(() => {
-    const selectedBuildHasInputs = selectedBuild?.hasInputsFile ?? false;
-
     // For editable builds, never fall back to manifest/template values.
     // Wait until build inputs are loaded to avoid writing fallback/template content.
     if (selectedBuildHasInputs) {
@@ -307,7 +307,7 @@ function WorkspaceLayoutInner({
     return inputData;
   }, [
     inputData,
-    selectedBuild,
+    selectedBuildHasInputs,
     selectedBuildManifest,
     parsedBuildInputs,
     hasLoadedInputs,
@@ -535,6 +535,7 @@ function WorkspaceLayoutInner({
                 <DetailPanel
                   graphData={graphData}
                   inputData={effectiveInputData}
+                  isInputValuesLoading={isInputValuesLoading}
                   selectedNodeId={selectedNodeId}
                   movieId={effectiveMovieId}
                   blueprintFolder={blueprintFolder}

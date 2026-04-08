@@ -1,6 +1,19 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { FileText, Loader2, Maximize2, Plus, Trash2 } from 'lucide-react';
-import type { BlueprintInputDef } from '@/types/blueprint-graph';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
+import {
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Loader2,
+  Maximize2,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
+import type {
+  BlueprintInputDef,
+  BlueprintLoopGroup,
+} from '@/types/blueprint-graph';
 import {
   CollapsibleSection,
   MediaCard,
@@ -42,7 +55,10 @@ interface InputValue {
 
 interface InputsPanelProps {
   inputs: BlueprintInputDef[];
-  inputValues: InputValue[];
+  loopGroups?: BlueprintLoopGroup[];
+  managedCountInputs?: string[];
+  inputValues?: InputValue[] | null;
+  isInputValuesLoading?: boolean;
   selectedNodeId: string | null;
   /** Whether inputs are editable (requires buildId) */
   isEditable?: boolean;
@@ -54,9 +70,15 @@ interface InputsPanelProps {
   movieId?: string | null;
 }
 
+const EMPTY_LOOP_GROUPS: BlueprintLoopGroup[] = [];
+const EMPTY_MANAGED_COUNT_INPUTS: string[] = [];
+
 export function InputsPanel({
   inputs,
-  inputValues,
+  loopGroups = EMPTY_LOOP_GROUPS,
+  managedCountInputs = EMPTY_MANAGED_COUNT_INPUTS,
+  inputValues = null,
+  isInputValuesLoading = false,
   selectedNodeId,
   isEditable = false,
   onSave,
@@ -66,7 +88,7 @@ export function InputsPanel({
   // Create a map of input values by name
   const initialValueMap = useMemo(() => {
     const map: Record<string, unknown> = {};
-    for (const iv of inputValues) {
+    for (const iv of inputValues ?? []) {
       map[iv.name] = iv.value;
     }
     return map;
@@ -80,7 +102,13 @@ export function InputsPanel({
   );
   const [internalValues, setInternalValues] =
     useState<Record<string, unknown>>(initialValueMap);
+  const [hydratedInputValueKey, setHydratedInputValueKey] =
+    useState(initialValueKey);
   const [hasUserChanges, setHasUserChanges] = useState(false);
+  const isInputValueSnapshotHydrated =
+    hydratedInputValueKey === initialValueKey;
+  const isInputsPanelLoading =
+    isInputValuesLoading || !isInputValueSnapshotHydrated;
 
   const saveScopeKey = useMemo(() => {
     return `${blueprintFolder ?? 'no-folder'}:${movieId ?? 'no-movie'}`;
@@ -88,8 +116,9 @@ export function InputsPanel({
 
   // Reset internal state when initialValueMap changes
   // Using the serialized key as dependency ensures we only reset on actual data changes
-  useEffect(() => {
+  useLayoutEffect(() => {
     setInternalValues(initialValueMap);
+    setHydratedInputValueKey(initialValueKey);
     setHasUserChanges(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValueKey]);
@@ -137,14 +166,276 @@ export function InputsPanel({
     [inputs]
   );
 
-  // Categorize inputs
-  const categorized = useMemo(
-    () => categorizeInputs(visibleInputs),
+  const inputByName = useMemo(
+    () => new Map(visibleInputs.map((input) => [input.name, input])),
     [visibleInputs]
+  );
+
+  const managedCountInputSet = useMemo(
+    () => new Set(managedCountInputs),
+    [managedCountInputs]
+  );
+
+  const renderableLoopGroups = useMemo(() => {
+    if (isInputsPanelLoading) {
+      return [];
+    }
+
+    return loopGroups
+      .map((group) => {
+        const members = group.members.map((member) => {
+          const input = inputByName.get(member.inputName);
+          if (!input) {
+            throw new Error(
+              `Loop group "${group.groupId}" references missing input "${member.inputName}".`
+            );
+          }
+          return input;
+        });
+
+        return {
+          group,
+          members,
+        };
+      })
+      .filter((entry) => entry.members.length > 0);
+  }, [isInputsPanelLoading, loopGroups, inputByName]);
+
+  const loopGroupModels = useMemo(
+    () =>
+      renderableLoopGroups.map((entry) =>
+        buildLoopGroupRenderModel(entry.group, entry.members, internalValues)
+      ),
+    [renderableLoopGroups, internalValues]
+  );
+
+  const [groupWarnings, setGroupWarnings] = useState<
+    Record<string, LoopGroupWarning>
+  >({});
+  const [dismissedWarnings, setDismissedWarnings] = useState<
+    Record<string, boolean>
+  >({});
+
+  useEffect(() => {
+    setGroupWarnings((previousWarnings) =>
+      Object.keys(previousWarnings).length === 0 ? previousWarnings : {}
+    );
+    setDismissedWarnings((previousDismissed) =>
+      Object.keys(previousDismissed).length === 0 ? previousDismissed : {}
+    );
+  }, [saveScopeKey, loopGroups, initialValueKey]);
+
+  useEffect(() => {
+    if (isInputsPanelLoading) {
+      return;
+    }
+
+    const mismatchedGroups = loopGroupModels.filter(
+      (model) => model.hasMismatch
+    );
+
+    if (mismatchedGroups.length > 0) {
+      setGroupWarnings((previousWarnings): Record<string, LoopGroupWarning> => {
+        const nextWarnings: Record<string, LoopGroupWarning> = {
+          ...previousWarnings,
+        };
+        let hasChanges = false;
+
+        for (const model of mismatchedGroups) {
+          if (dismissedWarnings[model.group.groupId]) {
+            continue;
+          }
+          const nextWarning = buildLoopGroupMismatchWarning(model);
+          const previousWarning = previousWarnings[model.group.groupId];
+          if (
+            !previousWarning ||
+            previousWarning.message !== nextWarning.message ||
+            previousWarning.details !== nextWarning.details
+          ) {
+            nextWarnings[model.group.groupId] = nextWarning;
+            hasChanges = true;
+          }
+        }
+
+        return hasChanges ? nextWarnings : previousWarnings;
+      });
+    }
+
+    if (mismatchedGroups.length === 0) {
+      return;
+    }
+
+    setHasUserChanges(true);
+    setInternalValues((previousValues) =>
+      normalizeLoopGroupValues(previousValues, mismatchedGroups)
+    );
+  }, [isInputsPanelLoading, loopGroupModels, dismissedWarnings]);
+
+  const [groupIndices, setGroupIndices] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (isInputsPanelLoading) {
+      return;
+    }
+    setGroupIndices((previousIndices) => {
+      const nextIndices: Record<string, number> = {};
+      let hasChanges = false;
+      for (const model of loopGroupModels) {
+        const existing = previousIndices[model.group.groupId];
+        if (existing === undefined) {
+          const defaultIndex = Math.max(0, model.length - 1);
+          nextIndices[model.group.groupId] = defaultIndex;
+          hasChanges = true;
+          continue;
+        }
+        const clamped = clamp(existing, 0, model.length - 1);
+        nextIndices[model.group.groupId] = clamped;
+        if (clamped !== existing) {
+          hasChanges = true;
+        }
+      }
+
+      const previousKeys = Object.keys(previousIndices);
+      if (!hasChanges && previousKeys.length !== Object.keys(nextIndices).length) {
+        hasChanges = true;
+      }
+
+      return hasChanges ? nextIndices : previousIndices;
+    });
+  }, [isInputsPanelLoading, loopGroupModels]);
+
+  const groupedInputNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const model of loopGroupModels) {
+      for (const input of model.members) {
+        names.add(input.name);
+      }
+    }
+    return names;
+  }, [loopGroupModels]);
+
+  const ungroupedVisibleInputs = useMemo(
+    () => visibleInputs.filter((input) => !groupedInputNames.has(input.name)),
+    [visibleInputs, groupedInputNames]
+  );
+
+  // Categorize ungrouped inputs only; grouped members are rendered separately.
+  const categorized = useMemo(
+    () => categorizeInputs(ungroupedVisibleInputs),
+    [ungroupedVisibleInputs]
   );
 
   // Determine which input is selected based on node ID
   const selectedInputName = getInputNameFromNodeId(selectedNodeId);
+
+  const handleGroupedItemChange = useCallback(
+    (inputName: string, index: number, value: unknown) => {
+      setHasUserChanges(true);
+      setInternalValues((previousValues) => {
+        const current = getGroupedInputArray(previousValues[inputName], inputName);
+        const next = [...current];
+        while (next.length <= index) {
+          next.push(undefined);
+        }
+        next[index] = value;
+        return {
+          ...previousValues,
+          [inputName]: next,
+        };
+      });
+    },
+    []
+  );
+
+  const handleGroupAdd = useCallback(
+    (model: LoopGroupRenderModel, currentIndex: number) => {
+      if (!isEditable || currentIndex !== model.length - 1) {
+        return;
+      }
+
+      const nextLength = model.length + 1;
+      const nextCount = nextLength - model.group.countInputOffset;
+      if (nextCount < 0) {
+        throw new Error(
+          `Loop group "${model.group.groupId}" produced an invalid next count ${nextCount}.`
+        );
+      }
+
+      setHasUserChanges(true);
+      setInternalValues((previousValues) => {
+        const nextValues = { ...previousValues };
+        for (const member of model.members) {
+          const current = getGroupedInputArray(nextValues[member.name], member.name);
+          nextValues[member.name] = [...current, undefined];
+        }
+        nextValues[model.group.countInput] = nextCount;
+        return nextValues;
+      });
+      setGroupIndices((previousIndices) => ({
+        ...previousIndices,
+        [model.group.groupId]: nextLength - 1,
+      }));
+    },
+    [isEditable]
+  );
+
+  const handleGroupRemove = useCallback(
+    (model: LoopGroupRenderModel, currentIndex: number) => {
+      if (
+        !isEditable ||
+        currentIndex !== model.length - 1 ||
+        model.length <= 1
+      ) {
+        return;
+      }
+
+      const nextLength = model.length - 1;
+      const nextCount = nextLength - model.group.countInputOffset;
+      if (nextCount < 0) {
+        throw new Error(
+          `Loop group "${model.group.groupId}" produced an invalid next count ${nextCount}.`
+        );
+      }
+
+      setHasUserChanges(true);
+      setInternalValues((previousValues) => {
+        const nextValues = { ...previousValues };
+        for (const member of model.members) {
+          const current = getGroupedInputArray(nextValues[member.name], member.name);
+          nextValues[member.name] = current.slice(0, nextLength);
+        }
+        nextValues[model.group.countInput] = nextCount;
+        return nextValues;
+      });
+      setGroupIndices((previousIndices) => ({
+        ...previousIndices,
+        [model.group.groupId]: nextLength - 1,
+      }));
+    },
+    [isEditable]
+  );
+
+  const handleGroupWarningDismiss = useCallback((groupId: string) => {
+    setDismissedWarnings((previous) => ({
+      ...previous,
+      [groupId]: true,
+    }));
+    setGroupWarnings((previous) => {
+      const next = { ...previous };
+      delete next[groupId];
+      return next;
+    });
+  }, []);
+
+  const visibleOtherInputs = useMemo(
+    () =>
+      categorized.other.filter((input) => !managedCountInputSet.has(input.name)),
+    [categorized.other, managedCountInputSet]
+  );
+
+  if (isInputsPanelLoading) {
+    return <InputsPanelLoadingState />;
+  }
 
   if (visibleInputs.length === 0) {
     return (
@@ -161,6 +452,65 @@ export function InputsPanel({
         <div className='flex items-center gap-2 text-xs text-muted-foreground'>
           <Loader2 className='size-3 animate-spin' />
           <span>Saving...</span>
+        </div>
+      )}
+
+      {/* Loop-grouped indexed inputs */}
+      {loopGroupModels.length > 0 && (
+        <div className='space-y-6'>
+          {loopGroupModels.map((model) => {
+            const currentIndex = clamp(
+              groupIndices[model.group.groupId] ?? model.length - 1,
+              0,
+              model.length - 1
+            );
+            const canMutateAtCurrentIndex =
+              isEditable && currentIndex === model.length - 1;
+            const isSelected = model.members.some(
+              (input) => input.name === selectedInputName
+            );
+
+            return (
+              <LoopGroupedInputSection
+                key={model.group.groupId}
+                model={model}
+                currentIndex={currentIndex}
+                isEditable={isEditable}
+                canMutateAtCurrentIndex={canMutateAtCurrentIndex}
+                warning={groupWarnings[model.group.groupId]}
+                onDismissWarning={() =>
+                  handleGroupWarningDismiss(model.group.groupId)
+                }
+                onNavigatePrevious={() =>
+                  setGroupIndices((previousIndices) => ({
+                    ...previousIndices,
+                    [model.group.groupId]: clamp(
+                      currentIndex - 1,
+                      0,
+                      model.length - 1
+                    ),
+                  }))
+                }
+                onNavigateNext={() =>
+                  setGroupIndices((previousIndices) => ({
+                    ...previousIndices,
+                    [model.group.groupId]: clamp(
+                      currentIndex + 1,
+                      0,
+                      model.length - 1
+                    ),
+                  }))
+                }
+                onAdd={() => handleGroupAdd(model, currentIndex)}
+                onRemoveLast={() => handleGroupRemove(model, currentIndex)}
+                onMemberValueChange={handleGroupedItemChange}
+                isSelected={isSelected}
+                blueprintFolder={blueprintFolder}
+                movieId={movieId}
+                currentValues={internalValues}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -239,14 +589,14 @@ export function InputsPanel({
       )}
 
       {/* Other inputs - single section for all */}
-      {categorized.other.length > 0 && (
+      {visibleOtherInputs.length > 0 && (
         <CollapsibleSection
           title='Other Inputs'
-          count={categorized.other.length}
+          count={visibleOtherInputs.length}
           defaultOpen
         >
           <div className='space-y-4'>
-            {categorized.other.map((input) => {
+            {visibleOtherInputs.map((input) => {
               const value = getValue(input.name);
               const isSelected = selectedInputName === input.name;
 
@@ -267,6 +617,411 @@ export function InputsPanel({
         </CollapsibleSection>
       )}
     </div>
+  );
+}
+
+interface LoopGroupRenderModel {
+  group: BlueprintLoopGroup;
+  members: BlueprintInputDef[];
+  memberLengths: Record<string, number>;
+  length: number;
+  currentCount: number;
+  expectedCount: number;
+  hasMismatch: boolean;
+}
+
+interface LoopGroupWarning {
+  message: string;
+  details: string;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getGroupedInputArray(value: unknown, inputName: string): unknown[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value;
+  }
+  throw new Error(
+    `Loop-grouped input "${inputName}" must be an array value. Received ${typeof value}.`
+  );
+}
+
+function buildLoopGroupRenderModel(
+  group: BlueprintLoopGroup,
+  members: BlueprintInputDef[],
+  values: Record<string, unknown>
+): LoopGroupRenderModel {
+  const memberLengths: Record<string, number> = {};
+  let maxMemberLength = 0;
+
+  for (const member of members) {
+    const memberLength = getGroupedInputArray(values[member.name], member.name)
+      .length;
+    memberLengths[member.name] = memberLength;
+    if (memberLength > maxMemberLength) {
+      maxMemberLength = memberLength;
+    }
+  }
+
+  const currentCountValue = values[group.countInput];
+  if (typeof currentCountValue !== 'number' && currentCountValue !== undefined) {
+    throw new Error(
+      `Managed loop counter "${group.countInput}" must be a number.`
+    );
+  }
+  const currentCount =
+    typeof currentCountValue === 'number' ? currentCountValue : 0;
+  const countDrivenLength = currentCount + group.countInputOffset;
+
+  const length = Math.max(1, maxMemberLength, countDrivenLength);
+  const expectedCount = length - group.countInputOffset;
+  if (expectedCount < 0) {
+    throw new Error(
+      `Managed loop counter "${group.countInput}" resolved to negative count ${expectedCount}.`
+    );
+  }
+
+  const hasLengthMismatch = members.some(
+    (member) => memberLengths[member.name] !== length
+  );
+  const hasCountMismatch = currentCount !== expectedCount;
+
+  return {
+    group,
+    members,
+    memberLengths,
+    length,
+    currentCount,
+    expectedCount,
+    hasMismatch: hasLengthMismatch || hasCountMismatch,
+  };
+}
+
+function normalizeLoopGroupValues(
+  values: Record<string, unknown>,
+  models: LoopGroupRenderModel[]
+): Record<string, unknown> {
+  let hasChanges = false;
+  const nextValues: Record<string, unknown> = { ...values };
+
+  for (const model of models) {
+    for (const member of model.members) {
+      const current = getGroupedInputArray(nextValues[member.name], member.name);
+      if (current.length === model.length) {
+        continue;
+      }
+      hasChanges = true;
+      if (current.length > model.length) {
+        nextValues[member.name] = current.slice(0, model.length);
+        continue;
+      }
+      nextValues[member.name] = [
+        ...current,
+        ...Array(model.length - current.length).fill(undefined),
+      ];
+    }
+
+    if (nextValues[model.group.countInput] !== model.expectedCount) {
+      hasChanges = true;
+      nextValues[model.group.countInput] = model.expectedCount;
+    }
+  }
+
+  return hasChanges ? nextValues : values;
+}
+
+function buildLoopGroupMismatchWarning(model: LoopGroupRenderModel): LoopGroupWarning {
+  const lengthsSummary = model.members
+    .map((member) => `${member.name}: ${model.memberLengths[member.name] ?? 0}`)
+    .join(', ');
+
+  const itemLabel = model.length === 1 ? 'item' : 'items';
+  const countChangeText =
+    model.currentCount === model.expectedCount
+      ? `${model.group.countInput} stayed at ${model.expectedCount}`
+      : `${model.group.countInput} changed from ${model.currentCount} to ${model.expectedCount}`;
+
+  return {
+    message: `We synchronized grouped inputs to ${model.length} ${itemLabel} so each index lines up across this section (${countChangeText}).`,
+    details: `Group ${model.group.groupId}: normalized to length ${model.length}; member lengths { ${lengthsSummary} }; ${model.group.countInput}: ${model.currentCount} -> ${model.expectedCount}.`,
+  };
+}
+
+function InputsPanelLoadingState() {
+  return (
+    <div className='space-y-4'>
+      <div className='text-muted-foreground text-sm'>Loading inputs...</div>
+      <div className='rounded-xl border border-border bg-card px-4 py-3 animate-pulse'>
+        <div className='h-4 w-2/3 rounded bg-muted/50' />
+      </div>
+      <div className='rounded-xl border border-border bg-card px-4 py-3 animate-pulse'>
+        <div className='h-4 w-1/2 rounded bg-muted/50' />
+      </div>
+    </div>
+  );
+}
+
+function getLoopGroupTitle(members: BlueprintInputDef[]): string {
+  const hasMedia = members.some(
+    (input) => getMediaTypeFromInput(input.type, input.itemType) !== null
+  );
+  const hasTextArray = members.some(
+    (input) => input.type === 'array' && input.itemType === 'text'
+  );
+
+  if (hasTextArray && !hasMedia) {
+    return 'Text Inputs';
+  }
+  if (hasMedia && !hasTextArray) {
+    return 'Media Inputs';
+  }
+  if (hasMedia && hasTextArray) {
+    return 'Text & Media Inputs';
+  }
+  return 'Loop Inputs';
+}
+
+interface LoopGroupedInputSectionProps {
+  model: LoopGroupRenderModel;
+  currentIndex: number;
+  isEditable: boolean;
+  canMutateAtCurrentIndex: boolean;
+  warning?: LoopGroupWarning;
+  onDismissWarning: () => void;
+  onNavigatePrevious: () => void;
+  onNavigateNext: () => void;
+  onAdd: () => void;
+  onRemoveLast: () => void;
+  onMemberValueChange: (inputName: string, index: number, value: unknown) => void;
+  isSelected: boolean;
+  blueprintFolder: string | null;
+  movieId: string | null;
+  currentValues: Record<string, unknown>;
+}
+
+function LoopGroupedInputSection({
+  model,
+  currentIndex,
+  isEditable,
+  canMutateAtCurrentIndex,
+  warning,
+  onDismissWarning,
+  onNavigatePrevious,
+  onNavigateNext,
+  onAdd,
+  onRemoveLast,
+  onMemberValueChange,
+  isSelected,
+  blueprintFolder,
+  movieId,
+  currentValues,
+}: LoopGroupedInputSectionProps) {
+  const title = getLoopGroupTitle(model.members);
+  const canNavigatePrevious = currentIndex > 0;
+  const canNavigateNext = currentIndex < model.length - 1;
+
+  return (
+    <CollapsibleSection
+      title={title}
+      count={model.members.length}
+      defaultOpen
+      className={getSectionHighlightStyles(isSelected, 'primary')}
+      actions={
+        <span className='text-2xl font-semibold tracking-tight text-muted-foreground'>
+          {currentIndex + 1}
+        </span>
+      }
+    >
+      <div className='space-y-4'>
+        {warning && (
+          <div className='flex items-start gap-2 rounded-md border border-amber-500/45 bg-amber-500/14 px-3 py-2 text-xs text-amber-700 dark:text-amber-300'>
+            <AlertTriangle className='mt-0.5 size-4 shrink-0' />
+            <div className='flex-1 leading-relaxed'>
+              <p>{warning.message}</p>
+              <details className='mt-1 text-[11px]'>
+                <summary className='cursor-pointer text-amber-700/90 hover:text-amber-800 dark:text-amber-300/90 dark:hover:text-amber-200'>
+                  Details
+                </summary>
+                <p className='mt-1 break-words font-mono text-amber-700/90 dark:text-amber-300/90'>
+                  {warning.details}
+                </p>
+              </details>
+            </div>
+            <button
+              type='button'
+              onClick={onDismissWarning}
+              className='inline-flex size-5 items-center justify-center rounded text-amber-700/80 transition-colors hover:bg-amber-500/20 hover:text-amber-800 dark:text-amber-300/80 dark:hover:text-amber-200'
+              aria-label='Dismiss loop normalization warning'
+            >
+              <X className='size-3.5' />
+            </button>
+          </div>
+        )}
+
+        <MediaGrid>
+          {model.members.map((input) => {
+            const mediaType = getMediaTypeFromInput(input.type, input.itemType);
+            const memberArray = getGroupedInputArray(
+              currentValues[input.name],
+              input.name
+            );
+            const indexedValue = memberArray[currentIndex];
+
+            if (mediaType) {
+              return (
+                <MediaInputItemCard
+                  key={`${model.group.groupId}-${input.name}`}
+                  input={input}
+                  value={memberArray}
+                  onChange={(nextValue) => {
+                    if (!Array.isArray(nextValue)) {
+                      throw new Error(
+                        `Grouped media input "${input.name}" must resolve to an array value.`
+                      );
+                    }
+                    onMemberValueChange(
+                      input.name,
+                      currentIndex,
+                      nextValue[currentIndex]
+                    );
+                  }}
+                  isEditable={isEditable}
+                  blueprintFolder={blueprintFolder}
+                  movieId={movieId}
+                  mediaType={mediaType}
+                  arrayIndex={currentIndex}
+                  allowRemove={false}
+                  showArrayIndexInLabel={false}
+                />
+              );
+            }
+
+            if (input.type === 'array' && input.itemType === 'text') {
+              return (
+                <TextCard
+                  key={`${model.group.groupId}-${input.name}`}
+                  label={input.name}
+                  description={input.description}
+                  value={String(indexedValue ?? '')}
+                  onChange={(nextValue) =>
+                    onMemberValueChange(input.name, currentIndex, nextValue)
+                  }
+                  isEditable={isEditable}
+                  sizing='aspect'
+                  dialogPreset='input-edit'
+                />
+              );
+            }
+
+            const scalarInput: BlueprintInputDef = {
+              ...input,
+              type: input.itemType ?? 'string',
+              itemType: undefined,
+            };
+
+            return (
+              <GroupedIndexedOtherInputCard
+                key={`${model.group.groupId}-${input.name}`}
+                input={scalarInput}
+                value={indexedValue}
+                isEditable={isEditable}
+                onChange={(nextValue) =>
+                  onMemberValueChange(input.name, currentIndex, nextValue)
+                }
+              />
+            );
+          })}
+        </MediaGrid>
+
+        <div className='flex items-center justify-end gap-2'>
+          <button
+            type='button'
+            onClick={onRemoveLast}
+            disabled={!canMutateAtCurrentIndex || model.length <= 1}
+            className='size-8 inline-flex items-center justify-center rounded-md border border-border/50 bg-background/70 text-muted-foreground shadow-sm transition-colors hover:bg-item-hover-bg hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40'
+            aria-label='Remove last loop index'
+            title='Remove last index'
+          >
+            <Trash2 className='size-4' />
+          </button>
+
+          <button
+            type='button'
+            onClick={onNavigatePrevious}
+            disabled={!canNavigatePrevious}
+            className='size-8 inline-flex items-center justify-center rounded-md border border-border/50 bg-background/70 text-muted-foreground shadow-sm transition-colors hover:bg-item-hover-bg hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40'
+            aria-label='Previous loop index'
+            title='Previous index'
+          >
+            <ChevronLeft className='size-4' />
+          </button>
+
+          <button
+            type='button'
+            onClick={onNavigateNext}
+            disabled={!canNavigateNext}
+            className='size-8 inline-flex items-center justify-center rounded-md border border-border/50 bg-background/70 text-muted-foreground shadow-sm transition-colors hover:bg-item-hover-bg hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40'
+            aria-label='Next loop index'
+            title='Next index'
+          >
+            <ChevronRight className='size-4' />
+          </button>
+
+          <button
+            type='button'
+            onClick={onAdd}
+            disabled={!canMutateAtCurrentIndex}
+            className='size-8 inline-flex items-center justify-center rounded-md border border-border/50 bg-background/70 text-muted-foreground shadow-sm transition-colors hover:bg-item-hover-bg hover:text-primary disabled:cursor-not-allowed disabled:opacity-40'
+            aria-label='Add loop index'
+            title='Add index'
+          >
+            <Plus className='size-4' />
+          </button>
+        </div>
+      </div>
+    </CollapsibleSection>
+  );
+}
+
+interface GroupedIndexedOtherInputCardProps {
+  input: BlueprintInputDef;
+  value: unknown;
+  isEditable: boolean;
+  onChange: (value: unknown) => void;
+}
+
+function GroupedIndexedOtherInputCard({
+  input,
+  value,
+  isEditable,
+  onChange,
+}: GroupedIndexedOtherInputCardProps) {
+  const editorProps: InputEditorProps = {
+    input,
+    value,
+    onChange,
+    isEditable,
+  };
+
+  return (
+    <PropertyRow
+      name={input.name}
+      type={input.type}
+      description={input.description}
+      required={input.required}
+      isSelected={false}
+    >
+      {input.type === 'resolution' ? (
+        <ResolutionEditor {...editorProps} />
+      ) : (
+        <DefaultTextEditor {...editorProps} />
+      )}
+    </PropertyRow>
   );
 }
 
@@ -435,6 +1190,8 @@ interface MediaInputItemCardProps {
   mediaType: MediaType;
   arrayIndex?: number;
   onRemoveArrayItem?: (index: number) => void;
+  allowRemove?: boolean;
+  showArrayIndexInLabel?: boolean;
 }
 
 function MediaInputItemCard({
@@ -447,6 +1204,8 @@ function MediaInputItemCard({
   mediaType,
   arrayIndex,
   onRemoveArrayItem,
+  allowRemove = true,
+  showArrayIndexInLabel = true,
 }: MediaInputItemCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -498,10 +1257,12 @@ function MediaInputItemCard({
   }, [arrayIndex, onRemoveArrayItem, onChange]);
 
   const isArray = input.type === 'array';
-  const canRemove = isArray && arrayIndex !== undefined;
+  const canRemove = isArray && arrayIndex !== undefined && allowRemove;
   const isDisabled = !blueprintFolder || !movieId;
   const label =
-    arrayIndex !== undefined ? `${input.name}[${arrayIndex}]` : input.name;
+    arrayIndex !== undefined && showArrayIndexInLabel
+      ? `${input.name}[${arrayIndex}]`
+      : input.name;
 
   // No file - show placeholder
   if (!fileUrl) {

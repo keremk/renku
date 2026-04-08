@@ -26,6 +26,7 @@ type TimelineStatus = 'idle' | 'loading' | 'success' | 'error';
 interface DetailPanelProps {
   graphData: BlueprintGraphData;
   inputData: InputTemplateData | null;
+  isInputValuesLoading?: boolean;
   selectedNodeId: string | null;
   movieId: string | null;
   blueprintFolder: string | null;
@@ -89,6 +90,7 @@ interface DetailPanelProps {
 export function DetailPanel({
   graphData,
   inputData,
+  isInputValuesLoading = false,
   selectedNodeId,
   movieId,
   blueprintFolder,
@@ -206,7 +208,10 @@ export function DetailPanel({
         {activeTab === 'inputs' && (
           <InputsPanel
             inputs={graphData.inputs}
-            inputValues={inputData?.inputs ?? []}
+            loopGroups={graphData.loopGroups}
+            managedCountInputs={graphData.managedCountInputs}
+            inputValues={inputData?.inputs}
+            isInputValuesLoading={isInputValuesLoading}
             selectedNodeId={selectedNodeId}
             isEditable={isInputsEditable}
             onSave={onSaveInputs}
