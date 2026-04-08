@@ -4,6 +4,7 @@ import {
   validateBlueprintTree,
   validateConnectionEndpoints,
   validateProducerInputOutput,
+  validateInputCountInputs,
   validateLoopCountInputs,
   validateArtifactCountInputs,
   validateConditionPaths,
@@ -312,6 +313,51 @@ describe('validateLoopCountInputs', () => {
   });
 });
 
+describe('validateInputCountInputs', () => {
+  it('validates input countInput references exist', () => {
+    const doc = createDocument({
+      inputs: [
+        {
+          name: 'CharacterDescriptions',
+          type: 'array',
+          itemType: 'string',
+          required: true,
+          countInput: 'InvalidCountInput',
+        },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateInputCountInputs(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.INPUT_COUNTINPUT_NOT_FOUND,
+        message: expect.stringContaining('InvalidCountInput'),
+      })
+    );
+  });
+
+  it('accepts system inputs as input countInput', () => {
+    const doc = createDocument({
+      inputs: [
+        {
+          name: 'ScenePrompts',
+          type: 'array',
+          itemType: 'text',
+          required: true,
+          countInput: 'NumOfSegments',
+        },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateInputCountInputs(tree);
+
+    expect(issues).toHaveLength(0);
+  });
+});
+
 describe('validateArtifactCountInputs', () => {
   it('validates artifact countInput references exist', () => {
     const doc = createDocument({
@@ -569,6 +615,38 @@ describe('findUnusedInputs', () => {
     const issues = findUnusedInputs(tree);
 
     expect(issues).toHaveLength(0);
+  });
+
+  it('does not report inputs used in input countInput', () => {
+    const doc = createDocument({
+      inputs: [
+        {
+          name: 'CharacterDescriptions',
+          type: 'array',
+          itemType: 'text',
+          required: true,
+          countInput: 'NumOfCharacters',
+        },
+        { name: 'NumOfCharacters', type: 'number', required: true },
+      ],
+      artefacts: [{ name: 'Output', type: 'string', required: true }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = findUnusedInputs(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.UNUSED_INPUT,
+        message: expect.stringContaining('CharacterDescriptions'),
+      })
+    );
+    expect(issues).not.toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.UNUSED_INPUT,
+        message: expect.stringContaining('NumOfCharacters'),
+      })
+    );
   });
 
   it('emits a targeted warning for unused count-style inputs', () => {

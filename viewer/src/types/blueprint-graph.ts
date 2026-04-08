@@ -49,6 +49,7 @@ export interface BlueprintInputDef {
   required: boolean;
   description?: string;
   itemType?: string;
+  countInput?: string;
   system?: BlueprintInputSystemMeta;
 }
 

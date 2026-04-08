@@ -42,6 +42,7 @@ export function validateBlueprintTree(
   // Run all hard error validators
   issues.push(...validateConnectionEndpoints(tree));
   issues.push(...validateProducerInputOutput(tree));
+  issues.push(...validateInputCountInputs(tree));
   issues.push(...validateLoopCountInputs(tree));
   issues.push(...validateArtifactCountInputs(tree));
   issues.push(...validateConditionPaths(tree));
@@ -426,6 +427,51 @@ export function validateProducerInputOutput(
             );
           }
         }
+      }
+    }
+
+    // Recursively validate children
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
+// ============================================================================
+// Input countInput Validation
+// ============================================================================
+
+/**
+ * Validates that input countInput references exist as inputs or system inputs.
+ */
+export function validateInputCountInputs(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateTree(node: BlueprintTreeNode): void {
+    const inputNames = getDeclaredInputNames(node);
+
+    for (const input of node.document.inputs) {
+      if (!input.countInput) {
+        continue;
+      }
+      if (!inputNames.has(input.countInput)) {
+        issues.push(
+          createError(
+            ValidationErrorCode.INPUT_COUNTINPUT_NOT_FOUND,
+            `Input "${input.name}" references unknown countInput "${input.countInput}"`,
+            {
+              filePath: node.sourcePath,
+              namespacePath: node.namespacePath,
+              context: `input "${input.name}"`,
+            },
+            `Declare "${input.countInput}" in inputs[] or use a system input (${Array.from(SYSTEM_INPUT_NAMES).join(', ')})`
+          )
+        );
       }
     }
 
@@ -1023,6 +1069,13 @@ export function findUnusedInputs(tree: BlueprintTreeNode): ValidationIssue[] {
       }
     }
 
+    // Collect from input countInputs
+    for (const input of node.document.inputs) {
+      if (input.countInput) {
+        usedInputs.add(input.countInput);
+      }
+    }
+
     // Find unused inputs
     for (const input of node.document.inputs) {
       if (!usedInputs.has(input.name) && !SYSTEM_INPUT_NAMES.has(input.name)) {
@@ -1063,7 +1116,7 @@ function buildUnusedInputWarning(inputName: string): {
         `This count-style input looks unnecessary and should be removed.`,
       suggestion:
         `Remove "${inputName}" from blueprint inputs/template, or wire it into ` +
-        `loops[].countInput, artifacts[].countInput, artifacts[].arrays[].countInput, or a connection.`,
+        `inputs[].countInput, loops[].countInput, artifacts[].countInput, artifacts[].arrays[].countInput, or a connection.`,
     };
   }
 

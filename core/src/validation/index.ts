@@ -29,6 +29,7 @@ export {
   // Individual validators (exported for testing)
   validateConnectionEndpoints,
   validateProducerInputOutput,
+  validateInputCountInputs,
   validateLoopCountInputs,
   validateArtifactCountInputs,
   validateConditionPaths,

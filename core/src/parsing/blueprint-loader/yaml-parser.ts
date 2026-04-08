@@ -416,6 +416,14 @@ function parseInput(raw: unknown): BlueprintInputDefinition {
     typeof input.description === 'string' ? input.description : undefined;
   const itemType =
     typeof input.itemType === 'string' ? input.itemType : undefined;
+  const countInput =
+    typeof input.countInput === 'string' ? input.countInput : undefined;
+  if (countInput && type !== 'array') {
+    throw createParserError(
+      ParserErrorCode.INVALID_COUNTINPUT_CONFIG,
+      `Input "${name}" declares countInput but is not an array.`
+    );
+  }
   // Note: default values are no longer parsed here - model JSON schemas are the source of truth
   return {
     name,
@@ -424,6 +432,7 @@ function parseInput(raw: unknown): BlueprintInputDefinition {
     description,
     fanIn: input.fanIn === true,
     itemType,
+    countInput,
   };
 }
 

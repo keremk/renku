@@ -173,9 +173,9 @@ describe('viewer-parse-projection loop grouping', () => {
       (group) => group.primaryDimension === 'character'
     );
     expect(characterGroup).toBeDefined();
-    expect(characterGroup?.members.map((member) => member.inputName)).toEqual([
-      'CharacterImagePrompt',
-    ]);
+    expect(characterGroup?.members.map((member) => member.inputName)).toEqual(
+      expect.arrayContaining(['CharacterDescriptions', 'CharacterImagePrompt'])
+    );
 
     expect(graph.managedCountInputs).toEqual(
       expect.arrayContaining(['NumOfCharacters', 'NumOfSegments'])

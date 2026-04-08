@@ -65,6 +65,7 @@ export interface BlueprintParseInputDef {
   required: boolean;
   description?: string;
   itemType?: string;
+  countInput?: string;
   system?: {
     kind: SystemInputKind;
     userSupplied: boolean;
@@ -521,6 +522,7 @@ function toGraphInputDefinition(
     required: input.required,
     description: input.description,
     itemType: input.itemType,
+    countInput: input.countInput,
     ...(system ? { system } : {}),
   };
 }
@@ -569,6 +571,16 @@ function collectReferencedSystemInputs(root: BlueprintTreeNode): SystemInputName
     const artifactCountInput = parseReferenceName(artifact.countInput);
     if (artifactCountInput && isSystemInputName(artifactCountInput)) {
       referenced.add(artifactCountInput);
+    }
+  }
+
+  for (const input of root.document.inputs) {
+    if (!input.countInput) {
+      continue;
+    }
+    const inputCountInput = parseReferenceName(input.countInput);
+    if (inputCountInput && isSystemInputName(inputCountInput)) {
+      referenced.add(inputCountInput);
     }
   }
 
@@ -780,6 +792,66 @@ function deriveLoopGroups(args: {
   >();
   const memberGroupIndex = new Map<string, string>();
 
+  const addInputToGroup = (args: {
+    inputName: string;
+    countInput: string;
+    countInputOffset?: number;
+    primaryDimension?: string;
+    sourceContext: string;
+  }): void => {
+    const countInputDef = inputDefsByName.get(args.countInput);
+    if (!countInputDef) {
+      throw createRuntimeError(
+        RuntimeErrorCode.LOOP_GROUP_DERIVATION_ERROR,
+        `Cannot derive loop input group from ${args.sourceContext}. Count input "${args.countInput}" is missing from parse input definitions.`
+      );
+    }
+
+    const existingGroup = groups.get(args.countInput);
+    const resolvedOffset =
+      args.countInputOffset ?? existingGroup?.countInputOffset ?? 0;
+
+    if (
+      existingGroup &&
+      existingGroup.countInputOffset !== resolvedOffset
+    ) {
+      throw createRuntimeError(
+        RuntimeErrorCode.LOOP_GROUP_DERIVATION_ERROR,
+        `Cannot derive loop input group for "${args.inputName}" from ${args.sourceContext}. Count input "${args.countInput}" maps to conflicting offsets (${existingGroup.countInputOffset} and ${resolvedOffset}).`
+      );
+    }
+
+    const groupId = existingGroup?.groupId ?? `LoopGroup:${args.countInput}:${resolvedOffset}`;
+    const nextPrimaryDimension =
+      args.primaryDimension ?? existingGroup?.primaryDimension ?? args.countInput;
+    const group = existingGroup ?? {
+      groupId,
+      primaryDimension: nextPrimaryDimension,
+      countInput: args.countInput,
+      countInputOffset: resolvedOffset,
+      members: new Set<string>(),
+    };
+
+    if (
+      args.primaryDimension &&
+      group.primaryDimension === group.countInput
+    ) {
+      group.primaryDimension = args.primaryDimension;
+    }
+
+    const previousGroupId = memberGroupIndex.get(args.inputName);
+    if (previousGroupId && previousGroupId !== groupId) {
+      throw createRuntimeError(
+        RuntimeErrorCode.LOOP_GROUP_AMBIGUOUS_INPUT,
+        `Input "${args.inputName}" maps to multiple loop groups ("${previousGroupId}" and "${groupId}"). Resolve blueprint loop bindings so each input maps to one primary loop group.`
+      );
+    }
+
+    memberGroupIndex.set(args.inputName, groupId);
+    group.members.add(args.inputName);
+    groups.set(args.countInput, group);
+  };
+
   for (const producerNode of args.producerNodes) {
     const bindings = producerNode.inputBindings ?? [];
     for (const binding of bindings) {
@@ -826,28 +898,32 @@ function deriveLoopGroups(args: {
         );
       }
 
-      const countInputOffset = loopDefinition.countInputOffset ?? 0;
-      const groupId = `LoopGroup:${primarySelector.symbol}:${loopDefinition.countInput}:${countInputOffset}`;
-      const existingGroup = groups.get(groupId) ?? {
-        groupId,
-        primaryDimension: primarySelector.symbol,
+      addInputToGroup({
+        inputName,
         countInput: loopDefinition.countInput,
-        countInputOffset,
-        members: new Set<string>(),
-      };
-
-      const previousGroupId = memberGroupIndex.get(inputName);
-      if (previousGroupId && previousGroupId !== groupId) {
-        throw createRuntimeError(
-          RuntimeErrorCode.LOOP_GROUP_AMBIGUOUS_INPUT,
-          `Input "${inputName}" maps to multiple loop groups ("${previousGroupId}" and "${groupId}"). Resolve blueprint loop bindings so each input maps to one primary loop group.`
-        );
-      }
-
-      memberGroupIndex.set(inputName, groupId);
-      existingGroup.members.add(inputName);
-      groups.set(groupId, existingGroup);
+        countInputOffset: loopDefinition.countInputOffset ?? 0,
+        primaryDimension: primarySelector.symbol,
+        sourceContext: `binding "${binding.from}" -> "${binding.to}"`,
+      });
     }
+  }
+
+  for (const inputDef of args.inputDefs) {
+    if (!inputDef.countInput) {
+      continue;
+    }
+    if (inputDef.type !== 'array') {
+      throw createRuntimeError(
+        RuntimeErrorCode.LOOP_GROUP_INVALID_INPUT,
+        `Input "${inputDef.name}" declares countInput "${inputDef.countInput}" but is declared as "${inputDef.type}". Count-managed grouped inputs must use array type.`
+      );
+    }
+
+    addInputToGroup({
+      inputName: inputDef.name,
+      countInput: inputDef.countInput,
+      sourceContext: `input definition "${inputDef.name}"`,
+    });
   }
 
   const loopGroups = Array.from(groups.values())

@@ -213,6 +213,8 @@ export interface BlueprintInputDefinition {
   fanIn?: boolean;
   /** For array types, the type of items in the array */
   itemType?: string;
+  /** Optional count input that governs array cardinality */
+  countInput?: string;
 }
 
 /**

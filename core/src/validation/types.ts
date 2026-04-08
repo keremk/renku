@@ -88,6 +88,7 @@ export const ValidationErrorCode = {
 
   // Artifact validation errors (V030)
   ARTIFACT_COUNTINPUT_NOT_FOUND: 'V030',
+  INPUT_COUNTINPUT_NOT_FOUND: 'V031',
 
   // Condition validation errors (V050)
   CONDITION_PATH_INVALID: 'V050',

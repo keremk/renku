@@ -336,6 +336,60 @@ models:
     expect(imagePrompts?.countInputOffset).toBe(1);
   });
 
+  it('parses countInput for array inputs', async () => {
+    const reader = {
+      readFile: async () => `
+meta:
+  id: InputCountInputParsing
+  name: Input CountInput Parsing
+inputs:
+  - name: CharacterDescriptions
+    type: array
+    itemType: text
+    countInput: NumOfCharacters
+artifacts:
+  - name: Output
+    type: string
+`,
+    };
+
+    const document = await parseYamlBlueprintFile('/virtual/input-count.yaml', {
+      reader,
+    });
+
+    expect(document.inputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'CharacterDescriptions',
+          type: 'array',
+          itemType: 'text',
+          countInput: 'NumOfCharacters',
+        }),
+      ])
+    );
+  });
+
+  it('rejects countInput on non-array inputs', async () => {
+    const reader = {
+      readFile: async () => `
+meta:
+  id: InvalidInputCountInput
+  name: Invalid Input CountInput
+inputs:
+  - name: NumOfCharacters
+    type: int
+    countInput: NumOfSegments
+artifacts:
+  - name: Output
+    type: string
+`,
+    };
+
+    await expect(
+      parseYamlBlueprintFile('/virtual/invalid-input-count.yaml', { reader })
+    ).rejects.toThrow(/declares countInput but is not an array/i);
+  });
+
   it('normalizes connection references into canonical edge notation', async () => {
     const blueprintPath = resolve(
       TEST_FIXTURES_ROOT,

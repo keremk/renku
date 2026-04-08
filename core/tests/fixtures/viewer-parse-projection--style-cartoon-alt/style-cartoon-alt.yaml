@@ -3,6 +3,11 @@ meta:
   name: Viewer Parse Style Cartoon Alt
 
 inputs:
+  - name: CharacterDescriptions
+    type: array
+    itemType: text
+    required: true
+    countInput: NumOfCharacters
   - name: CharacterImagePrompt
     type: array
     itemType: text
