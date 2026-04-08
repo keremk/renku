@@ -72,6 +72,55 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 		expect(result.edgeCount).toBeGreaterThan(0);
 	});
 
+	it('returns a warning for unused count-style inputs', async () => {
+		const tempDir = await mkdtemp(join(tmpdir(), 'renku-unused-count-input-'));
+		const blueprintPath = join(tempDir, 'unused-count-input.yaml');
+
+		try {
+			await writeFile(
+				blueprintPath,
+				[
+					'meta:',
+					'  name: Unused Count Input',
+					'  id: UnusedCountInput',
+					'  kind: blueprint',
+					'  version: 0.1.0',
+					'inputs:',
+					'  - name: Topic',
+					'    type: string',
+					'    required: true',
+					'  - name: NumOfStyleImages',
+					'    type: int',
+					'    required: false',
+					'artifacts:',
+					'  - name: Script',
+					'    type: string',
+					'    required: true',
+					'connections:',
+					'  - from: Topic',
+					'    to: Script',
+					'',
+				].join('\n'),
+				'utf8'
+			);
+
+			const result = await runBlueprintsValidate({ blueprintPath });
+
+			expect(result.valid).toBe(true);
+			expect(result.warnings?.length).toBeGreaterThan(0);
+			expect(
+				result.warnings?.some(
+					(warning) =>
+						warning.code === 'W001' &&
+						warning.message.includes('NumOfStyleImages') &&
+						warning.message.includes('should be removed')
+				)
+			).toBe(true);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it('generates dry-run profile files with boolean/enum/number hints and uses them with generate --dry-run', async () => {
 		const fixtureRoot = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'scene-character-reference-routing');
 		const blueprintPath = resolve(

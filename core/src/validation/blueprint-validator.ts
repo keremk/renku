@@ -1026,16 +1026,17 @@ export function findUnusedInputs(tree: BlueprintTreeNode): ValidationIssue[] {
     // Find unused inputs
     for (const input of node.document.inputs) {
       if (!usedInputs.has(input.name) && !SYSTEM_INPUT_NAMES.has(input.name)) {
+        const warningText = buildUnusedInputWarning(input.name);
         issues.push(
           createWarning(
             ValidationErrorCode.UNUSED_INPUT,
-            `Input "${input.name}" is declared but never referenced`,
+            warningText.message,
             {
               filePath: node.sourcePath,
               namespacePath: node.namespacePath,
               context: `input "${input.name}"`,
             },
-            `Remove the input declaration or add a connection using it`
+            warningText.suggestion
           )
         );
       }
@@ -1049,6 +1050,31 @@ export function findUnusedInputs(tree: BlueprintTreeNode): ValidationIssue[] {
 
   validateTree(tree);
   return issues;
+}
+
+function buildUnusedInputWarning(inputName: string): {
+  message: string;
+  suggestion: string;
+} {
+  if (isCountStyleInputName(inputName)) {
+    return {
+      message:
+        `Input "${inputName}" is declared but never referenced. ` +
+        `This count-style input looks unnecessary and should be removed.`,
+      suggestion:
+        `Remove "${inputName}" from blueprint inputs/template, or wire it into ` +
+        `loops[].countInput, artifacts[].countInput, artifacts[].arrays[].countInput, or a connection.`,
+    };
+  }
+
+  return {
+    message: `Input "${inputName}" is declared but never referenced and appears unnecessary.`,
+    suggestion: `Remove the input declaration or add a connection using it.`,
+  };
+}
+
+function isCountStyleInputName(inputName: string): boolean {
+  return /^NumOf[A-Z0-9_]/.test(inputName);
 }
 
 /**

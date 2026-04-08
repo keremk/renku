@@ -558,9 +558,11 @@ async function main(): Promise<void> {
 				) {
 					logger.info(`Nodes: ${result.nodeCount}, Edges: ${result.edgeCount}`);
 				}
+				printBlueprintValidationWarnings(logger, result.warnings);
 			} else {
 				logger.error(`✗ Blueprint validation failed\n`);
 				logger.error(`Error: ${result.error}`);
+				printBlueprintValidationWarnings(logger, result.warnings);
 				process.exitCode = 1;
 			}
 			return;
@@ -986,6 +988,33 @@ function printDryRunValidationSummary(
 		logger.info('  Failures:');
 		for (const failure of validation.failures) {
 			logger.info(`    - ${failure}`);
+		}
+	}
+}
+
+function printBlueprintValidationWarnings(
+	logger: CoreLogger,
+	warnings:
+		| Array<{
+				code: string;
+				message: string;
+				location: { context: string };
+				suggestion?: string;
+		  }>
+		| undefined
+): void {
+	if (!warnings || warnings.length === 0) {
+		return;
+	}
+
+	logger.info(chalk.yellow(`Warnings (${warnings.length}):`));
+	for (const warning of warnings) {
+		logger.info(chalk.yellow(`  - [${warning.code}] ${warning.message}`));
+		if (warning.location.context) {
+			logger.info(chalk.yellow(`    Context: ${warning.location.context}`));
+		}
+		if (warning.suggestion) {
+			logger.info(chalk.yellow(`    Suggestion: ${warning.suggestion}`));
 		}
 	}
 }

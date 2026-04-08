@@ -570,6 +570,25 @@ describe('findUnusedInputs', () => {
 
     expect(issues).toHaveLength(0);
   });
+
+  it('emits a targeted warning for unused count-style inputs', () => {
+    const doc = createDocument({
+      inputs: [{ name: 'NumOfStyleImages', type: 'number', required: false }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = findUnusedInputs(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.UNUSED_INPUT,
+        message: expect.stringContaining(
+          'count-style input looks unnecessary and should be removed'
+        ),
+        suggestion: expect.stringContaining('loops[].countInput'),
+      })
+    );
+  });
 });
 
 describe('findUnusedArtifacts', () => {
