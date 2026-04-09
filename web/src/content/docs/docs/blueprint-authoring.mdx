@@ -91,6 +91,8 @@ inputs:
     description: <string> # Purpose and usage
     type: <string> # Data type (required)
     required: <boolean> # Whether mandatory (default: true)
+    itemType: <string> # Element type for array inputs
+    countInput: <string> # Required for grouped array inputs in Viewer Input Panel
 
 artifacts:
   - name: <string> # Artifact identifier in PascalCase (required)
@@ -143,7 +145,22 @@ conditions:
 | `audio`      | Audio file reference                     |
 | `video`      | Video file reference                     |
 | `json`       | Structured JSON data                     |
+| `array`      | Indexed input list (set `itemType`; use `countInput` for Viewer grouping) |
 | `collection` | Array of items (used with `fanIn: true`) |
+
+For `inputs` with `type: array`, set `countInput` to the controlling count input (for example `NumOfSegments`) so related arrays are grouped together in the Viewer Input Panel.
+
+```yaml
+inputs:
+  - name: SceneVideoPrompt
+    type: array
+    itemType: text
+    countInput: NumOfSegments
+  - name: StoryboardImagePrompt
+    type: array
+    itemType: text
+    countInput: NumOfSegments
+```
 
 ### Artifact Types
 
