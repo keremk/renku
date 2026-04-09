@@ -735,15 +735,15 @@ describe('expandBlueprintGraph', () => {
     expect(imageArtifacts.map((a) => a.id)).toContain('Artifact:Image[1][2]');
   });
 
-  it('aliases constant-indexed collection inputs to upstream artifacts', () => {
-    // Test scenario: VideoProducer with collection input ReferenceImages
+  it('aliases constant-indexed array inputs to upstream artifacts', () => {
+    // Test scenario: VideoProducer with array input ReferenceImages
     // Two different artifacts connect to ReferenceImages[0] and ReferenceImages[1]
     // The producer should receive bindings that resolve to the upstream artifacts
 
     const videoProducerDoc: BlueprintDocument = {
       meta: { id: 'VideoProducer', name: 'VideoProducer' },
       inputs: [
-        { name: 'ReferenceImages', type: 'collection', required: false },
+        { name: 'ReferenceImages', type: 'array', required: false },
         { name: 'Prompt', type: 'string', required: true },
       ],
       artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
@@ -787,7 +787,7 @@ describe('expandBlueprintGraph', () => {
         { from: 'CharacterPrompt', to: 'CharacterImage.Prompt' },
         { from: 'ProductPrompt', to: 'ProductImage.Prompt' },
         { from: 'VideoPrompt', to: 'VideoProducer[clip].Prompt' },
-        // Constant-indexed connections: different artifacts to different collection elements
+        // Constant-indexed connections: different artifacts to different array elements
         {
           from: 'CharacterImage.GeneratedImage',
           to: 'VideoProducer[clip].ReferenceImages[0]',
@@ -880,12 +880,12 @@ describe('expandBlueprintGraph', () => {
     );
   });
 
-  it('aliases symbolic cross-dimension collection inputs to upstream artifacts', () => {
+  it('aliases symbolic cross-dimension array inputs to upstream artifacts', () => {
     const videoProducerDoc: BlueprintDocument = {
       meta: { id: 'VideoProducer', name: 'VideoProducer' },
       inputs: [
         { name: 'Prompt', type: 'string', required: true },
-        { name: 'ReferenceImages', type: 'collection', required: false },
+        { name: 'ReferenceImages', type: 'array', required: false },
       ],
       artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
       producers: [
@@ -1017,7 +1017,7 @@ describe('expandBlueprintGraph', () => {
       meta: { id: 'ThenImageProducer', name: 'ThenImageProducer' },
       inputs: [
         { name: 'Prompt', type: 'string', required: true },
-        { name: 'SourceImages', type: 'collection', required: false },
+        { name: 'SourceImages', type: 'array', required: false },
       ],
       artefacts: [{ name: 'TransformedImage', type: 'image' }],
       producers: [
@@ -1133,7 +1133,7 @@ describe('expandBlueprintGraph', () => {
       meta: { id: 'ThenImageProducer', name: 'ThenImageProducer' },
       inputs: [
         { name: 'Prompt', type: 'string', required: true },
-        { name: 'SourceImages', type: 'collection', required: false },
+        { name: 'SourceImages', type: 'array', required: false },
       ],
       artefacts: [{ name: 'TransformedImage', type: 'image' }],
       producers: [

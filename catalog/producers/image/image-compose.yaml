@@ -12,8 +12,8 @@ inputs:
     description: Text instruction describing how to compose the images together.
     type: string
   - name: SourceImages
-    description: Collection of images to compose together.
-    type: collection
+    description: Array of images to compose together.
+    type: array
     itemType: image
 
   # Optional mask for selective editing

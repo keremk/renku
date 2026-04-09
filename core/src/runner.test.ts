@@ -707,7 +707,7 @@ describe('createRunner', () => {
     expect(result.status).toBe('skipped');
   });
 
-  it('filters unsatisfied conditional collection bindings before producer invocation', async () => {
+  it('filters unsatisfied conditional array bindings before producer invocation', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-conditional-bindings');
     const eventLog = createEventLog(storage);

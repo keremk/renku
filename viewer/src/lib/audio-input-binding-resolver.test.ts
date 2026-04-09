@@ -120,7 +120,7 @@ function createInputEndpoint(reference: string): ProducerBindingEndpoint {
     (selector): selector is Extract<BindingSelector, { kind: 'const' }> =>
       selector.kind === 'const'
   );
-  const collectionSelectors = segments.flatMap((segment, segmentIndex) =>
+  const arraySelectors = segments.flatMap((segment, segmentIndex) =>
     segmentIndex === 0
       ? []
       : segment.selectors.map((selector) => ({
@@ -137,7 +137,7 @@ function createInputEndpoint(reference: string): ProducerBindingEndpoint {
     segments,
     loopSelectors,
     constantSelectors,
-    collectionSelectors,
+    arraySelectors,
   };
 }
 
@@ -159,7 +159,7 @@ function createProducerEndpoint(
     (selector): selector is Extract<BindingSelector, { kind: 'const' }> =>
       selector.kind === 'const'
   );
-  const collectionSelectors = segments.flatMap((segment, segmentIndex) =>
+  const arraySelectors = segments.flatMap((segment, segmentIndex) =>
     segmentIndex === 0
       ? []
       : segment.selectors.map((selector) => ({
@@ -178,7 +178,7 @@ function createProducerEndpoint(
     segments,
     loopSelectors,
     constantSelectors,
-    collectionSelectors,
+    arraySelectors,
   };
 }
 

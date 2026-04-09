@@ -200,7 +200,7 @@ ProducerInput:
   firstOf: true
 ```
 
-**Example:** Single image from collection:
+**Example:** Single image from array:
 
 ```yaml
 # From image-hybrid.yaml - qwen/qwen-image
@@ -347,8 +347,8 @@ meta:
 inputs:
   - name: InputName
     description: What this input does
-    type: string | integer | number | boolean | image | video | audio | collection
-    itemType: image # For collection types
+    type: string | integer | number | boolean | image | video | audio | array
+    itemType: image # For array types
 
 artifacts:
   - name: OutputName

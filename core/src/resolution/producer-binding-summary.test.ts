@@ -43,7 +43,7 @@ function createFixtureTree(): BlueprintTreeNode {
     inputs: [
       { name: 'Prompt', type: 'string', required: true },
       { name: 'Resolution', type: 'resolution', required: false },
-      { name: 'ReferenceImages', type: 'collection', required: false },
+      { name: 'ReferenceImages', type: 'array', required: false },
     ],
     producers: [{ name: 'VideoGenerator', provider: 'fal-ai', model: 'video' }],
     producerImports: [],
@@ -239,7 +239,7 @@ describe('producer-binding-summary', () => {
     );
   });
 
-  it('uses canonical runtime bindings for looped collection aliases', async () => {
+  it('uses canonical runtime bindings for looped array aliases', async () => {
     const { root } = await loadYamlBlueprintTree(
       LOOPED_SOURCE_IMAGES_FIXTURE_BLUEPRINT
     );

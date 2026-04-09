@@ -40,7 +40,7 @@ export interface CanonicalEdgeInstance {
   note?: string;
   groupBy?: string;
   orderBy?: string;
-  /** Input alias override used for dynamic collection element bindings. */
+  /** Input alias override used for dynamic array element bindings. */
   bindingAlias?: string;
   /** Conditions that must be satisfied for this edge to be active (evaluated at runtime) */
   conditions?: EdgeConditionDefinition;
@@ -711,8 +711,8 @@ function edgeInstancesAlign(
     const toReference = getSelectorReferenceLabel(toSymbol, toSelector);
     if (
       fromReference !== toReference &&
-      edge.to.collectionSelectors &&
-      edge.to.collectionSelectors.length > 0
+      edge.to.arraySelectors &&
+      edge.to.arraySelectors.length > 0
     ) {
       continue;
     }
@@ -753,7 +753,7 @@ function resolveBindingAlias(
   fromNode: CanonicalNodeInstance,
   toNode: CanonicalNodeInstance
 ): string | undefined {
-  const selectors = edge.to.collectionSelectors;
+  const selectors = edge.to.arraySelectors;
   if (!selectors || selectors.length === 0) {
     return undefined;
   }
@@ -767,7 +767,7 @@ function resolveBindingAlias(
     if (!Number.isInteger(indexed) || indexed < 0) {
       throw createRuntimeError(
         RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-        `Collection selector "${selector.symbol}${selector.offset >= 0 ? `+${selector.offset}` : selector.offset}" on input ${toNode.id} resolved to invalid index ${indexed}.`
+        `Array element selector "${selector.symbol}${selector.offset >= 0 ? `+${selector.offset}` : selector.offset}" on input ${toNode.id} resolved to invalid index ${indexed}.`
       );
     }
     return indexed;
@@ -792,7 +792,7 @@ function resolveSelectorLoopIndex(
   }
   throw createRuntimeError(
     RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-    `Collection selector "${label}" on input ${toNode.id} does not exist on source ${fromNode.id} or target ${toNode.id}.`
+    `Array element selector "${label}" on input ${toNode.id} does not exist on source ${fromNode.id} or target ${toNode.id}.`
   );
 }
 

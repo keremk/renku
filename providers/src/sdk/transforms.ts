@@ -122,7 +122,7 @@ export function applyMapping(
 
   // If direct lookup didn't yield a value, check for element-level bindings
   // This handles cases where:
-  // 1. Collection inputs are bound element-by-element (e.g., ReferenceImages[0], ReferenceImages[1])
+  // 1. Array inputs are bound element-by-element (e.g., ReferenceImages[0], ReferenceImages[1])
   // 2. Direct binding points to an unresolved Input node (e.g., "Input:VideoProducer.ReferenceImages[0]")
   if (value === undefined) {
     const elementBindings = collectElementBindings(
@@ -779,9 +779,9 @@ function formatMegapixelCandidate(value: number): string {
 }
 
 /**
- * Collects element-level bindings for a collection input.
+ * Collects element-level bindings for an array input.
  *
- * When a collection input like "ReferenceImages" is bound element-by-element
+ * When an array input like "ReferenceImages" is bound element-by-element
  * (e.g., ReferenceImages[0], ReferenceImages[1]), this function finds all
  * matching element bindings and returns them sorted by index.
  *

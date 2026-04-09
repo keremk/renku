@@ -10,31 +10,31 @@ meta:
 inputs:
   - name: ImageSegments
     description: Collected image assets grouped per segment.
-    type: collection
+    type: array
     itemType: image
     dimensions: segment.image
     fanIn: true
   - name: VideoSegments
     description: Collected video assets grouped per narration segment.
-    type: collection
+    type: array
     itemType: video
     dimensions: segment
     fanIn: true
   - name: AudioSegments
     description: Narration audio clips grouped per segment (master track).
-    type: collection
+    type: array
     itemType: audio
     dimensions: segment
     fanIn: true
   - name: TranscriptionAudio
     description: Audio clips to transcribe, grouped per segment.
-    type: collection
+    type: array
     itemType: audio
     dimensions: segment
     fanIn: true
   - name: TextSegments
     description: Text snippets grouped per segment.
-    type: collection
+    type: array
     itemType: string
     dimensions: segment
     fanIn: true

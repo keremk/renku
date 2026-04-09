@@ -129,14 +129,14 @@ In the below example:
 inputs:
   - name: ImageSegments
     description: The images to be used in the timeline
-    type: collection
+    type: array
     dimensions: segment.image
     itemType: image
     fanIn: true
     required: true
   - name: AudioSegments
     description: The audio segments to be used in the timeline
-    type: collection
+    type: array
     itemType: audio
     dimensions: segment
     fanIn: true
@@ -165,7 +165,7 @@ producers:
 ```
 
 - There are 2 tracks, and the track with Audio clips is marked as the master track. 
-- The Image Clips will each contain images identified as ImageSegments[segment]. ImageSegments is a 2-dimensional collection. The notation ImageSegments[segment] indicates that each clip will contain all images in the second dimension that corresponds to the current segment index.
+- The Image Clips will each contain images identified as ImageSegments[segment]. ImageSegments is a 2-dimensional array. The notation ImageSegments[segment] indicates that each clip will contain all images in the second dimension that corresponds to the current segment index.
     - Example: 
         - Given ImageSegment[0][0], ImageSegment[0][1], the Image Clip will get those two images as inputs. 
 
@@ -216,7 +216,7 @@ They are configured in YAML:
 inputs:
   - name: AudioSegments
     description: The audio segments to be used in the timeline
-    type: collection
+    type: array
     itemType: audio
     dimensions: segment
     fanIn: true

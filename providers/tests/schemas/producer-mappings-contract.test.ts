@@ -2500,8 +2500,6 @@ function generateValueForProducerInputType(
       return true;
     case 'array':
       return ['sample-item'];
-    case 'collection':
-      return ['https://example.com/resource'];
     case 'json':
       return { value: 'sample' };
     case 'resolution':

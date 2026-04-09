@@ -43,7 +43,6 @@ const KNOWN_INPUT_TYPES = new Set([
   'number',
   'boolean',
   'array',
-  'collection',
   'image',
   'video',
   'audio',

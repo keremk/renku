@@ -390,6 +390,31 @@ artifacts:
     ).rejects.toThrow(/declares countInput but is not an array/i);
   });
 
+  it('rejects deprecated collection input type', async () => {
+    const reader = {
+      readFile: async () => `
+meta:
+  id: InvalidCollectionInputType
+  name: Invalid Collection Input Type
+inputs:
+  - name: SourceImages
+    type: collection
+    itemType: image
+artifacts:
+  - name: Output
+    type: string
+`,
+    };
+
+    await expect(
+      parseYamlBlueprintFile('/virtual/invalid-collection-input-type.yaml', {
+        reader,
+      })
+    ).rejects.toThrow(
+      /deprecated type "collection".*Use type "array"/i
+    );
+  });
+
   it('normalizes connection references into canonical edge notation', async () => {
     const blueprintPath = resolve(
       TEST_FIXTURES_ROOT,

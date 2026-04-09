@@ -111,7 +111,7 @@ export interface ProducerBindingEndpoint {
   segments: BindingEndpointSegment[];
   loopSelectors: Array<Extract<BindingSelector, { kind: 'loop' }>>;
   constantSelectors: Array<Extract<BindingSelector, { kind: 'const' }>>;
-  collectionSelectors: Array<{
+  arraySelectors: Array<{
     segment: string;
     segmentIndex: number;
     selector: BindingSelector;

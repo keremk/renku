@@ -36,7 +36,7 @@ inputs:
   # References
   - name: ReferenceImages
     description: Reference images for subject consistency.
-    type: collection
+    type: array
     itemType: image
   - name: ReferenceVideo
     description: Reference video for style or motion transfer.

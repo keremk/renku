@@ -44,7 +44,7 @@ System inputs are special inputs that Renku automatically recognizes by name. **
 - Define user-facing inputs and final artifacts
 - Import and connect multiple producers
 - Define loops for parallel execution
-- Use connection-driven fan-in for collection inputs
+- Use connection-driven fan-in for array inputs
 
 **Producers** are execution units that:
 
@@ -145,8 +145,7 @@ conditions:
 | `audio`      | Audio file reference                     |
 | `video`      | Video file reference                     |
 | `json`       | Structured JSON data                     |
-| `array`      | Indexed input list (set `itemType`; use `countInput` for Viewer grouping) |
-| `collection` | Array of items (used with `fanIn: true`) |
+| `array`      | Indexed input list (set `itemType`; use `countInput` for Viewer grouping and `fanIn: true` when collecting multiple upstream values) |
 
 For `inputs` with `type: array`, set `countInput` to the controlling count input (for example `NumOfSegments`) so related arrays are grouped together in the Viewer Input Panel.
 
@@ -267,7 +266,7 @@ inputs:
   - name: <string>         # Input identifier (required)
     description: <string>  # Purpose and usage
     type: <string>         # Data type (required)
-    fanIn: <boolean>       # Is this a fan-in collection input
+    fanIn: <boolean>       # Is this a fan-in array input
     dimensions: <string>   # Dimension labels (e.g., "segment")
 
 artifacts:
@@ -458,7 +457,7 @@ inputs:
     type: json
   - name: AudioSegments
     description: Audio clips to transcribe (from Audio track).
-    type: collection
+    type: array
     itemType: audio
     dimensions: segment
     fanIn: true
@@ -562,12 +561,12 @@ meta:
 
 inputs:
   - name: VideoSegments
-    type: collection
+    type: array
     itemType: video
     dimensions: segment
     fanIn: true
   - name: AudioSegments
-    type: collection
+    type: array
     itemType: audio
     dimensions: segment
     fanIn: true
@@ -650,13 +649,13 @@ connections:
 
 Creates sliding window patterns. For N segments, you need N+1 images.
 
-### Indexed Collection Binding
+### Indexed Array Binding
 
-When a producer has a collection input, you can connect different artifacts to specific indices:
+When a producer has an array input, you can connect different artifacts to specific indices:
 
 ```yaml
 connections:
-  # Different artifacts bound to specific collection indices
+  # Different artifacts bound to specific array indices
   - from: CharacterImageProducer.GeneratedImage
     to: VideoProducer[clip].ReferenceImages[0]
   - from: ProductImageProducer.GeneratedImage
@@ -665,7 +664,7 @@ connections:
 
 This pattern is useful when:
 
-- A producer accepts multiple reference images as a collection
+- A producer accepts multiple reference images as an array
 - Each reference image comes from a different upstream producer
 - The same images should be used for all loop instances
 
@@ -675,12 +674,12 @@ This pattern is useful when:
 2. At runtime, the SDK reconstructs the array from these element-level bindings
 3. The producer receives `ReferenceImages: [CharacterImage, ProductImage]`
 
-**Comparison with whole-collection binding:**
+**Comparison with whole-array binding:**
 
-| Pattern          | Syntax                        | Use Case                                         |
-| ---------------- | ----------------------------- | ------------------------------------------------ |
-| Whole-collection | `AllImages → ReferenceImages` | Connect an entire array artifact                 |
-| Element-level    | `Image1 → ReferenceImages[0]` | Connect individual artifacts to specific indices |
+| Pattern     | Syntax                        | Use Case                                         |
+| ----------- | ----------------------------- | ------------------------------------------------ |
+| Whole-array | `AllImages → ReferenceImages` | Connect an entire array artifact                 |
+| Element-level | `Image1 → ReferenceImages[0]` | Connect individual artifacts to specific indices |
 
 ### Broadcast Connections
 
@@ -1027,7 +1026,7 @@ The target input must have `fanIn: true`:
 ```yaml
 inputs:
   - name: VideoSegments
-    type: collection
+    type: array
     itemType: video
     dimensions: segment
     fanIn: true

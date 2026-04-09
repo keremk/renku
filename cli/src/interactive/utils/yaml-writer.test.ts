@@ -199,7 +199,7 @@ describe('writeProducerInputsYaml', () => {
 
     const inputFields: FormFieldConfig[] = [
       { name: 'Prompt', label: 'Prompt', type: 'text', required: true },
-      { name: 'SourceImages', label: 'Source Images', type: 'file-collection', required: false, blobType: 'image' },
+      { name: 'SourceImages', label: 'Source Images', type: 'file-array', required: false, blobType: 'image' },
       { name: 'MaskImage', label: 'Mask Image', type: 'file', required: false, blobType: 'image' },
     ];
 
@@ -218,7 +218,7 @@ describe('writeProducerInputsYaml', () => {
     // Text field should not have file: prefix
     expect(inputs.Prompt).toBe('Edit this image');
 
-    // File collection should have file: prefix on each element
+    // File array should have file: prefix on each element
     const sourceImages = inputs.SourceImages as string[];
     expect(sourceImages).toHaveLength(2);
     expect(sourceImages[0]).toBe('file:images/photo1.png');
@@ -261,13 +261,13 @@ describe('formatInputsWithFilePrefix', () => {
     expect(result.Image).toBe('file:photo.png');
   });
 
-  it('adds file: prefix to each element in file-collection', () => {
+  it('adds file: prefix to each element in file-array', () => {
     const inputs = {
       Images: ['photo1.png', 'photo2.jpg', 'photo3.webp'],
     };
 
     const fields: FormFieldConfig[] = [
-      { name: 'Images', label: 'Images', type: 'file-collection', required: false },
+      { name: 'Images', label: 'Images', type: 'file-array', required: false },
     ];
 
     const result = formatInputsWithFilePrefix(inputs, fields);

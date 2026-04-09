@@ -33,7 +33,7 @@ export type FieldType =
   | 'select'
   | 'multiline'
   | 'file'            // Single file selection
-  | 'file-collection'; // Multiple file selection
+  | 'file-array'; // Multiple file selection
 
 /**
  * Blob types supported for file inputs.
@@ -422,7 +422,7 @@ export function isBlobInput(input: ProducerInputDef): boolean {
   const blobTypes = ['image', 'audio', 'video'];
   return (
     blobTypes.includes(input.type ?? '') ||
-    (input.type === 'collection' && blobTypes.includes(input.itemType ?? ''))
+    (input.type === 'array' && blobTypes.includes(input.itemType ?? ''))
   );
 }
 
@@ -450,14 +450,14 @@ export function createBlobFieldConfig(input: ProducerInputDef): FormFieldConfig 
     return null;
   }
 
-  const isCollection = input.type === 'collection';
-  const blobType = (isCollection ? input.itemType : input.type) as BlobType;
+  const isArrayInput = input.type === 'array';
+  const blobType = (isArrayInput ? input.itemType : input.type) as BlobType;
   const extensions = getExtensionsForBlobType(blobType);
 
   return {
     name: input.name,
     label: formatLabel(input.name),
-    type: isCollection ? 'file-collection' : 'file',
+    type: isArrayInput ? 'file-array' : 'file',
     required: false, // Producer inputs don't have required field
     description: input.description,
     fileExtensions: extensions,
@@ -503,7 +503,7 @@ export function categorizeSchemaFields(
   for (const mapping of inputMappings) {
     const producerInput = producerInputMap.get(mapping.producerInput);
 
-    // Check if this is a blob input (image, audio, video, or collection of these)
+    // Check if this is a blob input (image, audio, video, or array of these)
     if (producerInput && isBlobInput(producerInput)) {
       const blobField = createBlobFieldConfig(producerInput);
       if (blobField) {

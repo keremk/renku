@@ -1,6 +1,6 @@
 meta:
-  name: Indexed Collection Binding Test
-  description: Test blueprint for verifying constant-indexed collection input binding.
+  name: Indexed Array Binding Test
+  description: Test blueprint for verifying constant-indexed array input binding.
   id: IndexedCollectionBindingTest
   version: 0.1.0
 
@@ -74,7 +74,7 @@ connections:
   - from: ProductImageProducer.GeneratedImage
     to: ProductImage
 
-  # === VideoProducer inputs (looped with constant-indexed collection binding) ===
+  # === VideoProducer inputs (looped with constant-indexed array binding) ===
   # This is the key pattern being tested:
   # - CharacterImage goes to ReferenceImages[0] for ALL clips
   # - ProductImage goes to ReferenceImages[1] for ALL clips

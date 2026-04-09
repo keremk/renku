@@ -1053,7 +1053,7 @@ describe('transforms', () => {
     });
   });
 
-  describe('collection input mapping', () => {
+  describe('array input mapping', () => {
     it('reconstructs array from element-level bindings', () => {
       const context: TransformContext = {
         inputs: {
@@ -1133,7 +1133,7 @@ describe('transforms', () => {
       expect(result).toBeUndefined();
     });
 
-    it('whole collection binding still works', () => {
+    it('whole array binding still works', () => {
       const context: TransformContext = {
         inputs: {
           'Artifact:AllImages': [
@@ -1155,7 +1155,7 @@ describe('transforms', () => {
       });
     });
 
-    it('prefers whole collection binding over element bindings when value exists', () => {
+    it('prefers whole array binding over element bindings when value exists', () => {
       const context: TransformContext = {
         inputs: {
           'Artifact:AllImages': ['whole1.jpg', 'whole2.jpg'],

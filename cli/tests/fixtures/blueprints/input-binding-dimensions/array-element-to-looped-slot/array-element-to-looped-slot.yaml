@@ -1,6 +1,6 @@
 meta:
   name: Array Input Looped Producer
-  description: Verifies array input element access when wiring into a looped producer collection slot.
+  description: Verifies array input element access when wiring into a looped producer array slot.
   id: ArrayInputLoopedProducer
   version: 0.1.0
 

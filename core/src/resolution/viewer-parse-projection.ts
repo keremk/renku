@@ -114,7 +114,7 @@ export interface ProducerBindingEndpoint {
   segments: BindingEndpointSegment[];
   loopSelectors: Array<Extract<BindingSelector, { kind: 'loop' }>>;
   constantSelectors: Array<Extract<BindingSelector, { kind: 'const' }>>;
-  collectionSelectors: Array<{
+  arraySelectors: Array<{
     segment: string;
     segmentIndex: number;
     selector: BindingSelector;
@@ -670,14 +670,14 @@ function parseBindingEndpoint(
     (selector): selector is Extract<BindingSelector, { kind: 'const' }> =>
       selector.kind === 'const'
   );
-  const collectionSelectors: ProducerBindingEndpoint['collectionSelectors'] = [];
+  const arraySelectors: ProducerBindingEndpoint['arraySelectors'] = [];
   for (let index = anchorSegmentIndex + 1; index < segments.length; index += 1) {
     const segment = segments[index];
     if (!segment) {
       continue;
     }
     for (const selector of segment.selectors) {
-      collectionSelectors.push({
+      arraySelectors.push({
         segment: segment.name,
         segmentIndex: index,
         selector,
@@ -693,7 +693,7 @@ function parseBindingEndpoint(
       segments,
       loopSelectors,
       constantSelectors,
-      collectionSelectors,
+      arraySelectors,
     };
   }
 
@@ -705,7 +705,7 @@ function parseBindingEndpoint(
       segments,
       loopSelectors,
       constantSelectors,
-      collectionSelectors,
+      arraySelectors,
     };
   }
 
@@ -721,7 +721,7 @@ function parseBindingEndpoint(
     segments,
     loopSelectors,
     constantSelectors,
-    collectionSelectors,
+    arraySelectors,
   };
 }
 

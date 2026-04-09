@@ -20,7 +20,7 @@ function parseFirstIndex(jobId: string): number {
 	return parseInt(match[1]!, 10);
 }
 
-describe('end-to-end: indexed collection binding', () => {
+describe('end-to-end: indexed array binding', () => {
 	let restoreEnv: () => void = () => {};
 
 	beforeEach(async () => {
@@ -32,9 +32,9 @@ describe('end-to-end: indexed collection binding', () => {
 		restoreEnv();
 	});
 
-	it('wires constant-indexed collection inputs (ReferenceImages[0], ReferenceImages[1]) to VideoProducer', async () => {
+	it('wires constant-indexed array inputs (ReferenceImages[0], ReferenceImages[1]) to VideoProducer', async () => {
 		// This test verifies the key feature: connecting different artifacts to specific
-		// indices of a collection input. The blueprint connects:
+		// indices of an array input. The blueprint connects:
 		// - CharacterImageProducer.GeneratedImage -> VideoProducer[clip].ReferenceImages[0]
 		// - ProductImageProducer.GeneratedImage -> VideoProducer[clip].ReferenceImages[1]
 		//

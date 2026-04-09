@@ -19,7 +19,7 @@ inputs:
     type: int
   - name: NarrationScript
     description: Array of narration paragraphs per segment.
-    type: collection
+    type: array
     itemType: string
     dimensions: segment
     fanIn: true

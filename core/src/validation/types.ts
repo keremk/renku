@@ -124,7 +124,6 @@ export const VALID_INPUT_TYPES = new Set([
   'number',
   'boolean',
   'array',
-  'collection',
   // Media types (for producer inputs that accept media)
   'image',
   'video',

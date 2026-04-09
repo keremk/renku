@@ -312,7 +312,7 @@ describe('createProducerGraph', () => {
       });
     });
 
-    it('includes element-level bindings for collection inputs', () => {
+    it('includes element-level bindings for array inputs', () => {
       // Test element-level binding pattern: ReferenceImages[0], ReferenceImages[1]
       const canonical: CanonicalBlueprint = {
         nodes: [
@@ -376,8 +376,8 @@ describe('createProducerGraph', () => {
       expect(node.inputs).toContain('Artifact:ProductImage.GeneratedImage');
     });
 
-    it('includes whole-collection binding for collection inputs', () => {
-      // Test whole-collection binding pattern: ReferenceImages (no index)
+    it('includes whole-array binding for array inputs', () => {
+      // Test whole-array binding pattern: ReferenceImages (no index)
       const canonical: CanonicalBlueprint = {
         nodes: [
           {
@@ -420,7 +420,7 @@ describe('createProducerGraph', () => {
 
       expect(result.nodes).toHaveLength(1);
       const node = result.nodes[0]!;
-      // Whole-collection binding should be included in context
+      // Whole-array binding should be included in context
       expect(node.context!.inputBindings).toEqual({
         'ReferenceImages': 'Artifact:ImageGenerator.AllImages',
       });
@@ -495,7 +495,7 @@ describe('createProducerGraph', () => {
     });
   });
 
-  describe('fan-in collections', () => {
+  describe('fan-in arrays', () => {
     it('includes fan-in descriptors for relevant inputs', () => {
       const fanInDescriptor: FanInDescriptor = {
         members: [

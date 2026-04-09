@@ -247,7 +247,7 @@ describe('categorizeSchemaFields', () => {
 
     const producerInputs: ProducerInputDef[] = [
       { name: 'Prompt', type: 'string' },
-      { name: 'SourceImages', type: 'collection', itemType: 'image' },
+      { name: 'SourceImages', type: 'array', itemType: 'image' },
       { name: 'MaskImage', type: 'image' },
     ];
 
@@ -257,9 +257,9 @@ describe('categorizeSchemaFields', () => {
     const promptField = result.inputFields.find((f) => f.name === 'Prompt');
     expect(promptField?.type).toBe('text');
 
-    // SourceImages should be a file-collection field
+    // SourceImages should be a file-array field
     const sourceImagesField = result.inputFields.find((f) => f.name === 'SourceImages');
-    expect(sourceImagesField?.type).toBe('file-collection');
+    expect(sourceImagesField?.type).toBe('file-array');
     expect(sourceImagesField?.blobType).toBe('image');
     expect(sourceImagesField?.fileExtensions).toContain('png');
     expect(sourceImagesField?.fileExtensions).toContain('jpg');
@@ -284,16 +284,16 @@ describe('isBlobInput', () => {
     expect(isBlobInput({ name: 'Video', type: 'video' })).toBe(true);
   });
 
-  it('returns true for collection of images', () => {
-    expect(isBlobInput({ name: 'Images', type: 'collection', itemType: 'image' })).toBe(true);
+  it('returns true for array of images', () => {
+    expect(isBlobInput({ name: 'Images', type: 'array', itemType: 'image' })).toBe(true);
   });
 
-  it('returns true for collection of audio', () => {
-    expect(isBlobInput({ name: 'AudioFiles', type: 'collection', itemType: 'audio' })).toBe(true);
+  it('returns true for array of audio', () => {
+    expect(isBlobInput({ name: 'AudioFiles', type: 'array', itemType: 'audio' })).toBe(true);
   });
 
-  it('returns true for collection of video', () => {
-    expect(isBlobInput({ name: 'Videos', type: 'collection', itemType: 'video' })).toBe(true);
+  it('returns true for array of video', () => {
+    expect(isBlobInput({ name: 'Videos', type: 'array', itemType: 'video' })).toBe(true);
   });
 
   it('returns false for string type', () => {
@@ -304,8 +304,8 @@ describe('isBlobInput', () => {
     expect(isBlobInput({ name: 'Count', type: 'integer' })).toBe(false);
   });
 
-  it('returns false for collection without blob itemType', () => {
-    expect(isBlobInput({ name: 'Items', type: 'collection', itemType: 'string' })).toBe(false);
+  it('returns false for array without blob itemType', () => {
+    expect(isBlobInput({ name: 'Items', type: 'array', itemType: 'string' })).toBe(false);
   });
 
   it('returns false for undefined type', () => {
@@ -362,10 +362,10 @@ describe('createBlobFieldConfig', () => {
     expect(field?.fileExtensions).toContain('png');
   });
 
-  it('creates file-collection field config for image collection', () => {
+  it('creates file-array field config for image array', () => {
     const input: ProducerInputDef = {
       name: 'SourceImages',
-      type: 'collection',
+      type: 'array',
       itemType: 'image',
       description: 'Images to process',
     };
@@ -374,7 +374,7 @@ describe('createBlobFieldConfig', () => {
 
     expect(field).not.toBeNull();
     expect(field?.name).toBe('SourceImages');
-    expect(field?.type).toBe('file-collection');
+    expect(field?.type).toBe('file-array');
     expect(field?.blobType).toBe('image');
     expect(field?.description).toBe('Images to process');
   });

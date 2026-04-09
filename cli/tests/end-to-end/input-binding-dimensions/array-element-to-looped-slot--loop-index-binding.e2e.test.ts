@@ -20,7 +20,7 @@ function parseFirstIndex(jobId: string): number {
 	return parseInt(match[1]!, 10);
 }
 
-describe('end-to-end: array input wiring to looped producer collection element', () => {
+describe('end-to-end: array input wiring to looped producer array element', () => {
 	let restoreEnv: () => void = () => {};
 
 	beforeEach(async () => {

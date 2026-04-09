@@ -265,7 +265,7 @@ export function formatInputsWithFilePrefix(
 	// Create a set of file field names
 	const fileFieldNames = new Set(
 		fields
-			.filter((f) => f.type === 'file' || f.type === 'file-collection')
+			.filter((f) => f.type === 'file' || f.type === 'file-array')
 			.map((f) => f.name)
 	);
 

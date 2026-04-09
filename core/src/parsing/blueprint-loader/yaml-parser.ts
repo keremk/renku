@@ -411,6 +411,12 @@ function parseInput(raw: unknown): BlueprintInputDefinition {
   const input = raw as Record<string, unknown>;
   const name = readString(input, 'name');
   const type = readString(input, 'type');
+  if (type === 'collection') {
+    throw createParserError(
+      ParserErrorCode.INVALID_INPUT_ENTRY,
+      `Input "${name}" uses deprecated type "collection". Use type "array" and set itemType explicitly.`
+    );
+  }
   const required = input.required === false ? false : true;
   const description =
     typeof input.description === 'string' ? input.description : undefined;

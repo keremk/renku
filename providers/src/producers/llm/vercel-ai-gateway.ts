@@ -299,7 +299,7 @@ function formatFanInPromptValue(value: FanInValue, runtime: ProducerRuntime): st
   if (lines.length === 0) {
     throw createProviderError(
       SdkErrorCode.MISSING_FANIN_DATA,
-      '[providers.vercel-gateway.prompts] Fan-in collection did not yield any values for prompt variable.',
+      '[providers.vercel-gateway.prompts] Fan-in array input did not yield any values for prompt variable.',
       { kind: 'user_input' },
     );
   }

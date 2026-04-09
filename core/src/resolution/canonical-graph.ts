@@ -51,15 +51,15 @@ export interface BlueprintGraphEdgeEndpoint {
   dimensions: string[];
   selectors?: Array<DimensionSelector | undefined>;
   /**
-   * Additional selectors that target collection elements on the endpoint node.
+   * Additional selectors that target array elements on the endpoint node.
    *
    * Example:
    * - Reference: "SceneVideoProducer[scene].ReferenceImages[character]"
    * - Node dimensions: [scene]
    * - selectors: [scene]
-   * - collectionSelectors: [character]
+   * - arraySelectors: [character]
    */
-  collectionSelectors?: DimensionSelector[];
+  arraySelectors?: DimensionSelector[];
 }
 
 export interface BlueprintGraphEdge {
@@ -954,7 +954,7 @@ function resolveEdgeEndpoint(
     nodeId: targetNodeId,
     dimensions,
     selectors: parsedSelectors?.selectors,
-    collectionSelectors: parsedSelectors?.collectionSelectors,
+    arraySelectors: parsedSelectors?.arraySelectors,
   };
 }
 
@@ -965,7 +965,7 @@ function parseAllSelectors(
 ):
   | {
       selectors?: Array<DimensionSelector | undefined>;
-      collectionSelectors?: DimensionSelector[];
+      arraySelectors?: DimensionSelector[];
     }
   | undefined {
   if (rawSelectors.length === 0) {
@@ -975,7 +975,7 @@ function parseAllSelectors(
   const selectors: Array<DimensionSelector | undefined> = new Array(
     totalDimensions
   ).fill(undefined);
-  const collectionSelectors: DimensionSelector[] = [];
+  const arraySelectors: DimensionSelector[] = [];
 
   for (let index = 0; index < rawSelectors.length; index++) {
     const raw = rawSelectors[index];
@@ -987,7 +987,7 @@ function parseAllSelectors(
       if (index < totalDimensions) {
         selectors[index] = parsed;
       } else {
-        collectionSelectors.push(parsed);
+        arraySelectors.push(parsed);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1000,8 +1000,8 @@ function parseAllSelectors(
 
   return {
     selectors,
-    collectionSelectors:
-      collectionSelectors.length > 0 ? collectionSelectors : undefined,
+    arraySelectors:
+      arraySelectors.length > 0 ? arraySelectors : undefined,
   };
 }
 

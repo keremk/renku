@@ -106,7 +106,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({
   isFocused,
   basePath = process.cwd(),
 }) => {
-  const isMultiple = field.type === 'file-collection';
+  const isMultiple = field.type === 'file-array';
 
   // Current directory being browsed
   const [currentDir, setCurrentDir] = useState(() => resolve(basePath));

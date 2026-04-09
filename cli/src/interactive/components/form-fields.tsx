@@ -248,7 +248,7 @@ export const FormField: React.FC<FieldProps> = (props) => {
     case 'select':
       return <SelectField {...props} />;
     case 'file':
-    case 'file-collection':
+    case 'file-array':
       return (
         <FilePicker
           field={props.field}
