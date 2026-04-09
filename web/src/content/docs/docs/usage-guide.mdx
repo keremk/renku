@@ -453,21 +453,21 @@ renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[2]
 Open the blueprint viewer:
 
 ```bash
-# Auto-detect blueprint in current directory
-renku viewer
+# Open Renku app
+renku launch
 
-# Open a specific blueprint
-renku viewer ./path/to/blueprint.yaml
+# Open a specific blueprint by name
+renku launch style-cartoon
 ```
 
-This starts the viewer server in the background if not already running, and opens the blueprint viewer in your browser where you can see the workflow graph, browse builds, and preview timelines.
+This opens the Renku app at `/blueprints`, starts the singleton background server if needed, and deep-links to your blueprint when a blueprint name is provided.
 
 ### Stop the Viewer Server
 
 Stop the background viewer server when done:
 
 ```bash
-renku viewer:stop
+renku shutdown
 ```
 
 ## Exporting Video

@@ -51,7 +51,7 @@ export async function runViewer(
 		const detected = await detectBlueprintInDirectory();
 		if (!detected) {
 			logger.error?.(
-				'No blueprint found in the current directory. Provide a blueprint path: renku viewer ./path/to/blueprint.yaml'
+				'No blueprint found in the current directory. Provide a blueprint path: renku launch ./path/to/blueprint.yaml'
 			);
 			process.exitCode = 1;
 			return;

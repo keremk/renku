@@ -133,10 +133,10 @@ The CLI will:
 Open the viewer to preview your content:
 
 ```bash
-renku viewer
+renku launch
 ```
 
-This auto-detects your blueprint, starts a local server if needed, and opens your browser to preview the generated content.
+This opens the Renku app, starts a local server if needed, and opens your browser to preview the generated content.
 
 ## Key Commands
 
@@ -162,8 +162,8 @@ This auto-detects your blueprint, starts a local server if needed, and opens you
 
 ### Viewing Content
 
-- `renku viewer [path]` - Open the blueprint viewer (auto-detects in current directory if no path provided)
-- `renku viewer:stop` - Stop the background viewer server
+- `renku launch [blueprint-name]` - Open Renku app (optionally deep-link to a blueprint by name)
+- `renku shutdown` - Stop the background viewer server
 
 ### Blueprints
 

@@ -742,95 +742,61 @@ renku generate --inputs=./inputs.yaml --blueprint=./my-blueprint.yaml --dry-run 
 
 ---
 
-### renku viewer
+### renku launch
 
-Open the blueprint viewer.
+Open the Renku app, optionally deep-linking to a blueprint.
 
 **Usage:**
 
 ```bash
-renku viewer [path/to/blueprint.yaml]
+renku launch [blueprint-name]
 ```
 
 **Arguments:**
 
-| Argument | Required | Description                                                                      |
-| -------- | -------- | -------------------------------------------------------------------------------- |
-| `[path]` | No       | Path to blueprint YAML file. If not provided, auto-detects in current directory. |
+| Argument | Required | Description                                      |
+| -------- | -------- | ------------------------------------------------ |
+| `[blueprint-name]` | No       | Blueprint folder name (for example `style-cartoon`). |
 
 **Options:**
 
 | Option         | Description                     |
 | -------------- | ------------------------------- |
 | `--viewerHost` | Override viewer host (optional) |
-| `--viewerPort` | Override viewer port (optional) |
+| `--port`       | Override viewer port (optional) |
 
 **Behavior:**
 
-- Auto-detects blueprints in the current directory if no path is provided
-- Starts the viewer server in background if not running
-- If `--viewerHost` / `--viewerPort` are provided, they take precedence and a mismatched running server is not reused
-- Opens the blueprint viewer in your browser
+- Runs a singleton background server (does not start a second instance on repeated launches with the same host/port)
+- If a managed server is running on a different host/port, Renku shuts it down before launching the requested one
+- Uses deterministic port selection (no random fallback)
+- Opens `/blueprints` in your browser
+- If `[blueprint-name]` is provided, opens `/blueprints?bp=<blueprint-name>`
+- Shows onboarding automatically when workspace setup is incomplete
 
 **Examples:**
 
 ```bash
-# Auto-detect blueprint in current directory
-renku viewer
+# Open Renku app home
+renku launch
 
-# Open a specific blueprint
-renku viewer ./my-blueprint.yaml
+# Open a specific blueprint by name
+renku launch style-cartoon
 
 # Force a specific viewer port
-renku viewer --viewerPort=4321
+renku launch --port=4321
 ```
 
 ---
 
-### renku launch
+### renku shutdown
 
-Open Renku home without requiring a pre-initialized workspace.
-
-**Usage:**
-
-```bash
-renku launch
-```
-
-**Options:**
-
-| Option         | Description                     |
-| -------------- | ------------------------------- |
-| `--viewerHost` | Override viewer host (optional) |
-| `--viewerPort` | Override viewer port (optional) |
-
-**Behavior:**
-
-- Starts the viewer server in background if not running
-- Opens the Renku home page (`/`)
-- Shows onboarding automatically when workspace setup is incomplete
-- Uses the bundled catalog for onboarding setup
-
-**Examples:**
-
-```bash
-# Open Renku home
-renku launch
-
-# Open on a specific host/port
-renku launch --viewerHost=127.0.0.1 --viewerPort=4321
-```
-
----
-
-### renku viewer:stop
-
-Stop the background viewer server.
+Stop the singleton background viewer server.
 
 **Usage:**
 
 ```bash
-renku viewer:stop
+renku shutdown
 ```
 
 ---

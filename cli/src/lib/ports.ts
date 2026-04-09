@@ -27,12 +27,15 @@ export async function findAvailablePort(preferred?: number): Promise<number> {
   });
 }
 
-async function isPortAvailable(port: number): Promise<boolean> {
+export async function isPortAvailable(
+  port: number,
+  host = '127.0.0.1'
+): Promise<boolean> {
   return await new Promise<boolean>((resolve) => {
     const server = net.createServer();
     server.unref();
     server.once('error', () => resolve(false));
-    server.listen(port, '127.0.0.1', () => {
+    server.listen(port, host, () => {
       server.close(() => resolve(true));
     });
   });

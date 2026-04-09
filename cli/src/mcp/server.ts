@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { URL } from 'node:url';
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { stringify as stringifyYaml } from 'yaml';
 import type { Manifest } from '@gorenku/core';
 import { runGenerate, type GenerateResult } from '../commands/generate.js';
-import { runViewer } from '../commands/viewer.js';
+import { runLaunch } from '../commands/launch.js';
 import { readCliConfig } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
 
@@ -54,7 +54,7 @@ export interface CreateMcpServerOptions {
 
 export interface McpServerDeps {
   runGenerate?: typeof runGenerate;
-  runViewer?: typeof runViewer;
+  runLaunch?: typeof runLaunch;
   readCliConfig?: typeof readCliConfig;
 }
 
@@ -63,7 +63,7 @@ export function createMcpServer(
   deps: McpServerDeps = {},
 ): McpServer {
   const runGenerateImpl = deps.runGenerate ?? runGenerate;
-  const runViewerImpl = deps.runViewer ?? runViewer;
+  const runLaunchImpl = deps.runLaunch ?? runLaunch;
   const readCliConfigImpl = deps.readCliConfig ?? readCliConfig;
 
   const movieStore = new MovieStorage(options.storageRoot, options.storageBasePath);
@@ -147,8 +147,8 @@ Before you start the generation, always provide a summary for what you are gener
       let viewerUrl: string | undefined;
       if (shouldOpenViewer) {
         try {
-          // Run the viewer with the resolved blueprint path
-          await runViewerImpl(resolvedBlueprint);
+          const blueprintName = basename(dirname(resolvedBlueprint));
+          await runLaunchImpl({ blueprintName });
           const cfg = await readCliConfigImpl(options.cliConfigPath);
           if (cfg?.viewer?.host && cfg.viewer?.port) {
             // Use blueprints route with movie parameter
@@ -175,7 +175,7 @@ Before you start the generation, always provide a summary for what you are gener
         `Movie ${result.movieId} created.`,
         viewerUrl
           ? `Open viewer: ${viewerUrl}`
-          : `Viewer not launched automatically. Run "renku viewer" to open the blueprint viewer.`,
+          : `Viewer not launched automatically. Run "renku launch" to open the app.`,
         `Timeline resource: ${timelineUri}`,
         `Inputs resource: ${inputsUri}`,
       ];
