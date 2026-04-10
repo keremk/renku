@@ -10,6 +10,7 @@ import type {
   AvailableModelOption,
 } from '@/types/blueprint-graph';
 import type { BuildsListResponse, BuildManifestResponse } from '@/types/builds';
+import type { StoryboardProjection } from '@/types/storyboard';
 import type { TimelineDocument } from '@/types/timeline';
 
 const API_BASE = '/viewer-api';
@@ -130,6 +131,29 @@ export function fetchBlueprintGraph(
     url.searchParams.set('catalog', catalogRoot);
   }
   return fetchJson<BlueprintGraphData>(url.toString());
+}
+
+export function fetchStoryboardProjection(args: {
+  blueprintPath: string;
+  blueprintFolder?: string | null;
+  movieId?: string | null;
+  catalogRoot?: string | null;
+}): Promise<StoryboardProjection> {
+  const url = new URL(
+    `${API_BASE}/blueprints/storyboard`,
+    window.location.origin
+  );
+  url.searchParams.set('path', args.blueprintPath);
+  if (args.blueprintFolder) {
+    url.searchParams.set('folder', args.blueprintFolder);
+  }
+  if (args.movieId) {
+    url.searchParams.set('movieId', args.movieId);
+  }
+  if (args.catalogRoot) {
+    url.searchParams.set('catalog', args.catalogRoot);
+  }
+  return fetchJson<StoryboardProjection>(url.toString());
 }
 
 export function fetchInputTemplate(

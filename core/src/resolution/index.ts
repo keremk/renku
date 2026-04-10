@@ -29,6 +29,7 @@ export {
   resolveEdgeEndpoints,
   resolveEndpoint,
 } from './viewer-parse-projection.js';
+export { buildStoryboardProjection } from './storyboard-projection.js';
 export type {
   BindingSourceKind,
   ProducerBindingSummaryMode,
@@ -52,3 +53,14 @@ export type {
   BlueprintLoopGroupMember,
   BlueprintLoopGroup,
 } from './viewer-parse-projection.js';
+export type {
+  StoryboardArtifactState,
+  StoryboardActionHints,
+  StoryboardProjection,
+  StoryboardSection,
+  StoryboardColumn,
+  StoryboardItemGroup,
+  StoryboardItem,
+  StoryboardConnector,
+  BuildStoryboardProjectionArgs,
+} from './storyboard-projection.js';

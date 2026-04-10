@@ -25,6 +25,8 @@ export interface ImageCardProps {
   isPinned?: boolean;
   /** Optional prompt artifact label for expanded view */
   promptTitle?: string;
+  /** Optional prompt text for expanded view */
+  promptText?: string;
   /** Optional prompt artifact URL for expanded view */
   promptUrl?: string;
 }
@@ -40,13 +42,19 @@ export function ImageCard({
   isSelected = false,
   isPinned = false,
   promptTitle,
+  promptText,
   promptUrl,
 }: ImageCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { promptText, promptError, isPromptLoading } = useMediaPrompt(
-    promptUrl,
-    isExpanded
+  const {
+    promptText: fetchedPromptText,
+    promptError,
+    isPromptLoading,
+  } = useMediaPrompt(
+    promptText ? undefined : promptUrl,
+    isExpanded && !promptText
   );
+  const resolvedPromptText = promptText ?? fetchedPromptText;
 
   return (
     <>
@@ -75,7 +83,7 @@ export function ImageCard({
         url={url}
         mediaType='image'
         promptTitle={promptTitle}
-        promptText={promptText}
+        promptText={resolvedPromptText}
         isPromptLoading={isPromptLoading}
         promptError={promptError}
       />

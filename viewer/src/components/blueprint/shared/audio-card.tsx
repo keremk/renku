@@ -25,6 +25,8 @@ export interface AudioCardProps {
   expandable?: boolean;
   /** Optional prompt artifact label for expanded view */
   promptTitle?: string;
+  /** Optional prompt text for expanded view */
+  promptText?: string;
   /** Optional prompt artifact URL for expanded view */
   promptUrl?: string;
 }
@@ -281,13 +283,19 @@ export function AudioCard({
   isPinned = false,
   expandable = false,
   promptTitle,
+  promptText,
   promptUrl,
 }: AudioCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { promptText, promptError, isPromptLoading } = useMediaPrompt(
-    promptUrl,
-    isExpanded
+  const {
+    promptText: fetchedPromptText,
+    promptError,
+    isPromptLoading,
+  } = useMediaPrompt(
+    promptText ? undefined : promptUrl,
+    isExpanded && !promptText
   );
+  const resolvedPromptText = promptText ?? fetchedPromptText;
 
   if (expandable) {
     return (
@@ -316,7 +324,7 @@ export function AudioCard({
             <AudioPlayerSurface url={url} title={title} interactive />
           }
           promptTitle={promptTitle}
-          promptText={promptText}
+          promptText={resolvedPromptText}
           isPromptLoading={isPromptLoading}
           promptError={promptError}
         />

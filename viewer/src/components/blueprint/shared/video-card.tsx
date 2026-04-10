@@ -24,6 +24,8 @@ export interface VideoCardProps {
   expandable?: boolean;
   /** Optional prompt artifact label for expanded view */
   promptTitle?: string;
+  /** Optional prompt text for expanded view */
+  promptText?: string;
   /** Optional prompt artifact URL for expanded view */
   promptUrl?: string;
 }
@@ -39,13 +41,19 @@ export function VideoCard({
   isPinned = false,
   expandable = false,
   promptTitle,
+  promptText,
   promptUrl,
 }: VideoCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { promptText, promptError, isPromptLoading } = useMediaPrompt(
-    promptUrl,
-    isExpanded
+  const {
+    promptText: fetchedPromptText,
+    promptError,
+    isPromptLoading,
+  } = useMediaPrompt(
+    promptText ? undefined : promptUrl,
+    isExpanded && !promptText
   );
+  const resolvedPromptText = promptText ?? fetchedPromptText;
 
   if (expandable) {
     return (
@@ -79,7 +87,7 @@ export function VideoCard({
           url={url}
           mediaType='video'
           promptTitle={promptTitle}
-          promptText={promptText}
+          promptText={resolvedPromptText}
           isPromptLoading={isPromptLoading}
           promptError={promptError}
         />

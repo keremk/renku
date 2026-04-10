@@ -31,7 +31,7 @@ import type {
 } from '@/types/blueprint-graph';
 import type { BuildInfo, BuildManifestResponse } from '@/types/builds';
 
-type DetailPanelTab = 'inputs' | 'models' | 'outputs' | 'preview';
+type DetailPanelTab = 'inputs' | 'models' | 'storyboard' | 'outputs' | 'preview';
 
 interface WorkspaceLayoutProps {
   graphData: BlueprintGraphData;
@@ -539,6 +539,8 @@ function WorkspaceLayoutInner({
                   selectedNodeId={selectedNodeId}
                   movieId={effectiveMovieId}
                   blueprintFolder={blueprintFolder}
+                  blueprintPath={blueprintPath}
+                  catalogRoot={catalogRoot}
                   artifacts={selectedBuildManifest?.artefacts ?? []}
                   actionButton={runButton}
                   isInputsEditable={isInputsEditable}

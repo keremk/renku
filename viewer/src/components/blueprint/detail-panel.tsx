@@ -3,6 +3,7 @@ import { InputsPanel } from './inputs-panel';
 import { ModelsPanel } from './models-panel';
 import { OutputsPanel } from './outputs-panel';
 import { PreviewPanel } from './preview-panel';
+import { StoryboardPanel } from './storyboard-panel';
 import { ReadOnlyIndicator } from './shared';
 import type {
   BlueprintGraphData,
@@ -20,7 +21,7 @@ import type { ArtifactInfo } from '@/types/builds';
 import type { TimelineDocument } from '@/types/timeline';
 import type { ReactNode } from 'react';
 
-type Tab = 'inputs' | 'models' | 'outputs' | 'preview';
+type Tab = 'inputs' | 'models' | 'storyboard' | 'outputs' | 'preview';
 type TimelineStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface DetailPanelProps {
@@ -30,6 +31,8 @@ interface DetailPanelProps {
   selectedNodeId: string | null;
   movieId: string | null;
   blueprintFolder: string | null;
+  blueprintPath: string;
+  catalogRoot?: string | null;
   artifacts: ArtifactInfo[];
   /** Optional action button to render in the tab bar (e.g., Run button) */
   actionButton?: ReactNode;
@@ -94,6 +97,8 @@ export function DetailPanel({
   selectedNodeId,
   movieId,
   blueprintFolder,
+  blueprintPath,
+  catalogRoot = null,
   artifacts,
   actionButton,
   isInputsEditable = false,
@@ -160,7 +165,9 @@ export function DetailPanel({
   const contentContainerClassName =
     activeTab === 'preview'
       ? 'flex-1 overflow-hidden'
-      : activeTab === 'models' || activeTab === 'outputs'
+      : activeTab === 'models' ||
+          activeTab === 'storyboard' ||
+          activeTab === 'outputs'
         ? 'flex-1 min-h-0 overflow-hidden p-4'
         : 'flex-1 overflow-auto p-4';
 
@@ -178,6 +185,11 @@ export function DetailPanel({
             label='Models'
             active={activeTab === 'models'}
             onClick={() => setActiveTab('models')}
+          />
+          <TabButton
+            label='Storyboard'
+            active={activeTab === 'storyboard'}
+            onClick={() => setActiveTab('storyboard')}
           />
           <TabButton
             label='Outputs'
@@ -253,6 +265,22 @@ export function DetailPanel({
             producerModels={producerModels}
             modelSelections={modelSelections}
             buildInputs={buildInputs}
+            onArtifactUpdated={onArtifactUpdated}
+          />
+        )}
+        {activeTab === 'storyboard' && (
+          <StoryboardPanel
+            blueprintPath={blueprintPath}
+            blueprintFolder={blueprintFolder}
+            movieId={movieId}
+            catalogRoot={catalogRoot}
+            artifacts={artifacts}
+            graphData={graphData}
+            buildInputs={buildInputs}
+            isInputsEditable={isInputsEditable}
+            onSaveInputs={onSaveInputs}
+            producerModels={producerModels}
+            modelSelections={modelSelections}
             onArtifactUpdated={onArtifactUpdated}
           />
         )}

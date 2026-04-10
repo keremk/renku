@@ -31,6 +31,7 @@ export {
 
 // Handlers
 export { parseBlueprintToGraph } from './parse-handler.js';
+export { getStoryboardProjection } from './storyboard-handler.js';
 export { resolveBlueprintName } from './resolve-handler.js';
 export {
   detectProducerCategory,

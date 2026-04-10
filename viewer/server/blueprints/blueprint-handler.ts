@@ -20,6 +20,7 @@ import {
   streamInputFile,
 } from '../builds/index.js';
 import { parseBlueprintToGraph } from './parse-handler.js';
+import { getStoryboardProjection } from './storyboard-handler.js';
 import { resolveBlueprintName } from './resolve-handler.js';
 import { getProducerModelsFromBlueprint } from './producer-models.js';
 import { getProducerConfigSchemas } from './config-schemas-handler.js';
@@ -41,6 +42,7 @@ import type { CreateBlueprintFromTemplateRequest } from './types.js';
  *
  * Routes:
  *   GET  /blueprints/parse?path=...&catalog=...
+ *   GET  /blueprints/storyboard?path=...&folder=...&movieId=...&catalog=...
  *   GET  /blueprints/inputs?path=...
  *   GET  /blueprints/builds?folder=...
  *   GET  /blueprints/manifest?folder=...&movieId=...
@@ -203,6 +205,32 @@ export async function handleBlueprintRequest(
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Failed to parse blueprint';
+        return respondBadRequest(res, message);
+      }
+    }
+
+    case 'storyboard': {
+      const blueprintPath = url.searchParams.get('path');
+      const blueprintFolder = url.searchParams.get('folder');
+      const movieId = url.searchParams.get('movieId');
+      if (!blueprintPath) {
+        return respondBadRequest(res, 'Missing path parameter');
+      }
+      try {
+        const projection = await getStoryboardProjection({
+          blueprintPath,
+          blueprintFolder,
+          movieId,
+          catalogRoot,
+        });
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(projection));
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to build storyboard projection';
         return respondBadRequest(res, message);
       }
     }
