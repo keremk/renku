@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text description of the vector image to generate.
     type: string
+    storyboard: main
 
   # Sizing
   - name: Resolution

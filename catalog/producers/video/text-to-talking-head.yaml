@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Visual generation prompt.
     type: string
+    storyboard: main
 
   # Character
   - name: CharacterImage

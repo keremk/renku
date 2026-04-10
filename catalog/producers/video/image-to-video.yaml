@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text description guiding the video generation.
     type: string
+    storyboard: main
   - name: NegativePrompt
     description: What to avoid in the video.
     type: string

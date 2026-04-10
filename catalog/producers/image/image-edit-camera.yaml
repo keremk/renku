@@ -16,6 +16,7 @@ inputs:
   - name: Prompt
     description: Optional additional text to guide the generation (appended to the auto-generated camera prompt).
     type: string
+    storyboard: main
 
   # Camera controls
   - name: CameraAzimuth

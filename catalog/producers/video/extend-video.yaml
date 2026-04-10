@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text description guiding the extension content.
     type: string
+    storyboard: main
   - name: SourceVideo
     description: URL of the video to extend.
     type: string

@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text prompt describing desired music style/mood.
     type: string
+    storyboard: main
   - name: Lyrics
     description: Song lyrics with section tags ([intro], [verse], [chorus], etc.).
     type: string

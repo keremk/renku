@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text description of the video.
     type: string
+    storyboard: main
 
   # References
   - name: ReferenceImages

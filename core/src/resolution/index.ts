@@ -57,7 +57,6 @@ export type {
   StoryboardArtifactState,
   StoryboardActionHints,
   StoryboardProjection,
-  StoryboardSection,
   StoryboardColumn,
   StoryboardItemGroup,
   StoryboardItem,

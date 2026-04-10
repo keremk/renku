@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   buildStoryboardProjection,
   formatBlobFileName,
+  hydrateOutputSchemasFromProducerMetadata,
   loadYamlBlueprintTree,
   parseInputsForDisplay,
   type StoryboardArtifactState,
@@ -26,6 +27,7 @@ export async function getStoryboardProjection(
   const { root } = await loadYamlBlueprintTree(args.blueprintPath, {
     catalogRoot: args.catalogRoot,
   });
+  await hydrateOutputSchemasFromProducerMetadata(root);
 
   const effectiveInputs = await resolveEffectiveInputs({
     blueprintFolder,

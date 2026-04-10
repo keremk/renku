@@ -11,11 +11,13 @@ inputs:
   - name: Prompt
     description: Text prompt for video generation. Either Prompt or MultiPrompt must be provided.
     type: string
+    storyboard: main    
 
   # Multi-shot
   - name: MultiPrompt
     description: List of per-shot prompts with individual durations for multi-shot video generation.
     type: array
+    storyboard: secondary
   - name: ShotType
     description: 'Type of multi-shot generation: customize or intelligent.'
     type: string

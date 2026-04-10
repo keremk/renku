@@ -23,11 +23,6 @@ describe('StoryboardPanel', () => {
           axisCount: 1,
           hasProducedStoryState: true,
         },
-        sharedSection: {
-          id: 'shared',
-          title: 'Shared',
-          items: [],
-        },
         columns: [
           {
             id: 'scene:0',
@@ -124,7 +119,7 @@ describe('StoryboardPanel', () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('resolves prompt artifacts for storyboard media when the projection only contains media cards', async () => {
+  it('does not reconstruct prompt provenance in the viewer when core returns only media cards', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes('/viewer-api/blueprints/storyboard')) {
@@ -138,11 +133,6 @@ describe('StoryboardPanel', () => {
               axisDimension: 'segment',
               axisCount: 1,
               hasProducedStoryState: true,
-            },
-            sharedSection: {
-              id: 'shared',
-              title: 'Shared',
-              items: [],
             },
             columns: [
               {
@@ -186,7 +176,7 @@ describe('StoryboardPanel', () => {
 
       return {
         ok: true,
-        text: async () => 'Resolved runtime prompt',
+        text: async () => 'Unexpected follow-up fetch',
       } as Response;
     });
 
@@ -304,14 +294,17 @@ describe('StoryboardPanel', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Resolved runtime prompt')).toBeTruthy();
+      expect(screen.getByText('Segment 1')).toBeTruthy();
     });
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
     const imageButton = screen.getByAltText('Generated Image 1').closest('button');
     expect(imageButton).toBeTruthy();
     fireEvent.click(imageButton!);
 
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Resolved runtime prompt')).toBeTruthy();
+    expect(within(dialog).queryByText('Unexpected follow-up fetch')).toBeNull();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 });

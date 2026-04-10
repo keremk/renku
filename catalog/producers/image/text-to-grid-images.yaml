@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text description of the image to generate.
     type: string
+    storyboard: main
   - name: GridStyle
     description: "Storyboard grid style (e.g., '3x3', '2x2', '2x3')."
     type: string

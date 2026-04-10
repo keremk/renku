@@ -7,15 +7,8 @@ export interface StoryboardProjection {
     axisCount: number;
     hasProducedStoryState: boolean;
   };
-  sharedSection: StoryboardSection;
   columns: StoryboardColumn[];
   connectors: StoryboardConnector[];
-}
-
-export interface StoryboardSection {
-  id: string;
-  title: string;
-  items: StoryboardItem[];
 }
 
 export interface StoryboardColumn {
@@ -57,7 +50,7 @@ export interface StoryboardItem {
   state: 'input' | 'succeeded' | 'pending' | 'failed' | 'skipped';
   placeholderReason?: 'not-run' | 'error' | 'conditional-skip';
   placeholderMessage?: string;
-  dependencyClass: 'shared' | 'local-upstream' | 'carry-over' | 'local-output';
+  dependencyClass: 'local-upstream' | 'carry-over' | 'local-output';
   media?: {
     mimeType: string;
     hash?: string;
@@ -78,5 +71,5 @@ export interface StoryboardConnector {
   id: string;
   fromItemId: string;
   toItemId: string;
-  kind: 'shared' | 'local' | 'carry-over';
+  kind: 'local' | 'carry-over';
 }

@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text instruction for the edit or transformation.
     type: string
+    storyboard: main
   - name: SourceImage
     description: The single image to edit or transform.
     type: image

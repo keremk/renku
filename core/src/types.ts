@@ -211,6 +211,8 @@ export interface BlueprintInputDefinition {
   required: boolean;
   description?: string;
   fanIn?: boolean;
+  /** Optional producer-only storyboard role for narrow storyboard projections. */
+  storyboard?: 'main' | 'secondary';
   /** For array types, the type of items in the array */
   itemType?: string;
   /** Optional count input that governs array cardinality */

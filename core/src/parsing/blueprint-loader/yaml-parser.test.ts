@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { resolve } from 'node:path';
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path, { resolve } from 'node:path';
 import { FileStorage } from '@flystorage/file-storage';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import {
@@ -1017,5 +1019,97 @@ describe('yaml-parser edge cases', () => {
     const producer = document.producers[0];
     expect(producer).toBeDefined();
     expect(producer.name).toBeDefined();
+  });
+
+  it('parses producer storyboard input metadata', async () => {
+    const blueprintPath = resolve(
+      process.cwd(),
+      '../catalog/producers/video/kling-multishot.yaml'
+    );
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    const promptInput = document.inputs.find((input) => input.name === 'Prompt');
+    const multiPromptInput = document.inputs.find(
+      (input) => input.name === 'MultiPrompt'
+    );
+
+    expect(promptInput?.storyboard).toBe('main');
+    expect(multiPromptInput?.storyboard).toBe('secondary');
+  });
+
+  it('rejects multiple storyboard main inputs in a producer definition', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'producer-storyboard-main-'));
+    const producerPath = resolve(tempDir, 'invalid-producer.yaml');
+
+    try {
+      await fs.writeFile(
+        producerPath,
+        [
+          'meta:',
+          '  id: InvalidProducer',
+          '  name: Invalid Producer',
+          '  kind: producer',
+          '',
+          'inputs:',
+          '  - name: Prompt',
+          '    type: string',
+          '    storyboard: main',
+          '  - name: Caption',
+          '    type: string',
+          '    storyboard: main',
+          '',
+          'artifacts:',
+          '  - name: GeneratedImage',
+          '    type: image',
+          '',
+        ].join('\n')
+      );
+
+      await expect(parseYamlBlueprintFile(producerPath)).rejects.toThrow(
+        /multiple storyboard: main inputs/i
+      );
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects storyboard metadata on non-producer blueprint inputs', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'blueprint-storyboard-input-'));
+    const blueprintPath = resolve(tempDir, 'invalid-blueprint.yaml');
+
+    try {
+      await fs.writeFile(
+        blueprintPath,
+        [
+          'meta:',
+          '  id: InvalidBlueprint',
+          '  name: Invalid Blueprint',
+          '',
+          'inputs:',
+          '  - name: ScenePrompt',
+          '    type: string',
+          '    storyboard: main',
+          '',
+          'artifacts:',
+          '  - name: FinalImage',
+          '    type: image',
+          '',
+          'producers:',
+          '  - name: ImageProducer',
+          '    producer: image/text-to-image',
+          '',
+          'connections:',
+          '  - from: ScenePrompt',
+          '    to: ImageProducer.Prompt',
+          '',
+        ].join('\n')
+      );
+
+      await expect(parseYamlBlueprintFile(blueprintPath)).rejects.toThrow(
+        /only allowed on producer inputs/i
+      );
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

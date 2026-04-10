@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { formatBlobFileName } from '@gorenku/core';
 import { getStoryboardProjection } from './storyboard-handler.js';
 
 describe('getStoryboardProjection', () => {
@@ -34,7 +35,7 @@ describe('getStoryboardProjection', () => {
         '    type: array',
         '    itemType: text',
         '    required: true',
-        '  - name: NumOfScenes',
+        '  - name: NumOfSegments',
         '    type: int',
         '    required: true',
         '',
@@ -42,15 +43,15 @@ describe('getStoryboardProjection', () => {
         '  - name: StoryboardImage',
         '    type: array',
         '    itemType: image',
-        '    countInput: NumOfScenes',
+        '    countInput: NumOfSegments',
         '  - name: SceneVideo',
         '    type: array',
         '    itemType: video',
-        '    countInput: NumOfScenes',
+        '    countInput: NumOfSegments',
         '',
         'loops:',
         '  - name: scene',
-        '    countInput: NumOfScenes',
+        '    countInput: NumOfSegments',
         '',
         'producers:',
         '  - name: StoryboardProducer',
@@ -84,7 +85,7 @@ describe('getStoryboardProjection', () => {
         '  SharedStyleImage: "file:./input-files/style.png"',
         '  ScenePrompt:',
         '    - "Only template scene"',
-        '  NumOfScenes: 1',
+        '  NumOfSegments: 1',
         '',
       ].join('\n')
     );
@@ -97,7 +98,7 @@ describe('getStoryboardProjection', () => {
         '  ScenePrompt:',
         '    - "Scene one"',
         '    - "Scene two"',
-        '  NumOfScenes: 2',
+        '  NumOfSegments: 2',
         '',
       ].join('\n')
     );
@@ -112,11 +113,11 @@ describe('getStoryboardProjection', () => {
 
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-1.json'),
-      JSON.stringify({
-        inputs: {
-          'Input:SharedStyleImage': { payloadDigest: '"file:./input-files/style.png"' },
-          'Input:NumOfScenes': { payloadDigest: '1' },
-        },
+        JSON.stringify({
+          inputs: {
+            'Input:SharedStyleImage': { payloadDigest: '"file:./input-files/style.png"' },
+            'Input:NumOfSegments': { payloadDigest: '1' },
+          },
         artefacts: {
           'Artifact:SceneVideo[0]': {
             blob: { hash: 'video-hash', size: 10, mimeType: 'video/mp4' },
@@ -145,5 +146,201 @@ describe('getStoryboardProjection', () => {
     expect(projection.meta.axisCount).toBe(2);
     expect(projection.meta.hasProducedStoryState).toBe(true);
     expect(projection.columns[1]?.title).toBe('Scene 2');
+  });
+
+  it('hydrates producer output schemas before resolving storyboard-marked prompt companions', async () => {
+    const outputSchemaPath = path.join(tempDir, 'story-producer-output.json');
+    const storyProducerPath = path.join(tempDir, 'story-producer.yaml');
+    const videoProducerPath = path.join(tempDir, 'video-producer.yaml');
+    const promptHash = '14966d97e726bb757903645ad8f44e5646c2445fce086775ff55ce3deff7ae26';
+    const promptText =
+      'Slow push-in through drifting fog as the clocktower wakes above the city skyline.';
+
+    await fs.writeFile(
+      outputSchemaPath,
+      JSON.stringify({
+        name: 'Storyboard',
+        schema: {
+          type: 'object',
+          properties: {
+            Scenes: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  VideoPrompt: { type: 'string' },
+                },
+                required: ['VideoPrompt'],
+              },
+            },
+          },
+          required: ['Scenes'],
+        },
+      })
+    );
+
+    await fs.writeFile(
+      storyProducerPath,
+      [
+        'meta:',
+        '  id: StoryProducerImpl',
+        '  name: Story Producer',
+        '  outputSchema: ./story-producer-output.json',
+        '',
+        'inputs:',
+        '  - name: NumOfScenes',
+        '    type: int',
+        '    required: true',
+        '',
+        'artifacts:',
+        '  - name: Storyboard',
+        '    type: json',
+        '    arrays:',
+        '      - path: Scenes',
+        '        countInput: NumOfScenes',
+        '',
+      ].join('\n')
+    );
+
+    await fs.writeFile(
+      videoProducerPath,
+      [
+        'meta:',
+        '  id: VideoProducerImpl',
+        '  name: Video Producer',
+        '',
+        'inputs:',
+        '  - name: Prompt',
+        '    type: string',
+        '    required: true',
+        '    storyboard: main',
+        '',
+        'artifacts:',
+        '  - name: GeneratedVideo',
+        '    type: video',
+        '',
+      ].join('\n')
+    );
+
+    await fs.writeFile(
+      blueprintPath,
+      [
+        'meta:',
+        '  id: StoryboardHydrationFixture',
+        '  name: Storyboard Hydration Fixture',
+        '',
+        'inputs:',
+        '  - name: NumOfSegments',
+        '    type: int',
+        '    required: true',
+        '',
+        'artifacts:',
+        '  - name: SceneVideo',
+        '    type: array',
+        '    itemType: video',
+        '    countInput: NumOfSegments',
+        '',
+        'loops:',
+        '  - name: scene',
+        '    countInput: NumOfSegments',
+        '',
+        'producers:',
+        '  - name: StoryProducer',
+        '    path: ./story-producer.yaml',
+        '  - name: VideoProducer',
+        '    path: ./video-producer.yaml',
+        '    loop: scene',
+        '',
+        'connections:',
+        '  - from: NumOfSegments',
+        '    to: StoryProducer.NumOfScenes',
+        '  - from: StoryProducer.Storyboard.Scenes[scene].VideoPrompt',
+        '    to: VideoProducer[scene].Prompt',
+        '  - from: VideoProducer[scene].GeneratedVideo',
+        '    to: SceneVideo[scene]',
+        '',
+      ].join('\n')
+    );
+
+    await fs.writeFile(
+      path.join(tempDir, 'input-template.yaml'),
+      [
+        'inputs:',
+        '  NumOfSegments: 1',
+        '',
+      ].join('\n')
+    );
+
+    await fs.writeFile(
+      path.join(movieDir, 'inputs.yaml'),
+      [
+        'inputs:',
+        '  NumOfSegments: 1',
+        '',
+      ].join('\n')
+    );
+
+    const promptBlobDir = path.join(movieDir, 'blobs', promptHash.slice(0, 2));
+    await fs.mkdir(promptBlobDir, { recursive: true });
+    await fs.writeFile(
+      path.join(promptBlobDir, formatBlobFileName(promptHash, 'text/plain')),
+      promptText
+    );
+
+    await fs.writeFile(
+      path.join(movieDir, 'manifests', 'rev-1.json'),
+      JSON.stringify({
+        inputs: {
+          'Input:NumOfSegments': { payloadDigest: '1' },
+        },
+        artefacts: {
+          'Artifact:StoryProducer.Storyboard.Scenes[0].VideoPrompt': {
+            hash: promptHash,
+            blob: {
+              hash: promptHash,
+              size: promptText.length,
+              mimeType: 'text/plain',
+            },
+            producedBy: 'Producer:StoryProducer',
+            status: 'succeeded',
+            diagnostics: {
+              kind: 'StoryProducer.Storyboard.Scenes.VideoPrompt',
+              jsonPath: 'Scenes[0].VideoPrompt',
+            },
+            createdAt: '2026-04-09T12:00:00Z',
+          },
+          'Artifact:SceneVideo[0]': {
+            hash: 'video-hash',
+            blob: {
+              hash: 'video-hash',
+              size: 10,
+              mimeType: 'video/mp4',
+            },
+            producedBy: 'Producer:VideoProducer[0]',
+            status: 'succeeded',
+            createdAt: '2026-04-09T12:00:00Z',
+          },
+        },
+        createdAt: '2026-04-09T12:00:00Z',
+      })
+    );
+
+    const projection = await getStoryboardProjection({
+      blueprintPath,
+      blueprintFolder: tempDir,
+      movieId,
+    });
+
+    const textItems = projection.columns.flatMap((column) =>
+      column.groups.flatMap((group) =>
+        group.items.filter((item) => item.mediaType === 'text')
+      )
+    );
+
+    expect(textItems).toHaveLength(1);
+    expect(textItems[0]?.text?.value).toBe(promptText);
+    expect(textItems[0]?.id).toBe(
+      'Artifact:StoryProducer.Storyboard.Scenes[0].VideoPrompt'
+    );
   });
 });

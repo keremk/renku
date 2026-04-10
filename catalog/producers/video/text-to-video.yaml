@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text description of the video to generate.
     type: string
+    storyboard: main
 
   # Duration
   - name: Duration

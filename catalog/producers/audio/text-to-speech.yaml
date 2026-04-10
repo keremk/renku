@@ -11,6 +11,7 @@ inputs:
   - name: Text
     description: Text to convert to speech.
     type: string
+    storyboard: main
   - name: GuidingPrompt
     description: Optional text prompt to guide voice style/tone.
     type: string  

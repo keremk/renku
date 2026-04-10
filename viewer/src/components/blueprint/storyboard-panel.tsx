@@ -40,7 +40,6 @@ import {
   extractProducerFromArtifactId,
   getBlobUrl,
 } from '@/lib/artifact-utils';
-import { resolvePromptArtifactForMedia } from '@/lib/artifact-prompt-resolver';
 import { toMediaInputType, uploadAndValidate } from '@/lib/panel-utils';
 import { cn } from '@/lib/utils';
 import type {
@@ -111,6 +110,7 @@ interface StoryboardMediaPromptDetails {
   title?: string;
   text?: string;
   url?: string;
+  artifactId?: string;
 }
 
 type StoryboardPromptCardModel =
@@ -124,12 +124,6 @@ type StoryboardPromptCardModel =
       kind: 'artifact-item';
       item: StoryboardItem;
       artifact: ArtifactInfo;
-    }
-  | {
-      key: string;
-      kind: 'artifact-fallback';
-      artifact: ArtifactInfo;
-      title: string;
     };
 
 const STORYBOARD_LANE_ORDER: StoryboardLaneType[] = ['video', 'image', 'audio'];
@@ -245,15 +239,6 @@ function StoryboardBoard({
     () => buildPromptSourcesByMediaId(projection, itemById),
     [projection, itemById]
   );
-  const fallbackPromptArtifactByMediaId = useMemo(
-    () =>
-      buildFallbackPromptArtifactByMediaId({
-        projection,
-        artifacts,
-        graphData,
-      }),
-    [projection, artifacts, graphData]
-  );
   const artifactById = useMemo(
     () => new Map(artifacts.map((artifact) => [artifact.id, artifact])),
     [artifacts]
@@ -353,7 +338,6 @@ function StoryboardBoard({
             laneTypes={laneTypes}
             registerItemRef={registerItemRef}
             promptSourcesByMediaId={promptSourcesByMediaId}
-            fallbackPromptArtifactByMediaId={fallbackPromptArtifactByMediaId}
             blueprintFolder={blueprintFolder}
             movieId={movieId}
             artifacts={artifacts}
@@ -377,7 +361,6 @@ function StoryboardColumnCard({
   laneTypes,
   registerItemRef,
   promptSourcesByMediaId,
-  fallbackPromptArtifactByMediaId,
   blueprintFolder,
   movieId,
   artifacts,
@@ -394,7 +377,6 @@ function StoryboardColumnCard({
   laneTypes: StoryboardLaneType[];
   registerItemRef: (itemId: string) => (element: HTMLDivElement | null) => void;
   promptSourcesByMediaId: Map<string, StoryboardItem[]>;
-  fallbackPromptArtifactByMediaId: Map<string, ArtifactInfo>;
   blueprintFolder: string | null;
   movieId: string | null;
   artifacts: ArtifactInfo[];
@@ -413,7 +395,6 @@ function StoryboardColumnCard({
         column,
         laneTypes,
         promptSourcesByMediaId,
-        fallbackPromptArtifactByMediaId,
         artifactById,
       }),
     [
@@ -421,7 +402,6 @@ function StoryboardColumnCard({
       column,
       laneTypes,
       promptSourcesByMediaId,
-      fallbackPromptArtifactByMediaId,
     ]
   );
 
@@ -801,11 +781,9 @@ function StoryboardArtifactMediaCard({
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
-  const promptArtifact = resolvePromptArtifactForMedia({
-    mediaArtifactId: artifact.id,
-    artifacts,
-    graphData,
-  });
+  const promptArtifact = promptDetails.artifactId
+    ? artifacts.find((candidate) => candidate.id === promptDetails.artifactId)
+    : undefined;
   const promptLabel = promptArtifact
     ? `Prompt (${shortenPromptArtifactLabel(promptArtifact.id)})`
     : 'Prompt';
@@ -1224,16 +1202,8 @@ function StoryboardPromptCard({
     );
   }
 
-  return (
-    <StoryboardArtifactTextCard
-      artifact={promptCard.artifact}
-      item={undefined}
-      fallbackTitle={promptCard.title}
-      blueprintFolder={blueprintFolder}
-      movieId={movieId}
-      onArtifactUpdated={onArtifactUpdated}
-    />
-  );
+  const unexpectedPromptCard: never = promptCard;
+  throw new Error(`Unsupported storyboard prompt card kind "${String(unexpectedPromptCard)}".`);
 }
 
 function StoryboardInputTextCard({
@@ -1623,9 +1593,7 @@ function StoryboardConnectorLayer({ paths }: { paths: ConnectorPath[] }) {
             'transition-colors',
             path.kind === 'carry-over'
               ? 'stroke-amber-500/45'
-              : path.kind === 'shared'
-                ? 'stroke-border/70'
-                : 'stroke-border/55'
+              : 'stroke-border/55'
           )}
         />
       ))}
@@ -1669,44 +1637,10 @@ function buildPromptSourcesByMediaId(
   return promptSourcesByMediaId;
 }
 
-function buildFallbackPromptArtifactByMediaId(args: {
-  projection: StoryboardProjection;
-  artifacts: ArtifactInfo[];
-  graphData?: BlueprintGraphData;
-}): Map<string, ArtifactInfo> {
-  const promptArtifactByMediaId = new Map<string, ArtifactInfo>();
-
-  for (const column of args.projection.columns) {
-    for (const group of column.groups) {
-      for (const item of group.items) {
-        if (item.mediaType === 'text') {
-          continue;
-        }
-        const mediaArtifactId = item.identity.canonicalArtifactId;
-        if (!mediaArtifactId) {
-          continue;
-        }
-
-        const promptArtifact = resolvePromptArtifactForMedia({
-          mediaArtifactId,
-          artifacts: args.artifacts,
-          graphData: args.graphData,
-        });
-        if (promptArtifact) {
-          promptArtifactByMediaId.set(item.id, promptArtifact);
-        }
-      }
-    }
-  }
-
-  return promptArtifactByMediaId;
-}
-
 function buildStoryboardLaneModels(args: {
   column: StoryboardColumn;
   laneTypes: StoryboardLaneType[];
   promptSourcesByMediaId: Map<string, StoryboardItem[]>;
-  fallbackPromptArtifactByMediaId: Map<string, ArtifactInfo>;
   artifactById: Map<string, ArtifactInfo>;
 }): StoryboardLaneModel[] {
   const items = args.column.groups.flatMap((group) => group.items);
@@ -1722,7 +1656,6 @@ function buildStoryboardLaneModels(args: {
           promptCards: buildPromptCardsForMedia({
             mediaItem: item,
             promptSourcesByMediaId: args.promptSourcesByMediaId,
-            fallbackPromptArtifactByMediaId: args.fallbackPromptArtifactByMediaId,
             artifactById: args.artifactById,
           }),
         }));
@@ -1739,58 +1672,41 @@ function buildStoryboardLaneModels(args: {
 function buildPromptCardsForMedia(args: {
   mediaItem: StoryboardItem;
   promptSourcesByMediaId: Map<string, StoryboardItem[]>;
-  fallbackPromptArtifactByMediaId: Map<string, ArtifactInfo>;
   artifactById: Map<string, ArtifactInfo>;
 }): StoryboardPromptCardModel[] {
   const promptSources = args.promptSourcesByMediaId.get(args.mediaItem.id) ?? [];
-  if (promptSources.length > 0) {
-    const promptCards: StoryboardPromptCardModel[] = [];
+  const promptCards: StoryboardPromptCardModel[] = [];
 
-    for (const promptSource of promptSources) {
-      if (promptSource.kind === 'input-text') {
-        promptCards.push({
-          key: `${args.mediaItem.id}:input:${promptSource.id}`,
-          kind: 'input',
-          item: promptSource,
-        });
+  for (const promptSource of promptSources) {
+    if (promptSource.kind === 'input-text') {
+      promptCards.push({
+        key: `${args.mediaItem.id}:input:${promptSource.id}`,
+        kind: 'input',
+        item: promptSource,
+      });
+      continue;
+    }
+
+    if (promptSource.kind === 'artifact-text') {
+      const promptArtifactId = promptSource.identity.canonicalArtifactId;
+      if (!promptArtifactId) {
+        continue;
+      }
+      const promptArtifact = args.artifactById.get(promptArtifactId);
+      if (!promptArtifact) {
         continue;
       }
 
-      if (promptSource.kind === 'artifact-text') {
-        const promptArtifactId = promptSource.identity.canonicalArtifactId;
-        if (!promptArtifactId) {
-          continue;
-        }
-        const promptArtifact = args.artifactById.get(promptArtifactId);
-        if (!promptArtifact) {
-          continue;
-        }
-
-        promptCards.push({
-          key: `${args.mediaItem.id}:artifact-item:${promptSource.id}`,
-          kind: 'artifact-item',
-          item: promptSource,
-          artifact: promptArtifact,
-        });
-      }
+      promptCards.push({
+        key: `${args.mediaItem.id}:artifact-item:${promptSource.id}`,
+        kind: 'artifact-item',
+        item: promptSource,
+        artifact: promptArtifact,
+      });
     }
-
-    return promptCards;
   }
 
-  const fallbackPromptArtifact = args.fallbackPromptArtifactByMediaId.get(args.mediaItem.id);
-  if (!fallbackPromptArtifact) {
-    return [];
-  }
-
-  return [
-    {
-      key: `${args.mediaItem.id}:artifact-fallback:${fallbackPromptArtifact.id}`,
-      kind: 'artifact-fallback',
-      artifact: fallbackPromptArtifact,
-      title: humanizePromptArtifactLabel(fallbackPromptArtifact.id),
-    },
-  ];
+  return promptCards;
 }
 
 function sortStoryboardLaneItems(left: StoryboardItem, right: StoryboardItem): number {
@@ -1830,42 +1746,37 @@ function resolveMediaPromptDetails(
   }
 
   const promptTexts = promptCards
-    .map((promptCard) => {
-      if (promptCard.kind === 'artifact-fallback') {
-        return null;
-      }
-      return promptCard.item.text?.value?.trim() ?? '';
-    })
+    .map((promptCard) => promptCard.item.text?.value?.trim() ?? '')
     .filter((value): value is string => typeof value === 'string' && value.length > 0);
 
   const title =
     promptCards.length === 1
-      ? promptCards[0]!.kind === 'artifact-fallback'
-        ? promptCards[0]!.title
-        : promptCards[0]!.item.label
+      ? promptCards[0]!.item.label
       : 'Prompts';
+  const artifactPromptCard =
+    promptCards.length === 1 && promptCards[0]!.kind === 'artifact-item'
+      ? promptCards[0]!
+      : null;
 
   if (promptTexts.length > 0) {
     return {
       title,
       text: promptTexts.join('\n\n'),
+      artifactId: artifactPromptCard?.artifact.id,
     };
   }
 
-  if (
-    promptCards.length === 1 &&
-    promptCards[0]!.kind === 'artifact-fallback' &&
-    blueprintFolder &&
-    movieId
-  ) {
+  if (artifactPromptCard && blueprintFolder && movieId) {
     return {
       title,
-      url: getBlobUrl(blueprintFolder, movieId, promptCards[0]!.artifact.hash),
+      url: getBlobUrl(blueprintFolder, movieId, artifactPromptCard.artifact.hash),
+      artifactId: artifactPromptCard.artifact.id,
     };
   }
 
   return {
     title,
+    artifactId: artifactPromptCard?.artifact.id,
   };
 }
 
@@ -2022,45 +1933,39 @@ function createStoryboardInputPatch(
   const address = parseStoryboardInputAddress(canonicalInputId);
   if (address.index === null) {
     return {
-      [address.inputName]: nextValue,
+      [address.canonicalInputId]: nextValue,
     };
   }
 
-  const currentValue = buildInputs[address.inputName];
+  const currentValue = buildInputs[address.canonicalInputId];
   if (!Array.isArray(currentValue)) {
     throw new Error(
-      `Storyboard input "${address.inputName}" must be an array to update index ${address.index}.`
+      `Storyboard input "${address.canonicalInputId}" must be an array to update index ${address.index}.`
     );
   }
 
   const nextArray = [...currentValue];
   nextArray[address.index] = nextValue;
   return {
-    [address.inputName]: nextArray,
+    [address.canonicalInputId]: nextArray,
   };
 }
 
 function parseStoryboardInputAddress(canonicalInputId: string): {
-  inputName: string;
+  canonicalInputId: string;
   index: number | null;
 } {
   if (!canonicalInputId.startsWith('Input:')) {
     throw new Error(`Expected canonical storyboard input id, received "${canonicalInputId}".`);
   }
 
-  const body = canonicalInputId.slice('Input:'.length);
-  const match = body.match(/^(.*?)(?:\[(\d+)\])?$/);
+  const match = canonicalInputId.match(/^(Input:.+?)(?:\[(\d+)\])?$/);
   if (!match || !match[1]) {
     throw new Error(`Could not parse storyboard input id "${canonicalInputId}".`);
   }
 
-  const rawName = match[1].split('.').pop();
-  if (!rawName) {
-    throw new Error(`Storyboard input id "${canonicalInputId}" does not contain an input name.`);
-  }
-
   return {
-    inputName: rawName,
+    canonicalInputId: match[1],
     index: match[2] ? Number(match[2]) : null,
   };
 }

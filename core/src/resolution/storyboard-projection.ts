@@ -2,12 +2,12 @@ import { evaluateCondition } from '../condition-evaluator.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import {
   formatCanonicalInputId,
+  formatCanonicalProducerId,
   parseCanonicalArtifactId,
 } from '../parsing/canonical-ids.js';
 import type { BlueprintTreeNode } from '../types.js';
-import { buildBlueprintGraph } from './canonical-graph.js';
+import { buildBlueprintGraph, type BlueprintGraphNode } from './canonical-graph.js';
 import type {
-  CanonicalBlueprint,
   CanonicalEdgeInstance,
   CanonicalNodeInstance,
 } from './canonical-expander.js';
@@ -41,15 +41,8 @@ export interface StoryboardProjection {
     axisCount: number;
     hasProducedStoryState: boolean;
   };
-  sharedSection: StoryboardSection;
   columns: StoryboardColumn[];
   connectors: StoryboardConnector[];
-}
-
-export interface StoryboardSection {
-  id: string;
-  title: string;
-  items: StoryboardItem[];
 }
 
 export interface StoryboardColumn {
@@ -91,7 +84,7 @@ export interface StoryboardItem {
   state: 'input' | 'succeeded' | 'pending' | 'failed' | 'skipped';
   placeholderReason?: 'not-run' | 'error' | 'conditional-skip';
   placeholderMessage?: string;
-  dependencyClass: 'shared' | 'local-upstream' | 'carry-over' | 'local-output';
+  dependencyClass: 'local-upstream' | 'carry-over' | 'local-output';
   media?: {
     mimeType: string;
     hash?: string;
@@ -108,7 +101,7 @@ export interface StoryboardConnector {
   id: string;
   fromItemId: string;
   toItemId: string;
-  kind: 'shared' | 'local' | 'carry-over';
+  kind: 'local' | 'carry-over';
 }
 
 export interface BuildStoryboardProjectionArgs {
@@ -141,32 +134,23 @@ interface StoryboardPlaceholderDetails {
   message?: string;
 }
 
+interface ProducerStoryboardInputSelection {
+  mainInputName?: string;
+  secondaryInputName?: string;
+}
+
+interface StoryboardCompanionSelection {
+  mediaNodeId: string;
+  sourceNodeId: string;
+}
+
+interface StoryboardAxisFamily {
+  publicLabel: string;
+  labels: Set<string>;
+}
+
 const STORY_MEDIA_TYPES = new Set(['image', 'audio', 'video']);
-const EXCLUDED_NAME_PARTS = [
-  'duration',
-  'resolution',
-  'aspect',
-  'ratio',
-  'size',
-  'numof',
-  'count',
-  'voiceid',
-  'model',
-];
 const EXCLUDED_TERMINAL_ARTIFACT_NAMES = new Set(['timeline', 'finalvideo']);
-const STORY_TEXT_KEYWORDS = [
-  'prompt',
-  'script',
-  'narration',
-  'caption',
-  'description',
-  'lyrics',
-];
-const EXCLUDED_STORY_TEXT_NAME_PARTS = [
-  'overlay',
-  'transcription',
-  'subtitle',
-];
 
 export function buildStoryboardProjection(
   args: BuildStoryboardProjectionArgs
@@ -181,11 +165,9 @@ export function buildStoryboardProjection(
   const canonical = expandBlueprintGraph(graph, normalizedInputs, inputSources);
   const artifactStateById = args.artifactStates ?? {};
   const resolvedArtifactValues = args.resolvedArtifactValues ?? {};
+  const producerStoryboardInputs = collectProducerStoryboardInputs(graph.nodes);
 
-  const candidateVisibleNodeInfos = collectExpectedVisibleNodes(canonical.nodes);
-  const candidateVisibleNodeIds = new Set(
-    candidateVisibleNodeInfos.map((info) => info.node.id)
-  );
+  const candidateVisibleNodeInfos = collectExpectedVisibleMediaNodes(canonical.nodes);
 
   const hasProducedStoryState = candidateVisibleNodeInfos.some((info) => {
     if (info.node.type !== 'Artifact') {
@@ -203,30 +185,28 @@ export function buildStoryboardProjection(
     visibleNodeInfos: candidateVisibleNodeInfos,
     adjacency: buildAdjacency(activeEdges),
   });
-  const preliminaryVisibleNodeIds = new Set(
-    preliminaryVisibleNodeInfos.map((info) => info.node.id)
-  );
   const adjacency = buildAdjacency(activeEdges);
   const reverseAdjacency = buildReverseAdjacency(activeEdges);
   const nodeById = new Map(canonical.nodes.map((node) => [node.id, node]));
+  const visibleMediaInfoById = new Map(
+    preliminaryVisibleNodeInfos.map((info) => [info.node.id, info])
+  );
   const candidateReducedEdges = buildReducedVisibleEdges({
-    visibleNodeIds: preliminaryVisibleNodeIds,
+    visibleNodeIds: new Set(visibleMediaInfoById.keys()),
     adjacency,
   });
   const candidateReducedIncoming =
     buildReducedReverseAdjacency(candidateReducedEdges);
-  const candidateNodeInfoById = new Map(
-    preliminaryVisibleNodeInfos.map((info) => [info.node.id, info])
-  );
-  const expectedVisibleNodeInfos = filterPassThroughAliasArtifacts({
+  const expectedVisibleMediaInfos = filterPassThroughAliasArtifacts({
     visibleNodeInfos: preliminaryVisibleNodeInfos,
     artifactStateById,
     reducedIncoming: candidateReducedIncoming,
-    nodeInfoById: candidateNodeInfoById,
+    nodeInfoById: visibleMediaInfoById,
   });
-  const expectedVisibleNodeIds = new Set(
-    expectedVisibleNodeInfos.map((info) => info.node.id)
+  const expectedVisibleMediaInfoById = new Map(
+    expectedVisibleMediaInfos.map((info) => [info.node.id, info])
   );
+  const expectedVisibleNodeIds = new Set(expectedVisibleMediaInfoById.keys());
   const reducedEdges = buildReducedVisibleEdges({
     visibleNodeIds: expectedVisibleNodeIds,
     adjacency,
@@ -234,20 +214,25 @@ export function buildStoryboardProjection(
   const reducedOutgoing = buildReducedAdjacency(reducedEdges);
   const reducedIncoming = buildReducedReverseAdjacency(reducedEdges);
 
-  const terminalArtifactInfos = expectedVisibleNodeInfos.filter((info) =>
+  const terminalArtifactInfos = expectedVisibleMediaInfos.filter((info) =>
     isTerminalColumnArtifact(info, reducedOutgoing)
   );
 
-  const axisDimension = deriveAxisDimension(terminalArtifactInfos, graph.loops);
+  const axisFamily = deriveStoryboardAxisFamily({
+    root: args.root,
+    terminalArtifacts: terminalArtifactInfos,
+    loops: graph.loops,
+  });
+  const axisDimension = axisFamily.publicLabel;
   const axisLabel = humanizeLabel(axisDimension);
-  const axisCount = deriveAxisCount(canonical.nodes, axisDimension);
+  const axisCount = deriveAxisCount(canonical.nodes, axisFamily);
   const nodeColumnById = new Map<string, number | null>(
-    canonical.nodes.map((node) => [node.id, getDimensionIndex(node, axisDimension)])
+    canonical.nodes.map((node) => [node.id, getDimensionIndex(node, axisFamily)])
   );
 
   const terminalArtifactsByColumn = groupTerminalArtifactsByColumn(
     terminalArtifactInfos,
-    axisDimension
+    axisFamily
   );
   const columnsWorkset = buildColumnWorksets({
     axisCount,
@@ -256,12 +241,13 @@ export function buildStoryboardProjection(
   });
 
   const columnGroups = new Map<number, Map<string, StoryboardItem[]>>();
+  const companionSelections = new Map<string, StoryboardCompanionSelection>();
 
   for (const column of columnsWorkset) {
+    const groups = columnGroups.get(column.index) ?? new Map<string, StoryboardItem[]>();
+
     for (const nodeId of column.expectedNodeIds) {
-      const expectedInfo = expectedVisibleNodeInfos.find(
-        (info) => info.node.id === nodeId
-      );
+      const expectedInfo = expectedVisibleMediaInfoById.get(nodeId);
       if (!expectedInfo) {
         continue;
       }
@@ -269,7 +255,6 @@ export function buildStoryboardProjection(
       const item = buildStoryboardItem({
         node: expectedInfo.node,
         mediaType: expectedInfo.mediaType,
-        axisDimension,
         columnIndex: column.index,
         artifactStateById,
         effectiveInputs: normalizedInputs,
@@ -286,18 +271,64 @@ export function buildStoryboardProjection(
       if (!item) {
         continue;
       }
-
-      if (shouldRenderInSharedSection(expectedInfo.node, axisDimension)) {
+      if (!isNodeInStoryboardAxis(expectedInfo.node, axisFamily)) {
         continue;
       }
 
-      const groups = columnGroups.get(column.index) ?? new Map<string, StoryboardItem[]>();
-      const groupId = getGroupId(expectedInfo.node);
-      const items = groups.get(groupId) ?? [];
-      items.push(item);
-      groups.set(groupId, items);
-      columnGroups.set(column.index, groups);
+      pushStoryboardItem(groups, expectedInfo.node, item);
+
+      const companionSourceId = resolveStoryboardCompanionSourceId({
+        mediaNode: expectedInfo.node,
+        reverseAdjacency,
+        nodeById,
+        producerInputBindings: canonical.inputBindings,
+        producerStoryboardInputs,
+      });
+      if (!companionSourceId) {
+        continue;
+      }
+
+      const sourceNode = nodeById.get(companionSourceId);
+      if (!sourceNode) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
+          `Storyboard companion source "${companionSourceId}" was selected for "${expectedInfo.node.id}" but is missing from the canonical graph.`
+        );
+      }
+
+      const companionItem = buildStoryboardItem({
+        node: sourceNode,
+        mediaType: 'text',
+        columnIndex: column.index,
+        artifactStateById,
+        effectiveInputs: normalizedInputs,
+        resolvedArtifactValues,
+        reducedIncoming,
+        reducedOutgoing,
+        nodeColumnById,
+        activeReverseAdjacency: reverseAdjacency,
+        nodeById,
+        producerInputBindings: canonical.inputBindings,
+        hasProducedStoryState,
+      });
+      if (!companionItem) {
+        continue;
+      }
+      if (!isNodeInStoryboardAxis(sourceNode, axisFamily)) {
+        continue;
+      }
+
+      pushStoryboardItem(groups, sourceNode, companionItem);
+      companionSelections.set(
+        `${sourceNode.id}->${expectedInfo.node.id}`,
+        {
+          mediaNodeId: expectedInfo.node.id,
+          sourceNodeId: sourceNode.id,
+        }
+      );
     }
+
+    columnGroups.set(column.index, groups);
   }
   const columns = Array.from({ length: axisCount }, (_, index) => {
     const groups = columnGroups.get(index) ?? new Map<string, StoryboardItem[]>();
@@ -343,7 +374,6 @@ export function buildStoryboardProjection(
         edge,
         itemById,
         renderedItemIds,
-        sharedItemIds: new Set<string>(),
         nodeColumnById,
       })
     )
@@ -351,15 +381,27 @@ export function buildStoryboardProjection(
   const fallbackCarryOverConnectors = buildCarryOverFallbackConnectors({
     itemById,
     renderedItemIds,
-    sharedItemIds: new Set<string>(),
     nodeColumnById,
     reverseAdjacency,
     nodeById,
-    axisDimension,
     producerInputBindings: canonical.inputBindings,
   });
+  const companionConnectors = Array.from(companionSelections.values())
+    .map((selection) =>
+      toStoryboardCompanionConnector({
+        selection,
+        itemById,
+        renderedItemIds,
+        nodeColumnById,
+      })
+    )
+    .filter((connector): connector is StoryboardConnector => connector !== null);
   const dedupedConnectors = new Map<string, StoryboardConnector>();
-  for (const connector of [...connectors, ...fallbackCarryOverConnectors]) {
+  for (const connector of [
+    ...connectors,
+    ...fallbackCarryOverConnectors,
+    ...companionConnectors,
+  ]) {
     dedupedConnectors.set(connector.id, connector);
   }
 
@@ -371,11 +413,6 @@ export function buildStoryboardProjection(
       axisDimension,
       axisCount,
       hasProducedStoryState,
-    },
-    sharedSection: {
-      id: 'shared',
-      title: 'Shared',
-      items: [],
     },
     columns,
     connectors: Array.from(dedupedConnectors.values()),
@@ -390,7 +427,7 @@ function canonicalizeEffectiveInputs(
   }>,
   effectiveInputs: Record<string, unknown>
 ): Record<string, unknown> {
-  const canonicalInputs: Record<string, unknown> = { ...effectiveInputs };
+  const canonicalInputs: Record<string, unknown> = {};
 
   for (const node of nodes) {
     if (node.type !== 'InputSource') {
@@ -412,7 +449,142 @@ function canonicalizeEffectiveInputs(
   return canonicalInputs;
 }
 
-function collectExpectedVisibleNodes(
+function collectProducerStoryboardInputs(
+  nodes: BlueprintGraphNode[]
+): Map<string, ProducerStoryboardInputSelection> {
+  const selections = new Map<string, ProducerStoryboardInputSelection>();
+
+  for (const node of nodes) {
+    if (node.type !== 'InputSource' || node.namespacePath.length === 0) {
+      continue;
+    }
+    if (!node.input?.storyboard) {
+      continue;
+    }
+
+    const producerId = formatCanonicalProducerId(node.namespacePath, node.namespacePath[0]!);
+    const selection = selections.get(producerId) ?? {};
+    if (node.input.storyboard === 'main') {
+      selection.mainInputName = node.name;
+    } else {
+      selection.secondaryInputName = node.name;
+    }
+    selections.set(producerId, selection);
+  }
+
+  return selections;
+}
+
+function pushStoryboardItem(
+  groups: Map<string, StoryboardItem[]>,
+  node: CanonicalNodeInstance,
+  item: StoryboardItem
+): void {
+  const groupId = getGroupId(node);
+  const existingItems = groups.get(groupId) ?? [];
+  if (existingItems.some((existing) => existing.id === item.id)) {
+    return;
+  }
+  groups.set(groupId, [...existingItems, item]);
+}
+
+function resolveStoryboardCompanionSourceId(args: {
+  mediaNode: CanonicalNodeInstance;
+  reverseAdjacency: Map<string, string[]>;
+  nodeById: Map<string, CanonicalNodeInstance>;
+  producerInputBindings: Record<string, Record<string, string>>;
+  producerStoryboardInputs: Map<string, ProducerStoryboardInputSelection>;
+}): string | null {
+  const upstreamProducerIds = findNearestUpstreamProducerIds({
+    startNodeId: args.mediaNode.id,
+    reverseAdjacency: args.reverseAdjacency,
+    nodeById: args.nodeById,
+  });
+
+  for (const upstreamId of upstreamProducerIds) {
+    const upstreamNode = args.nodeById.get(upstreamId);
+    if (upstreamNode?.type !== 'Producer') {
+      continue;
+    }
+    const producerBaseId = stripProducerIndices(upstreamNode.id);
+    const storyboardInputs = args.producerStoryboardInputs.get(producerBaseId);
+    if (!storyboardInputs) {
+      continue;
+    }
+
+    const bindings = args.producerInputBindings[upstreamNode.id] ?? {};
+    const mainSourceId = storyboardInputs.mainInputName
+      ? bindings[storyboardInputs.mainInputName]
+      : undefined;
+    if (mainSourceId && !isProducerInternalSource(mainSourceId, producerBaseId)) {
+      return mainSourceId;
+    }
+
+    const secondarySourceId = storyboardInputs.secondaryInputName
+      ? bindings[storyboardInputs.secondaryInputName]
+      : undefined;
+    if (
+      secondarySourceId &&
+      !isProducerInternalSource(secondarySourceId, producerBaseId)
+    ) {
+      return secondarySourceId;
+    }
+  }
+
+  return null;
+}
+
+function findNearestUpstreamProducerIds(args: {
+  startNodeId: string;
+  reverseAdjacency: Map<string, string[]>;
+  nodeById: Map<string, CanonicalNodeInstance>;
+}): string[] {
+  const queue = [...(args.reverseAdjacency.get(args.startNodeId) ?? [])];
+  const visited = new Set<string>();
+  const producers: string[] = [];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId || visited.has(currentId)) {
+      continue;
+    }
+    visited.add(currentId);
+
+    const currentNode = args.nodeById.get(currentId);
+    if (currentNode?.type === 'Producer') {
+      producers.push(currentId);
+      continue;
+    }
+
+    queue.push(...(args.reverseAdjacency.get(currentId) ?? []));
+  }
+
+  return producers;
+}
+
+function stripProducerIndices(canonicalProducerId: string): string {
+  return canonicalProducerId.replace(/\[\d+\]/g, '');
+}
+
+function stripCanonicalIndices(canonicalId: string): string {
+  return canonicalId.replace(/\[\d+\]/g, '');
+}
+
+function isProducerInternalSource(
+  sourceId: string,
+  producerBaseId: string
+): boolean {
+  const producerAlias = producerBaseId.slice('Producer:'.length);
+  const strippedSourceId = stripCanonicalIndices(sourceId);
+  return (
+    strippedSourceId === `Input:${producerAlias}` ||
+    strippedSourceId.startsWith(`Input:${producerAlias}.`) ||
+    strippedSourceId === `Artifact:${producerAlias}` ||
+    strippedSourceId.startsWith(`Artifact:${producerAlias}.`)
+  );
+}
+
+function collectExpectedVisibleMediaNodes(
   nodes: CanonicalNodeInstance[]
 ): ExpectedNodeInfo[] {
   return nodes.flatMap((node) => {
@@ -425,59 +597,26 @@ function collectExpectedVisibleNodes(
       return [];
     }
 
-    if (node.type === 'Input') {
-      return isVisibleStoryboardInput(node, mediaType)
-        ? [{ node, mediaType }]
-        : [];
-    }
-
-    return isVisibleStoryboardArtifact(node, mediaType)
+    return isVisibleStoryboardMediaNode(node, mediaType)
       ? [{ node, mediaType }]
       : [];
   });
 }
 
-function isVisibleStoryboardInput(
+function isVisibleStoryboardMediaNode(
   node: CanonicalNodeInstance,
   mediaType: StoryMediaType
 ): boolean {
-  if (mediaType !== 'text') {
+  if (mediaType === 'text') {
     return false;
   }
-
-  if (node.namespacePath.length > 0) {
+  if (node.type === 'Input' && node.namespacePath.length > 0) {
     return false;
   }
-
-  return isPromptLikeStoryNodeName(node.name);
-}
-
-function isVisibleStoryboardArtifact(
-  node: CanonicalNodeInstance,
-  mediaType: StoryMediaType
-): boolean {
   if (EXCLUDED_TERMINAL_ARTIFACT_NAMES.has(node.name.toLowerCase())) {
     return false;
   }
-
-  if (mediaType === 'text') {
-    return isPromptLikeStoryNodeName(
-      [...parseCanonicalArtifactId(node.id).path, node.name].join('.')
-    );
-  }
-
   return true;
-}
-
-function isPromptLikeStoryNodeName(rawName: string): boolean {
-  const normalizedName = rawName.toLowerCase();
-  if (
-    EXCLUDED_STORY_TEXT_NAME_PARTS.some((part) => normalizedName.includes(part))
-  ) {
-    return false;
-  }
-
-  return STORY_TEXT_KEYWORDS.some((part) => normalizedName.includes(part));
 }
 
 function filterPassThroughAliasArtifacts(args: {
@@ -567,11 +706,6 @@ function resolveStoryMediaType(node: CanonicalNodeInstance): StoryMediaType | nu
 
   const rawType = String(definition.type ?? '').toLowerCase();
   const rawItemType = String(definition.itemType ?? '').toLowerCase();
-  const name = node.name.toLowerCase();
-
-  if (EXCLUDED_NAME_PARTS.some((part) => name.includes(part))) {
-    return null;
-  }
 
   if (rawType === 'array' || rawType === 'multidimarray') {
     if (rawItemType === 'string' || rawItemType === 'text' || rawItemType === 'json') {
@@ -719,50 +853,71 @@ function isTerminalColumnArtifact(
   return (reducedOutgoing.get(info.node.id) ?? []).length === 0;
 }
 
-function deriveAxisDimension(
-  terminalArtifacts: ExpectedNodeInfo[],
-  loops: Map<string, Array<{ name: string; countInput: string }>>
-): string {
-  const candidateAxes = new Set<string>();
+function deriveStoryboardAxisFamily(args: {
+  root: BlueprintTreeNode;
+  terminalArtifacts: ExpectedNodeInfo[];
+  loops: Map<string, Array<{ name: string; countInput: string }>>;
+}): StoryboardAxisFamily {
+  const labels = new Set(
+    Array.from(args.loops.values())
+      .flatMap((definitions) => definitions)
+      .filter((definition) => definition.countInput === 'NumOfSegments')
+      .map((definition) => definition.name)
+  );
+  labels.add('NumOfSegments');
 
-  for (const info of terminalArtifacts) {
-    const dimension = getTopLevelDimensionLabel(info.node);
-    if (dimension) {
-      candidateAxes.add(dimension);
+  if (labels.size === 0) {
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_BUILD_ERROR,
+      'Storyboard projection only supports visible story media driven by a NumOfSegments loop, but no such loop was declared.'
+    );
+  }
+
+  const visibleAxisLabels = new Set<string>();
+  for (const info of args.terminalArtifacts) {
+    for (const dimensionSymbol of info.node.dimensions) {
+      const label = extractDimensionLabel(dimensionSymbol);
+      if (labels.has(label)) {
+        visibleAxisLabels.add(label);
+      }
     }
   }
 
-  if (candidateAxes.size === 0) {
+  if (visibleAxisLabels.size === 0) {
+    const candidateAxes = new Set<string>();
+    for (const info of args.terminalArtifacts) {
+      const dimension = getTopLevelDimensionLabel(info.node);
+      if (dimension) {
+        candidateAxes.add(dimension);
+      }
+    }
     throw createRuntimeError(
       RuntimeErrorCode.GRAPH_BUILD_ERROR,
-      'Storyboard projection could not derive a primary narrative axis from the visible story artifacts.'
+      `Storyboard projection only supports scene or segment loops driven by NumOfSegments. Visible story artifacts were keyed by unsupported axes: ${Array.from(candidateAxes).join(', ')}.`
     );
   }
 
-  const preferredAxes = Array.from(loops.values())
-    .flatMap((definitions) => definitions)
-    .filter((definition) => definition.countInput === 'NumOfSegments')
-    .map((definition) => definition.name)
-    .filter((name) => candidateAxes.has(name));
-  if (preferredAxes.length > 0) {
-    return preferredAxes[0]!;
-  }
+  const rootLabel = args.root.document.loops?.find(
+    (loop) => loop.countInput === 'NumOfSegments'
+  )?.name;
+  const publicLabel = rootLabel && visibleAxisLabels.has(rootLabel)
+    ? rootLabel
+    : Array.from(visibleAxisLabels)[0]!;
 
-  if (candidateAxes.size > 1) {
-    throw createRuntimeError(
-      RuntimeErrorCode.GRAPH_BUILD_ERROR,
-      `Storyboard projection found multiple possible primary axes: ${Array.from(candidateAxes).join(', ')}.`
-    );
-  }
-
-  return Array.from(candidateAxes)[0]!;
+  return {
+    publicLabel,
+    labels,
+  };
 }
 
-function deriveAxisCount(nodes: CanonicalNodeInstance[], axisDimension: string): number {
+function deriveAxisCount(
+  nodes: CanonicalNodeInstance[],
+  axisFamily: StoryboardAxisFamily
+): number {
   let maxIndex = -1;
 
   for (const node of nodes) {
-    const axisIndex = getDimensionIndex(node, axisDimension);
+    const axisIndex = getDimensionIndex(node, axisFamily);
     if (axisIndex !== null && axisIndex > maxIndex) {
       maxIndex = axisIndex;
     }
@@ -771,7 +926,7 @@ function deriveAxisCount(nodes: CanonicalNodeInstance[], axisDimension: string):
   if (maxIndex < 0) {
     throw createRuntimeError(
       RuntimeErrorCode.GRAPH_BUILD_ERROR,
-      `Storyboard projection could not resolve any instances for the axis "${axisDimension}".`
+      `Storyboard projection could not resolve any instances for the axis "${axisFamily.publicLabel}".`
     );
   }
 
@@ -780,12 +935,12 @@ function deriveAxisCount(nodes: CanonicalNodeInstance[], axisDimension: string):
 
 function groupTerminalArtifactsByColumn(
   terminalArtifacts: ExpectedNodeInfo[],
-  axisDimension: string
+  axisFamily: StoryboardAxisFamily
 ): Map<number, string[]> {
   const byColumn = new Map<number, string[]>();
 
   for (const info of terminalArtifacts) {
-    const axisIndex = getDimensionIndex(info.node, axisDimension);
+    const axisIndex = getDimensionIndex(info.node, axisFamily);
     if (axisIndex === null) {
       continue;
     }
@@ -827,7 +982,6 @@ function buildColumnWorksets(args: {
 function buildStoryboardItem(args: {
   node: CanonicalNodeInstance;
   mediaType: StoryMediaType;
-  axisDimension: string;
   columnIndex: number;
   artifactStateById: Record<string, StoryboardArtifactState>;
   effectiveInputs: Record<string, unknown>;
@@ -844,7 +998,6 @@ function buildStoryboardItem(args: {
     const artifactState = args.artifactStateById[args.node.id];
     const dependencyClass = resolveDependencyClass({
       node: args.node,
-      axisDimension: args.axisDimension,
       columnIndex: args.columnIndex,
       reducedIncoming: args.reducedIncoming,
       reducedOutgoing: args.reducedOutgoing,
@@ -898,15 +1051,14 @@ function buildStoryboardItem(args: {
 
   const dependencyClass = resolveDependencyClass({
     node: args.node,
-      axisDimension: args.axisDimension,
-      columnIndex: args.columnIndex,
-      reducedIncoming: args.reducedIncoming,
-      reducedOutgoing: args.reducedOutgoing,
-      nodeColumnById: args.nodeColumnById,
-      activeReverseAdjacency: args.activeReverseAdjacency,
-      nodeById: args.nodeById,
-      producerInputBindings: args.producerInputBindings,
-    });
+    columnIndex: args.columnIndex,
+    reducedIncoming: args.reducedIncoming,
+    reducedOutgoing: args.reducedOutgoing,
+    nodeColumnById: args.nodeColumnById,
+    activeReverseAdjacency: args.activeReverseAdjacency,
+    nodeById: args.nodeById,
+    producerInputBindings: args.producerInputBindings,
+  });
 
   return buildConcreteItem({
     node: args.node,
@@ -1101,14 +1253,7 @@ function resolveNodeInputValue(
   node: CanonicalNodeInstance,
   effectiveInputs: Record<string, unknown>
 ): unknown {
-  const unscopedKey = node.name;
-  const scopedKey = [...node.namespacePath, node.name].join('.');
-  const sourceValue =
-    effectiveInputs[node.id] ??
-    effectiveInputs[scopedKey] ??
-    effectiveInputs[unscopedKey];
-
-  return indexIntoValue(sourceValue, node);
+  return indexIntoValue(effectiveInputs[stripCanonicalIndices(node.id)], node);
 }
 
 function indexIntoValue(value: unknown, node: CanonicalNodeInstance): unknown {
@@ -1130,7 +1275,6 @@ function indexIntoValue(value: unknown, node: CanonicalNodeInstance): unknown {
 
 function resolveDependencyClass(args: {
   node: CanonicalNodeInstance;
-  axisDimension: string;
   columnIndex: number;
   reducedIncoming: Map<string, string[]>;
   reducedOutgoing: Map<string, string[]>;
@@ -1139,10 +1283,6 @@ function resolveDependencyClass(args: {
   nodeById: Map<string, CanonicalNodeInstance>;
   producerInputBindings: Record<string, Record<string, string>>;
 }): StoryboardItem['dependencyClass'] {
-  if (shouldRenderInSharedSection(args.node, args.axisDimension)) {
-    return 'shared';
-  }
-
   const hasCarryOver =
     hasCarryOverProducerBinding({
       nodeId: args.node.id,
@@ -1175,19 +1315,12 @@ function resolveDependencyClass(args: {
     : 'local-output';
 }
 
-function shouldRenderInSharedSection(
-  node: CanonicalNodeInstance,
-  axisDimension: string
-): boolean {
-  return getDimensionIndex(node, axisDimension) === null;
-}
-
 function getDimensionIndex(
   node: CanonicalNodeInstance,
-  axisDimension: string
+  axisFamily: StoryboardAxisFamily
 ): number | null {
   for (const dimensionSymbol of node.dimensions) {
-    if (extractDimensionLabel(dimensionSymbol) !== axisDimension) {
+    if (!axisFamily.labels.has(extractDimensionLabel(dimensionSymbol))) {
       continue;
     }
     const value = node.indices[dimensionSymbol];
@@ -1196,6 +1329,13 @@ function getDimensionIndex(
     }
   }
   return null;
+}
+
+function isNodeInStoryboardAxis(
+  node: CanonicalNodeInstance,
+  axisFamily: StoryboardAxisFamily
+): boolean {
+  return getDimensionIndex(node, axisFamily) !== null;
 }
 
 function getTopLevelDimensionLabel(node: CanonicalNodeInstance): string | null {
@@ -1284,7 +1424,6 @@ function toStoryboardConnector(args: {
   edge: ReducedEdge;
   itemById: Map<string, StoryboardItem>;
   renderedItemIds: Set<string>;
-  sharedItemIds: Set<string>;
   nodeColumnById: Map<string, number | null>;
 }): StoryboardConnector | null {
   if (
@@ -1298,19 +1437,53 @@ function toStoryboardConnector(args: {
   const toColumn = args.nodeColumnById.get(args.edge.to) ?? null;
 
   const kind =
-    args.sharedItemIds.has(args.edge.from) || args.sharedItemIds.has(args.edge.to)
-      ? 'shared'
-      : fromColumn !== null &&
-          toColumn !== null &&
-          toColumn === fromColumn + 1
-        ? 'carry-over'
-        : 'local';
+    fromColumn !== null &&
+    toColumn !== null &&
+    toColumn === fromColumn + 1
+      ? 'carry-over'
+      : 'local';
 
   const fromItem = args.itemById.get(args.edge.from);
   const toItem = args.itemById.get(args.edge.to);
   if (!fromItem || !toItem) {
     return null;
   }
+
+  return {
+    id: `${fromItem.id}->${toItem.id}`,
+    fromItemId: fromItem.id,
+    toItemId: toItem.id,
+    kind,
+  };
+}
+
+function toStoryboardCompanionConnector(args: {
+  selection: StoryboardCompanionSelection;
+  itemById: Map<string, StoryboardItem>;
+  renderedItemIds: Set<string>;
+  nodeColumnById: Map<string, number | null>;
+}): StoryboardConnector | null {
+  if (
+    !args.renderedItemIds.has(args.selection.sourceNodeId) ||
+    !args.renderedItemIds.has(args.selection.mediaNodeId)
+  ) {
+    return null;
+  }
+
+  const fromItem = args.itemById.get(args.selection.sourceNodeId);
+  const toItem = args.itemById.get(args.selection.mediaNodeId);
+  if (!fromItem || !toItem) {
+    return null;
+  }
+
+  const fromColumn = args.nodeColumnById.get(args.selection.sourceNodeId) ?? null;
+  const toColumn = args.nodeColumnById.get(args.selection.mediaNodeId) ?? null;
+  const kind =
+    fromColumn !== null &&
+    toColumn !== null &&
+    toColumn === fromColumn + 1
+      ? 'carry-over'
+      : 'local';
 
   return {
     id: `${fromItem.id}->${toItem.id}`,
@@ -1363,11 +1536,9 @@ function hasPreviousColumnArtifactAncestor(args: {
 function buildCarryOverFallbackConnectors(args: {
   itemById: Map<string, StoryboardItem>;
   renderedItemIds: Set<string>;
-  sharedItemIds: Set<string>;
   nodeColumnById: Map<string, number | null>;
   reverseAdjacency: Map<string, string[]>;
   nodeById: Map<string, CanonicalNodeInstance>;
-  axisDimension: string;
   producerInputBindings: Record<string, Record<string, string>>;
 }): StoryboardConnector[] {
   const connectors: StoryboardConnector[] = [];
@@ -1392,7 +1563,7 @@ function buildCarryOverFallbackConnectors(args: {
       renderedItemIds: args.renderedItemIds,
       visited: new Set<string>(),
     });
-    if (!sourceId || args.sharedItemIds.has(sourceId)) {
+    if (!sourceId) {
       continue;
     }
 

@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text instruction describing how to compose the images together.
     type: string
+    storyboard: main
   - name: SourceImages
     description: Array of images to compose together.
     type: array

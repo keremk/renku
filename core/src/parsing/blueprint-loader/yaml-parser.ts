@@ -111,10 +111,13 @@ export async function parseYamlBlueprintFile(
   }
   assertKnownTopLevelSections(raw as Record<string, unknown>, filePath);
   const meta = parseMeta(raw.meta, filePath);
+  const rawProducerImports = Array.isArray(raw.producers) ? raw.producers : [];
+  const isProducerBlueprint = rawProducerImports.length === 0;
 
   const inputs = Array.isArray(raw.inputs)
-    ? raw.inputs.map((entry) => parseInput(entry))
+    ? raw.inputs.map((entry) => parseInput(entry, isProducerBlueprint))
     : [];
+  validateStoryboardInputMetadata(inputs, absolute, isProducerBlueprint);
   const loops = Array.isArray(raw.loops) ? parseLoops(raw.loops) : [];
   const loopSymbols = new Set(loops.map((loop) => loop.name));
   const conditionDefs = parseConditionDefinitions(raw.conditions, loopSymbols);
@@ -127,7 +130,6 @@ export async function parseYamlBlueprintFile(
     );
   }
   const artefacts = artefactSource.map((entry) => parseArtefact(entry));
-  const rawProducerImports = Array.isArray(raw.producers) ? raw.producers : [];
   const producerImports = rawProducerImports.map((entry) =>
     parseProducerImport(entry)
   );
@@ -137,7 +139,6 @@ export async function parseYamlBlueprintFile(
       )
     : [];
   const producers: ProducerConfig[] = [];
-  const isProducerBlueprint = producerImports.length === 0;
   if (isProducerBlueprint) {
     // Producer blueprint/module: model selection comes from inputs.yaml.
     producers.push({
@@ -401,7 +402,10 @@ function parseLoops(rawLoops: unknown[]): Array<{
   return loops;
 }
 
-function parseInput(raw: unknown): BlueprintInputDefinition {
+function parseInput(
+  raw: unknown,
+  allowStoryboardMetadata: boolean
+): BlueprintInputDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_INPUT_ENTRY,
@@ -420,6 +424,7 @@ function parseInput(raw: unknown): BlueprintInputDefinition {
   const required = input.required === false ? false : true;
   const description =
     typeof input.description === 'string' ? input.description : undefined;
+  const storyboard = parseStoryboardRole(input.storyboard, name, allowStoryboardMetadata);
   const itemType =
     typeof input.itemType === 'string' ? input.itemType : undefined;
   const countInput =
@@ -437,9 +442,61 @@ function parseInput(raw: unknown): BlueprintInputDefinition {
     required,
     description,
     fanIn: input.fanIn === true,
+    storyboard,
     itemType,
     countInput,
   };
+}
+
+function parseStoryboardRole(
+  raw: unknown,
+  inputName: string,
+  allowStoryboardMetadata: boolean
+): BlueprintInputDefinition['storyboard'] {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!allowStoryboardMetadata) {
+    throw createParserError(
+      ParserErrorCode.INVALID_INPUT_ENTRY,
+      `Input "${inputName}" declares storyboard metadata, but storyboard roles are only allowed on producer inputs.`
+    );
+  }
+  if (raw === 'main' || raw === 'secondary') {
+    return raw;
+  }
+  throw createParserError(
+    ParserErrorCode.INVALID_INPUT_ENTRY,
+    `Input "${inputName}" declares invalid storyboard metadata "${String(raw)}". Expected "main" or "secondary".`
+  );
+}
+
+function validateStoryboardInputMetadata(
+  inputs: BlueprintInputDefinition[],
+  filePath: string,
+  isProducerBlueprint: boolean
+): void {
+  if (!isProducerBlueprint) {
+    return;
+  }
+
+  const mainInputs = inputs.filter((input) => input.storyboard === 'main');
+  if (mainInputs.length > 1) {
+    throw createParserError(
+      ParserErrorCode.INVALID_INPUT_ENTRY,
+      `Producer YAML at ${filePath} declares multiple storyboard: main inputs (${mainInputs.map((input) => input.name).join(', ')}).`
+    );
+  }
+
+  const secondaryInputs = inputs.filter(
+    (input) => input.storyboard === 'secondary'
+  );
+  if (secondaryInputs.length > 1) {
+    throw createParserError(
+      ParserErrorCode.INVALID_INPUT_ENTRY,
+      `Producer YAML at ${filePath} declares multiple storyboard: secondary inputs (${secondaryInputs.map((input) => input.name).join(', ')}).`
+    );
+  }
 }
 
 function parseArtefact(raw: unknown): BlueprintArtefactDefinition {

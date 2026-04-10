@@ -11,6 +11,7 @@ inputs:
   - name: Prompt
     description: Text prompt describing the video action and subject.
     type: string
+    storyboard: main
 
   # Character
   - name: CharacterImage
