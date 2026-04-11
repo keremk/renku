@@ -80,6 +80,17 @@ mappings:
       StartTime: start_time
       RetakeMode: retake_mode
 
+    # Wan 2.7 Edit-Video
+    wan/v2.7/edit-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+
   replicate:
     # XAI Grok Imagine Video (video editing mode)
     xai/grok-imagine-video:

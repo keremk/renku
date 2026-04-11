@@ -246,6 +246,58 @@ mappings:
           fps: 25
       GenerateAudio: generate_audio
 
+    # Wan 2.7 Text-to-Video
+    wan/v2.7/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      AudioUrl: audio_url
+
+    # ByteDance Seedance 2.0 Text-to-Video
+    bytedance/seedance-2.0/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio
+
+    # ByteDance Seedance 2.0 Fast Text-to-Video
+    bytedance/seedance-2.0/fast/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio
+
+    # Pixverse C1 Text-to-Video
+    pixverse/c1/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio_switch
+
   replicate:
     # ByteDance Seedance 1.5 Pro
     bytedance/seedance-1.5-pro:

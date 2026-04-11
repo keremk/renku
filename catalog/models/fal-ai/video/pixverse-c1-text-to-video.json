@@ -1,0 +1,215 @@
+{
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "aspect_ratio": {
+        "type": "string",
+        "default": "16:9",
+        "enum": [
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16",
+          "2:3",
+          "3:2",
+          "21:9"
+        ],
+        "title": "Aspect Ratio",
+        "description": "The aspect ratio of the generated video"
+      },
+      "seed": {
+        "description": "\n            The same seed and the same prompt given to the same version of the model\n            will output the same video every time.\n        ",
+        "title": "Seed",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "generate_audio_switch": {
+        "type": "boolean",
+        "default": false,
+        "description": "Enable audio generation (BGM, SFX, dialogue)",
+        "title": "Generate Audio Switch"
+      },
+      "prompt": {
+        "type": "string",
+        "examples": [
+          "Epic low-cut camera capture of a girl clad in ultraviolet threads, luminous diamond skin glistening under a vast moon's radiance, hyper-detailed"
+        ],
+        "title": "Prompt"
+      },
+      "resolution": {
+        "type": "string",
+        "default": "720p",
+        "enum": [
+          "360p",
+          "540p",
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution",
+        "description": "The resolution of the generated video"
+      },
+      "duration": {
+        "description": "The duration of the generated video in seconds (1-15)",
+        "type": "integer",
+        "minimum": 1,
+        "default": 5,
+        "maximum": 15,
+        "title": "Duration"
+      }
+    },
+    "required": [
+      "prompt"
+    ],
+    "title": "TextToVideoRequestC1",
+    "x-fal-order-properties": [
+      "prompt",
+      "aspect_ratio",
+      "resolution",
+      "duration",
+      "seed",
+      "generate_audio_switch"
+    ]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "video": {
+        "$ref": "#/File",
+        "description": "The generated video file."
+      }
+    },
+    "required": [
+      "video"
+    ],
+    "title": "VideoOutputC1",
+    "x-fal-order-properties": [
+      "video"
+    ]
+  },
+  "File": {
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "description": "The size of the file in bytes.",
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "url": {
+        "type": "string",
+        "title": "Url",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "content_type": {
+        "description": "The mime type of the file.",
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "file_name": {
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "url"
+    ],
+    "title": "File",
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size"
+    ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "aspect_ratio",
+        "seed",
+        "generate_audio_switch",
+        "prompt",
+        "resolution",
+        "duration"
+      ],
+      "fields": {
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        },
+        "generate_audio_switch": {
+          "pointer": "/input_schema/properties/generate_audio_switch",
+          "component": "boolean",
+          "label": "Generate Audio Switch"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        }
+      }
+    }
+  }
+}

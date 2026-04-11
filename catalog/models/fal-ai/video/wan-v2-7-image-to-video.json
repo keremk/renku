@@ -1,0 +1,468 @@
+{
+  "input_schema": {
+    "type": "object",
+    "x-fal-order-properties": [
+      "prompt",
+      "image_url",
+      "end_image_url",
+      "video_url",
+      "audio_url",
+      "resolution",
+      "duration",
+      "negative_prompt",
+      "enable_prompt_expansion",
+      "seed",
+      "enable_safety_checker"
+    ],
+    "description": "Input for Wan 2.7 image-to-video generation.\n\nThe wan2.7-i2v model is a unified endpoint supporting:\n- First-frame-to-video (provide image_url)\n- First-and-last-frame-to-video (provide image_url + end_image_url)\n- Video continuation (provide video_url instead of image_url)",
+    "properties": {
+      "image_url": {
+        "anyOf": [
+          {
+            "type": "string",
+            "ui": {
+              "field": "image"
+            },
+            "format": "uri"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "URL of the first frame image. Formats: JPEG, JPG, PNG, BMP, WEBP. Max 20 MB.",
+        "examples": [
+          "https://v3b.fal.media/files/b/0a9413bb/qH6QY4JRzWxHOFKtCe70S_uPDJyzKZ.png"
+        ],
+        "title": "Image Url"
+      },
+      "video_url": {
+        "anyOf": [
+          {
+            "type": "string",
+            "ui": {
+              "field": "video"
+            },
+            "x-fal": {
+              "timeout": 30,
+              "max_duration": 10,
+              "max_file_size": 104857600,
+              "min_duration": 2
+            },
+            "limit_description": "Max file size: 100.0MB, Min duration: 2s, Max duration: 10s, Timeout: 30.0s",
+            "format": "uri"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "URL of a video clip to continue from. Format: MP4, MOV. Duration: 2-10s. Max 100 MB. Cannot be combined with image_url.",
+        "title": "Video Url"
+      },
+      "duration": {
+        "default": 5,
+        "type": "integer",
+        "description": "Output video duration in seconds (2-15).",
+        "enum": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "examples": [
+          5,
+          10,
+          15
+        ],
+        "title": "Duration"
+      },
+      "negative_prompt": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Content to avoid in the video. Max 500 characters.",
+        "examples": [
+          "low resolution, errors, worst quality, low quality, incomplete, extra fingers, bad proportions, blurry, distorted"
+        ],
+        "title": "Negative Prompt"
+      },
+      "audio_url": {
+        "anyOf": [
+          {
+            "type": "string",
+            "ui": {
+              "field": "audio"
+            },
+            "format": "uri"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "URL of driving audio. Supports WAV and MP3. Duration: 2-30s. Max 15 MB.",
+        "title": "Audio Url"
+      },
+      "seed": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Random seed for reproducibility (0-2147483647).",
+        "title": "Seed"
+      },
+      "enable_safety_checker": {
+        "default": true,
+        "type": "boolean",
+        "description": "Enable content moderation for input and output.",
+        "title": "Enable Safety Checker"
+      },
+      "end_image_url": {
+        "anyOf": [
+          {
+            "type": "string",
+            "ui": {
+              "field": "image"
+            },
+            "format": "uri"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "URL of the last frame image for first-and-last-frame-to-video. Same constraints as image_url.",
+        "title": "End Image Url"
+      },
+      "enable_prompt_expansion": {
+        "default": true,
+        "type": "boolean",
+        "description": "Enable intelligent prompt rewriting.",
+        "title": "Enable Prompt Expansion"
+      },
+      "prompt": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Text prompt describing the desired video. Max 5000 characters.",
+        "examples": [
+          "The massive humpback whale glides slowly through the deep blue water. It turns gracefully, its huge pectoral fin sweeping through the water like a wing. Sunbeams penetrate from above, illuminating the whale's textured skin. Small fish scatter. Awe-inspiring scale and grace."
+        ],
+        "title": "Prompt"
+      },
+      "resolution": {
+        "default": "1080p",
+        "type": "string",
+        "description": "Output video resolution tier.",
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution"
+      }
+    },
+    "title": "Wan27ImageToVideoInput"
+  },
+  "output_schema": {
+    "type": "object",
+    "x-fal-order-properties": [
+      "video",
+      "seed",
+      "actual_prompt"
+    ],
+    "description": "Output for Wan 2.7 image-to-video generation.",
+    "required": [
+      "video",
+      "seed"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "description": "The seed used for generation.",
+        "title": "Seed"
+      },
+      "actual_prompt": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The actual prompt used if prompt rewriting was enabled.",
+        "title": "Actual Prompt"
+      },
+      "video": {
+        "description": "The generated video file.",
+        "$ref": "#/VideoFile"
+      }
+    },
+    "title": "Wan27ImageToVideoOutput"
+  },
+  "VideoFile": {
+    "type": "object",
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "required": [
+      "url"
+    ],
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_size": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The size of the file in bytes.",
+        "examples": [
+          4404019
+        ],
+        "title": "File Size"
+      },
+      "file_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name"
+      },
+      "duration": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The duration of the video",
+        "title": "Duration"
+      },
+      "num_frames": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The number of frames in the video",
+        "title": "Num Frames"
+      },
+      "fps": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The FPS of the video",
+        "title": "Fps"
+      },
+      "content_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The mime type of the file.",
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type"
+      },
+      "width": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The width of the video",
+        "title": "Width"
+      },
+      "height": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The height of the video",
+        "title": "Height"
+      }
+    },
+    "title": "VideoFile"
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "image_url",
+        "video_url",
+        "duration",
+        "negative_prompt",
+        "audio_url",
+        "seed",
+        "enable_safety_checker",
+        "end_image_url",
+        "enable_prompt_expansion",
+        "prompt",
+        "resolution"
+      ],
+      "fields": {
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "nullable",
+          "label": "Image Url",
+          "value": {
+            "pointer": "/input_schema/properties/image_url/anyOf/0",
+            "component": "file-uri",
+            "label": "Image Url"
+          }
+        },
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "nullable",
+          "label": "Video Url",
+          "value": {
+            "pointer": "/input_schema/properties/video_url/anyOf/0",
+            "component": "file-uri",
+            "label": "Video Url"
+          }
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "nullable",
+          "label": "Negative Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/negative_prompt/anyOf/0",
+            "component": "string",
+            "label": "Negative Prompt"
+          }
+        },
+        "audio_url": {
+          "pointer": "/input_schema/properties/audio_url",
+          "component": "nullable",
+          "label": "Audio Url",
+          "value": {
+            "pointer": "/input_schema/properties/audio_url/anyOf/0",
+            "component": "file-uri",
+            "label": "Audio Url"
+          }
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "end_image_url": {
+          "pointer": "/input_schema/properties/end_image_url",
+          "component": "nullable",
+          "label": "End Image Url",
+          "value": {
+            "pointer": "/input_schema/properties/end_image_url/anyOf/0",
+            "component": "file-uri",
+            "label": "End Image Url"
+          }
+        },
+        "enable_prompt_expansion": {
+          "pointer": "/input_schema/properties/enable_prompt_expansion",
+          "component": "boolean",
+          "label": "Enable Prompt Expansion"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "nullable",
+          "label": "Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/prompt/anyOf/0",
+            "component": "string",
+            "label": "Prompt"
+          }
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        }
+      }
+    }
+  }
+}

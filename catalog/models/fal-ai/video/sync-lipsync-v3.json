@@ -1,0 +1,165 @@
+{
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "video_url",
+      "audio_url"
+    ],
+    "title": "Sync3Input",
+    "x-fal-order-properties": [
+      "video_url",
+      "audio_url",
+      "sync_mode"
+    ],
+    "properties": {
+      "video_url": {
+        "type": "string",
+        "examples": [
+          "https://v3.fal.media/files/tiger/IugLCDJRIoGqvqTa-EJTr_3wg74vCqyNuQ-IiBd77MM_output.mp4"
+        ],
+        "description": "URL of the input video",
+        "title": "Video Url",
+        "format": "uri"
+      },
+      "sync_mode": {
+        "type": "string",
+        "enum": [
+          "cut_off",
+          "loop",
+          "bounce",
+          "silence",
+          "remap"
+        ],
+        "description": "Lipsync mode when audio and video durations are out of sync.",
+        "title": "Sync Mode",
+        "default": "cut_off"
+      },
+      "audio_url": {
+        "type": "string",
+        "examples": [
+          "https://fal.media/files/lion/vyFWygmZsIZlUO4s0nr2n.wav"
+        ],
+        "description": "URL of the input audio",
+        "title": "Audio Url",
+        "format": "uri"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "video"
+    ],
+    "title": "Sync3Output",
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "url": "https://v3b.fal.media/files/b/0a93c312/TqKMiLtCcTKWSeAWXJRD0_output.mp4"
+          }
+        ],
+        "description": "The generated video",
+        "$ref": "#/File"
+      }
+    }
+  },
+  "File": {
+    "type": "object",
+    "required": [
+      "url"
+    ],
+    "title": "File",
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size"
+    ],
+    "properties": {
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "title": "File Name",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "title": "Content Type",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "title": "File Size",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "url": {
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "title": "Url",
+        "format": "uri"
+      }
+    }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "video_url",
+        "sync_mode",
+        "audio_url"
+      ],
+      "fields": {
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "file-uri",
+          "label": "Video Url"
+        },
+        "sync_mode": {
+          "pointer": "/input_schema/properties/sync_mode",
+          "component": "string-enum",
+          "label": "Sync Mode"
+        },
+        "audio_url": {
+          "pointer": "/input_schema/properties/audio_url",
+          "component": "file-uri",
+          "label": "Audio Url"
+        }
+      }
+    }
+  }
+}

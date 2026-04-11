@@ -45,3 +45,8 @@ mappings:
       AudioUrl: audio_url
       Text: text
       VoiceId: voice_id
+
+    # Sync Lipsync v3
+    sync-lipsync/v3:
+      SourceVideo: video_url
+      AudioUrl: audio_url

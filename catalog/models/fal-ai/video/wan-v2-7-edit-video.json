@@ -1,0 +1,388 @@
+{
+  "input_schema": {
+    "description": "Input for Wan 2.7 video editing.\n\nSupports instruction-based editing, reference image-based editing,\nand video style transfer.",
+    "x-fal-order-properties": [
+      "prompt",
+      "video_url",
+      "reference_image_url",
+      "resolution",
+      "aspect_ratio",
+      "duration",
+      "audio_setting",
+      "seed",
+      "enable_safety_checker"
+    ],
+    "title": "Wan27VideoEditInput",
+    "properties": {
+      "resolution": {
+        "description": "Output video resolution tier.",
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution",
+        "default": "1080p",
+        "type": "string"
+      },
+      "enable_safety_checker": {
+        "description": "Enable content moderation for input and output.",
+        "title": "Enable Safety Checker",
+        "default": true,
+        "type": "boolean"
+      },
+      "duration": {
+        "description": "Output video duration in seconds. Default 0 means match input video duration. When set (2-10), truncates from the start.",
+        "enum": [
+          0,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "title": "Duration",
+        "default": 0,
+        "type": "integer"
+      },
+      "aspect_ratio": {
+        "description": "Aspect ratio of the generated video. If not provided, uses the aspect ratio of the input video.",
+        "title": "Aspect Ratio",
+        "anyOf": [
+          {
+            "enum": [
+              "16:9",
+              "9:16",
+              "1:1",
+              "4:3",
+              "3:4"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "video_url": {
+        "description": "URL of the input video to edit. Format: MP4, MOV. Duration: 2-10s. Max 100 MB.\n\nMax file size: 100.0MB, Min duration: 2s, Max duration: 10s, Timeout: 30.0s",
+        "title": "Video Url",
+        "x-fal": {
+          "max_file_size": 104857600,
+          "max_duration": 10,
+          "min_duration": 2,
+          "timeout": 30
+        },
+        "examples": [
+          "https://v3b.fal.media/files/b/0a940a70/s4jC3lmmbU8Q6xM-SFtWB_m5JJudvy.mp4"
+        ],
+        "type": "string",
+        "format": "uri"
+      },
+      "audio_setting": {
+        "description": "Audio handling. 'auto': model decides whether to regenerate audio. 'origin': preserve original audio from input video.",
+        "enum": [
+          "auto",
+          "origin"
+        ],
+        "title": "Audio Setting",
+        "default": "auto",
+        "type": "string"
+      },
+      "seed": {
+        "description": "Random seed for reproducibility (0-2147483647).",
+        "title": "Seed",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "prompt": {
+        "description": "Editing instruction or style transfer description.",
+        "title": "Prompt",
+        "minLength": 1,
+        "examples": [
+          "Transform the entire scene into a beautiful watercolor painting style. Soft brushstrokes, flowing paint washes, visible paper texture. Colors should bleed and blend naturally like wet watercolor on paper."
+        ],
+        "type": "string"
+      },
+      "reference_image_url": {
+        "description": "Reference image URL for reference-based editing.",
+        "title": "Reference Image Url",
+        "anyOf": [
+          {
+            "ui": {
+              "field": "image"
+            },
+            "type": "string",
+            "format": "uri"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "prompt",
+      "video_url"
+    ],
+    "type": "object"
+  },
+  "output_schema": {
+    "description": "Output for Wan 2.7 video editing.",
+    "x-fal-order-properties": [
+      "video",
+      "seed",
+      "actual_prompt"
+    ],
+    "title": "Wan27VideoEditOutput",
+    "properties": {
+      "actual_prompt": {
+        "description": "The actual prompt used if prompt rewriting was enabled.",
+        "title": "Actual Prompt",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "seed": {
+        "description": "The seed used for generation.",
+        "title": "Seed",
+        "type": "integer"
+      },
+      "video": {
+        "description": "The edited video file.",
+        "$ref": "#/VideoFile"
+      }
+    },
+    "required": [
+      "video",
+      "seed"
+    ],
+    "type": "object"
+  },
+  "VideoFile": {
+    "type": "object",
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "required": [
+      "url"
+    ],
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_size": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The size of the file in bytes.",
+        "examples": [
+          4404019
+        ],
+        "title": "File Size"
+      },
+      "file_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name"
+      },
+      "duration": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The duration of the video",
+        "title": "Duration"
+      },
+      "num_frames": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The number of frames in the video",
+        "title": "Num Frames"
+      },
+      "fps": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The FPS of the video",
+        "title": "Fps"
+      },
+      "content_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The mime type of the file.",
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type"
+      },
+      "width": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The width of the video",
+        "title": "Width"
+      },
+      "height": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The height of the video",
+        "title": "Height"
+      }
+    },
+    "title": "VideoFile"
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "resolution",
+        "enable_safety_checker",
+        "duration",
+        "aspect_ratio",
+        "video_url",
+        "audio_setting",
+        "seed",
+        "prompt",
+        "reference_image_url"
+      ],
+      "fields": {
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "nullable",
+          "label": "Aspect Ratio",
+          "value": {
+            "pointer": "/input_schema/properties/aspect_ratio/anyOf/0",
+            "component": "string-enum",
+            "label": "Aspect Ratio"
+          }
+        },
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "file-uri",
+          "label": "Video Url"
+        },
+        "audio_setting": {
+          "pointer": "/input_schema/properties/audio_setting",
+          "component": "string-enum",
+          "label": "Audio Setting"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "reference_image_url": {
+          "pointer": "/input_schema/properties/reference_image_url",
+          "component": "nullable",
+          "label": "Reference Image Url",
+          "value": {
+            "pointer": "/input_schema/properties/reference_image_url/anyOf/0",
+            "component": "file-uri",
+            "label": "Reference Image Url"
+          }
+        }
+      }
+    }
+  }
+}

@@ -185,6 +185,20 @@ mappings:
         field: duration
         intToString: true
 
+    # Pixverse C1 Transition
+    pixverse/c1/transition:
+      Prompt: prompt
+      StartImage: first_image_url
+      EndImage: end_image_url
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio_switch
+
   replicate:
     # Google Veo 3.1 Fast (with image + last_frame)
     google/veo-3.1-fast:

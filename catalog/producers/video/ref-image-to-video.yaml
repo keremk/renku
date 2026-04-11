@@ -140,6 +140,48 @@ mappings:
           presetField: resolution
       GenerateAudio: enable_audio
 
+    # Wan 2.7 Reference-to-Video
+    wan/v2.7/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: reference_image_urls
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+
+    # ByteDance Seedance 2.0 Reference-to-Video
+    bytedance/seedance-2.0/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio
+
+    # ByteDance Seedance 2.0 Fast Reference-to-Video
+    bytedance/seedance-2.0/fast/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio
+
   replicate:
     # ByteDance Seedance 1 Lite (has reference_images for character/environment consistency)
     bytedance/seedance-1-lite:

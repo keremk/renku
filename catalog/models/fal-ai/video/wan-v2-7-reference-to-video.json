@@ -1,0 +1,431 @@
+{
+  "input_schema": {
+    "description": "Input for Wan 2.7 reference-to-video generation.\n\nSupports single or multi-character video generation from reference images\nand/or videos. Also supports multi-shot narration.",
+    "x-fal-order-properties": [
+      "prompt",
+      "reference_image_urls",
+      "reference_video_urls",
+      "negative_prompt",
+      "aspect_ratio",
+      "resolution",
+      "duration",
+      "multi_shots",
+      "seed",
+      "enable_safety_checker"
+    ],
+    "title": "Wan27ReferenceToVideoInput",
+    "properties": {
+      "resolution": {
+        "description": "Output video resolution tier.",
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution",
+        "default": "1080p",
+        "type": "string"
+      },
+      "negative_prompt": {
+        "description": "Content to avoid in the video. Max 500 characters.",
+        "title": "Negative Prompt",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "low resolution, errors, worst quality, low quality"
+        ]
+      },
+      "enable_safety_checker": {
+        "description": "Enable content moderation for input and output.",
+        "title": "Enable Safety Checker",
+        "default": true,
+        "type": "boolean"
+      },
+      "duration": {
+        "description": "Output video duration in seconds (2-10).",
+        "enum": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "title": "Duration",
+        "default": 5,
+        "examples": [
+          5,
+          10
+        ],
+        "type": "integer"
+      },
+      "multi_shots": {
+        "description": "When true, enables intelligent multi-shot segmentation. When false (default), generates a single continuous shot.",
+        "title": "Multi Shots",
+        "default": false,
+        "type": "boolean"
+      },
+      "reference_video_urls": {
+        "description": "Reference video URLs for character/object appearance and motion. Pass multiple videos for multi-subject generation. Max 100 MB each.",
+        "title": "Reference Video Urls",
+        "anyOf": [
+          {
+            "items": {
+              "limit_description": "Max file size: 100.0MB, Timeout: 30.0s",
+              "ui": {
+                "field": "video"
+              },
+              "x-fal": {
+                "max_file_size": 104857600,
+                "timeout": 30
+              },
+              "_fal_ui_field": "video",
+              "type": "string",
+              "format": "uri"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "aspect_ratio": {
+        "description": "Aspect ratio of the generated video.",
+        "enum": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "title": "Aspect Ratio",
+        "default": "16:9",
+        "type": "string"
+      },
+      "seed": {
+        "description": "Random seed for reproducibility (0-2147483647).",
+        "title": "Seed",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "prompt": {
+        "description": "Text prompt describing the desired video. Max 5000 characters.",
+        "title": "Prompt",
+        "minLength": 1,
+        "examples": [
+          "A person walking through a beautiful garden, cinematic style."
+        ],
+        "type": "string"
+      },
+      "reference_image_urls": {
+        "description": "Reference image URLs for character/object appearance. Pass multiple images for multi-subject generation. Max 20 MB each.",
+        "title": "Reference Image Urls",
+        "anyOf": [
+          {
+            "items": {
+              "ui": {
+                "field": "image"
+              },
+              "_fal_ui_field": "image",
+              "type": "string",
+              "format": "uri"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "prompt"
+    ],
+    "type": "object"
+  },
+  "output_schema": {
+    "description": "Output for Wan 2.7 reference-to-video generation.",
+    "x-fal-order-properties": [
+      "video",
+      "seed",
+      "actual_prompt"
+    ],
+    "title": "Wan27ReferenceToVideoOutput",
+    "properties": {
+      "actual_prompt": {
+        "description": "The actual prompt used if prompt rewriting was enabled.",
+        "title": "Actual Prompt",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "seed": {
+        "description": "The seed used for generation.",
+        "title": "Seed",
+        "type": "integer"
+      },
+      "video": {
+        "description": "The generated video file.",
+        "$ref": "#/VideoFile"
+      }
+    },
+    "required": [
+      "video",
+      "seed"
+    ],
+    "type": "object"
+  },
+  "VideoFile": {
+    "type": "object",
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "required": [
+      "url"
+    ],
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_size": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The size of the file in bytes.",
+        "examples": [
+          4404019
+        ],
+        "title": "File Size"
+      },
+      "file_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name"
+      },
+      "duration": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The duration of the video",
+        "title": "Duration"
+      },
+      "num_frames": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The number of frames in the video",
+        "title": "Num Frames"
+      },
+      "fps": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The FPS of the video",
+        "title": "Fps"
+      },
+      "content_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The mime type of the file.",
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type"
+      },
+      "width": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The width of the video",
+        "title": "Width"
+      },
+      "height": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The height of the video",
+        "title": "Height"
+      }
+    },
+    "title": "VideoFile"
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "resolution",
+        "negative_prompt",
+        "enable_safety_checker",
+        "duration",
+        "multi_shots",
+        "reference_video_urls",
+        "aspect_ratio",
+        "seed",
+        "prompt",
+        "reference_image_urls"
+      ],
+      "fields": {
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "nullable",
+          "label": "Negative Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/negative_prompt/anyOf/0",
+            "component": "string",
+            "label": "Negative Prompt"
+          }
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "multi_shots": {
+          "pointer": "/input_schema/properties/multi_shots",
+          "component": "boolean",
+          "label": "Multi Shots"
+        },
+        "reference_video_urls": {
+          "pointer": "/input_schema/properties/reference_video_urls",
+          "component": "nullable",
+          "label": "Reference Video Urls",
+          "value": {
+            "pointer": "/input_schema/properties/reference_video_urls/anyOf/0",
+            "component": "array-file-uri",
+            "label": "Reference Video Urls",
+            "item": {
+              "pointer": "/input_schema/properties/reference_video_urls/anyOf/0/items",
+              "component": "file-uri",
+              "label": "Item"
+            }
+          }
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "reference_image_urls": {
+          "pointer": "/input_schema/properties/reference_image_urls",
+          "component": "nullable",
+          "label": "Reference Image Urls",
+          "value": {
+            "pointer": "/input_schema/properties/reference_image_urls/anyOf/0",
+            "component": "array-file-uri",
+            "label": "Reference Image Urls",
+            "item": {
+              "pointer": "/input_schema/properties/reference_image_urls/anyOf/0/items",
+              "component": "file-uri",
+              "label": "Item"
+            }
+          }
+        }
+      }
+    }
+  }
+}

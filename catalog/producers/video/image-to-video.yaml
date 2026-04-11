@@ -327,6 +327,60 @@ mappings:
           aspectRatioField: aspect_ratio
           presetField: resolution
 
+    # Wan 2.7 Image-to-Video
+    wan/v2.7/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      Duration: duration
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
+
+    # ByteDance Seedance 2.0 Image-to-Video
+    bytedance/seedance-2.0/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio
+
+    # ByteDance Seedance 2.0 Fast Image-to-Video
+    bytedance/seedance-2.0/fast/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio
+
+    # Pixverse C1 Image-to-Video
+    pixverse/c1/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration: duration
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
+      GenerateAudio: generate_audio_switch
+
   replicate:
     # Google Veo 3.1 Fast
     google/veo-3.1-fast:
