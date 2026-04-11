@@ -1,7 +1,5 @@
 import path from 'node:path';
 import {
-  buildBlueprintGraph,
-  buildInputSourceMapFromCanonical,
   buildProducerCatalog,
   buildProviderMetadata,
   copyLatestSucceededArtifactBlobsToMemory,
@@ -16,8 +14,8 @@ import {
   createPlanningService,
   createStorageContext,
   createProducerGraph,
+  expandBlueprintResolutionContext,
   executePlanWithConcurrency,
-  expandBlueprintGraph,
   findLatestSucceededArtifactEvent,
   findSurgicalTargetLayer,
   formatBlobFileName,
@@ -27,7 +25,8 @@ import {
   isCanonicalInputId,
   loadYamlBlueprintTree,
   loadInputs,
-  normalizeInputValues,
+  prepareBlueprintResolutionContext,
+  type BlueprintResolutionContext,
   persistArtifactOverrideBlobs,
   formatProducerScopedInputId,
   parseQualifiedProducerName,
@@ -308,6 +307,13 @@ async function prepareRerunSurgicalPreviewContext(
     loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
   );
   const providerCatalog = buildProducerCatalog(providerOptions);
+  const resolutionContext = await prepareBlueprintResolutionContext({
+    root: blueprintTree,
+    schemaSource: {
+      kind: 'provider-options',
+      providerOptions: providerMetadata,
+    },
+  });
 
   const persistedOverrides = await persistArtifactOverrideBlobs(
     artifactOverrides,
@@ -329,7 +335,7 @@ async function prepareRerunSurgicalPreviewContext(
   const inputOverrideDrafts = await applyRerunInputOverrides({
     request: body,
     sourceJobId: rerunTarget?.sourceJobId,
-    blueprintTree,
+    context: resolutionContext,
     providerCatalog,
     providerMetadata,
     inputValues,
@@ -351,6 +357,7 @@ async function prepareRerunSurgicalPreviewContext(
     inputValues,
     providerCatalog,
     providerOptions: providerMetadata,
+    resolutionContext,
     storage: memoryStorageContext,
     manifestService,
     eventLog,
@@ -488,7 +495,7 @@ async function applyRerunModelOverride(args: {
 async function applyRerunInputOverrides(args: {
   request: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest;
   sourceJobId: string | undefined;
-  blueprintTree: import('@gorenku/core').BlueprintTreeNode;
+  context: BlueprintResolutionContext;
   providerCatalog: ReturnType<typeof buildProducerCatalog>;
   providerMetadata: Awaited<ReturnType<typeof buildProviderMetadata>>;
   inputValues: Record<string, unknown>;
@@ -499,7 +506,7 @@ async function applyRerunInputOverrides(args: {
   const {
     request,
     sourceJobId,
-    blueprintTree,
+    context,
     providerCatalog,
     providerMetadata,
     inputValues,
@@ -522,23 +529,12 @@ async function applyRerunInputOverrides(args: {
     );
   }
 
-  const blueprintGraph = buildBlueprintGraph(blueprintTree);
-  const inputSources = buildInputSourceMapFromCanonical(blueprintGraph);
-  const normalizedInputs = normalizeInputValues(inputValues, inputSources);
-  const canonicalBlueprint = expandBlueprintGraph(
-    blueprintGraph,
-    normalizedInputs,
-    inputSources
-  );
-  const producerGraph = createProducerGraph(
-    canonicalBlueprint,
-    providerCatalog,
-    providerMetadata
-  );
-
-  const resolvedTargets = resolveInputOverrideTargets({
+  const resolvedTargets = resolveRerunInputOverrideTargets({
     sourceJobId,
-    producerGraph,
+    context,
+    providerCatalog,
+    providerMetadata,
+    inputValues,
     inputOverrides: request.inputOverrides,
   });
 
@@ -615,6 +611,31 @@ async function applyRerunInputOverrides(args: {
       producedBy: meta.producedBy,
       inputsHash: meta.inputsHash,
     };
+  });
+}
+
+export function resolveRerunInputOverrideTargets(args: {
+  sourceJobId: string;
+  context: BlueprintResolutionContext;
+  providerCatalog: ReturnType<typeof buildProducerCatalog>;
+  providerMetadata: Awaited<ReturnType<typeof buildProviderMetadata>>;
+  inputValues: Record<string, unknown>;
+  inputOverrides: Record<string, string>;
+}) {
+  const expanded = expandBlueprintResolutionContext(
+    args.context,
+    args.inputValues
+  );
+  const producerGraph = createProducerGraph(
+    expanded.canonical,
+    args.providerCatalog,
+    args.providerMetadata
+  );
+
+  return resolveInputOverrideTargets({
+    sourceJobId: args.sourceJobId,
+    producerGraph,
+    inputOverrides: args.inputOverrides,
   });
 }
 

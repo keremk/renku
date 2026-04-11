@@ -9,11 +9,11 @@ import {
   createRuntimeError,
   RuntimeErrorCode,
   getProducerMappings,
-  hydrateOutputSchemasFromProducerMetadata,
   isRenkuError,
-  loadYamlBlueprintTree,
+  loadBlueprintResolutionContext,
   resolveMappingsForModel,
   type BlueprintTreeNode,
+  type BlueprintResolutionContext,
 } from '@gorenku/core';
 import {
   getAvailableModelsForNestedSlot,
@@ -380,14 +380,14 @@ async function processNestedModels(args: {
 }
 
 async function buildProducerModelSchemas(args: {
-  root: BlueprintTreeNode;
+  context: BlueprintResolutionContext;
   producerId: string;
   category: ProducerCategory;
   catalog: LoadedModelCatalog;
   catalogModelsDir: string;
   voiceOptionsLoader?: VoiceOptionsLoader;
 }): Promise<ProducerConfigSchemas> {
-  const mappings = getProducerMappings(args.root, args.producerId);
+  const mappings = getProducerMappings(args.context.root, args.producerId);
   if (!mappings) {
     return {
       producerId: args.producerId,
@@ -397,7 +397,7 @@ async function buildProducerModelSchemas(args: {
   }
 
   const bindingSummary = buildProducerBindingSummary({
-    root: args.root,
+    context: args.context,
     producerId: args.producerId,
     mode: 'static',
   });
@@ -420,7 +420,7 @@ async function buildProducerModelSchemas(args: {
           continue;
         }
 
-        const modelMapping = resolveMappingsForModel(args.root, {
+        const modelMapping = resolveMappingsForModel(args.context.root, {
           producerId: args.producerId,
           provider,
           model,
@@ -503,8 +503,12 @@ export async function getProducerConfigSchemas(
   blueprintPath: string,
   catalogRoot?: string
 ): Promise<ProducerConfigSchemasResponse> {
-  const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
-  await hydrateOutputSchemasFromProducerMetadata(root);
+  const context = await loadBlueprintResolutionContext({
+    blueprintPath,
+    catalogRoot,
+    schemaSource: { kind: 'producer-metadata' },
+  });
+  const { root } = context;
   const producers: Record<string, ProducerConfigSchemas> = {};
   const errorsByProducer: Record<string, ProducerContractError> = {};
 
@@ -536,7 +540,7 @@ export async function getProducerConfigSchemas(
 
       try {
         producers[producerId] = await buildProducerModelSchemas({
-          root,
+          context,
           producerId,
           category,
           catalog,

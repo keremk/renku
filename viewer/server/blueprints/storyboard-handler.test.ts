@@ -148,6 +148,34 @@ describe('getStoryboardProjection', () => {
     expect(projection.columns[1]?.title).toBe('Scene 2');
   });
 
+  it('ignores stale persisted inputs that are not part of the current blueprint graph', async () => {
+    await fs.writeFile(
+      path.join(movieDir, 'inputs.yaml'),
+      [
+        'inputs:',
+        '  SharedStyleImage: "file:./input-files/style.png"',
+        '  ScenePrompt:',
+        '    - "Scene one"',
+        '    - "Scene two"',
+        '  NumOfSegments: 2',
+        '  AspectRatio: "9:16"',
+        '  NarratorVoiceId: "voice-123"',
+        '',
+      ].join('\n')
+    );
+
+    const projection = await getStoryboardProjection({
+      blueprintPath,
+      blueprintFolder: tempDir,
+      movieId,
+      catalogRoot: path.resolve(process.cwd(), '../catalog'),
+    });
+
+    expect(projection.meta.axisDimension).toBe('scene');
+    expect(projection.meta.axisCount).toBe(2);
+    expect(projection.columns[1]?.title).toBe('Scene 2');
+  });
+
   it('hydrates producer output schemas before resolving storyboard-marked prompt companions', async () => {
     const outputSchemaPath = path.join(tempDir, 'story-producer-output.json');
     const storyProducerPath = path.join(tempDir, 'story-producer.yaml');

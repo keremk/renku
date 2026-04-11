@@ -31,7 +31,7 @@ export function parseJsonSchemaDefinition(
 }
 
 export function buildOutputSchemaMapFromProviderOptions(
-  providerOptions: Map<string, OutputSchemaProviderOption>
+  providerOptions: ReadonlyMap<string, OutputSchemaProviderOption>
 ): OutputSchemaByProducerAlias {
   const schemasByProducerAlias: OutputSchemaByProducerAlias = new Map();
 
@@ -78,7 +78,7 @@ export async function hydrateOutputSchemasFromProducerMetadata(
 
 export function applyOutputSchemasFromProviderOptionsToBlueprintTree(
   tree: BlueprintTreeNode,
-  providerOptions: Map<string, OutputSchemaProviderOption>
+  providerOptions: ReadonlyMap<string, OutputSchemaProviderOption>
 ): void {
   const schemasByProducerAlias =
     buildOutputSchemaMapFromProviderOptions(providerOptions);

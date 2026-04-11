@@ -8,11 +8,12 @@ import { parseDimensionSelector } from '../parsing/dimension-selectors.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { BlueprintGraphNode } from './canonical-graph.js';
 import { buildBlueprintGraph } from './canonical-graph.js';
-import { expandBlueprintGraph } from './canonical-expander.js';
+import type { ExpandedBlueprintResolution } from './blueprint-resolution-context.js';
 import {
-  buildInputSourceMapFromCanonical,
-  normalizeInputValues,
-} from './input-sources.js';
+  expandBlueprintResolutionContext,
+  type BlueprintResolutionContext,
+} from './blueprint-resolution-context.js';
+import { buildInputSourceMapFromCanonical } from './input-sources.js';
 
 export type BindingSourceKind = 'input' | 'artifact';
 
@@ -45,10 +46,10 @@ export interface ProducerRuntimeBindingSnapshot {
 }
 
 export function collectProducerBindingEntries(
-  root: BlueprintTreeNode,
+  rootOrContext: BlueprintTreeNode | BlueprintResolutionContext,
   producerId: string
 ): ProducerBindingEntry[] {
-  const graph = buildBlueprintGraph(root);
+  const graph = resolveBlueprintResolutionContext(rootOrContext).graph;
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
 
   const entries: ProducerBindingEntry[] = [];
@@ -91,31 +92,35 @@ export function collectProducerBindingEntries(
 }
 
 export function buildProducerBindingSummary(args: {
-  root: BlueprintTreeNode;
+  root?: BlueprintTreeNode;
+  context?: BlueprintResolutionContext;
+  expanded?: ExpandedBlueprintResolution;
   producerId: string;
   inputs?: Record<string, unknown>;
   mode?: ProducerBindingSummaryMode;
 }): ProducerBindingSummary {
+  const context = resolveArgsContext(args);
+
   if (args.inputs) {
     assertCanonicalInputMap(args.inputs, args.producerId);
   }
-  const entries = collectProducerBindingEntries(args.root, args.producerId);
+  const entries = collectProducerBindingEntries(context, args.producerId);
   const staticBindings = buildStaticBindingState(entries);
-  const mode = args.mode ?? (args.inputs ? 'runtime' : 'static');
+  const mode = args.mode ?? (args.inputs || args.expanded ? 'runtime' : 'static');
 
   if (mode === 'static') {
-    const resolvedInputs = args.inputs
-      ? resolveStaticInputs(args.inputs, entries)
-      : {};
+    const resolvedInputs = args.inputs ?? args.expanded?.normalizedInputs;
     return {
-      resolvedInputs,
+      resolvedInputs: resolvedInputs
+        ? resolveStaticInputs(resolvedInputs, entries)
+        : {},
       mappingInputBindings: staticBindings.mappingInputBindings,
       connectedAliases: staticBindings.connectedAliases,
       aliasSources: staticBindings.aliasSources,
     };
   }
 
-  if (!args.inputs) {
+  if (!args.inputs && !args.expanded) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_REQUIRED_INPUT,
       `Runtime binding summary requires input values for producer "${args.producerId}".`
@@ -123,9 +128,9 @@ export function buildProducerBindingSummary(args: {
   }
 
   const runtimeSnapshot = buildProducerRuntimeBindingSnapshot({
-    root: args.root,
+    ...(args.expanded ? { expanded: args.expanded } : { context }),
     producerId: args.producerId,
-    inputs: args.inputs,
+    ...(args.expanded ? {} : { inputs: args.inputs! }),
   });
   const firstInstance = runtimeSnapshot.instances[0];
   if (!firstInstance) {
@@ -158,15 +163,19 @@ export function buildProducerBindingSummary(args: {
 }
 
 export function buildProducerRuntimeBindingSnapshot(args: {
-  root: BlueprintTreeNode;
+  root?: BlueprintTreeNode;
+  context?: BlueprintResolutionContext;
+  expanded?: ExpandedBlueprintResolution;
   producerId: string;
-  inputs: Record<string, unknown>;
+  inputs?: Record<string, unknown>;
 }): ProducerRuntimeBindingSnapshot {
-  assertCanonicalInputMap(args.inputs, args.producerId);
-  const graph = buildBlueprintGraph(args.root);
-  const inputSources = buildInputSourceMapFromCanonical(graph);
-  const normalizedInputs = normalizeInputValues(args.inputs, inputSources);
-  const canonical = expandBlueprintGraph(graph, normalizedInputs, inputSources);
+  const expanded =
+    args.expanded ??
+    expandBlueprintResolutionContext(
+      resolveArgsContext(args),
+      assertRuntimeInputs(args.inputs, args.producerId)
+    );
+  const canonical = expanded.canonical;
 
   const producerInstances = canonical.nodes
     .filter(
@@ -188,12 +197,67 @@ export function buildProducerRuntimeBindingSnapshot(args: {
     inputBindings: canonical.inputBindings[producerInstance.id] ?? {},
   }));
 
-  const resolvedInputs = resolveRuntimeInputsFromInstances(args.inputs, instances);
+  const resolvedInputs = resolveRuntimeInputsFromInstances(
+    expanded.normalizedInputs,
+    instances
+  );
 
   return {
     instances,
     resolvedInputs,
   };
+}
+
+function resolveArgsContext(args: {
+  root?: BlueprintTreeNode;
+  context?: BlueprintResolutionContext;
+  expanded?: ExpandedBlueprintResolution;
+}): BlueprintResolutionContext {
+  if (args.expanded) {
+    return args.expanded.context;
+  }
+  if (args.context) {
+    return args.context;
+  }
+  if (args.root) {
+    return resolveBlueprintResolutionContext(args.root);
+  }
+
+  throw createRuntimeError(
+    RuntimeErrorCode.GRAPH_BUILD_ERROR,
+    'Producer binding helpers require a blueprint resolution context.'
+  );
+}
+
+function resolveBlueprintResolutionContext(
+  rootOrContext: BlueprintTreeNode | BlueprintResolutionContext
+): BlueprintResolutionContext {
+  if ('graph' in rootOrContext && 'inputSources' in rootOrContext) {
+    return rootOrContext;
+  }
+
+  const graph = buildBlueprintGraph(rootOrContext);
+  const inputSources = buildInputSourceMapFromCanonical(graph);
+  return {
+    root: rootOrContext,
+    graph,
+    inputSources,
+  };
+}
+
+function assertRuntimeInputs(
+  inputs: Record<string, unknown> | undefined,
+  producerId: string
+): Record<string, unknown> {
+  if (!inputs) {
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      `Runtime binding summary requires input values for producer "${producerId}".`
+    );
+  }
+
+  assertCanonicalInputMap(inputs, producerId);
+  return inputs;
 }
 
 function resolveSourceBinding(

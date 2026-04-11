@@ -1,9 +1,9 @@
-import { buildBlueprintGraph } from '../resolution/canonical-graph.js';
-import { expandBlueprintGraph } from '../resolution/canonical-expander.js';
 import {
-  buildInputSourceMapFromCanonical,
-  normalizeInputValues,
-} from '../resolution/input-sources.js';
+  expandBlueprintResolutionContext,
+  normalizeBlueprintResolutionInputs,
+  prepareBlueprintResolutionContext,
+  type BlueprintResolutionContext,
+} from '../resolution/blueprint-resolution-context.js';
 import { createProducerGraph } from '../resolution/producer-graph.js';
 import {
   createPlanAdapter,
@@ -16,8 +16,10 @@ import {
 import type { PlanExplanation } from '../planning/explanation.js';
 import { evaluateInputConditions } from '../condition-evaluator.js';
 import {
+  formatProducerScopedInputId,
   isCanonicalArtifactId,
   isCanonicalInputId,
+  parseQualifiedProducerName,
 } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { EventLog } from '../event-log.js';
@@ -29,9 +31,7 @@ import { computeTopologyLayers } from '../topology/index.js';
 import type { Clock } from '../types.js';
 import { convertBlobInputToBlobRef } from '../input-blob-storage.js';
 import { formatBlobFileName } from '../blob-utils.js';
-import {
-  applyOutputSchemasFromProviderOptionsToBlueprintTree,
-} from './output-schema-hydration.js';
+import { applyOutputSchemasFromProviderOptionsToBlueprintTree } from './output-schema-hydration.js';
 import { deriveProducerFamilyId } from './producer-overrides.js';
 import {
   buildResolvedProducerSummaries,
@@ -83,6 +83,7 @@ export interface GeneratePlanArgs {
   inputValues: Record<string, unknown>;
   providerCatalog: ProducerCatalog;
   providerOptions: Map<string, ProviderOptionEntry>;
+  resolutionContext?: BlueprintResolutionContext;
   storage: StorageContext;
   manifestService: ManifestService;
   eventLog: EventLog;
@@ -147,18 +148,24 @@ export function createPlanningService(
         targetRevision
       );
 
-      // Apply output schemas from provider options to JSON artifacts.
-      // This enables virtual artifact decomposition for producers with outputSchema in producer metadata.
-      applyOutputSchemasFromProviderOptionsToBlueprintTree(
-        args.blueprintTree,
-        args.providerOptions
-      );
-
-      const blueprintGraph = buildBlueprintGraph(args.blueprintTree);
-      const inputSources = buildInputSourceMapFromCanonical(blueprintGraph);
-      const normalizedInputs = normalizeInputValues(
+      const context =
+        args.resolutionContext ??
+        (await prepareBlueprintResolutionContext({
+          root: args.blueprintTree,
+          schemaSource: {
+            kind: 'provider-options',
+            providerOptions: args.providerOptions,
+          },
+        }));
+      const normalizedInputs = normalizeBlueprintResolutionInputs(
+        context,
         args.inputValues,
-        inputSources
+        {
+          requireCanonicalIds: true,
+          additionalCanonicalIds: collectPlanningCanonicalInputIds(
+            args.providerOptions
+          ),
+        }
       );
 
       // Transform BlobInput to BlobRef BEFORE creating events
@@ -190,13 +197,12 @@ export function createPlanningService(
         await args.eventLog.appendArtefact(args.movieId, artefactEvent);
       }
 
-      const canonicalBlueprint = expandBlueprintGraph(
-        blueprintGraph,
-        inputsWithDerived,
-        inputSources
+      const expanded = expandBlueprintResolutionContext(
+        context,
+        inputsWithDerived
       );
       const producerGraph = createProducerGraph(
-        canonicalBlueprint,
+        expanded.canonical,
         args.providerCatalog,
         args.providerOptions
       );
@@ -497,6 +503,25 @@ export function injectDerivedInputs(
   }
 
   return result;
+}
+
+function collectPlanningCanonicalInputIds(
+  providerOptions: Map<string, ProviderOptionEntry>
+): Set<string> {
+  const ids = new Set<string>();
+
+  for (const [producerAlias, option] of providerOptions.entries()) {
+    const { namespacePath, producerName } =
+      parseQualifiedProducerName(producerAlias);
+    for (const key of option.selectionInputKeys ?? []) {
+      ids.add(formatProducerScopedInputId(namespacePath, producerName, key));
+    }
+    for (const key of option.configInputPaths ?? []) {
+      ids.add(formatProducerScopedInputId(namespacePath, producerName, key));
+    }
+  }
+
+  return ids;
 }
 
 function validateProducerOverrideDependencies(args: {

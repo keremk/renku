@@ -4,9 +4,10 @@ import path from 'node:path';
 import {
   buildStoryboardProjection,
   formatBlobFileName,
-  hydrateOutputSchemasFromProducerMetadata,
-  loadYamlBlueprintTree,
+  expandBlueprintResolutionContext,
+  loadBlueprintResolutionContext,
   parseInputsForDisplay,
+  selectBlueprintResolutionInputs,
   type StoryboardArtifactState,
   type StoryboardProjection,
 } from '@gorenku/core';
@@ -24,10 +25,11 @@ export async function getStoryboardProjection(
 ): Promise<StoryboardProjection> {
   const blueprintFolder =
     args.blueprintFolder ?? path.dirname(args.blueprintPath);
-  const { root } = await loadYamlBlueprintTree(args.blueprintPath, {
+  const context = await loadBlueprintResolutionContext({
+    blueprintPath: args.blueprintPath,
     catalogRoot: args.catalogRoot,
+    schemaSource: { kind: 'producer-metadata' },
   });
-  await hydrateOutputSchemasFromProducerMetadata(root);
 
   const effectiveInputs = await resolveEffectiveInputs({
     blueprintFolder,
@@ -41,10 +43,14 @@ export async function getStoryboardProjection(
       blueprintFolder,
       movieId: args.movieId ?? null,
     });
+  const canonicalInputs = selectBlueprintResolutionInputs(
+    context,
+    effectiveInputs
+  );
+  const expanded = expandBlueprintResolutionContext(context, canonicalInputs);
 
   return buildStoryboardProjection({
-    root,
-    effectiveInputs,
+    expanded,
     artifactStates,
     resolvedArtifactValues,
   });

@@ -1,12 +1,13 @@
 import path from 'node:path';
 import {
-  createInputIdResolver,
   createRuntimeError,
   RuntimeErrorCode,
-  hydrateOutputSchemasFromProducerMetadata,
+  expandBlueprintResolutionContext,
   isRenkuError,
-  loadYamlBlueprintTree,
+  loadBlueprintResolutionContext,
+  normalizeBlueprintResolutionInputs,
   resolveMappingsForModel,
+  type ExpandedBlueprintResolution,
 } from '@gorenku/core';
 import {
   deriveMappingContractFields,
@@ -92,14 +93,30 @@ const NON_BLOCKING_PREVIEW_BINDING_ERROR_CODES = new Set<string>([
 export async function getProducerFieldPreview(
   request: ProducerFieldPreviewRequest
 ): Promise<ProducerFieldPreviewResponse> {
-  const { root } = await loadYamlBlueprintTree(request.blueprintPath, {
+  const context = await loadBlueprintResolutionContext({
+    blueprintPath: request.blueprintPath,
     catalogRoot: request.catalogRoot,
+    schemaSource: { kind: 'producer-metadata' },
   });
-  await hydrateOutputSchemasFromProducerMetadata(root);
-  const canonicalInputs = canonicalizePreviewInputs({
-    root,
-    inputs: request.inputs,
-  });
+  const canonicalInputs = normalizeBlueprintResolutionInputs(
+    context,
+    request.inputs
+  );
+  let expanded: ExpandedBlueprintResolution | null = null;
+  let expansionWarning: string | null = null;
+
+  try {
+    expanded = expandBlueprintResolutionContext(context, canonicalInputs);
+  } catch (error) {
+    if (
+      isRenkuError(error) &&
+      NON_BLOCKING_PREVIEW_BINDING_ERROR_CODES.has(error.code)
+    ) {
+      expansionWarning = error.message;
+    } else {
+      throw error;
+    }
+  }
 
   let catalog: LoadedModelCatalog | null = null;
   let catalogModelsDir: string | null = null;
@@ -113,7 +130,7 @@ export async function getProducerFieldPreview(
 
   for (const selection of request.models) {
     try {
-      const mapping = resolveMappingsForModel(root, {
+      const mapping = resolveMappingsForModel(context.root, {
         producerId: selection.producerId,
         provider: selection.provider,
         model: selection.model,
@@ -131,34 +148,26 @@ export async function getProducerFieldPreview(
       let runtimeSnapshot:
         | ReturnType<typeof buildProducerRuntimeBindingSnapshot>
         | null = null;
-      try {
+      if (expanded) {
         runtimeSnapshot = buildProducerRuntimeBindingSnapshot({
-          root,
+          expanded,
           producerId: selection.producerId,
-          inputs: canonicalInputs,
         });
         bindingContext = buildProducerBindingSummary({
-          root,
+          expanded,
           producerId: selection.producerId,
-          inputs: canonicalInputs,
           mode: 'runtime',
         });
-      } catch (error) {
-        if (
-          isRenkuError(error) &&
-          NON_BLOCKING_PREVIEW_BINDING_ERROR_CODES.has(error.code)
-        ) {
-          previewWarningsByProducer.add(error.message);
-          runtimeSnapshot = null;
-          bindingContext = buildProducerBindingSummary({
-            root,
-            producerId: selection.producerId,
-            inputs: canonicalInputs,
-            mode: 'static',
-          });
-        } else {
-          throw error;
+      } else {
+        if (expansionWarning) {
+          previewWarningsByProducer.add(expansionWarning);
         }
+        bindingContext = buildProducerBindingSummary({
+          context,
+          producerId: selection.producerId,
+          inputs: canonicalInputs,
+          mode: 'static',
+        });
       }
 
       const schemaFile = await loadSelectionSchemaFile({
@@ -308,27 +317,6 @@ export async function getProducerFieldPreview(
     producers,
     ...(Object.keys(errorsByProducer).length > 0 ? { errorsByProducer } : {}),
   };
-}
-
-function canonicalizePreviewInputs(args: {
-  root: Parameters<typeof createInputIdResolver>[0];
-  inputs: Record<string, unknown>;
-}): Record<string, unknown> {
-  const resolver = createInputIdResolver(args.root);
-  const canonicalInputs: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(args.inputs)) {
-    const canonicalKey = resolver.toCanonical(key);
-    if (canonicalKey in canonicalInputs) {
-      throw createRuntimeError(
-        RuntimeErrorCode.INVALID_INPUT_BINDING,
-        `Duplicate canonical input key "${canonicalKey}" while canonicalizing producer field preview inputs.`
-      );
-    }
-    canonicalInputs[canonicalKey] = value;
-  }
-
-  return canonicalInputs;
 }
 
 function collectInstanceConnectedAliases(args: {

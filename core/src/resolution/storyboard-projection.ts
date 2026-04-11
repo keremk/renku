@@ -1,21 +1,22 @@
 import { evaluateCondition } from '../condition-evaluator.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import {
-  formatCanonicalInputId,
   formatCanonicalProducerId,
   parseCanonicalArtifactId,
 } from '../parsing/canonical-ids.js';
 import type { BlueprintTreeNode } from '../types.js';
 import { buildBlueprintGraph, type BlueprintGraphNode } from './canonical-graph.js';
+import {
+  selectBlueprintResolutionInputs,
+  type BlueprintResolutionContext,
+  type ExpandedBlueprintResolution,
+} from './blueprint-resolution-context.js';
 import type {
   CanonicalEdgeInstance,
   CanonicalNodeInstance,
 } from './canonical-expander.js';
 import { expandBlueprintGraph } from './canonical-expander.js';
-import {
-  buildInputSourceMapFromCanonical,
-  normalizeInputValues,
-} from './input-sources.js';
+import { buildInputSourceMapFromCanonical } from './input-sources.js';
 
 export interface StoryboardArtifactState {
   canonicalArtifactId: string;
@@ -104,12 +105,18 @@ export interface StoryboardConnector {
   kind: 'local' | 'carry-over';
 }
 
-export interface BuildStoryboardProjectionArgs {
-  root: BlueprintTreeNode;
-  effectiveInputs: Record<string, unknown>;
-  artifactStates?: Record<string, StoryboardArtifactState>;
-  resolvedArtifactValues?: Record<string, unknown>;
-}
+export type BuildStoryboardProjectionArgs =
+  | {
+      expanded: ExpandedBlueprintResolution;
+      artifactStates?: Record<string, StoryboardArtifactState>;
+      resolvedArtifactValues?: Record<string, unknown>;
+    }
+  | {
+      root: BlueprintTreeNode;
+      effectiveInputs: Record<string, unknown>;
+      artifactStates?: Record<string, StoryboardArtifactState>;
+      resolvedArtifactValues?: Record<string, unknown>;
+    };
 
 type StoryMediaType = 'text' | 'image' | 'audio' | 'video';
 
@@ -155,14 +162,12 @@ const EXCLUDED_TERMINAL_ARTIFACT_NAMES = new Set(['timeline', 'finalvideo']);
 export function buildStoryboardProjection(
   args: BuildStoryboardProjectionArgs
 ): StoryboardProjection {
-  const graph = buildBlueprintGraph(args.root);
-  const inputSources = buildInputSourceMapFromCanonical(graph);
-  const canonicalizedInputs = canonicalizeEffectiveInputs(
-    graph.nodes,
-    args.effectiveInputs
-  );
-  const normalizedInputs = normalizeInputValues(canonicalizedInputs, inputSources);
-  const canonical = expandBlueprintGraph(graph, normalizedInputs, inputSources);
+  const expanded =
+    'expanded' in args
+      ? args.expanded
+      : buildLegacyStoryboardExpandedResolution(args);
+  const { context, normalizedInputs, canonical } = expanded;
+  const graph = context.graph;
   const artifactStateById = args.artifactStates ?? {};
   const resolvedArtifactValues = args.resolvedArtifactValues ?? {};
   const producerStoryboardInputs = collectProducerStoryboardInputs(graph.nodes);
@@ -219,7 +224,7 @@ export function buildStoryboardProjection(
   );
 
   const axisFamily = deriveStoryboardAxisFamily({
-    root: args.root,
+    root: context.root,
     terminalArtifacts: terminalArtifactInfos,
     loops: graph.loops,
   });
@@ -407,8 +412,8 @@ export function buildStoryboardProjection(
 
   return {
     meta: {
-      blueprintId: args.root.document.meta.id,
-      blueprintName: args.root.document.meta.name,
+      blueprintId: context.root.document.meta.id,
+      blueprintName: context.root.document.meta.name,
       axisLabel,
       axisDimension,
       axisCount,
@@ -419,34 +424,27 @@ export function buildStoryboardProjection(
   };
 }
 
-function canonicalizeEffectiveInputs(
-  nodes: Array<{
-    type: string;
-    namespacePath: string[];
-    name: string;
-  }>,
-  effectiveInputs: Record<string, unknown>
-): Record<string, unknown> {
-  const canonicalInputs: Record<string, unknown> = {};
+function buildLegacyStoryboardExpandedResolution(args: {
+  root: BlueprintTreeNode;
+  effectiveInputs: Record<string, unknown>;
+}): ExpandedBlueprintResolution {
+  const graph = buildBlueprintGraph(args.root);
+  const inputSources = buildInputSourceMapFromCanonical(graph);
+  const context: BlueprintResolutionContext = {
+    root: args.root,
+    graph,
+    inputSources,
+  };
+  const normalizedInputs = selectBlueprintResolutionInputs(
+    context,
+    args.effectiveInputs
+  );
 
-  for (const node of nodes) {
-    if (node.type !== 'InputSource') {
-      continue;
-    }
-
-    const canonicalId = formatCanonicalInputId(node.namespacePath, node.name);
-    const scopedKey = [...node.namespacePath, node.name].join('.');
-    const value =
-      effectiveInputs[canonicalId] ??
-      effectiveInputs[scopedKey] ??
-      effectiveInputs[node.name];
-
-    if (value !== undefined) {
-      canonicalInputs[canonicalId] = value;
-    }
-  }
-
-  return canonicalInputs;
+  return {
+    context,
+    normalizedInputs,
+    canonical: expandBlueprintGraph(graph, normalizedInputs, inputSources),
+  };
 }
 
 function collectProducerStoryboardInputs(

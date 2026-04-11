@@ -5,6 +5,19 @@ export type {
   BlueprintGraphEdgeEndpoint,
   BlueprintGraphNode,
 } from './canonical-graph.js';
+export {
+  cloneBlueprintTreeNode,
+  expandBlueprintResolutionContext,
+  loadBlueprintResolutionContext,
+  normalizeBlueprintResolutionInputs,
+  prepareBlueprintResolutionContext,
+  selectBlueprintResolutionInputs,
+} from './blueprint-resolution-context.js';
+export type {
+  BlueprintResolutionContext,
+  ExpandedBlueprintResolution,
+  ResolutionSchemaSource,
+} from './blueprint-resolution-context.js';
 export { expandBlueprintGraph } from './canonical-expander.js';
 export {
   buildInputSourceMapFromCanonical,
