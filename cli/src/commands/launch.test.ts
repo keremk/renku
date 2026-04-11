@@ -103,7 +103,7 @@ describe('runLaunch', () => {
 		launchViewerServerMock.mockResolvedValue(undefined);
 		waitForViewerServerMock.mockResolvedValue(true);
 		killSpy = vi.spyOn(process, 'kill').mockImplementation(
-			((pid: number, signal?: NodeJS.Signals | 0) => {
+			((pid: number, signal?: string | number) => {
 				if (signal === 0) {
 					const error = new Error('No such process') as Error & {
 						code?: string;
@@ -113,7 +113,7 @@ describe('runLaunch', () => {
 				}
 				return true;
 			}) as typeof process.kill
-		);
+		) as unknown as ReturnType<typeof vi.spyOn>;
 	});
 
 	afterEach(() => {
@@ -254,7 +254,7 @@ describe('runShutdown', () => {
 		readViewerStateMock.mockResolvedValue(null);
 		isViewerServerRunningMock.mockResolvedValue(false);
 		killSpy = vi.spyOn(process, 'kill').mockImplementation(
-			((pid: number, signal?: NodeJS.Signals | 0) => {
+			((pid: number, signal?: string | number) => {
 				if (signal === 0) {
 					const error = new Error('No such process') as Error & {
 						code?: string;
@@ -264,7 +264,7 @@ describe('runShutdown', () => {
 				}
 				return true;
 			}) as typeof process.kill
-		);
+		) as unknown as ReturnType<typeof vi.spyOn>;
 	});
 
 	afterEach(() => {

@@ -993,12 +993,13 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
   );
   const missingInputsByPrunedJob = new Map<string, Set<string>>();
 
-  while (true) {
+  let removedAny = true;
+  while (removedAny) {
     const producedByIncluded = collectProducedArtifactIds(
       args.jobsToInclude,
       args.metadata
     );
-    let removedAny = false;
+    removedAny = false;
 
     for (const jobId of Array.from(args.jobsToInclude)) {
       if (args.protectedJobIds.has(jobId)) {
@@ -1033,9 +1034,6 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
       removedAny = true;
     }
 
-    if (!removedAny) {
-      break;
-    }
   }
 
   return Array.from(missingInputsByPrunedJob.entries())

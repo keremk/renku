@@ -309,6 +309,7 @@ function StoryboardBoard({
   }, [projection.connectors]);
 
   useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     recomputeConnectors();
   }, [projection, recomputeConnectors]);
 
@@ -580,27 +581,24 @@ function StoryboardInputMediaCard({
   const isEditable =
     Boolean(onSaveInputs) && Boolean(buildInputs) && Boolean(blueprintFolder) && Boolean(movieId);
 
-  const handleUpload = useCallback(
-    async (files: File[]) => {
-      if (!onSaveInputs || !buildInputs) {
-        throw new Error(`Cannot edit storyboard input "${item.id}" without loaded build inputs.`);
-      }
+  const handleUpload = async (files: File[]) => {
+    if (!onSaveInputs || !buildInputs) {
+      throw new Error(`Cannot edit storyboard input "${item.id}" without loaded build inputs.`);
+    }
 
-      const result = await uploadAndValidate(
-        { blueprintFolder, movieId },
-        files,
-        toMediaInputType(mediaType)
-      );
-      const nextInputPatch = createStoryboardInputPatch(
-        buildInputs,
-        item.identity.canonicalInputId,
-        result.files[0]?.fileRef
-      );
-      await onSaveInputs(nextInputPatch);
-      setDialogOpen(false);
-    },
-    [buildInputs, blueprintFolder, item.identity.canonicalInputId, movieId, mediaType, onSaveInputs]
-  );
+    const result = await uploadAndValidate(
+      { blueprintFolder, movieId },
+      files,
+      toMediaInputType(mediaType)
+    );
+    const nextInputPatch = createStoryboardInputPatch(
+      buildInputs,
+      item.identity.canonicalInputId,
+      result.files[0]?.fileRef
+    );
+    await onSaveInputs(nextInputPatch);
+    setDialogOpen(false);
+  };
 
   const footer = (
     <CardActionsFooter
