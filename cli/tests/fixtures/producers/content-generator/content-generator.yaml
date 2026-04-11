@@ -3,6 +3,7 @@ meta:
   description: Generates content script with segments.
   id: ContentGenerator
   version: 0.1.0
+  outputSchema: ./content-generator-output.json
 
 inputs:
   - name: Topic
@@ -18,4 +19,6 @@ artifacts:
   - name: Script
     description: Generated script with segments.
     type: json
-    schema: content-generator-output.json
+    arrays:
+      - path: Segments
+        countInput: NumOfSegments

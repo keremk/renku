@@ -1,10 +1,16 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { buildBlueprintGraph } from '@gorenku/core';
 import { runBlueprintsValidate } from '../../src/commands/blueprints-validate.js';
 import { runBlueprintsDryRunProfile } from '../../src/commands/blueprints-dry-run-profile.js';
 import { runGenerate } from '../../src/commands/generate.js';
+import { loadBlueprintBundle } from '../../src/lib/blueprint-loader/index.js';
+import {
+	getDefaultCliConfigPath,
+	readCliConfig,
+} from '../../src/lib/cli-config.js';
 import { setupTempCliConfig } from '../end-to-end/helpers.js';
 import { CLI_FIXTURES_BLUEPRINTS } from '../test-catalog-paths.js';
 
@@ -38,9 +44,70 @@ async function readTextBlob(args: {
 	return readFile(blobPath, 'utf8');
 }
 
+async function createValidationFixtureBundle(
+	tempDirs: string[],
+	args: {
+		documentaryOutputSchemaPath?: string;
+		rootBlueprintReplacements?: Array<[string, string]>;
+	}
+): Promise<string> {
+	const tempDir = await mkdtemp(join(tmpdir(), 'renku-blueprints-validate-'));
+	tempDirs.push(tempDir);
+
+	const fixtureRoot = resolve(
+		CLI_FIXTURES_BLUEPRINTS,
+		'conditional-logic',
+		'conditional-narration-routing'
+	);
+	const documentaryFixtureDir = resolve(
+		CLI_FIXTURES_BLUEPRINTS,
+		'_shared',
+		'documentary'
+	);
+	const documentaryDir = resolve(tempDir, 'documentary');
+	await cp(documentaryFixtureDir, documentaryDir, { recursive: true });
+
+	let rootBlueprint = await readFile(
+		resolve(fixtureRoot, 'conditional-narration-routing.yaml'),
+		'utf8'
+	);
+	rootBlueprint = rootBlueprint.replace(
+		'../../_shared/documentary/documentary.yaml',
+		'./documentary/documentary.yaml'
+	);
+	for (const [from, to] of args.rootBlueprintReplacements ?? []) {
+		rootBlueprint = rootBlueprint.replace(from, to);
+	}
+
+	let documentaryBlueprint = await readFile(
+		resolve(documentaryFixtureDir, 'documentary.yaml'),
+		'utf8'
+	);
+	if (args.documentaryOutputSchemaPath) {
+		documentaryBlueprint = documentaryBlueprint.replace(
+			'./documentary-output.json',
+			args.documentaryOutputSchemaPath
+		);
+	}
+
+	await writeFile(
+		resolve(tempDir, 'conditional-narration-routing.yaml'),
+		rootBlueprint,
+		'utf8'
+	);
+	await writeFile(
+		resolve(documentaryDir, 'documentary.yaml'),
+		documentaryBlueprint,
+		'utf8'
+	);
+
+	return resolve(tempDir, 'conditional-narration-routing.yaml');
+}
+
 describe('integration: blueprint validation and dry-run profiles', () => {
 	let restoreEnv: () => void = () => {};
 	let originalOpenAiApiKey: string | undefined;
+	const tempDirs: string[] = [];
 
 	beforeEach(async () => {
 		originalOpenAiApiKey = process.env.OPENAI_API_KEY;
@@ -60,16 +127,57 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 		restoreEnv();
 	});
 
-	it('keeps blueprints:validate as static wiring validation', async () => {
-		const fixtureRoot = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'scene-character-reference-routing');
-		const blueprintPath = resolve(fixtureRoot, 'scene-character-reference-routing.yaml');
+	afterEach(async () => {
+		await Promise.all(
+			tempDirs.map((dir) => rm(dir, { recursive: true, force: true }))
+		);
+		tempDirs.length = 0;
+	});
+
+	it('validates the prepared graph contract and reports schema-derived graph counts', async () => {
+		const fixtureRoot = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'conditional-logic',
+			'conditional-narration-routing'
+		);
+		const blueprintPath = resolve(fixtureRoot, 'conditional-narration-routing.yaml');
+		const cliConfig = await readCliConfig(getDefaultCliConfigPath());
+		const catalogRoot = cliConfig?.catalog?.root ?? undefined;
+		const { root } = await loadBlueprintBundle(blueprintPath, { catalogRoot });
+		const rawGraph = buildBlueprintGraph(root);
 
 		const result = await runBlueprintsValidate({ blueprintPath });
 
 		expect(result.valid).toBe(true);
 		expect(result.error).toBeUndefined();
-		expect(result.nodeCount).toBeGreaterThan(0);
-		expect(result.edgeCount).toBeGreaterThan(0);
+		expect(result.nodeCount).toBeGreaterThan(rawGraph.nodes.length);
+		expect(result.edgeCount).toBeGreaterThan(rawGraph.edges.length);
+	});
+
+	it('fails blueprints:validate when an output schema file is missing', async () => {
+		const blueprintPath = await createValidationFixtureBundle(tempDirs, {
+			documentaryOutputSchemaPath: './missing-output.json',
+		});
+
+		const result = await runBlueprintsValidate({ blueprintPath });
+
+		expect(result.valid).toBe(false);
+		expect(result.error).toContain('Failed to load output schema');
+		expect(result.errors?.some((error) => error.code === 'V070')).toBe(true);
+	});
+
+	it('fails blueprints:validate when a schema-derived edge path is invalid', async () => {
+		const blueprintPath = await createValidationFixtureBundle(tempDirs, {
+			rootBlueprintReplacements: [
+				['ImagePrompts[image]', 'ImagPrompts[image]'],
+			],
+		});
+
+		const result = await runBlueprintsValidate({ blueprintPath });
+
+		expect(result.valid).toBe(false);
+		expect(result.error).toContain('ImagPrompts');
+		expect(result.errors?.some((error) => error.code === 'V006')).toBe(true);
 	});
 
 	it('returns a warning for unused count-style inputs', async () => {

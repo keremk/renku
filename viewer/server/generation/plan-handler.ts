@@ -13,7 +13,7 @@ import {
   createEventLog,
   createPlanningService,
   createMovieMetadataService,
-  validateBlueprintTree,
+  validatePreparedBlueprintTree,
   loadYamlBlueprintTree,
   loadInputs,
   buildProducerCatalog,
@@ -402,17 +402,12 @@ async function generatePlan(
     catalogRoot,
   });
 
-  // Validate blueprint
-  const validation = validateBlueprintTree(blueprintRoot, { errorsOnly: true });
-  if (!validation.valid) {
-    const errorMessages = validation.errors
-      .map((e) => `  ${e.code}: ${e.message}`)
-      .join('\n');
-    throw createValidationError(
-      ValidationErrorCode.BLUEPRINT_VALIDATION_FAILED,
-      `Blueprint validation failed:\n${errorMessages}`
-    );
-  }
+  const metadataValidation = await validatePreparedBlueprintTree({
+    root: blueprintRoot,
+    schemaSource: { kind: 'producer-metadata' },
+    options: { errorsOnly: true },
+  });
+  throwIfBlueprintValidationFailed(metadataValidation.validation);
 
   // Load inputs from YAML + TOML prompts (unified)
   const buildsDir = resolve(buildsFolder, movieId);
@@ -452,6 +447,20 @@ async function generatePlan(
     { catalogModelsDir, modelCatalog },
     loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
   );
+  const preparedValidation = await validatePreparedBlueprintTree({
+    root: blueprintRoot,
+    schemaSource: {
+      kind: 'provider-options',
+      providerOptions: providerMetadata,
+    },
+    options: { errorsOnly: true },
+  });
+  throwIfBlueprintValidationFailed(preparedValidation.validation);
+  if (!preparedValidation.context) {
+    throw new Error(
+      'Prepared blueprint validation succeeded without a resolution context.'
+    );
+  }
 
   // Generate plan
   const planResult = await createPlanningService().generatePlan({
@@ -460,6 +469,7 @@ async function generatePlan(
     inputValues,
     providerCatalog: catalog,
     providerOptions: providerMetadata,
+    resolutionContext: preparedValidation.context,
     storage: memoryStorageContext,
     manifestService,
     eventLog,
@@ -611,6 +621,22 @@ function deriveCliProducerIdFlags(
   );
 
   return pidValues.length > 0 ? pidValues : undefined;
+}
+
+function throwIfBlueprintValidationFailed(
+  validation: import('@gorenku/core').ValidationResult
+): void {
+  if (validation.valid) {
+    return;
+  }
+
+  const errorMessages = validation.errors
+    .map((error) => `  ${error.code}: ${error.message}`)
+    .join('\n');
+  throw createValidationError(
+    ValidationErrorCode.BLUEPRINT_VALIDATION_FAILED,
+    `Blueprint validation failed:\n${errorMessages}`
+  );
 }
 
 /**

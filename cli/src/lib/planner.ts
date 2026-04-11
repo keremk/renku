@@ -8,7 +8,7 @@ import {
 	createPlanningService,
 	createMovieMetadataService,
 	planStore,
-	validateBlueprintTree,
+	validatePreparedBlueprintTree,
 	buildProducerCatalog,
 	copyManifestToMemory,
 	copyEventsToMemory,
@@ -174,17 +174,12 @@ export async function generatePlan(
 		catalogRoot,
 	});
 
-	// Validate blueprint before proceeding
-	const validation = validateBlueprintTree(blueprintRoot, { errorsOnly: true });
-	if (!validation.valid) {
-		const errorMessages = validation.errors
-			.map((e) => `  ${e.code}: ${e.message}`)
-			.join('\n');
-		throw createValidationError(
-			ValidationErrorCode.BLUEPRINT_VALIDATION_FAILED,
-			`Blueprint validation failed:\n${errorMessages}`
-		);
-	}
+	const metadataValidation = await validatePreparedBlueprintTree({
+		root: blueprintRoot,
+		schemaSource: { kind: 'producer-metadata' },
+		options: { errorsOnly: true },
+	});
+	throwIfBlueprintValidationFailed(metadataValidation.validation);
 
 	// Analyze conditions for dry-run simulation
 	const conditionAnalysisResult = analyzeConditions(blueprintRoot.document);
@@ -257,6 +252,20 @@ export async function generatePlan(
 		{ catalogModelsDir, modelCatalog },
 		loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
 	);
+	const preparedValidation = await validatePreparedBlueprintTree({
+		root: blueprintRoot,
+		schemaSource: {
+			kind: 'provider-options',
+			providerOptions: providerMetadata,
+		},
+		options: { errorsOnly: true },
+	});
+	throwIfBlueprintValidationFailed(preparedValidation.validation);
+	if (!preparedValidation.context) {
+		throw new Error(
+			'Prepared blueprint validation succeeded without a resolution context.'
+		);
+	}
 	const planningControls = options.planningControls;
 	const planResult = await createPlanningService({
 		logger,
@@ -267,6 +276,7 @@ export async function generatePlan(
 		inputValues,
 		providerCatalog: catalog,
 		providerOptions: providerMetadata,
+		resolutionContext: preparedValidation.context,
 		storage: memoryStorageContext,
 		manifestService,
 		eventLog,
@@ -370,4 +380,20 @@ function resolveCatalogModelsDir(cliConfig: CliConfig): string | null {
 		return resolve(cliConfig.catalog.root, 'models');
 	}
 	return null;
+}
+
+function throwIfBlueprintValidationFailed(
+	validation: import('@gorenku/core').ValidationResult
+): void {
+	if (validation.valid) {
+		return;
+	}
+
+	const errorMessages = validation.errors
+		.map((error) => `  ${error.code}: ${error.message}`)
+		.join('\n');
+	throw createValidationError(
+		ValidationErrorCode.BLUEPRINT_VALIDATION_FAILED,
+		`Blueprint validation failed:\n${errorMessages}`
+	);
 }

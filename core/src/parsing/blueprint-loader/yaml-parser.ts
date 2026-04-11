@@ -129,7 +129,7 @@ export async function parseYamlBlueprintFile(
       { filePath }
     );
   }
-  const artefacts = artefactSource.map((entry) => parseArtefact(entry));
+  const artefacts = artefactSource.map((entry) => parseArtefact(entry, filePath));
   const producerImports = rawProducerImports.map((entry) =>
     parseProducerImport(entry)
   );
@@ -499,7 +499,10 @@ function validateStoryboardInputMetadata(
   }
 }
 
-function parseArtefact(raw: unknown): BlueprintArtefactDefinition {
+function parseArtefact(
+  raw: unknown,
+  filePath: string
+): BlueprintArtefactDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_ARTIFACT_ENTRY,
@@ -508,6 +511,12 @@ function parseArtefact(raw: unknown): BlueprintArtefactDefinition {
   }
   const artefact = raw as Record<string, unknown>;
   const name = readString(artefact, 'name');
+  if (artefact.schema !== undefined) {
+    throw createParserError(
+      ParserErrorCode.INVALID_ARTIFACT_ENTRY,
+      `Artifact "${name}" in ${filePath} declares unsupported "schema" metadata. Use meta.outputSchema on the producer blueprint instead.`
+    );
+  }
   const type = readString(artefact, 'type');
   const countInput =
     typeof artefact.countInput === 'string' ? artefact.countInput : undefined;

@@ -27,7 +27,10 @@ vi.mock('@gorenku/core', () => ({
   createMovieMetadataService: vi.fn(() => ({
     merge: vi.fn(async () => {}),
   })),
-  validateBlueprintTree: vi.fn(() => ({ valid: true, errors: [] })),
+  validatePreparedBlueprintTree: vi.fn(async () => ({
+    context: { graph: { nodes: [], edges: [] } },
+    validation: { valid: true, errors: [], warnings: [], issues: [] },
+  })),
   loadYamlBlueprintTree: vi.fn(async () => ({
     root: { id: 'MockBlueprint', namespacePath: [], document: {}, children: new Map() },
   })),
@@ -238,4 +241,3 @@ describe('handleProducerSchedulingRequest integration', () => {
     expect(generatePlanMock.mock.calls[1]?.[0]?.userControls?.scope?.upToLayer).toBe(0);
   });
 });
-

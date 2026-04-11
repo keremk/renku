@@ -78,6 +78,26 @@ models:
     expect(document.meta.outputSchema).toBeUndefined();
   });
 
+  it('rejects artifact-level schema files and points authors to meta.outputSchema', async () => {
+    const reader = {
+      readFile: async () => `
+meta:
+  id: InvalidArtifactSchemaProducer
+  name: Invalid Artifact Schema Producer
+artifacts:
+  - name: Script
+    type: json
+    schema: ./script-output.json
+`,
+    };
+
+    await expect(
+      parseYamlBlueprintFile('/virtual/invalid-artifact-schema.yaml', {
+        reader,
+      })
+    ).rejects.toThrow(/meta\.outputSchema/i);
+  });
+
   it('parses intToSecondsString mapping transforms in producer catalogs', async () => {
     const modulePath = resolve(
       catalogRoot,

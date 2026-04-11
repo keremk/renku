@@ -40,6 +40,11 @@ export {
   findUnusedArtifacts,
   findUnreachableProducers,
 } from './blueprint-validator.js';
+export type {
+  BlueprintValidationPreparationArgs,
+  PreparedBlueprintValidationResult,
+} from './prepared-blueprint-validator.js';
+export { validatePreparedBlueprintTree as validatePreparedBlueprintTree } from './prepared-blueprint-validator.js';
 
 // Stage range validation
 export {

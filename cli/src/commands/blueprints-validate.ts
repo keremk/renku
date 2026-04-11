@@ -2,8 +2,7 @@ import { isAbsolute, resolve } from 'node:path';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import { expandPath } from '../lib/path.js';
 import {
-	buildBlueprintGraph,
-	validateBlueprintTree,
+	validatePreparedBlueprintTree,
 	type ValidationIssue,
 } from '@gorenku/core';
 import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
@@ -33,8 +32,12 @@ export async function runBlueprintsValidate(
 		const catalogRoot = cliConfig?.catalog?.root ?? undefined;
 
 		const { root } = await loadBlueprintBundle(expandedPath, { catalogRoot });
-		const validation = validateBlueprintTree(root, {
-			errorsOnly: options.errorsOnly,
+		const { context, validation } = await validatePreparedBlueprintTree({
+			root,
+			schemaSource: { kind: 'producer-metadata' },
+			options: {
+				errorsOnly: options.errorsOnly,
+			},
 		});
 
 		if (!validation.valid) {
@@ -48,13 +51,18 @@ export async function runBlueprintsValidate(
 			};
 		}
 
-		const graph = buildBlueprintGraph(root);
+		if (!context) {
+			throw new Error(
+				'Prepared blueprint validation succeeded without a resolution context.'
+			);
+		}
+
 		return {
 			valid: true,
 			path: expandedPath,
 			name: root.document.meta.name,
-			nodeCount: graph.nodes.length,
-			edgeCount: graph.edges.length,
+			nodeCount: context.graph.nodes.length,
+			edgeCount: context.graph.edges.length,
 			warnings:
 				validation.warnings.length > 0 ? validation.warnings : undefined,
 		};
