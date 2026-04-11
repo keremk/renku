@@ -1,0 +1,328 @@
+{
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "x-order": 8,
+        "nullable": true,
+        "description": "Random seed for reproducible generation. Range: 0-2147483647"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for video generation"
+      },
+      "duration": {
+        "type": "integer",
+        "title": "Duration",
+        "default": 5,
+        "maximum": 10,
+        "minimum": 2,
+        "x-order": 6,
+        "description": "Duration of the generated video in seconds"
+      },
+      "shot_type": {
+        "allOf": [
+          {
+            "$ref": "#/shot_type"
+          }
+        ],
+        "default": "single",
+        "x-order": 7,
+        "description": "Shot structure of the generated video"
+      },
+      "resolution": {
+        "allOf": [
+          {
+            "$ref": "#/resolution"
+          }
+        ],
+        "default": "1080p",
+        "x-order": 4,
+        "description": "Output video resolution"
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "16:9",
+        "x-order": 5,
+        "description": "Aspect ratio of the generated video"
+      },
+      "negative_prompt": {
+        "type": "string",
+        "title": "Negative Prompt",
+        "default": "",
+        "x-order": 3,
+        "description": "Negative prompt — describes content that should not appear in the video"
+      },
+      "reference_images": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Reference Images",
+        "default": [],
+        "x-order": 1,
+        "description": "Reference images of the character/object to feature in the video (jpg/png/bmp/webp)"
+      },
+      "reference_videos": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Reference Videos",
+        "default": [],
+        "x-order": 2,
+        "description": "Reference videos of the character/object to feature in the video (mp4/mov)"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "shot_type": {
+    "enum": [
+      "single",
+      "multi"
+    ],
+    "type": "string",
+    "title": "shot_type",
+    "description": "An enumeration."
+  },
+  "resolution": {
+    "enum": [
+      "720p",
+      "1080p"
+    ],
+    "type": "string",
+    "title": "resolution",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "16:9",
+      "9:16",
+      "1:1",
+      "4:3",
+      "3:4"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "input": {
+        "$ref": "#/Input"
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs"
+      },
+      "error": {
+        "type": "string",
+        "title": "Error"
+      },
+      "input": {
+        "$ref": "#/Input"
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics"
+      },
+      "version": {
+        "type": "string",
+        "title": "Version"
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time"
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time"
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time"
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
+    }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "prompt",
+        "duration",
+        "shot_type",
+        "resolution",
+        "aspect_ratio",
+        "negative_prompt",
+        "reference_images",
+        "reference_videos"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "shot_type": {
+          "pointer": "/input_schema/properties/shot_type",
+          "schemaPointer": "/shot_type",
+          "component": "string-enum",
+          "label": "Shot Type"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "schemaPointer": "/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "reference_images": {
+          "pointer": "/input_schema/properties/reference_images",
+          "component": "array-file-uri",
+          "label": "Reference Images",
+          "item": {
+            "pointer": "/input_schema/properties/reference_images/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "reference_videos": {
+          "pointer": "/input_schema/properties/reference_videos",
+          "component": "array-file-uri",
+          "label": "Reference Videos",
+          "item": {
+            "pointer": "/input_schema/properties/reference_videos/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        }
+      }
+    }
+  }
+}

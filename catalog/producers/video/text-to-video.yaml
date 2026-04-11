@@ -463,3 +463,57 @@ mappings:
         resolution:
           mode: aspectRatio
       GenerateAudio: generate_audio
+
+    # ByteDance Seedance 2.0
+    bytedance/seedance-2.0:
+      Prompt: prompt
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            resolution:
+              mode: preset
+              transform:
+                '480p': '480p'
+                '720p': '720p'
+                '1080p': '720p'
+                '1440p': '720p'
+                '2160p': '720p'
+      GenerateAudio: generate_audio
+
+    # ByteDance Seedance 2.0 Fast
+    bytedance/seedance-2.0-fast:
+      Prompt: prompt
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            resolution:
+              mode: preset
+              transform:
+                '480p': '480p'
+                '720p': '720p'
+                '1080p': '720p'
+                '1440p': '720p'
+                '2160p': '720p'
+      GenerateAudio: generate_audio
+
+    # Wan Video WAN 2.7 Text-to-Video
+    wan-video/wan-2.7-t2v:
+      Prompt: prompt
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      AudioUrl: audio

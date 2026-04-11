@@ -234,3 +234,59 @@ mappings:
                 '1080p': '720p'
                 '1440p': '720p'
                 '2160p': '720p'
+
+    # ByteDance Seedance 2.0 (reference_images)
+    bytedance/seedance-2.0:
+      Prompt: prompt
+      ReferenceImages: reference_images
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            resolution:
+              mode: preset
+              transform:
+                '480p': '480p'
+                '720p': '720p'
+                '1080p': '720p'
+                '1440p': '720p'
+                '2160p': '720p'
+      GenerateAudio: generate_audio
+
+    # ByteDance Seedance 2.0 Fast (reference_images)
+    bytedance/seedance-2.0-fast:
+      Prompt: prompt
+      ReferenceImages: reference_images
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            resolution:
+              mode: preset
+              transform:
+                '480p': '480p'
+                '720p': '720p'
+                '1080p': '720p'
+                '1440p': '720p'
+                '2160p': '720p'
+      GenerateAudio: generate_audio
+
+    # Wan Video WAN 2.7 Reference-to-Video
+    wan-video/wan-2.7-r2v:
+      Prompt: prompt
+      ReferenceImages: reference_images
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution

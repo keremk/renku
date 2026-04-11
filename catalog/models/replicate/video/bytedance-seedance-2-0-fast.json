@@ -1,0 +1,354 @@
+{
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "x-order": 10,
+        "nullable": true,
+        "description": "Random seed. Set for reproducible generation."
+      },
+      "image": {
+        "type": "string",
+        "title": "Image",
+        "format": "uri",
+        "x-order": 1,
+        "nullable": true,
+        "description": "Input image for image-to-video generation (first frame). Cannot be combined with reference images."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for video generation"
+      },
+      "duration": {
+        "type": "integer",
+        "title": "Duration",
+        "default": 5,
+        "maximum": 15,
+        "minimum": -1,
+        "x-order": 6,
+        "description": "Video duration in seconds. Set to -1 for intelligent duration (model picks the best length)."
+      },
+      "resolution": {
+        "allOf": [
+          {
+            "$ref": "#/resolution"
+          }
+        ],
+        "default": "720p",
+        "x-order": 7,
+        "description": "Video resolution."
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "16:9",
+        "x-order": 8,
+        "description": "Video aspect ratio. Set to 'adaptive' to let the model choose the best ratio based on inputs."
+      },
+      "generate_audio": {
+        "type": "boolean",
+        "title": "Generate Audio",
+        "default": true,
+        "x-order": 9,
+        "description": "Generate synchronized audio with the video, including dialogue (use double quotes in prompt), sound effects, and background music."
+      },
+      "last_frame_image": {
+        "type": "string",
+        "title": "Last Frame Image",
+        "format": "uri",
+        "x-order": 2,
+        "nullable": true,
+        "description": "Input image for last frame generation. Only works if a first frame image is also provided. Cannot be combined with reference images."
+      },
+      "reference_audios": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Reference Audios",
+        "default": [],
+        "x-order": 5,
+        "description": "Reference audio files (up to 3, total duration max 15s) for audio-driven generation and lip-sync. Requires at least one reference image or video. Reference them in your prompt as [Audio1], [Audio2], etc."
+      },
+      "reference_images": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Reference Images",
+        "default": [],
+        "x-order": 3,
+        "description": "Reference images (up to 9) for character consistency, style guidance, and scene composition. Cannot be used together with first/last frame images. You can reference them in your prompt as [Image1], [Image2], etc."
+      },
+      "reference_videos": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Reference Videos",
+        "default": [],
+        "x-order": 4,
+        "description": "Reference videos (up to 3, total duration max 15s) for motion transfer, style reference, and editing. Reference them in your prompt as [Video1], [Video2], etc."
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "resolution": {
+    "enum": [
+      "480p",
+      "720p"
+    ],
+    "type": "string",
+    "title": "resolution",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "21:9",
+      "adaptive"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "input": {
+        "$ref": "#/Input"
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs"
+      },
+      "error": {
+        "type": "string",
+        "title": "Error"
+      },
+      "input": {
+        "$ref": "#/Input"
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics"
+      },
+      "version": {
+        "type": "string",
+        "title": "Version"
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time"
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time"
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time"
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
+    }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "image",
+        "prompt",
+        "duration",
+        "resolution",
+        "aspect_ratio",
+        "generate_audio",
+        "last_frame_image",
+        "reference_audios",
+        "reference_images",
+        "reference_videos"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "image": {
+          "pointer": "/input_schema/properties/image",
+          "component": "file-uri",
+          "label": "Image"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "schemaPointer": "/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "last_frame_image": {
+          "pointer": "/input_schema/properties/last_frame_image",
+          "component": "file-uri",
+          "label": "Last Frame Image"
+        },
+        "reference_audios": {
+          "pointer": "/input_schema/properties/reference_audios",
+          "component": "array-file-uri",
+          "label": "Reference Audios",
+          "item": {
+            "pointer": "/input_schema/properties/reference_audios/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "reference_images": {
+          "pointer": "/input_schema/properties/reference_images",
+          "component": "array-file-uri",
+          "label": "Reference Images",
+          "item": {
+            "pointer": "/input_schema/properties/reference_images/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "reference_videos": {
+          "pointer": "/input_schema/properties/reference_videos",
+          "component": "array-file-uri",
+          "label": "Reference Videos",
+          "item": {
+            "pointer": "/input_schema/properties/reference_videos/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        }
+      }
+    }
+  }
+}

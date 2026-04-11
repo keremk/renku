@@ -1,0 +1,296 @@
+{
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "x-order": 9,
+        "nullable": true,
+        "description": "Random seed for reproducible generation. Range: 0-2147483647"
+      },
+      "audio": {
+        "type": "string",
+        "title": "Audio",
+        "format": "uri",
+        "x-order": 3,
+        "nullable": true,
+        "description": "Audio file (wav/mp3, 3-30s, ≤15MB) for voice/music synchronization. If not provided, the model auto-generates matching audio."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "default": "",
+        "x-order": 4,
+        "description": "Text prompt for video generation"
+      },
+      "duration": {
+        "type": "integer",
+        "title": "Duration",
+        "default": 5,
+        "maximum": 15,
+        "minimum": 2,
+        "x-order": 7,
+        "description": "Duration of the generated video in seconds"
+      },
+      "first_clip": {
+        "type": "string",
+        "title": "First Clip",
+        "format": "uri",
+        "x-order": 2,
+        "nullable": true,
+        "description": "Video clip to continue from (mp4/mov, 2-10s, ≤100MB). Cannot be combined with first_frame."
+      },
+      "last_frame": {
+        "type": "string",
+        "title": "Last Frame",
+        "format": "uri",
+        "x-order": 1,
+        "nullable": true,
+        "description": "Last frame image for first-and-last-frame video generation (jpg/png/bmp/webp, ≤20MB). Requires first_frame."
+      },
+      "resolution": {
+        "allOf": [
+          {
+            "$ref": "#/resolution"
+          }
+        ],
+        "default": "1080p",
+        "x-order": 6,
+        "description": "Output video resolution"
+      },
+      "first_frame": {
+        "type": "string",
+        "title": "First Frame",
+        "format": "uri",
+        "x-order": 0,
+        "nullable": true,
+        "description": "First frame image to animate into video (jpg/png/bmp/webp, ≤20MB)"
+      },
+      "negative_prompt": {
+        "type": "string",
+        "title": "Negative Prompt",
+        "default": "",
+        "x-order": 5,
+        "description": "Negative prompt — describes content that should not appear in the video"
+      },
+      "enable_prompt_expansion": {
+        "type": "boolean",
+        "title": "Enable Prompt Expansion",
+        "default": true,
+        "x-order": 8,
+        "description": "Automatically expand and optimize the prompt for better results. Improves quality for short prompts but increases latency."
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "resolution": {
+    "enum": [
+      "720p",
+      "1080p"
+    ],
+    "type": "string",
+    "title": "resolution",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "input": {
+        "$ref": "#/Input"
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs"
+      },
+      "error": {
+        "type": "string",
+        "title": "Error"
+      },
+      "input": {
+        "$ref": "#/Input"
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics"
+      },
+      "version": {
+        "type": "string",
+        "title": "Version"
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time"
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time"
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time"
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
+    }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "audio",
+        "prompt",
+        "duration",
+        "first_clip",
+        "last_frame",
+        "resolution",
+        "first_frame",
+        "negative_prompt",
+        "enable_prompt_expansion"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "audio": {
+          "pointer": "/input_schema/properties/audio",
+          "component": "file-uri",
+          "label": "Audio"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "first_clip": {
+          "pointer": "/input_schema/properties/first_clip",
+          "component": "file-uri",
+          "label": "First Clip"
+        },
+        "last_frame": {
+          "pointer": "/input_schema/properties/last_frame",
+          "component": "file-uri",
+          "label": "Last Frame"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "schemaPointer": "/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "first_frame": {
+          "pointer": "/input_schema/properties/first_frame",
+          "component": "file-uri",
+          "label": "First Frame"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "enable_prompt_expansion": {
+          "pointer": "/input_schema/properties/enable_prompt_expansion",
+          "component": "boolean",
+          "label": "Enable Prompt Expansion"
+        }
+      }
+    }
+  }
+}
