@@ -8,5 +8,5 @@ export * from './use-panel-resizer';
 export * from './use-bottom-panel-tabs';
 export * from './use-preview-playback';
 export * from './use-model-selection-editor';
-export * from './use-producer-sdk-preview';
+export * from './use-producer-field-preview';
 export * from './use-storyboard-projection';

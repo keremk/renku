@@ -9,7 +9,7 @@ export function FieldCollection({
   values,
   isEditable,
   onChange,
-  sdkPreviewByField,
+  fieldPreviewByField,
 }: FieldCollectionProps) {
   const rows: ReactNode[] = [];
   let cardBatch: ConfigFieldDescriptor[] = [];
@@ -41,7 +41,7 @@ export function FieldCollection({
               values={values}
               isEditable={isEditable}
               onChange={onChange}
-              sdkPreviewByField={sdkPreviewByField}
+              fieldPreviewByField={fieldPreviewByField}
             />
           </div>
         ))}
@@ -63,7 +63,7 @@ export function FieldCollection({
         values={values}
         isEditable={isEditable}
         onChange={onChange}
-        sdkPreviewByField={sdkPreviewByField}
+        fieldPreviewByField={fieldPreviewByField}
       />
     );
   }

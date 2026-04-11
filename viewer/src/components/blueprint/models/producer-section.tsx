@@ -17,7 +17,7 @@ import type {
   ConfigFieldDescriptor,
   NestedModelConfigSchema,
   ProducerContractError,
-  SdkPreviewField,
+  ProducerFieldPreviewField,
 } from '@/types/blueprint-graph';
 
 interface ProducerSectionProps {
@@ -55,8 +55,8 @@ interface ProducerSectionProps {
   producerError?: ProducerContractError | null;
   /** Nested model schemas (if this producer has nested model declarations) */
   nestedModelSchemas?: NestedModelConfigSchema[];
-  /** SDK preview rows for mapped resolution/aspect/size fields */
-  sdkPreview?: SdkPreviewField[];
+  /** Producer field preview rows for mapped resolution/aspect/size fields */
+  fieldPreview?: ProducerFieldPreviewField[];
   /** Whether section starts open */
   defaultOpen?: boolean;
   /** Render content without collapsible wrapper */
@@ -92,7 +92,7 @@ export function ProducerSection({
   schemaError,
   producerError,
   nestedModelSchemas,
-  sdkPreview,
+  fieldPreview,
   defaultOpen = false,
   hideSectionContainer = false,
   blueprintFolder = null,
@@ -345,7 +345,7 @@ export function ProducerSection({
               onModelChange={onModelChange}
               nestedModelSchemas={nestedModelSchemas}
               onNestedModelChange={handleNestedModelChange}
-              sdkPreview={sdkPreview}
+              fieldPreview={fieldPreview}
               blueprintFolder={blueprintFolder}
               movieId={movieId}
             />

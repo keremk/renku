@@ -1,6 +1,6 @@
 import type {
   ConfigFieldDescriptor,
-  SdkPreviewField,
+  ProducerFieldPreviewField,
 } from '@/types/blueprint-graph';
 import type { ReactNode } from 'react';
 
@@ -8,7 +8,7 @@ interface FieldRendererSharedProps {
   values: Record<string, unknown>;
   isEditable: boolean;
   onChange: (key: string, value: unknown) => void;
-  sdkPreviewByField: Map<string, SdkPreviewField>;
+  fieldPreviewByField: Map<string, ProducerFieldPreviewField>;
 }
 
 export interface FieldCollectionProps extends FieldRendererSharedProps {

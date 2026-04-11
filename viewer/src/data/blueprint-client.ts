@@ -3,7 +3,7 @@ import type {
   InputTemplateData,
   ProducerModelsResponse,
   ProducerConfigSchemasResponse,
-  ProducerSdkPreviewResponse,
+  ProducerFieldPreviewResponse,
   ProducerPromptsResponse,
   PromptData,
   ModelSelectionValue,
@@ -203,15 +203,15 @@ export function fetchProducerConfigSchemas(
 }
 
 /**
- * Computes SDK preview values (resolution/aspect/size mappings) for selected models.
+ * Computes producer field preview values (resolution/aspect/size mappings) for selected models.
  */
-export async function fetchProducerSdkPreview(args: {
+export async function fetchProducerFieldPreview(args: {
   blueprintPath: string;
   catalogRoot?: string | null;
   inputs: Record<string, unknown>;
   models: Array<{ producerId: string; provider: string; model: string }>;
-}): Promise<ProducerSdkPreviewResponse> {
-  const response = await fetch(`${API_BASE}/blueprints/producer-sdk-preview`, {
+}): Promise<ProducerFieldPreviewResponse> {
+  const response = await fetch(`${API_BASE}/blueprints/producer-field-preview`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -224,10 +224,10 @@ export async function fetchProducerSdkPreview(args: {
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');
-    throw new Error(`Failed to load producer sdk preview: ${errorText}`);
+    throw new Error(`Failed to load producer field preview: ${errorText}`);
   }
 
-  return response.json() as Promise<ProducerSdkPreviewResponse>;
+  return response.json() as Promise<ProducerFieldPreviewResponse>;
 }
 
 export function fetchBuildsList(

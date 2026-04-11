@@ -11,7 +11,7 @@ import type {
   ConfigFieldDescriptor,
   ModelSelectionValue,
   NestedModelConfigSchema,
-  SdkPreviewField,
+  ProducerFieldPreviewField,
 } from '@/types/blueprint-graph';
 
 interface ConfigPropertiesEditorProps {
@@ -31,7 +31,7 @@ interface ConfigPropertiesEditorProps {
     provider: string,
     model: string
   ) => void;
-  sdkPreview?: SdkPreviewField[];
+  fieldPreview?: ProducerFieldPreviewField[];
   blueprintFolder?: string | null;
   movieId?: string | null;
 }
@@ -49,7 +49,7 @@ export function ConfigPropertiesEditor({
   onModelChange,
   nestedModelSchemas,
   onNestedModelChange,
-  sdkPreview = [],
+  fieldPreview = [],
   blueprintFolder = null,
   movieId = null,
 }: ConfigPropertiesEditorProps) {
@@ -74,13 +74,13 @@ export function ConfigPropertiesEditor({
   const showModelSelection =
     producerId && availableModels && onModelChange && !isComposition;
 
-  const sdkPreviewByField = useMemo(() => {
-    const map = new Map<string, SdkPreviewField>();
-    for (const field of sdkPreview) {
+  const fieldPreviewByField = useMemo(() => {
+    const map = new Map<string, ProducerFieldPreviewField>();
+    for (const field of fieldPreview) {
       map.set(field.field, field);
     }
     return map;
-  }, [sdkPreview]);
+  }, [fieldPreview]);
 
   if (schemaError) {
     if (showModelSelection) {
@@ -167,7 +167,7 @@ export function ConfigPropertiesEditor({
               values={values}
               isEditable={isEditable}
               onChange={onChange}
-              sdkPreviewByField={sdkPreviewByField}
+              fieldPreviewByField={fieldPreviewByField}
             />
           </section>
         )}
@@ -178,7 +178,7 @@ export function ConfigPropertiesEditor({
             values={values}
             isEditable={isEditable}
             onChange={onChange}
-            sdkPreviewByField={sdkPreviewByField}
+            fieldPreviewByField={fieldPreviewByField}
           />
         )}
       </FileUriUploadContextProvider>

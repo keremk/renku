@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { SdkPreviewFieldInstance } from '@/types/blueprint-graph';
+import type { ProducerFieldPreviewFieldInstance } from '@/types/blueprint-graph';
 import { PropertyRow } from '../../shared';
 import { ArrayObjectCardsEditor } from './array-object-cards-editor';
 import {
@@ -22,13 +22,13 @@ export function ConfigFieldRenderer({
   values,
   isEditable,
   onChange,
-  sdkPreviewByField,
+  fieldPreviewByField,
 }: ConfigFieldRendererProps) {
   const isArtifactMapped =
     field.mappingSource === 'artifact' || field.mappingSource === 'mixed';
   const preview = isArtifactMapped
     ? undefined
-    : sdkPreviewByField.get(field.keyPath);
+    : fieldPreviewByField.get(field.keyPath);
   const isDynamicReadOnly =
     !isArtifactMapped &&
     field.mappingSource === 'input' &&
@@ -138,7 +138,7 @@ export function ConfigFieldRenderer({
               values={values}
               isEditable={fieldIsEditable}
               onChange={onChange}
-              sdkPreviewByField={sdkPreviewByField}
+              fieldPreviewByField={fieldPreviewByField}
             />
           )}
         />
@@ -239,7 +239,7 @@ export function ConfigFieldRenderer({
 }
 
 function getInstanceStatusMessages(
-  instance: SdkPreviewFieldInstance | undefined
+  instance: ProducerFieldPreviewFieldInstance | undefined
 ): string | undefined {
   if (!instance) {
     return undefined;
@@ -251,7 +251,7 @@ function getInstanceStatusMessages(
 
 function ConnectedFieldInstancePager(args: {
   fieldLabel: string;
-  instances: SdkPreviewFieldInstance[];
+  instances: ProducerFieldPreviewFieldInstance[];
   activeInstanceIndex: number;
   onPrevious: () => void;
   onNext: () => void;

@@ -88,7 +88,7 @@ describe('ConfigPropertiesEditor', () => {
       expect(screen.getByText('opt3')).toBeTruthy();
     });
 
-    it('uses sdk preview value and warning text for mapped fields', () => {
+    it('uses producer field preview value and warning text for mapped fields', () => {
       const fields = [
         createMockField('aspect_ratio', {
           required: false,
@@ -104,7 +104,7 @@ describe('ConfigPropertiesEditor', () => {
           values={{}}
           isEditable={true}
           onChange={() => {}}
-          sdkPreview={[
+          fieldPreview={[
             {
               field: 'aspect_ratio',
               value: '16:9',
@@ -126,7 +126,7 @@ describe('ConfigPropertiesEditor', () => {
       ).toBeTruthy();
     });
 
-    it('keeps editable fields visible when sdk preview is present', () => {
+    it('keeps editable fields visible when producer field preview is present', () => {
       const fields = [
         createMockField('aspect_ratio', { required: false }),
         createMockField('resolution', { required: false }),
@@ -139,7 +139,7 @@ describe('ConfigPropertiesEditor', () => {
           values={{}}
           isEditable={true}
           onChange={() => {}}
-          sdkPreview={[
+          fieldPreview={[
             {
               field: 'aspect_ratio',
               value: '16:9',
@@ -1322,7 +1322,7 @@ describe('ConfigPropertiesEditor', () => {
           values={{ aspect_ratio: '1:1' }}
           isEditable={true}
           onChange={() => {}}
-          sdkPreview={[
+          fieldPreview={[
             {
               field: 'aspect_ratio',
               value: '9:16',
@@ -1358,7 +1358,7 @@ describe('ConfigPropertiesEditor', () => {
           values={{}}
           isEditable={true}
           onChange={() => {}}
-          sdkPreview={[
+          fieldPreview={[
             {
               field: 'aspect_ratio',
               value: '9:16',
@@ -1400,7 +1400,7 @@ describe('ConfigPropertiesEditor', () => {
           values={{}}
           isEditable={true}
           onChange={() => {}}
-          sdkPreview={[
+          fieldPreview={[
             {
               field: 'image_urls',
               value: ['file:./images/then-1.jpg', 'file:./images/setting.jpg'],
@@ -1486,7 +1486,7 @@ describe('ConfigPropertiesEditor', () => {
           values={{ image_size: '1536x1024' }}
           isEditable={true}
           onChange={() => {}}
-          sdkPreview={[
+          fieldPreview={[
             {
               field: 'image_size',
               value: '1280x720',
@@ -1559,7 +1559,7 @@ describe('ConfigPropertiesEditor', () => {
           values={{}}
           isEditable={true}
           onChange={() => {}}
-          sdkPreview={[]}
+          fieldPreview={[]}
         />
       );
 
@@ -1585,7 +1585,7 @@ describe('ConfigPropertiesEditor', () => {
           values={{ aspect_ratio: '1:1' }}
           isEditable={true}
           onChange={onChange}
-          sdkPreview={[
+          fieldPreview={[
             {
               field: 'aspect_ratio',
               value: '9:16',
@@ -1631,7 +1631,7 @@ describe('ConfigPropertiesEditor', () => {
           values={{}}
           isEditable={true}
           onChange={() => {}}
-          sdkPreview={[]}
+          fieldPreview={[]}
         />
       );
 

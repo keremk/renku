@@ -379,14 +379,14 @@ export interface ProducerContractError {
   code: string;
 }
 
-export type SdkPreviewStatus = 'ok' | 'warning' | 'error';
+export type ProducerFieldPreviewStatus = 'ok' | 'warning' | 'error';
 
-export interface SdkPreviewFieldInstance {
+export interface ProducerFieldPreviewFieldInstance {
   instanceId: string;
   instanceOrder: number;
   indices: Record<string, number>;
   value: unknown;
-  status: SdkPreviewStatus;
+  status: ProducerFieldPreviewStatus;
   warnings: string[];
   errors: string[];
   connected: boolean;
@@ -394,10 +394,10 @@ export interface SdkPreviewFieldInstance {
   sourceBindings: Record<string, string>;
 }
 
-export interface SdkPreviewField {
+export interface ProducerFieldPreviewField {
   field: string;
   value: unknown;
-  status: SdkPreviewStatus;
+  status: ProducerFieldPreviewStatus;
   warnings: string[];
   errors: string[];
   connected: boolean;
@@ -406,16 +406,16 @@ export interface SdkPreviewField {
   enumOptions?: unknown[];
   connectionBehavior?: 'invariant' | 'variant' | 'conditional';
   overridePolicy?: 'editable' | 'read_only_dynamic';
-  instances?: SdkPreviewFieldInstance[];
+  instances?: ProducerFieldPreviewFieldInstance[];
 }
 
-export interface ProducerSdkPreviewEntry {
+export interface ProducerFieldPreviewEntry {
   producerId: string;
-  fields: SdkPreviewField[];
+  fields: ProducerFieldPreviewField[];
 }
 
-export interface ProducerSdkPreviewResponse {
-  producers: Record<string, ProducerSdkPreviewEntry>;
+export interface ProducerFieldPreviewResponse {
+  producers: Record<string, ProducerFieldPreviewEntry>;
   errorsByProducer?: Record<string, ProducerContractError>;
 }
 

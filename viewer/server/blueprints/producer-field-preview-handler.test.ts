@@ -1,14 +1,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { getProducerSdkPreview } from './sdk-preview-handler.js';
+import { getProducerFieldPreview } from './producer-field-preview-handler.js';
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(TEST_DIR, '../../..');
 const CATALOG_ROOT = path.join(REPO_ROOT, 'catalog');
 
-describe('getProducerSdkPreview', () => {
-  it('returns sdk preview fields without producer-level contract errors for animated-edu blueprint', async () => {
+describe('getProducerFieldPreview', () => {
+  it('returns producer field preview fields without producer-level contract errors for animated-edu blueprint', async () => {
     const blueprintPath = path.join(
       CATALOG_ROOT,
       'blueprints',
@@ -16,7 +16,7 @@ describe('getProducerSdkPreview', () => {
       'animated-edu-characters.yaml'
     );
 
-    const response = await getProducerSdkPreview({
+    const response = await getProducerFieldPreview({
       blueprintPath,
       catalogRoot: CATALOG_ROOT,
       inputs: {
@@ -80,7 +80,7 @@ describe('getProducerSdkPreview', () => {
       'animated-edu-characters.yaml'
     );
 
-    const response = await getProducerSdkPreview({
+    const response = await getProducerFieldPreview({
       blueprintPath,
       catalogRoot: CATALOG_ROOT,
       inputs: {},
@@ -112,7 +112,7 @@ describe('getProducerSdkPreview', () => {
       'celebrity-then-now.yaml'
     );
 
-    const response = await getProducerSdkPreview({
+    const response = await getProducerFieldPreview({
       blueprintPath,
       catalogRoot: CATALOG_ROOT,
       inputs: {

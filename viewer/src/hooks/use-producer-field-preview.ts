@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchProducerSdkPreview } from '@/data/blueprint-client';
+import { fetchProducerFieldPreview } from '@/data/blueprint-client';
 import type {
   ProducerContractError,
-  ProducerSdkPreviewEntry,
+  ProducerFieldPreviewEntry,
 } from '@/types/blueprint-graph';
 
-export interface UseProducerSdkPreviewOptions {
+export interface UseProducerFieldPreviewOptions {
   blueprintPath: string | null;
   catalogRoot?: string | null;
   inputs: Record<string, unknown>;
@@ -17,16 +17,16 @@ export interface UseProducerSdkPreviewOptions {
   enabled?: boolean;
 }
 
-export interface UseProducerSdkPreviewResult {
-  sdkPreviewByProducer: Record<string, ProducerSdkPreviewEntry>;
-  errorsByProducer: Record<string, ProducerContractError>;
+export interface UseProducerFieldPreviewResult {
+  fieldPreviewByProducer: Record<string, ProducerFieldPreviewEntry>;
+  fieldPreviewErrorsByProducer: Record<string, ProducerContractError>;
   isLoading: boolean;
   error: string | null;
 }
 
-export function useProducerSdkPreview(
-  options: UseProducerSdkPreviewOptions
-): UseProducerSdkPreviewResult {
+export function useProducerFieldPreview(
+  options: UseProducerFieldPreviewOptions
+): UseProducerFieldPreviewResult {
   const {
     blueprintPath,
     catalogRoot,
@@ -35,12 +35,13 @@ export function useProducerSdkPreview(
     enabled = true,
   } = options;
 
-  const [sdkPreviewByProducer, setSdkPreviewByProducer] = useState<
-    Record<string, ProducerSdkPreviewEntry>
+  const [fieldPreviewByProducer, setFieldPreviewByProducer] = useState<
+    Record<string, ProducerFieldPreviewEntry>
   >({});
-  const [errorsByProducer, setErrorsByProducer] = useState<
-    Record<string, ProducerContractError>
-  >({});
+  const [fieldPreviewErrorsByProducer, setFieldPreviewErrorsByProducer] =
+    useState<
+      Record<string, ProducerContractError>
+    >({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,8 +69,8 @@ export function useProducerSdkPreview(
 
   useEffect(() => {
     if (!enabled || !blueprintPath || requestModels.length === 0) {
-      setSdkPreviewByProducer({});
-      setErrorsByProducer({});
+      setFieldPreviewByProducer({});
+      setFieldPreviewErrorsByProducer({});
       setIsLoading(false);
       setError(null);
       return;
@@ -81,22 +82,22 @@ export function useProducerSdkPreview(
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetchProducerSdkPreview({
+        const response = await fetchProducerFieldPreview({
           blueprintPath,
           catalogRoot,
           inputs,
           models: requestModels,
         });
         if (!cancelled) {
-          setSdkPreviewByProducer(response.producers);
-          setErrorsByProducer(response.errorsByProducer ?? {});
+          setFieldPreviewByProducer(response.producers);
+          setFieldPreviewErrorsByProducer(response.errorsByProducer ?? {});
         }
       } catch (err) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : String(err);
           setError(message);
-          setSdkPreviewByProducer({});
-          setErrorsByProducer({});
+          setFieldPreviewByProducer({});
+          setFieldPreviewErrorsByProducer({});
         }
       } finally {
         if (!cancelled) {
@@ -110,11 +111,11 @@ export function useProducerSdkPreview(
     return () => {
       cancelled = true;
     };
-  }, [requestKey]);
+  }, [requestKey]); // eslint-disable-line react-hooks/exhaustive-deps -- requestKey intentionally collapses the request payload.
 
   return {
-    sdkPreviewByProducer,
-    errorsByProducer,
+    fieldPreviewByProducer,
+    fieldPreviewErrorsByProducer,
     isLoading,
     error,
   };

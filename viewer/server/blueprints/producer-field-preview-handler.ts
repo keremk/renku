@@ -26,20 +26,20 @@ import {
   deriveFieldMappingMeta,
 } from './models-pane-contract.js';
 
-export interface ProducerSdkPreviewRequest {
+export interface ProducerFieldPreviewRequest {
   blueprintPath: string;
   catalogRoot?: string;
   inputs: Record<string, unknown>;
-  models: ProducerSdkPreviewSelection[];
+  models: ProducerFieldPreviewSelection[];
 }
 
-export interface ProducerSdkPreviewSelection {
+export interface ProducerFieldPreviewSelection {
   producerId: string;
   provider: string;
   model: string;
 }
 
-export interface ProducerSdkPreviewField {
+export interface ProducerFieldPreviewField {
   field: string;
   value: unknown;
   status: 'ok' | 'warning' | 'error';
@@ -51,10 +51,10 @@ export interface ProducerSdkPreviewField {
   enumOptions?: unknown[];
   connectionBehavior?: 'invariant' | 'variant' | 'conditional';
   overridePolicy?: 'editable' | 'read_only_dynamic';
-  instances?: ProducerSdkPreviewFieldInstance[];
+  instances?: ProducerFieldPreviewFieldInstance[];
 }
 
-export interface ProducerSdkPreviewFieldInstance {
+export interface ProducerFieldPreviewFieldInstance {
   instanceId: string;
   instanceOrder: number;
   indices: Record<string, number>;
@@ -67,9 +67,9 @@ export interface ProducerSdkPreviewFieldInstance {
   sourceBindings: Record<string, string>;
 }
 
-export interface ProducerSdkPreviewResult {
+export interface ProducerFieldPreviewEntry {
   producerId: string;
-  fields: ProducerSdkPreviewField[];
+  fields: ProducerFieldPreviewField[];
 }
 
 export interface ProducerContractError {
@@ -77,8 +77,8 @@ export interface ProducerContractError {
   code: string;
 }
 
-export interface ProducerSdkPreviewResponse {
-  producers: Record<string, ProducerSdkPreviewResult>;
+export interface ProducerFieldPreviewResponse {
+  producers: Record<string, ProducerFieldPreviewEntry>;
   errorsByProducer?: Record<string, ProducerContractError>;
 }
 
@@ -89,9 +89,9 @@ const NON_BLOCKING_PREVIEW_BINDING_ERROR_CODES = new Set<string>([
   RuntimeErrorCode.INVALID_INPUT_VALUE,
 ]);
 
-export async function getProducerSdkPreview(
-  request: ProducerSdkPreviewRequest
-): Promise<ProducerSdkPreviewResponse> {
+export async function getProducerFieldPreview(
+  request: ProducerFieldPreviewRequest
+): Promise<ProducerFieldPreviewResponse> {
   const { root } = await loadYamlBlueprintTree(request.blueprintPath, {
     catalogRoot: request.catalogRoot,
   });
@@ -108,7 +108,7 @@ export async function getProducerSdkPreview(
     catalog = await loadModelCatalog(catalogModelsDir);
   }
 
-  const producers: Record<string, ProducerSdkPreviewResult> = {};
+  const producers: Record<string, ProducerFieldPreviewEntry> = {};
   const errorsByProducer: Record<string, ProducerContractError> = {};
 
   for (const selection of request.models) {
@@ -322,7 +322,7 @@ function canonicalizePreviewInputs(args: {
     if (canonicalKey in canonicalInputs) {
       throw createRuntimeError(
         RuntimeErrorCode.INVALID_INPUT_BINDING,
-        `Duplicate canonical input key "${canonicalKey}" while canonicalizing SDK preview inputs.`
+        `Duplicate canonical input key "${canonicalKey}" while canonicalizing producer field preview inputs.`
       );
     }
     canonicalInputs[canonicalKey] = value;
@@ -461,8 +461,8 @@ function buildFieldInstancePreviewByField(args: {
     sourceBindings: Record<string, string>;
     fields: MappingPreviewField[];
   }>;
-}): Map<string, ProducerSdkPreviewFieldInstance[]> {
-  const byField = new Map<string, ProducerSdkPreviewFieldInstance[]>();
+}): Map<string, ProducerFieldPreviewFieldInstance[]> {
+  const byField = new Map<string, ProducerFieldPreviewFieldInstance[]>();
   if (!args.runtimeSnapshot) {
     return byField;
   }
@@ -494,7 +494,7 @@ function buildFieldInstancePreviewByField(args: {
           : ['Not mapped for this instance.'];
       const errors = preview ? [...preview.errors] : [];
 
-      const instancePreview: ProducerSdkPreviewFieldInstance = {
+      const instancePreview: ProducerFieldPreviewFieldInstance = {
         instanceId: runtimeInstance.instanceId,
         instanceOrder: runtimeInstance.instanceOrder,
         indices: runtimeInstance.indices,
@@ -533,9 +533,9 @@ function pickSourceBindings(
 function augmentFieldsWithConnectionMetadata(args: {
   visibleFields: MappingPreviewField[];
   connectedInputBehaviorByField: Map<string, ConnectedInputFieldBehavior>;
-  fieldInstancePreviewByField: Map<string, ProducerSdkPreviewFieldInstance[]>;
-}): ProducerSdkPreviewField[] {
-  const byField = new Map<string, ProducerSdkPreviewField>();
+  fieldInstancePreviewByField: Map<string, ProducerFieldPreviewFieldInstance[]>;
+}): ProducerFieldPreviewField[] {
+  const byField = new Map<string, ProducerFieldPreviewField>();
 
   for (const field of args.visibleFields) {
     const behavior = args.connectedInputBehaviorByField.get(field.field);
@@ -582,7 +582,7 @@ function augmentFieldsWithConnectionMetadata(args: {
 }
 
 async function loadSelectionSchemaFile(args: {
-  selection: ProducerSdkPreviewSelection;
+  selection: ProducerFieldPreviewSelection;
   catalog: LoadedModelCatalog | null;
   catalogModelsDir: string | null;
 }) {

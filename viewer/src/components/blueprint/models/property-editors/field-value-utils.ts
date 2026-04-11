@@ -1,7 +1,7 @@
 import type {
   ConfigFieldDescriptor,
   ConfigFieldVariantDescriptor,
-  SdkPreviewField,
+  ProducerFieldPreviewField,
 } from '@/types/blueprint-graph';
 import { resolveObjectDefaults } from '../config-editors/schema-defaults';
 import { getLeafKey, getPathValue, hasPath } from './path-utils';
@@ -9,7 +9,7 @@ import { getLeafKey, getPathValue, hasPath } from './path-utils';
 export function resolveEffectiveFieldValue(args: {
   field: ConfigFieldDescriptor;
   values: Record<string, unknown>;
-  preview?: SdkPreviewField;
+  preview?: ProducerFieldPreviewField;
 }): { effectiveValue: unknown; hasExplicit: boolean } {
   const explicit = getPathValue(args.values, args.field.keyPath);
   const hasExplicitValue = hasPath(args.values, args.field.keyPath);
@@ -28,7 +28,7 @@ export function resolveEffectiveFieldValue(args: {
 }
 
 export function getStatusMessages(
-  preview: SdkPreviewField | undefined
+  preview: ProducerFieldPreviewField | undefined
 ): string | undefined {
   if (!preview) {
     return undefined;

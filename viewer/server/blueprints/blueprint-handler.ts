@@ -25,9 +25,9 @@ import { resolveBlueprintName } from './resolve-handler.js';
 import { getProducerModelsFromBlueprint } from './producer-models.js';
 import { getProducerConfigSchemas } from './config-schemas-handler.js';
 import {
-  getProducerSdkPreview,
-  type ProducerSdkPreviewRequest,
-} from './sdk-preview-handler.js';
+  getProducerFieldPreview,
+  type ProducerFieldPreviewRequest,
+} from './producer-field-preview-handler.js';
 import { parseInputsFile } from './inputs-handler.js';
 import { streamBuildBlob, streamBuildAsset } from './blob-handler.js';
 import { listBlueprints } from './list-handler.js';
@@ -55,7 +55,7 @@ import type { CreateBlueprintFromTemplateRequest } from './types.js';
  *   GET  /blueprints/resolve?name=...
  *   GET  /blueprints/producer-models?path=...&catalog=...
  *   GET  /blueprints/producer-config-schemas?path=...&catalog=...
- *   POST /blueprints/producer-sdk-preview
+ *   POST /blueprints/producer-field-preview
  *   GET  /blueprints/input-file?folder=...&movieId=...&filename=...
  *   POST /blueprints/builds/create
  *   GET  /blueprints/builds/inputs?folder=...&movieId=...&blueprintPath=...
@@ -79,14 +79,14 @@ export async function handleBlueprintRequest(
     return handleBuildsSubRoute(req, res, url, subAction, segments.slice(1));
   }
 
-  if (action === 'producer-sdk-preview') {
+  if (action === 'producer-field-preview') {
     if (req.method !== 'POST') {
       return respondMethodNotAllowed(res);
     }
 
-    let body: ProducerSdkPreviewRequest;
+    let body: ProducerFieldPreviewRequest;
     try {
-      body = await parseJsonBody<ProducerSdkPreviewRequest>(req);
+      body = await parseJsonBody<ProducerFieldPreviewRequest>(req);
     } catch {
       sendError(res, 400, 'Invalid JSON body');
       return true;
@@ -110,7 +110,7 @@ export async function handleBlueprintRequest(
     }
 
     try {
-      const preview = await getProducerSdkPreview(body);
+      const preview = await getProducerFieldPreview(body);
       sendJson(res, preview);
       return true;
     } catch (error) {
@@ -121,7 +121,7 @@ export async function handleBlueprintRequest(
       const message =
         error instanceof Error
           ? error.message
-          : 'Failed to resolve producer sdk preview';
+          : 'Failed to resolve producer field preview';
       sendError(res, 500, message);
       return true;
     }

@@ -14,7 +14,7 @@ import type {
   PromptData,
   ConfigFieldDescriptor,
   ProducerConfigSchemas,
-  ProducerSdkPreviewEntry,
+  ProducerFieldPreviewEntry,
 } from '@/types/blueprint-graph';
 import type { UseModelSelectionEditorResult } from '@/hooks';
 import type { ArtifactInfo } from '@/types/builds';
@@ -62,10 +62,10 @@ interface DetailPanelProps {
   configSchemasByProducer?: Record<string, ProducerConfigSchemas>;
   /** Producer-level config contract errors */
   configErrorsByProducer?: Record<string, ProducerContractError>;
-  /** Resolution/aspect/size SDK preview values per producer */
-  sdkPreviewByProducer?: Record<string, ProducerSdkPreviewEntry>;
+  /** Resolution/aspect/size producer field preview values per producer */
+  fieldPreviewByProducer?: Record<string, ProducerFieldPreviewEntry>;
   /** Producer-level preview contract/runtime errors */
-  sdkPreviewErrorsByProducer?: Record<string, ProducerContractError>;
+  fieldPreviewErrorsByProducer?: Record<string, ProducerContractError>;
   /** Callback when config values change */
   onConfigChange?: (producerId: string, key: string, value: unknown) => void;
   /** Model selection editor (manages state and auto-save) */
@@ -114,8 +114,8 @@ export function DetailPanel({
   configValuesByProducer = {},
   configSchemasByProducer = {},
   configErrorsByProducer = {},
-  sdkPreviewByProducer = {},
-  sdkPreviewErrorsByProducer = {},
+  fieldPreviewByProducer = {},
+  fieldPreviewErrorsByProducer = {},
   onConfigChange,
   modelEditor,
   hasTimeline = false,
@@ -247,8 +247,8 @@ export function DetailPanel({
             configValuesByProducer={configValuesByProducer}
             configSchemasByProducer={configSchemasByProducer}
             configErrorsByProducer={configErrorsByProducer}
-            sdkPreviewByProducer={sdkPreviewByProducer}
-            sdkPreviewErrorsByProducer={sdkPreviewErrorsByProducer}
+            fieldPreviewByProducer={fieldPreviewByProducer}
+            fieldPreviewErrorsByProducer={fieldPreviewErrorsByProducer}
             onConfigChange={onConfigChange}
             blueprintFolder={blueprintFolder}
             movieId={movieId}

@@ -10,7 +10,7 @@ import type {
   ProducerContractError,
   PromptData,
   ConfigFieldDescriptor,
-  ProducerSdkPreviewEntry,
+  ProducerFieldPreviewEntry,
 } from '@/types/blueprint-graph';
 
 interface ModelsPanelProps {
@@ -47,10 +47,10 @@ interface ModelsPanelProps {
   configSchemasByProducer?: Record<string, ProducerConfigSchemas>;
   /** Producer-level config contract errors */
   configErrorsByProducer?: Record<string, ProducerContractError>;
-  /** SDK preview values per producer (resolution/aspect/size mappings) */
-  sdkPreviewByProducer?: Record<string, ProducerSdkPreviewEntry>;
+  /** Producer field preview values per producer (resolution/aspect/size mappings) */
+  fieldPreviewByProducer?: Record<string, ProducerFieldPreviewEntry>;
   /** Producer-level preview contract/runtime errors */
-  sdkPreviewErrorsByProducer?: Record<string, ProducerContractError>;
+  fieldPreviewErrorsByProducer?: Record<string, ProducerContractError>;
   /** Blueprint folder for file uploads */
   blueprintFolder?: string | null;
   /** Build movie ID for file uploads */
@@ -73,8 +73,8 @@ export function ModelsPanel({
   onConfigChange,
   configSchemasByProducer = {},
   configErrorsByProducer = {},
-  sdkPreviewByProducer = {},
-  sdkPreviewErrorsByProducer = {},
+  fieldPreviewByProducer = {},
+  fieldPreviewErrorsByProducer = {},
   blueprintFolder = null,
   movieId = null,
 }: ModelsPanelProps) {
@@ -269,9 +269,9 @@ export function ModelsPanel({
                   }
                   producerError={
                     configErrorsByProducer[activeProducerId] ??
-                    sdkPreviewErrorsByProducer[activeProducerId]
+                    fieldPreviewErrorsByProducer[activeProducerId]
                   }
-                  sdkPreview={sdkPreviewByProducer[activeProducerId]?.fields}
+                  fieldPreview={fieldPreviewByProducer[activeProducerId]?.fields}
                   hideSectionContainer
                   blueprintFolder={blueprintFolder}
                   movieId={movieId}

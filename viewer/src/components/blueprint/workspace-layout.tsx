@@ -21,7 +21,7 @@ import {
   useBottomPanelTabs,
   usePreviewPlayback,
   useModelSelectionEditor,
-  useProducerSdkPreview,
+  useProducerFieldPreview,
 } from '@/hooks';
 import { useMovieTimeline } from '@/services/use-movie-timeline';
 import type {
@@ -362,8 +362,8 @@ function WorkspaceLayoutInner({
     return values;
   }, [effectiveInputData]);
 
-  const { sdkPreviewByProducer, errorsByProducer: sdkPreviewErrorsByProducer } =
-    useProducerSdkPreview({
+  const { fieldPreviewByProducer, fieldPreviewErrorsByProducer } =
+    useProducerFieldPreview({
       blueprintPath,
       catalogRoot,
       inputs: previewInputs,
@@ -556,8 +556,8 @@ function WorkspaceLayoutInner({
                   configValuesByProducer={configValuesByProducer}
                   configSchemasByProducer={configSchemas}
                   configErrorsByProducer={configErrorsByProducer}
-                  sdkPreviewByProducer={sdkPreviewByProducer}
-                  sdkPreviewErrorsByProducer={sdkPreviewErrorsByProducer}
+                  fieldPreviewByProducer={fieldPreviewByProducer}
+                  fieldPreviewErrorsByProducer={fieldPreviewErrorsByProducer}
                   onConfigChange={handleConfigChange}
                   modelEditor={modelEditor}
                   hasTimeline={hasTimeline}

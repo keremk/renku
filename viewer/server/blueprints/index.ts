@@ -39,10 +39,10 @@ export {
   getProducerModelsFromBlueprint,
 } from './producer-models.js';
 export {
-  getProducerSdkPreview,
-  type ProducerSdkPreviewRequest,
-  type ProducerSdkPreviewResponse,
-} from './sdk-preview-handler.js';
+  getProducerFieldPreview,
+  type ProducerFieldPreviewRequest,
+  type ProducerFieldPreviewResponse,
+} from './producer-field-preview-handler.js';
 export { parseInputsFile } from './inputs-handler.js';
 export { streamBuildBlob } from './blob-handler.js';
 export { listBlueprints } from './list-handler.js';
