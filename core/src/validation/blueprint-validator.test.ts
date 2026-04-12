@@ -4,6 +4,8 @@ import {
   validateBlueprintTree,
   validateConnectionEndpoints,
   validateProducerInputOutput,
+  validateMediaProducerDurationContract,
+  validateSegmentDurationContract,
   validateInputCountInputs,
   validateLoopCountInputs,
   validateArtifactCountInputs,
@@ -278,6 +280,207 @@ describe('validateProducerInputOutput', () => {
     });
 
     const issues = validateProducerInputOutput(rootNode);
+
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe('validateMediaProducerDurationContract', () => {
+  it('validates standalone media producer definitions too', () => {
+    const producerDoc = createDocument({
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'Video', type: 'video', required: true }],
+    });
+    const producerNode = createTreeNode(producerDoc, {
+      sourcePath: '/test/producer.yaml',
+    });
+
+    const issues = validateMediaProducerDurationContract(producerNode);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.MEDIA_PRODUCER_MISSING_DURATION_INPUT,
+      })
+    );
+  });
+
+  it('requires media producers to declare a required Duration input', () => {
+    const producerDoc = createDocument({
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'Video', type: 'video', required: true }],
+    });
+    const producerNode = createTreeNode(producerDoc, {
+      namespacePath: ['VideoProducer'],
+    });
+
+    const rootDoc = createDocument({
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'Output', type: 'video', required: true }],
+      producerImports: [{ name: 'VideoProducer' }],
+      edges: [
+        { from: 'Prompt', to: 'VideoProducer.Prompt' },
+        { from: 'VideoProducer.Video', to: 'Output' },
+      ],
+    });
+    const rootNode = createTreeNode(rootDoc, {
+      children: new Map([['VideoProducer', producerNode]]),
+    });
+
+    const issues = validateMediaProducerDurationContract(rootNode);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.MEDIA_PRODUCER_MISSING_DURATION_INPUT,
+      })
+    );
+  });
+
+  it('requires media producers to have an explicit Duration binding', () => {
+    const producerDoc = createDocument({
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'number', required: true },
+      ],
+      artefacts: [{ name: 'Video', type: 'video', required: true }],
+    });
+    const producerNode = createTreeNode(producerDoc, {
+      namespacePath: ['VideoProducer'],
+    });
+
+    const rootDoc = createDocument({
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'Output', type: 'video', required: true }],
+      producerImports: [{ name: 'VideoProducer' }],
+      edges: [
+        { from: 'Prompt', to: 'VideoProducer.Prompt' },
+        { from: 'VideoProducer.Video', to: 'Output' },
+      ],
+    });
+    const rootNode = createTreeNode(rootDoc, {
+      children: new Map([['VideoProducer', producerNode]]),
+    });
+
+    const issues = validateMediaProducerDurationContract(rootNode);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.MEDIA_PRODUCER_MISSING_DURATION_BINDING,
+      })
+    );
+  });
+
+  it('accepts media producers with a required Duration input and explicit binding', () => {
+    const producerDoc = createDocument({
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'number', required: true },
+      ],
+      artefacts: [{ name: 'Audio', type: 'audio', required: true }],
+    });
+    const producerNode = createTreeNode(producerDoc, {
+      namespacePath: ['AudioProducer'],
+    });
+
+    const rootDoc = createDocument({
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'Output', type: 'audio', required: true }],
+      producerImports: [{ name: 'AudioProducer' }],
+      edges: [
+        { from: 'Prompt', to: 'AudioProducer.Prompt' },
+        { from: 'SegmentDuration', to: 'AudioProducer.Duration' },
+        { from: 'AudioProducer.Audio', to: 'Output' },
+      ],
+    });
+    const rootNode = createTreeNode(rootDoc, {
+      children: new Map([['AudioProducer', producerNode]]),
+    });
+
+    const issues = validateMediaProducerDurationContract(rootNode);
+
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe('validateSegmentDurationContract', () => {
+  it('rejects SegmentDuration declared as a user-facing orchestration input', () => {
+    const doc = createDocument({
+      inputs: [
+        { name: 'Duration', type: 'int', required: true },
+        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'SegmentDuration', type: 'int', required: false },
+      ],
+      producerImports: [{ name: 'VideoProducer' }],
+      edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateSegmentDurationContract(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.SEGMENT_DURATION_INPUT_DECLARED,
+      })
+    );
+  });
+
+  it('requires Duration when SegmentDuration is used', () => {
+    const doc = createDocument({
+      inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
+      producerImports: [{ name: 'VideoProducer' }],
+      edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateSegmentDurationContract(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.SEGMENT_DURATION_REQUIRES_DURATION_INPUT,
+      })
+    );
+  });
+
+  it('requires NumOfSegments when SegmentDuration is used', () => {
+    const doc = createDocument({
+      inputs: [{ name: 'Duration', type: 'int', required: true }],
+      producerImports: [{ name: 'VideoProducer' }],
+      edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateSegmentDurationContract(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.SEGMENT_DURATION_REQUIRES_NUM_SEGMENTS_INPUT,
+      })
+    );
+  });
+
+  it('accepts orchestration blueprints that derive SegmentDuration from required Duration and NumOfSegments', () => {
+    const doc = createDocument({
+      inputs: [
+        { name: 'Duration', type: 'int', required: true },
+        { name: 'NumOfSegments', type: 'int', required: true },
+      ],
+      producerImports: [{ name: 'VideoProducer' }],
+      edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateSegmentDurationContract(tree);
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it('does not apply the SegmentDuration input rule to leaf prompt blueprints', () => {
+    const doc = createDocument({
+      inputs: [{ name: 'SegmentDuration', type: 'int', required: true }],
+      artefacts: [{ name: 'Prompt', type: 'string', required: true }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateSegmentDurationContract(tree);
 
     expect(issues).toHaveLength(0);
   });

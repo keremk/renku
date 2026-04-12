@@ -22,10 +22,6 @@ inputs:
     description: Total timeline duration in seconds.
     type: int
     required: true
-  - name: SegmentDuration
-    description: Segment duration in seconds.
-    type: int
-    required: true
   - name: LanguageCode
     description: ISO-639-3 language code.
     type: string
@@ -60,6 +56,8 @@ producers:
 connections:
   - from: NarrationScript[segment]
     to: AudioProducer[segment].Text
+  - from: SegmentDuration
+    to: AudioProducer[segment].Duration
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
   - from: AudioProducer[segment].GeneratedAudio

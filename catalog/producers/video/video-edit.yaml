@@ -19,6 +19,7 @@ inputs:
   - name: Duration
     description: Duration in seconds of the section to retake.
     type: integer
+    required: true
   - name: StartTime
     description: Start time in seconds of the section to retake.
     type: number

@@ -1,5 +1,6 @@
 inputs:
   Topic: 'Test topic for multi-looped inputs'
+  Duration: 9
   NumOfSegments: 3
 
 models:

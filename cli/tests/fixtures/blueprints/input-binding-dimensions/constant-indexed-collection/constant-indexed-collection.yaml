@@ -25,6 +25,10 @@ inputs:
     description: Resolution for generated media.
     type: resolution
     required: true
+  - name: Duration
+    description: Duration for each generated video clip in seconds.
+    type: int
+    required: true
 
 artifacts:
   - name: CharacterImage
@@ -86,6 +90,8 @@ connections:
     to: VideoProducer[clip].Prompt
   - from: Resolution
     to: VideoProducer[clip].Resolution
+  - from: Duration
+    to: VideoProducer[clip].Duration
 
   # === VideoProducer outputs ===
   - from: VideoProducer[clip].GeneratedVideo

@@ -42,6 +42,8 @@ export function validateBlueprintTree(
   // Run all hard error validators
   issues.push(...validateConnectionEndpoints(tree));
   issues.push(...validateProducerInputOutput(tree));
+  issues.push(...validateMediaProducerDurationContract(tree));
+  issues.push(...validateSegmentDurationContract(tree));
   issues.push(...validateInputCountInputs(tree));
   issues.push(...validateLoopCountInputs(tree));
   issues.push(...validateArtifactCountInputs(tree));
@@ -134,6 +136,24 @@ function parseReference(reference: string): {
  */
 function stripDimensions(segment: string): string {
   return segment.replace(/\[[^\]]*\]/g, '');
+}
+
+function getDeclaredInput(
+  tree: BlueprintTreeNode,
+  inputName: string
+) {
+  return tree.document.inputs.find((input) => input.name === inputName);
+}
+
+function extractSimpleReferenceName(reference: string): string | undefined {
+  if (!isLocalReference(reference)) {
+    return undefined;
+  }
+  return stripDimensions(reference);
+}
+
+function isOrchestrationBlueprint(node: BlueprintTreeNode): boolean {
+  return node.document.producerImports.length > 0 || node.children.size > 0;
 }
 
 /**
@@ -438,6 +458,236 @@ export function validateProducerInputOutput(
 
   validateTree(tree);
   return issues;
+}
+
+/**
+ * Validates the explicit Duration contract for audio/video producers.
+ *
+ * Media producers must:
+ * - declare a required `Duration` input in their own interface
+ * - receive an explicit incoming edge to `ProducerAlias.Duration`
+ */
+export function validateMediaProducerDurationContract(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateMediaProducerNode(
+    node: BlueprintTreeNode,
+    producerName: string,
+    producerSourcePath: string,
+    producerNamespacePath: string[]
+  ): void {
+    const durationInput = node.document.inputs.find(
+      (input) => input.name === 'Duration'
+    );
+    if (!durationInput || durationInput.required !== true) {
+      issues.push(
+        createError(
+          ValidationErrorCode.MEDIA_PRODUCER_MISSING_DURATION_INPUT,
+          `Media producer "${producerName}" must declare a required "Duration" input.`,
+          {
+            filePath: producerSourcePath,
+            namespacePath: producerNamespacePath,
+            context: `producer "${producerName}"`,
+          },
+          'Add `Duration` to the producer inputs and mark it as required.'
+        )
+      );
+    }
+  }
+
+  function validateTree(node: BlueprintTreeNode): void {
+    if (isLeafMediaProducerBlueprint(node)) {
+      const producerName =
+        node.namespacePath[node.namespacePath.length - 1] ?? node.document.meta.id;
+      validateMediaProducerNode(
+        node,
+        producerName,
+        node.sourcePath,
+        node.namespacePath
+      );
+    }
+
+    const producerNames = getProducerImportNames(node);
+
+    for (const producerName of producerNames) {
+      const producerChild = node.children.get(producerName);
+      if (!producerChild || !isMediaProducerBlueprint(producerChild)) {
+        continue;
+      }
+
+      validateMediaProducerNode(
+        producerChild,
+        producerName,
+        producerChild.sourcePath,
+        producerChild.namespacePath
+      );
+
+      const hasDurationBinding = node.document.edges.some((edge) =>
+        referencesProducerInput(edge.to, producerName, 'Duration')
+      );
+      if (!hasDurationBinding) {
+        issues.push(
+          createError(
+            ValidationErrorCode.MEDIA_PRODUCER_MISSING_DURATION_BINDING,
+            `Media producer "${producerName}" must have an explicit incoming binding to "${producerName}.Duration".`,
+            {
+              filePath: node.sourcePath,
+              namespacePath: node.namespacePath,
+              context: `producer "${producerName}"`,
+            },
+            `Add a blueprint edge that targets "${producerName}.Duration".`
+          )
+        );
+      }
+    }
+
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
+/**
+ * Validates SegmentDuration usage for orchestration blueprints.
+ *
+ * SegmentDuration is a derived system property:
+ * - orchestration blueprints must not declare it as a user-facing input
+ * - if they use it in graph wiring, they must explicitly declare required
+ *   Duration and NumOfSegments inputs so SegmentDuration can be derived
+ */
+export function validateSegmentDurationContract(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateTree(node: BlueprintTreeNode): void {
+    if (isOrchestrationBlueprint(node)) {
+      const declaredSegmentDuration = getDeclaredInput(
+        node,
+        SYSTEM_INPUTS.SEGMENT_DURATION
+      );
+      if (declaredSegmentDuration) {
+        issues.push(
+          createError(
+            ValidationErrorCode.SEGMENT_DURATION_INPUT_DECLARED,
+            'Orchestration blueprints must not declare "SegmentDuration" in inputs[]. It is a derived system value.',
+            {
+              filePath: node.sourcePath,
+              namespacePath: node.namespacePath,
+              context: 'input "SegmentDuration"',
+            },
+            'Remove `SegmentDuration` from inputs[] and derive it from required `Duration` and `NumOfSegments`.'
+          )
+        );
+      }
+
+      const usesSegmentDuration =
+        node.document.edges.some(
+          (edge) =>
+            extractSimpleReferenceName(edge.from) ===
+            SYSTEM_INPUTS.SEGMENT_DURATION
+        ) ||
+        node.document.loops?.some(
+          (loop) => loop.countInput === SYSTEM_INPUTS.SEGMENT_DURATION
+        ) ||
+        node.document.inputs.some(
+          (input) => input.countInput === SYSTEM_INPUTS.SEGMENT_DURATION
+        ) ||
+        node.document.artefacts.some(
+          (artefact) =>
+            artefact.countInput === SYSTEM_INPUTS.SEGMENT_DURATION ||
+            artefact.arrays?.some(
+              (arrayMapping) =>
+                arrayMapping.countInput === SYSTEM_INPUTS.SEGMENT_DURATION
+            ) === true
+        );
+
+      if (usesSegmentDuration) {
+        const durationInput = getDeclaredInput(node, SYSTEM_INPUTS.DURATION);
+        if (!durationInput || durationInput.required !== true) {
+          issues.push(
+            createError(
+              ValidationErrorCode.SEGMENT_DURATION_REQUIRES_DURATION_INPUT,
+              'Blueprints that use "SegmentDuration" must declare a required "Duration" input.',
+              {
+                filePath: node.sourcePath,
+                namespacePath: node.namespacePath,
+                context: 'derived input "SegmentDuration"',
+              },
+              'Add `Duration` to inputs[] and mark it as required.'
+            )
+          );
+        }
+
+        const numOfSegmentsInput = getDeclaredInput(
+          node,
+          SYSTEM_INPUTS.NUM_OF_SEGMENTS
+        );
+        if (!numOfSegmentsInput || numOfSegmentsInput.required !== true) {
+          issues.push(
+            createError(
+              ValidationErrorCode.SEGMENT_DURATION_REQUIRES_NUM_SEGMENTS_INPUT,
+              'Blueprints that use "SegmentDuration" must declare a required "NumOfSegments" input.',
+              {
+                filePath: node.sourcePath,
+                namespacePath: node.namespacePath,
+                context: 'derived input "SegmentDuration"',
+              },
+              'Add `NumOfSegments` to inputs[] and mark it as required.'
+            )
+          );
+        }
+      }
+    }
+
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
+function isMediaProducerBlueprint(node: BlueprintTreeNode): boolean {
+  return node.document.artefacts.some((artifact) =>
+    isMediaArtifactType(artifact.type, artifact.itemType)
+  );
+}
+
+function isLeafMediaProducerBlueprint(node: BlueprintTreeNode): boolean {
+  return isMediaProducerBlueprint(node) && !isOrchestrationBlueprint(node);
+}
+
+function isMediaArtifactType(type: string, itemType?: string): boolean {
+  return (
+    type === 'video' ||
+    type === 'audio' ||
+    ((type === 'array' || type === 'multiDimArray') &&
+      (itemType === 'video' || itemType === 'audio'))
+  );
+}
+
+function referencesProducerInput(
+  reference: string,
+  producerName: string,
+  inputName: string
+): boolean {
+  if (isLocalReference(reference)) {
+    return false;
+  }
+
+  const { baseName, segments } = parseReference(reference);
+  return (
+    baseName === producerName &&
+    segments.length >= 2 &&
+    stripDimensions(segments[1] ?? '') === inputName
+  );
 }
 
 // ============================================================================

@@ -1,10 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { ALL_FORMATS, BufferSource, Input } from 'mediabunny';
 import {
   buildArtefactsFromUrls,
   buildArtefactsFromJsonResponse,
   downloadBinary,
   parseArtefactIdentifier,
 } from './artefacts.js';
+import { SdkErrorCode } from '../errors.js';
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -232,6 +234,84 @@ describe('buildArtefactsFromUrls', () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.status).toBe('succeeded');
     expect(result[0]?.blob?.data).toBeInstanceOf(Buffer);
+  });
+
+  it('generates a valid MP4 in simulated mode using the explicit Duration binding', async () => {
+    const result = await buildArtefactsFromUrls({
+      produces: ['Artifact:VideoProducer.GeneratedVideo[segment=0]'],
+      durationInputId: 'Input:SegmentDuration',
+      urls: ['https://example.com/video.mp4'],
+      mimeType: 'video/mp4',
+      mode: 'simulated',
+      resolvedInputs: {
+        'Input:SegmentDuration': 2,
+        'Input:Duration': 99,
+      },
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result).toHaveLength(1);
+    expect(result[0]?.status).toBe('succeeded');
+    expect(result[0]?.blob?.mimeType).toBe('video/mp4');
+
+    const data = result[0]?.blob?.data;
+    expect(data).toBeInstanceOf(Buffer);
+
+    const input = new Input({
+      formats: ALL_FORMATS,
+      source: new BufferSource(data as Buffer),
+    });
+    const duration = await input.computeDuration();
+    input.dispose();
+
+    expect(duration).toBeCloseTo(2, 1);
+  });
+
+  it('generates a valid MP3 in simulated mode using the explicit Duration binding', async () => {
+    const result = await buildArtefactsFromUrls({
+      produces: ['Artifact:MusicProducer.GeneratedMusic'],
+      durationInputId: 'Input:Duration',
+      urls: ['https://example.com/audio.mp3'],
+      mimeType: 'audio/mpeg',
+      mode: 'simulated',
+      resolvedInputs: {
+        'Input:Duration': 3,
+      },
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result).toHaveLength(1);
+    expect(result[0]?.status).toBe('succeeded');
+    expect(result[0]?.blob?.mimeType).toBe('audio/mpeg');
+
+    const data = result[0]?.blob?.data;
+    expect(data).toBeInstanceOf(Buffer);
+
+    const input = new Input({
+      formats: ALL_FORMATS,
+      source: new BufferSource(data as Buffer),
+    });
+    const duration = await input.computeDuration();
+    input.dispose();
+
+    expect(duration).toBeCloseTo(3, 1);
+  });
+
+  it('fails simulated media generation when the job does not bind a canonical duration input', async () => {
+    await expect(
+      buildArtefactsFromUrls({
+        produces: ['Artifact:VideoProducer.GeneratedVideo[segment=0]'],
+        urls: ['https://example.com/video.mp4'],
+        mimeType: 'video/mp4',
+        mode: 'simulated',
+        resolvedInputs: {
+          'Input:Duration': 5,
+          'Input:Prompt': 'Test prompt',
+        },
+      })
+    ).rejects.toMatchObject({
+      code: SdkErrorCode.MISSING_DURATION,
+    });
   });
 });
 

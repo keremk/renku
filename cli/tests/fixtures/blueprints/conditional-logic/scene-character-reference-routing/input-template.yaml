@@ -3,6 +3,7 @@ inputs:
   CharacterVisualStyle: 'stylized animated adventure'
   NumOfCharacters: 3
   NumOfScenes: 3
+  Duration: 5
   Resolution:
     width: 1280
     height: 720

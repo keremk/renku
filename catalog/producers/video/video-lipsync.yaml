@@ -11,6 +11,10 @@ inputs:
   - name: SourceVideo
     description: URL of the source video to apply lip-sync to.
     type: string
+  - name: Duration
+    description: Output video duration in seconds.
+    type: integer
+    required: true
 
   # Audio/Text for lip-sync
   - name: AudioUrl

@@ -8,6 +8,14 @@ meta:
   license: MIT
 
 inputs:
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narrative segments.
+    type: int
+    required: true
   - name: InquiryPrompt
     description: The historical topic or narrative to explore (e.g., "The fall of the Roman Empire", "The Silk Road trade routes").
     type: string
@@ -118,6 +126,8 @@ connections:
   # --- Audio narration ---
   - from: HistoricalScriptProducer.VideoScript.Segments[segment].NarrationScript
     to: AudioProducer[segment].Text
+  - from: SegmentDuration
+    to: AudioProducer[segment].Duration
   - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
   - from: AudioProducer[segment].GeneratedAudio
@@ -155,6 +165,8 @@ connections:
     to: TranscriptionProducer.LanguageCode
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: Duration
+    to: VideoExporter.Duration
   - from: Resolution
     to: VideoExporter.Resolution
   - from: TranscriptionProducer.Transcription

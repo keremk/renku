@@ -7,6 +7,14 @@ meta:
   license: MIT
 
 inputs:
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of video segments to generate from the storyboard panels.
+    type: int
+    required: true
   - name: InquiryPrompt
     description: Main topic or scenario description for the video (e.g., music video concept, story idea).
     type: text
@@ -162,5 +170,7 @@ connections:
   # Wire to VideoExporter
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: Duration
+    to: VideoExporter.Duration
   - from: VideoExporter.FinalVideo
     to: FinalVideo

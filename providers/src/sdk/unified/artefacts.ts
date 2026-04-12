@@ -13,13 +13,16 @@ import {
   needsPanelExtraction,
   type RequiredPanelExtractions,
 } from './ffmpeg-image-splitter.js';
-import { generateMockPng } from './png-generator.js';
-import { generateWavWithDuration } from './wav-generator.js';
+import {
+  generateSimulatedDataForMimeType,
+  resolveDurationForSimulatedMedia,
+} from './simulated-media.js';
 
 type JsonObject = Record<string, unknown>;
 
 export interface BuildArtefactsOptions {
   produces: string[];
+  durationInputId?: string;
   urls: string[];
   mimeType: string;
   mode?: ProviderMode;
@@ -97,32 +100,12 @@ interface ArtefactExtractionContext {
 }
 
 /**
- * Resolves duration for mock audio/video assets from resolved inputs.
- * Looks for common duration field names in the resolved inputs.
- */
-function resolveDurationForMock(resolvedInputs: Record<string, unknown> | undefined): number {
-  if (!resolvedInputs) {
-    return 5; // Default 5 seconds
-  }
-
-  const durationKeys = ['Duration', 'ClipDuration', 'SegmentDuration'];
-  for (const key of durationKeys) {
-    const value = resolvedInputs[key];
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-      return value;
-    }
-  }
-
-  return 5; // Default 5 seconds
-}
-
-/**
  * Downloads binary data from URLs and creates ProducedArtefact objects.
  * Handles missing URLs and download failures gracefully.
  *
- * In simulated mode, generates valid WAV files with the expected duration
- * instead of downloading. This ensures mediabunny can extract duration
- * using the same code path as live mode.
+ * In simulated mode, generates valid media with an explicit duration
+ * instead of downloading. This keeps timeline/media validation on the same
+ * duration-reading path as live mode.
  *
  * For video artifacts, this function also extracts derived artifacts
  * (FirstFrame, LastFrame, AudioTrack) using ffmpeg when they are
@@ -132,7 +115,7 @@ function resolveDurationForMock(resolvedInputs: Record<string, unknown> | undefi
  * when PanelImages[N] artifacts are included in the produces array.
  */
 export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Promise<ProducedArtefact[]> {
-  const { produces, urls, mimeType, mode, resolvedInputs } = options;
+  const { produces, durationInputId, urls, mimeType, mode, resolvedInputs } = options;
   assertCanonicalProduces(produces, 'buildArtefactsFromUrls');
   const artefacts: ProducedArtefact[] = [];
   const useMockDownloads = mode === 'simulated';
@@ -147,6 +130,10 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
   const panelExtractionNeeded = needsPanelExtraction(panelExtractions);
   const isImage = isImageMimeType(mimeType);
   const gridStyle = resolveGridStyle(resolvedInputs);
+  const simulatedDurationSeconds =
+    useMockDownloads && !isImage
+      ? resolveDurationForSimulatedMedia({ durationInputId, resolvedInputs })
+      : undefined;
 
   // Filter out derived artifact IDs from primary processing
   // (they will be handled by extraction, not URL download)
@@ -185,7 +172,10 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
 
     try {
       const buffer = useMockDownloads
-        ? generateMockDataForMimeType(mimeType, resolveDurationForMock(resolvedInputs))
+        ? await generateSimulatedDataForMimeType({
+            mimeType,
+            durationSeconds: simulatedDurationSeconds ?? 0,
+          })
         : await downloadBinary(url);
 
       artefacts.push({
@@ -226,13 +216,12 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
 
   // Extract derived artifacts from video if needed
   if (isVideo && extractionNeeded && videoBuffer && primaryVideoArtifactId) {
-    const mockDuration = resolveDurationForMock(resolvedInputs);
     const extracted = await extractDerivedArtefacts({
       videoBuffer,
       primaryArtifactId: primaryVideoArtifactId,
       produces,
       mode,
-      mockDurationSeconds: mockDuration,
+      mockDurationSeconds: simulatedDurationSeconds,
     });
 
     // Add extracted artifacts to results
@@ -276,20 +265,6 @@ function isVideoMimeType(mimeType: string): boolean {
  */
 function isImageMimeType(mimeType: string): boolean {
   return mimeType.startsWith('image/');
-}
-
-/**
- * Generate mock data appropriate for the given MIME type.
- * - Images: generate a small PNG
- * - Audio/Video: generate a WAV with the specified duration
- */
-function generateMockDataForMimeType(mimeType: string, durationSeconds: number): Buffer {
-  if (mimeType.startsWith('image/')) {
-    // Generate a 100x100 mock PNG for images
-    return generateMockPng(100, 100);
-  }
-  // Default to WAV for audio/video
-  return generateWavWithDuration(durationSeconds);
 }
 
 /**

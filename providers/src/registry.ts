@@ -15,7 +15,7 @@ import {
   type LoadedModelCatalog,
 } from './model-catalog.js';
 import { generateProviderImplementations } from './registry-generator.js';
-import { createMockProducerHandler } from './mock-producers.js';
+import { createSimulatedFallbackProducerHandler } from './simulated-fallback-producers.js';
 import { createTimelineProducerHandler } from './producers/timeline/ordered-timeline.js';
 
 /**
@@ -37,13 +37,14 @@ export interface CreateProviderRegistryOptions extends ProviderRegistryOptions {
  * When a catalog is provided, implementations are generated dynamically from the
  * YAML model definitions. This is the recommended approach for production use.
  *
- * When no catalog is provided (e.g., in unit tests), the registry uses mock mode
- * by default and will return mock handlers for all requests via the mock fallback.
+ * When no catalog is provided (e.g., in lightweight unit tests), the registry
+ * defaults to simulated mode and exposes only the internal handlers plus a
+ * generic simulated fallback.
  */
 export function createProviderRegistry(
   options: CreateProviderRegistryOptions = {}
 ): ProviderRegistry {
-  const mode: ProviderMode = options.mode ?? 'mock';
+  const mode: ProviderMode = options.mode ?? 'simulated';
   const logger = options.logger;
   const notifications = options.notifications;
   const secretResolver = options.secretResolver ?? createEnvSecretResolver();
@@ -69,15 +70,13 @@ export function createProviderRegistry(
     if (!implementation) {
       // Provide helpful error message with guidance on how to fix
       const errorMessage =
-        mode === 'mock'
-          ? `No provider handler registered for ${descriptor.provider}/${descriptor.model} (${descriptor.environment}) in ${mode} mode.`
-          : `No handler configured for ${descriptor.provider}/${descriptor.model}. ` +
-            `Add the model to catalog/models/${descriptor.provider}.yaml with a 'type' field:\n\n` +
-            `  - name: ${descriptor.model}\n` +
-            `    type: video  # or image, audio, llm, internal\n` +
-            `    price:\n` +
-            `      function: costByImage\n` +
-            `      pricePerImage: 0.03\n`;
+        `No handler configured for ${descriptor.provider}/${descriptor.model}. ` +
+        `Add the model to catalog/models/${descriptor.provider}.yaml with a 'type' field:\n\n` +
+        `  - name: ${descriptor.model}\n` +
+        `    type: video  # or image, audio, llm, internal\n` +
+        `    price:\n` +
+        `      function: costByImage\n` +
+        `      pricePerImage: 0.03\n`;
       throw new Error(errorMessage);
     }
 
@@ -187,27 +186,26 @@ function createEnvSecretResolver(): SecretResolver {
 /**
  * Get minimal default implementations for when no catalog is provided.
  * This is used for unit tests that don't need a full catalog.
- * Only includes the mock wildcard fallback.
  */
 function getMinimalDefaultImplementations(): ProviderImplementation[] {
   const wildcard = '*' as const;
 
   return [
-    // Timeline handler for mock mode (used in registry.test.ts)
+    // Timeline handler for simulated mode (used in registry.test.ts)
     {
       match: {
         provider: 'renku',
         model: 'OrderedTimeline',
         environment: wildcard,
       },
-      mode: 'mock' as ProviderMode,
+      mode: 'simulated' as ProviderMode,
       factory: createTimelineProducerHandler(),
     },
-    // Mock fallback for all unmatched providers (only for mock mode)
+    // Generic fallback for simulated mode when tests don't provide a catalog.
     {
       match: { provider: wildcard, model: wildcard, environment: wildcard },
-      mode: 'mock' as ProviderMode,
-      factory: createMockProducerHandler(),
+      mode: 'simulated' as ProviderMode,
+      factory: createSimulatedFallbackProducerHandler(),
     },
   ];
 }

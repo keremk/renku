@@ -1,6 +1,6 @@
 /* eslint-env node */
 import process from 'node:process';
-import './__testutils__/mock-providers.js';
+import './__testutils__/simulated-providers.js';
 import { mkdtemp, rm, stat, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';

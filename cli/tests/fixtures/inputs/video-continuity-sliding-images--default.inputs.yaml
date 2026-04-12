@@ -2,7 +2,7 @@ inputs:
   InquiryPrompt: "Sketch an expedition to Europa's ice oceans"
   Duration: 20
   NumOfSegments: 2
-  SegmentDuration: '10'
+  SegmentDuration: 10
   Audience: 'Adult'
   Language: 'en'
   Style: 'Illustrated sci-fi field notes'

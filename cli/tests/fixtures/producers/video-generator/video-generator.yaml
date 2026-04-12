@@ -17,6 +17,10 @@ inputs:
     description: Thumbnail image for the video.
     type: image
     required: true
+  - name: Duration
+    description: Duration for the generated video in seconds.
+    type: integer
+    required: true
 
 artifacts:
   - name: GeneratedVideo

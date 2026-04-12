@@ -12,7 +12,12 @@ import {
 	type ProduceResult,
 	type ProduceFn,
 } from '@gorenku/core';
-import { createProviderRegistry, loadModelCatalog } from '@gorenku/providers';
+import {
+	createProviderRegistry,
+	generateMp4WithDuration,
+	generateWavWithDuration,
+	loadModelCatalog,
+} from '@gorenku/providers';
 import {
 	getDefaultCliConfigPath,
 	readCliConfig,
@@ -188,24 +193,21 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 						producerName
 					)
 				) {
-					const artefacts = request.job.produces
-						.filter((id: string) => id.startsWith('Artifact:'))
-						.map((artefactId: string) => {
+					const artefacts = await Promise.all(
+						request.job.produces
+							.filter((id: string) => id.startsWith('Artifact:'))
+							.map(async (artefactId: string) => {
 							const isAudio = artefactId.includes('Audio');
 							const isVideo = artefactId.includes('Video');
-							// Create mock blob data with simulated-output: prefix for audio/video
-							// This allows TimelineComposer to use SegmentDuration input for duration
-							const SIMULATED_OUTPUT_PREFIX = 'simulated-output:';
-							const data =
-								isAudio || isVideo
-									? new TextEncoder().encode(
-											SIMULATED_OUTPUT_PREFIX + artefactId
-										)
+							const data = isAudio
+								? generateWavWithDuration(10)
+								: isVideo
+									? await generateMp4WithDuration(10)
 									: new Uint8Array([137, 80, 78, 71]); // PNG magic bytes
 							const mimeType = artefactId.includes('Image')
 								? 'image/png'
 								: isAudio
-									? 'audio/mp3'
+									? 'audio/wav'
 									: 'video/mp4';
 
 							// Store artifact in resolvedInputs for TimelineComposer to read
@@ -215,7 +217,8 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 								artefactId,
 								blob: { data, mimeType },
 							};
-						});
+							})
+					);
 
 					return {
 						jobId: request.job.jobId,

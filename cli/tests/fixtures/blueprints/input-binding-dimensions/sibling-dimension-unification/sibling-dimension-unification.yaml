@@ -5,6 +5,10 @@ meta:
   version: 0.1.0
 
 inputs:
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+    required: true
   - name: Topic
     description: The topic for content generation.
     type: string
@@ -64,6 +68,8 @@ connections:
   # This tests cross-producer dimension alignment
   - from: GeneratedImage[segment]
     to: VideoGenerator[segment].ThumbnailImage
+  - from: SegmentDuration
+    to: VideoGenerator[segment].Duration
 
   # Write VideoGenerator output to artifact
   - from: VideoGenerator[segment].GeneratedVideo

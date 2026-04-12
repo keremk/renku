@@ -11,6 +11,10 @@ inputs:
   - name: Timeline
     description: OrderedTimeline JSON manifest to render.
     type: json
+  - name: Duration
+    description: Total output video duration in seconds.
+    type: integer
+    required: true
   - name: Transcription
     description: Optional word-level transcription for karaoke subtitles.
     type: json

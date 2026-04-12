@@ -10,6 +10,8 @@ export {
   resolveSchemaPointer,
   resolveViewerSchemaNode,
 } from './unified/schema-file.js';
+export { generateMp4WithDuration } from './unified/mp4-generator.js';
+export { generateWavWithDuration } from './unified/wav-generator.js';
 
 // FFmpeg extraction exports
 export {

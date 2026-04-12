@@ -7,6 +7,14 @@ meta:
   license: MIT
 
 inputs:
+  - name: Duration
+    description: Total narration duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narration segments.
+    type: int
+    required: true
   - name: InquiryPrompt
     description: The prompt describing the movie script to be generated.
     type: string
@@ -61,6 +69,8 @@ connections:
 
   - from: ScriptProducer.NarrationScript[segment]
     to: AudioProducer[segment].Text
+  - from: SegmentDuration
+    to: AudioProducer[segment].Duration
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
   - from: Emotion

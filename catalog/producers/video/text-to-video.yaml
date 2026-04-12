@@ -17,6 +17,7 @@ inputs:
   - name: Duration
     description: Video duration in seconds.
     type: integer
+    required: true
   - name: NumFrames
     description: Number of frames (for frame-based models).
     type: integer

@@ -1,3 +1,13 @@
+# Agent Rules (Always Obey)
+
+> **EXTREMELY IMPORTANT** Never guess. Never infer bindings from naming patterns, partial matches, or “close enough” aliases. Resolve inputs only through the exact declared binding. If the binding is missing, fail fast with a numbered Renku error so the blueprint or producer contract can be fixed explicitly.
+
+> **EXTREMELY IMPORTANT** Absolutely no fallbacks: never quietly substitute defaults or best guesses when inputs or mappings are missing. Fail fast, surface the missing value, and stop before calling any SDK so issues can be fixed explicitly.
+
+> **EXTREMELY IMPORTANT** Do not add default values or fallback branches just to “keep going.” That hides real bugs, clutters the code, and makes the system brittle.
+
+> **EXTREMELY IMPORTANT** All video and audio producers must declare a required `Duration` input, and every blueprint using them must bind that `Duration` input explicitly. If the declaration or binding is missing, validation must fail.
+
 # Repository Guidelines
 
 ## Project Structure & Module Organization
@@ -18,8 +28,6 @@ Consult `design_guidelines.md` before adjusting visuals in the client, and keep 
 Run `pnpm install` once to hydrate the workspaces. Use `pnpm dev:core`, `pnpm dev:cli`, or `pnpm dev:viewer` for focused development. Build artifacts either via `pnpm build` or per-package scripts such as `pnpm build:core`. Linting and type checks run through the package names: e.g. `pnpm lint:core`, `pnpm type-check:cli`, `pnpm lint:providers`. Vitest is wired the same way: `pnpm test:core`, `pnpm test:cli`, `pnpm test:providers`, etc. Use the actual package names with `--filter` when invoking commands from the repo root (e.g., `pnpm --filter @gorenku/core build`).
 
 > **EXTREMELY IMPORTANT** DO NOT JUST ADD default fallbacks just to make sure that you have something, especially for inputs that are expected. Than you are silently failing and making some random assumptions. Always throw, fail fast and so those can be fixed.
-
-> **EXTREMELY IMPORTANT** Absolutely no fallbacks: never quietly substitute defaults or best guesses when inputs or mappings are missing. Fail fast, surface the missing value, and stop before calling any SDK so issues can be fixed explicitly.
 
 > **EXTREMELY IMPORTANT** When running vitest, make sure to cd into the project and run it there, here is how to do for CLI for example.
 ```bash
@@ -67,6 +75,8 @@ Write strict TypeScript and prefer functional components with kebab-case filenam
 
 ## Testing Guidelines
 The repo relies on linting and type checks as the baseline gate, and all packages are wired for Vitest. Add tests for new behaviour (`.test.ts`/`.test.tsx` next to the code) in core, CLI, and providers packages. Ensure each package exposes `test` scripts and use `pnpm test:core`, `pnpm test:cli`, or `pnpm test:providers` from the root. Document fixture data inside its package and keep runs deterministic.
+
+> **Agent Rule**: Final verification must always include running `pnpm test` from the repository root. Package-level or focused test runs are useful during development, but they are not sufficient as the last verification step.
 
 ## Commit & Pull Request Guidelines
 Follow the `<type>: <summary>` pattern seen in history (example `init: first version that runs on Next.js`). Keep subjects imperative and scope commits to one concern. Pull requests should explain the change, link tracking issues, and include screenshots or clips for UI updates. Add a testing note listing the commands you ran (at minimum `pnpm check`). Call out required follow-ups such as database pushes or environment changes before requesting review.

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createTimelineProducerHandler } from './ordered-timeline.js';
+import { SdkErrorCode } from '../../sdk/errors.js';
 import type { ProviderJobContext } from '../../types.js';
 
 vi.mock('mediabunny', () => {
@@ -426,7 +427,7 @@ describe('TimelineProducer', () => {
     expect(videoTrack?.clips[1]?.properties.fitStrategy).toBe('stretch');
   });
 
-  it('prefers SegmentDuration for video primary master timing', async () => {
+  it('uses native durations for video primary master timing by default', async () => {
     const handler = createHandler();
     const request = makeRequest();
     const resolvedInputs = request.context.extras?.resolvedInputs as Record<
@@ -461,7 +462,7 @@ describe('TimelineProducer', () => {
     resolvedInputs['TimelineComposer.VideoSegments'] = videoFanIn;
     resolvedInputs.VideoSegments = videoFanIn.groups;
     resolvedInputs['Artifact:Video[0]'] = createAssetPayload(8);
-    resolvedInputs['Artifact:Video[1]'] = createAssetPayload(8);
+    resolvedInputs['Artifact:Video[1]'] = createAssetPayload(6);
     resolvedInputs['Input:SegmentDuration'] = 10;
     resolvedInputs['SegmentDuration'] = 10;
 
@@ -477,16 +478,220 @@ describe('TimelineProducer', () => {
       }>;
     };
 
-    expect(timeline.duration).toBeCloseTo(20);
+    expect(timeline.duration).toBeCloseTo(14);
 
     const videoTrack = timeline.tracks.find((track) => track.kind === 'Video');
-    expect(videoTrack?.clips[0]?.duration).toBeCloseTo(10);
-    expect(videoTrack?.clips[1]?.duration).toBeCloseTo(10);
+    expect(videoTrack?.clips[0]?.duration).toBeCloseTo(8);
+    expect(videoTrack?.clips[1]?.duration).toBeCloseTo(6);
 
     const audioTrack = timeline.tracks.find((track) => track.kind === 'Audio');
-    expect(audioTrack?.clips[0]?.duration).toBeCloseTo(10);
-    expect(audioTrack?.clips[1]?.duration).toBeCloseTo(10);
-    expect(audioTrack?.clips[1]?.startTime).toBeCloseTo(10);
+    expect(audioTrack?.clips[0]?.duration).toBeCloseTo(8);
+    expect(audioTrack?.clips[1]?.duration).toBeCloseTo(6);
+    expect(audioTrack?.clips[1]?.startTime).toBeCloseTo(8);
+  });
+
+  it('fails with a user-facing error when primary video duration cannot be read', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<
+      string,
+      unknown
+    >;
+    const config = request.context.providerConfig as {
+      config: {
+        timeline: {
+          clips: Array<Record<string, unknown>>;
+          numTracks: number;
+          tracks: string[];
+          masterTracks: string[];
+        };
+      };
+    };
+
+    config.config.timeline.clips.push({
+      kind: 'Video',
+      inputs: 'VideoSegments',
+    });
+    config.config.timeline.numTracks = 3;
+    config.config.timeline.tracks = ['Image', 'Audio', 'Video'];
+    config.config.timeline.masterTracks = ['Video', 'Audio'];
+    request.inputs.push('Input:TimelineComposer.VideoSegments');
+
+    const videoFanIn = {
+      groupBy: 'segment',
+      groups: [['Artifact:Video[0]']],
+    };
+    resolvedInputs['Input:TimelineComposer.VideoSegments'] = videoFanIn;
+    resolvedInputs['TimelineComposer.VideoSegments'] = videoFanIn;
+    resolvedInputs.VideoSegments = videoFanIn.groups;
+    resolvedInputs['Artifact:Video[0]'] = new Uint8Array([]);
+
+    await expect(handler.invoke(request)).rejects.toMatchObject({
+      code: SdkErrorCode.ASSET_DURATION_FAILED,
+      kind: 'user_input',
+      causedByUser: true,
+      message: expect.stringContaining('could not determine the duration'),
+    });
+  });
+
+  it('treats a missing primary video payload as a skipped sparse group', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<
+      string,
+      unknown
+    >;
+    const config = request.context.providerConfig as {
+      config: {
+        timeline: {
+          clips: Array<Record<string, unknown>>;
+          numTracks: number;
+          tracks: string[];
+          masterTracks: string[];
+        };
+      };
+    };
+
+    config.config.timeline.clips.push({
+      kind: 'Video',
+      inputs: 'VideoSegments',
+    });
+    config.config.timeline.numTracks = 3;
+    config.config.timeline.tracks = ['Image', 'Audio', 'Video'];
+    config.config.timeline.masterTracks = ['Video', 'Audio'];
+    request.inputs.push('Input:TimelineComposer.VideoSegments');
+
+    const videoFanIn = {
+      groupBy: 'segment',
+      groups: [['Artifact:Video[0]']],
+    };
+    resolvedInputs['Input:TimelineComposer.VideoSegments'] = videoFanIn;
+    resolvedInputs['TimelineComposer.VideoSegments'] = videoFanIn;
+    resolvedInputs.VideoSegments = videoFanIn.groups;
+    delete resolvedInputs['Artifact:Video[0]'];
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(
+      typeof timelinePayload === 'string' ? timelinePayload : '{}'
+    ) as {
+      duration: number;
+      tracks: Array<{
+        kind: string;
+        clips: Array<{ duration: number }>;
+      }>;
+    };
+
+    expect(timeline.duration).toBeCloseTo(12);
+    const videoTrack = timeline.tracks.find((track) => track.kind === 'Video');
+    expect(videoTrack?.clips).toEqual([]);
+  });
+
+  it('treats skipped primary video groups as empty when video is the master track', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<
+      string,
+      unknown
+    >;
+    const config = request.context.providerConfig as {
+      config: {
+        timeline: {
+          clips: Array<Record<string, unknown>>;
+          numTracks: number;
+          tracks: string[];
+          masterTracks: string[];
+        };
+      };
+    };
+
+    config.config.timeline.clips = [
+      { kind: 'Video', inputs: 'VideoSegments' },
+      { kind: 'Audio', inputs: 'AudioSegments' },
+    ];
+    config.config.timeline.numTracks = 2;
+    config.config.timeline.tracks = ['Video', 'Audio'];
+    config.config.timeline.masterTracks = ['Video', 'Audio'];
+    request.inputs.length = 0;
+    request.inputs.push('Input:TimelineComposer.VideoSegments');
+    request.inputs.push('Input:TimelineComposer.AudioSegments');
+
+    const videoGroups = [
+      ['Artifact:Video[0]'],
+      ['Artifact:Video[1]'],
+      ['Artifact:Video[2]'],
+    ];
+    resolvedInputs['Input:TimelineComposer.VideoSegments'] = {
+      groupBy: 'segment',
+      groups: videoGroups,
+    };
+    resolvedInputs['TimelineComposer.VideoSegments'] = {
+      groupBy: 'segment',
+      groups: videoGroups,
+    };
+    resolvedInputs.VideoSegments = videoGroups;
+    resolvedInputs['Artifact:Video[0]'] = createAssetPayload(4);
+    resolvedInputs['Artifact:Video[2]'] = createAssetPayload(6);
+    delete resolvedInputs['Artifact:Video[1]'];
+
+    const audioGroups = [
+      ['Artifact:Audio[0]'],
+      ['Artifact:Audio[1]'],
+      ['Artifact:Audio[2]'],
+    ];
+    resolvedInputs['Input:TimelineComposer.AudioSegments'] = {
+      groupBy: 'segment',
+      groups: audioGroups,
+    };
+    resolvedInputs['TimelineComposer.AudioSegments'] = {
+      groupBy: 'segment',
+      groups: audioGroups,
+    };
+    resolvedInputs.AudioSegments = audioGroups;
+    resolvedInputs['Artifact:Audio[0]'] = createAssetPayload(4);
+    resolvedInputs['Artifact:Audio[1]'] = createAssetPayload(5);
+    resolvedInputs['Artifact:Audio[2]'] = createAssetPayload(6);
+
+    delete resolvedInputs['Input:TimelineComposer.ImageSegments'];
+    delete resolvedInputs['TimelineComposer.ImageSegments'];
+    delete resolvedInputs.ImageSegments;
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(
+      typeof timelinePayload === 'string' ? timelinePayload : '{}'
+    ) as {
+      duration: number;
+      tracks: Array<{
+        kind: string;
+        clips: Array<{
+          startTime: number;
+          duration: number;
+          properties: Record<string, unknown>;
+        }>;
+      }>;
+    };
+
+    expect(timeline.duration).toBeCloseTo(15);
+
+    const videoTrack = timeline.tracks.find((track) => track.kind === 'Video');
+    expect(videoTrack?.clips).toHaveLength(2);
+    expect(videoTrack?.clips[0]?.properties.assetId).toBe('Artifact:Video[0]');
+    expect(videoTrack?.clips[0]?.startTime).toBe(0);
+    expect(videoTrack?.clips[0]?.duration).toBeCloseTo(4);
+    expect(videoTrack?.clips[1]?.properties.assetId).toBe('Artifact:Video[2]');
+    expect(videoTrack?.clips[1]?.startTime).toBeCloseTo(9);
+    expect(videoTrack?.clips[1]?.duration).toBeCloseTo(6);
+
+    const audioTrack = timeline.tracks.find((track) => track.kind === 'Audio');
+    expect(audioTrack?.clips).toHaveLength(3);
+    expect(audioTrack?.clips[0]?.duration).toBeCloseTo(4);
+    expect(audioTrack?.clips[1]?.duration).toBeCloseTo(5);
+    expect(audioTrack?.clips[2]?.duration).toBeCloseTo(6);
   });
 
   it('filters clips based on tracks configuration', async () => {

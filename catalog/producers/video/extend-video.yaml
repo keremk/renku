@@ -20,6 +20,7 @@ inputs:
   - name: Duration
     description: Duration in seconds to extend the video.
     type: integer
+    required: true
 
   # Extension direction
   - name: Mode

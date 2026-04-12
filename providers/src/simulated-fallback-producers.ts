@@ -1,4 +1,4 @@
-import { createMockArtefacts } from './mock-output.js';
+import { createSimulatedFallbackArtefacts } from './simulated-fallback-output.js';
 import type {
   HandlerFactory,
   HandlerFactoryInit,
@@ -7,14 +7,14 @@ import type {
   ProviderResult,
 } from './types.js';
 
-export function createMockProducerHandler(): HandlerFactory {
+export function createSimulatedFallbackProducerHandler(): HandlerFactory {
   return ({ descriptor, mode }: HandlerFactoryInit): ProducerHandler => ({
     provider: descriptor.provider,
     model: descriptor.model,
     environment: descriptor.environment,
     mode,
     async invoke(request: ProviderJobContext): Promise<ProviderResult> {
-      const artefacts = createMockArtefacts(request);
+      const artefacts = await createSimulatedFallbackArtefacts(request);
       return {
         status: 'succeeded',
         artefacts,

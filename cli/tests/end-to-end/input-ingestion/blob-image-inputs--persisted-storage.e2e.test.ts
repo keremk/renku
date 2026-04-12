@@ -214,6 +214,7 @@ describe('end-to-end: image-to-video with blob input', () => {
 				},
 				inputs: [
 					{ name: 'Prompt', type: 'string', required: true },
+					{ name: 'Duration', type: 'int', required: true },
 					{ name: 'InputImage1', type: 'image', required: true },
 					{ name: 'InputImage2', type: 'image', required: true },
 				],
@@ -229,6 +230,7 @@ describe('end-to-end: image-to-video with blob input', () => {
 			stringifyYaml({
 				inputs: {
 					Prompt: 'A dual image test prompt',
+					Duration: 5,
 					InputImage1: `file:${testImagePath1}`,
 					InputImage2: `file:${testImagePath2}`,
 				},

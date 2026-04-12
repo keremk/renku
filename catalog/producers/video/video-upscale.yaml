@@ -11,6 +11,10 @@ inputs:
   - name: SourceVideo
     description: URL of the source video to upscale.
     type: string
+  - name: Duration
+    description: Output video duration in seconds.
+    type: integer
+    required: true
   - name: TargetResolution
     description: Target resolution for upscaling (e.g., 2160p for 4K).
     type: string

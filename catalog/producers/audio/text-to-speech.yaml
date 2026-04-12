@@ -12,6 +12,10 @@ inputs:
     description: Text to convert to speech.
     type: string
     storyboard: main
+  - name: Duration
+    description: Target audio duration in seconds for planning and simulated media generation.
+    type: integer
+    required: true
   - name: GuidingPrompt
     description: Optional text prompt to guide voice style/tone.
     type: string  

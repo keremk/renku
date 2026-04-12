@@ -17,6 +17,7 @@ import {
   lookupModel,
   resolveSchemaPath,
   type LoadedModelCatalog,
+  type ModelDefinition,
 } from '../../src/model-catalog.js';
 import { createProducerRuntime } from '../../src/sdk/runtime.js';
 import { resolveSchemaRefs } from '../../src/sdk/unified/schema-file.js';
@@ -84,6 +85,35 @@ interface SchemaContext {
   inputSchemaText: string;
 }
 
+function validateMediaDurationContract(
+  producerCase: ProducerModelCase,
+  modelDef: ModelDefinition
+): string[] {
+  if (modelDef.type !== 'audio' && modelDef.type !== 'video') {
+    return [];
+  }
+
+  const errors: string[] = [];
+  const durationInput = producerCase.inputsByAlias.get('Duration');
+  if (!durationInput) {
+    errors.push('media producers must declare a "Duration" input');
+  } else if (durationInput.required !== true) {
+    errors.push('media producer "Duration" input must be required');
+  }
+
+  const durationMapping = producerCase.sdkMapping.Duration;
+  if (durationMapping) {
+    const mappedInputAlias = durationMapping.input ?? 'Duration';
+    if (mappedInputAlias !== 'Duration') {
+      errors.push(
+        `sdkMapping.Duration must read from alias "Duration", received "${mappedInputAlias}"`
+      );
+    }
+  }
+
+  return errors;
+}
+
 const schemaCache = new Map<string, SchemaContext>();
 const validatorCache = new Map<string, ValidateFunction>();
 const ajv = new Ajv({ allErrors: true, strict: false });
@@ -109,6 +139,24 @@ describe('producer mapping contracts', () => {
       }
 
       if (typeof modelDef.handler === 'string' && modelDef.handler.length > 0) {
+        continue;
+      }
+
+      const mediaDurationErrors = validateMediaDurationContract(
+        producerCase,
+        modelDef
+      );
+      if (mediaDurationErrors.length > 0) {
+        const message = mediaDurationErrors.join('; ');
+        failures.push(
+          `${casePrefix}\n  Media duration contract validation failed: ${message}`
+        );
+        await writeDebugSnapshot({
+          producerCase,
+          scenario: { name: 'media-duration-contract', overrides: {} },
+          stage: 'media-duration-contract',
+          error: message,
+        });
         continue;
       }
 
@@ -634,6 +682,17 @@ async function validateProducerCaseWithCurrentPipeline(
   }
 
   if (typeof modelDef.handler === 'string' && modelDef.handler.length > 0) {
+    return failures;
+  }
+
+  const mediaDurationErrors = validateMediaDurationContract(
+    producerCase,
+    modelDef
+  );
+  if (mediaDurationErrors.length > 0) {
+    failures.push(
+      `${casePrefix}\n  Media duration contract validation failed: ${mediaDurationErrors.join('; ')}`
+    );
     return failures;
   }
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createProviderRegistry } from './index.js';
 
 describe('createProviderRegistry', () => {
-  it('returns mock handlers by default', async () => {
+  it('returns simulated handlers by default', async () => {
     const registry = createProviderRegistry();
     const handler = registry.resolve({
       provider: 'openai',
@@ -11,7 +11,7 @@ describe('createProviderRegistry', () => {
       environment: 'cloud',
     });
 
-    expect(handler.mode).toBe('mock');
+    expect(handler.mode).toBe('simulated');
 
     const result = await handler.invoke({
       jobId: 'job-123',
@@ -32,12 +32,12 @@ describe('createProviderRegistry', () => {
     const inlinePayload = typeof artefact.blob?.data === 'string'
       ? artefact.blob.data
       : Buffer.from(artefact.blob!.data).toString('utf8');
-    expect(inlinePayload).toContain('Mock response');
+    expect(inlinePayload).toContain('Simulated response');
     expect(artefact.blob?.mimeType).toBe('text/plain');
     const payload = typeof artefact.blob?.data === 'string'
       ? artefact.blob.data
       : Buffer.from(artefact.blob!.data).toString('utf8');
-    expect(payload).toContain('Mock Provider Invocation');
+    expect(payload).toContain('Simulated Provider Invocation');
   });
 
   it('produces blob artefacts for media outputs', async () => {
@@ -55,10 +55,20 @@ describe('createProviderRegistry', () => {
       revision: 'rev-0002',
       layerIndex: 1,
       attempt: 1,
-      inputs: ['Artifact:StartImage'],
+      inputs: ['Artifact:StartImage', 'Input:Duration'],
       produces: ['Artifact:GeneratedVideo[segment=0]'],
       context: {
         environment: 'cloud',
+        extras: {
+          resolvedInputs: {
+            'Input:Duration': 2,
+          },
+          jobContext: {
+            inputBindings: {
+              Duration: 'Input:Duration',
+            },
+          },
+        },
       },
     });
 
@@ -86,7 +96,7 @@ describe('createProviderRegistry', () => {
     expect(first.handler).toBe(second.handler);
   });
 
-  it('uses the real timeline handler in mock mode', async () => {
+  it('uses the real timeline handler in simulated mode', async () => {
     const registry = createProviderRegistry();
     const handler = registry.resolve({
       provider: 'renku',

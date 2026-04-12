@@ -277,6 +277,8 @@ connections:
   # === VideoExporter inputs ===
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: Duration
+    to: VideoExporter.Duration
 
   # === VideoExporter outputs ===
   - from: VideoExporter.FinalVideo

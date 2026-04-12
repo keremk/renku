@@ -8,6 +8,14 @@ meta:
   license: MIT
 
 inputs:
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of video segments to produce.
+    type: int
+    required: true
   - name: InquiryPrompt
     description: The scenario describing the desired video (e.g., cyclist cycling through gorgeous landscape).
     type: string
@@ -120,6 +128,8 @@ connections:
   # Wire narration to AudioProducer
   - from: ScenarioPromptProducer.NarrationScript[segment]
     to: AudioProducer[segment].Text
+  - from: SegmentDuration
+    to: AudioProducer[segment].Duration
   - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
 
@@ -150,6 +160,8 @@ connections:
   # Wire to VideoExporter
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: Duration
+    to: VideoExporter.Duration
   - from: Resolution
     to: VideoExporter.Resolution
   - from: TimelineComposer.Timeline

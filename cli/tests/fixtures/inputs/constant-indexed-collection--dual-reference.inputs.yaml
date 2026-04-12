@@ -3,6 +3,7 @@ inputs:
   ProductPrompt: 'Premium wireless headphones with leather cushions'
   VideoPrompt: 'Professional woman using headphones in a modern office'
   NumOfClips: 2
+  Duration: 5
   Resolution:
     width: 1280
     height: 720

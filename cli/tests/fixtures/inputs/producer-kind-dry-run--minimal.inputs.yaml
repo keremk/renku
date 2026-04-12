@@ -1,9 +1,10 @@
 # Minimal inputs for producer dry-run test
-# Only Prompt is required by model JSON schema - all other inputs
-# (NegativePrompt, Duration, NumFrames, etc.) are optional
+# Prompt is the only required model field, but simulated video dry-runs need an
+# explicit duration so they can generate a valid MP4 with a real clip length.
 
 inputs:
   Prompt: "A sunset over mountains with birds flying"
+  Duration: 5
 
 models:
   - model: bytedance/seedance-1-pro-fast

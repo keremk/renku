@@ -12,7 +12,12 @@ import {
 	type ProduceResult,
 	type ProduceFn,
 } from '@gorenku/core';
-import { createProviderRegistry, loadModelCatalog } from '@gorenku/providers';
+import {
+	createProviderRegistry,
+	generateMp4WithDuration,
+	generateWavWithDuration,
+	loadModelCatalog,
+} from '@gorenku/providers';
 import {
 	getDefaultCliConfigPath,
 	readCliConfig,
@@ -161,8 +166,6 @@ describe('end-to-end: TimelineComposer with Transcription track', () => {
 		// PHASE 3: Create custom produce function
 		// ============================================================
 
-		const SIMULATED_OUTPUT_PREFIX = 'simulated-output:';
-
 		const produce: ProduceFn = vi.fn(
 			async (request: ProduceRequest): Promise<ProduceResult> => {
 				const producerName = request.job.producer;
@@ -195,21 +198,21 @@ describe('end-to-end: TimelineComposer with Transcription track', () => {
 						producerName
 					)
 				) {
-					const artefacts = request.job.produces
-						.filter((id: string) => id.startsWith('Artifact:'))
-						.map((artefactId: string) => {
+					const artefacts = await Promise.all(
+						request.job.produces
+							.filter((id: string) => id.startsWith('Artifact:'))
+							.map(async (artefactId: string) => {
 							const isAudio = artefactId.includes('Audio');
 							const isVideo = artefactId.includes('Video');
-							const data =
-								isAudio || isVideo
-									? new TextEncoder().encode(
-											SIMULATED_OUTPUT_PREFIX + artefactId
-										)
+							const data = isAudio
+								? generateWavWithDuration(10)
+								: isVideo
+									? await generateMp4WithDuration(10)
 									: new Uint8Array([137, 80, 78, 71]); // PNG magic bytes
 							const mimeType = artefactId.includes('Image')
 								? 'image/png'
 								: isAudio
-									? 'audio/mp3'
+									? 'audio/wav'
 									: 'video/mp4';
 
 							resolvedInputs[artefactId] = data;
@@ -218,7 +221,8 @@ describe('end-to-end: TimelineComposer with Transcription track', () => {
 								artefactId,
 								blob: { data, mimeType },
 							};
-						});
+							})
+					);
 
 					return {
 						jobId: request.job.jobId,

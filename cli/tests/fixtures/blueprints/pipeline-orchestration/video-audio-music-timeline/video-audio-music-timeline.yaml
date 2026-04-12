@@ -7,6 +7,14 @@ meta:
   license: MIT
 
 inputs:
+  - name: Duration
+    description: Total timeline duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narration/video segments.
+    type: int
+    required: true
   - name: InquiryPrompt
     description: The prompt describing the movie script to be generated.
     type: string
@@ -125,6 +133,8 @@ connections:
 
   - from: ScriptProducer.NarrationScript[segment]
     to: AudioProducer[segment].Text
+  - from: SegmentDuration
+    to: AudioProducer[segment].Duration
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
   - from: Emotion
@@ -166,6 +176,8 @@ connections:
 
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: Duration
+    to: VideoExporter.Duration
   - from: TimelineComposer.Timeline
     to: TranscriptionProducer.Timeline
   - from: TranscriptionProducer.Transcription

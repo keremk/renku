@@ -75,6 +75,7 @@ describe('end-to-end: blob inputs via file: prefix', () => {
 				},
 				inputs: [
 					{ name: 'Prompt', type: 'string', required: true },
+					{ name: 'Duration', type: 'int', required: true },
 					{ name: 'InputImage', type: 'image', required: true },
 				],
 				artifacts: [{ name: 'OutputVideo', type: 'video' }],
@@ -89,6 +90,7 @@ describe('end-to-end: blob inputs via file: prefix', () => {
 			stringifyYaml({
 				inputs: {
 					Prompt: 'A test video generation prompt',
+					Duration: 5,
 					InputImage: `file:${testImagePath}`,
 				},
 				models: [

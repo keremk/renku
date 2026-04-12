@@ -5,6 +5,7 @@ import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import type { ProducerInvokeArgs, ProducerRuntime } from '../../sdk/types.js';
 import {
   createVercelGatewayClientManager,
+  type VercelGatewayClientManager,
   parseOpenAiConfig,
   renderPrompts,
   callVercelGateway,
@@ -33,7 +34,9 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
       domain: 'prompt',
       configValidator: parseOpenAiConfig,
       warmStart: async () => {
-        // Initialize the client to validate API key and gateway configuration
+        if (init.mode === 'simulated') {
+          return;
+        }
         try {
           await clientManager.ensure();
         } catch (error) {
@@ -102,8 +105,13 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
           const apiKeyName = getApiKeyNameFromExtras(request.context.extras);
 
           // 5. Initialize client and get model
-          await clientManager.ensure(apiKeyName);
-          const model = clientManager.getModel(request.model);
+          let model: ReturnType<VercelGatewayClientManager['getModel']>;
+          if (init.mode === 'simulated') {
+            model = {} as ReturnType<VercelGatewayClientManager['getModel']>;
+          } else {
+            await clientManager.ensure(apiKeyName);
+            model = clientManager.getModel(request.model);
+          }
 
           // 6. Extract condition hints from request context (for dry-run simulation)
           const conditionHints = extractConditionHints(request);

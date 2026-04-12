@@ -33,6 +33,7 @@ inputs:
   - name: Duration
     description: Video duration in seconds (converted to frames for some models).
     type: integer
+    required: true
 
   # Sizing
   - name: Resolution

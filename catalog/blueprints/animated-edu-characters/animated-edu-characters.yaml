@@ -7,6 +7,14 @@ meta:
   license: MIT
 
 inputs:
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of character segments to produce.
+    type: int
+    required: true
   - name: EducationalTopic
     description: The educational topic to teach (e.g., "the vital organs of the human body").
     type: text
@@ -118,6 +126,8 @@ connections:
   # ============================================================
   - from: EduScriptProducer.VideoScript.Characters[segment].NarrationScript
     to: NarrationAudioProducer[segment].Text
+  - from: SegmentDuration
+    to: NarrationAudioProducer[segment].Duration
   - from: NarrationAudioProducer[segment].GeneratedAudio
     to: NarrationAudio[segment]
 
@@ -167,6 +177,8 @@ connections:
   # ============================================================
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: Duration
+    to: VideoExporter.Duration
   - from: TranscriptionProducer.Transcription
     to: VideoExporter.Transcription
   - from: VideoExporter.FinalVideo

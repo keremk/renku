@@ -1,6 +1,6 @@
 /* eslint-env node */
 import process from 'node:process';
-import './__testutils__/mock-providers.js';
+import './__testutils__/simulated-providers.js';
 import {
 	copyFile,
 	mkdtemp,
@@ -307,12 +307,15 @@ describe('runGenerate (new runs)', () => {
 			inputs?: Record<string, unknown>;
 			models?: Array<Record<string, unknown>>;
 		};
+		initialDoc.inputs = {
+			...(initialDoc.inputs ?? {}),
+			Language: 'en',
+		};
 
 		// Convert promptFile paths to inline prompts since the relative paths won't work after copy
 		for (const model of initialDoc.models ?? []) {
 			if (model.promptFile) {
 				delete model.promptFile;
-				delete model.outputSchema;
 				// Add inline prompts for LLM producers
 				model.systemPrompt = 'You are a helpful assistant for testing.';
 				model.userPrompt = 'Process this: {{InquiryPrompt}}';
@@ -332,6 +335,7 @@ describe('runGenerate (new runs)', () => {
 		const first = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath: baselineInputsPath,
+			dryRun: true,
 			nonInteractive: true,
 			blueprint: IMAGE_AUDIO_BLUEPRINT_PATH,
 			storageOverride: { root, basePath: 'builds' },

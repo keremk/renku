@@ -14,6 +14,10 @@ inputs:
   - name: DrivingVideo
     description: Reference video providing the motion and expressions to transfer.
     type: string
+  - name: Duration
+    description: Output video duration in seconds.
+    type: integer
+    required: true
   - name: TrimFirstSecond
     description: Whether to trim the first second of the driving video.
     type: boolean

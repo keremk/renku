@@ -7,6 +7,14 @@ meta:
   license: MIT
 
 inputs:
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narrative segments.
+    type: int
+    required: true
   - name: Topic
     description: The historical topic to narrate (e.g., "Opium Wars in 19th century China")
     type: string
@@ -137,6 +145,8 @@ connections:
   # ============================================
   - from: HistoryScriptwriter.NarrationScripts[segment]
     to: NarrationProducer[segment].Text
+  - from: SegmentDuration
+    to: NarrationProducer[segment].Duration
   - from: NarrationProducer[segment].GeneratedAudio
     to: SegmentAudios[segment]
 
@@ -179,6 +189,8 @@ connections:
   # ============================================
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: Duration
+    to: VideoExporter.Duration
   - from: TranscriptionProducer.Transcription
     to: VideoExporter.Transcription
   - from: VideoExporter.FinalVideo

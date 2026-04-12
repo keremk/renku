@@ -7,6 +7,14 @@ meta:
   license: MIT
 
 inputs:
+  - name: Duration
+    description: Total documentary duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of documentary segments.
+    type: int
+    required: true
   - name: InquiryPrompt
     description: The topic describing the desired documentary.
     type: string
@@ -108,6 +116,9 @@ connections:
   # Conditional: AudioProducer only when NarrationType is TalkingHead
   - from: DocProducer.VideoScript.Segments[segment].Script
     to: AudioProducer[segment].Text
+    if: isAudioNeeded
+  - from: SegmentDuration
+    to: AudioProducer[segment].Duration
     if: isAudioNeeded
   - from: VoiceId
     to: AudioProducer[segment].VoiceId

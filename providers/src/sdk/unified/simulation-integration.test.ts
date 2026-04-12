@@ -38,15 +38,11 @@ function createJobRequest(options: {
     output?: string;
   };
   resolvedInputs: Record<string, unknown>;
+  inputBindings: Record<string, string>;
   sdkMapping: Record<string, { field: string; required?: boolean }>;
   producesCount?: number;
 }): ProviderJobContext {
-  const { provider, model, schema, resolvedInputs, sdkMapping, producesCount = 1 } = options;
-
-  const inputBindings: Record<string, string> = {};
-  for (const key of Object.keys(sdkMapping)) {
-    inputBindings[key] = `Input:${key}`;
-  }
+  const { provider, model, schema, resolvedInputs, inputBindings, sdkMapping, producesCount = 1 } = options;
 
   const produces: string[] = [];
   for (let i = 0; i < producesCount; i++) {
@@ -125,6 +121,10 @@ describe('Simulation Integration Tests', () => {
           'Input:Prompt': 'A beautiful sunset over mountains',
           'Input:AspectRatio': '16:9',
         },
+        inputBindings: {
+          Prompt: 'Input:Prompt',
+          AspectRatio: 'Input:AspectRatio',
+        },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },
           AspectRatio: { field: 'aspect_ratio', required: false },
@@ -160,6 +160,9 @@ describe('Simulation Integration Tests', () => {
         resolvedInputs: {
           'Input:Prompt': 12345, // Wrong type
         },
+        inputBindings: {
+          Prompt: 'Input:Prompt',
+        },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },
         },
@@ -181,6 +184,10 @@ describe('Simulation Integration Tests', () => {
         resolvedInputs: {
           // Missing required 'prompt'
           'Input:AspectRatio': '16:9',
+        },
+        inputBindings: {
+          Prompt: 'Input:Prompt',
+          AspectRatio: 'Input:AspectRatio',
         },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },
@@ -221,6 +228,11 @@ describe('Simulation Integration Tests', () => {
           'Input:Width': 1024,
           'Input:Height': 1024,
         },
+        inputBindings: {
+          Prompt: 'Input:Prompt',
+          Width: 'Input:Width',
+          Height: 'Input:Height',
+        },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },
           Width: { field: 'width', required: false },
@@ -253,6 +265,9 @@ describe('Simulation Integration Tests', () => {
         schema: oldFormatSchema,
         resolvedInputs: {
           'Input:Prompt': 'Test prompt',
+        },
+        inputBindings: {
+          Prompt: 'Input:Prompt',
         },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },
@@ -295,11 +310,15 @@ describe('Simulation Integration Tests', () => {
         schema: wavespeedSchema,
         resolvedInputs: {
           'Input:Prompt': 'A serene forest scene',
-          'Input:VideoLength': 5,
+          'Input:SegmentDuration': 5,
+        },
+        inputBindings: {
+          Prompt: 'Input:Prompt',
+          Duration: 'Input:SegmentDuration',
         },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },
-          VideoLength: { field: 'video_length', required: false },
+          Duration: { field: 'video_length', required: true },
         },
       });
 
@@ -332,6 +351,17 @@ describe('Simulation Integration Tests', () => {
       }),
     };
 
+    const videoSchema = {
+      input: JSON.stringify({
+        type: 'object',
+        properties: {
+          prompt: { type: 'string' },
+          video_length: { type: 'integer' },
+        },
+        required: ['prompt', 'video_length'],
+      }),
+    };
+
     it.each(adapters)('$name: simulated mode does not call adapter.invoke()', async ({ adapter, name, mimeType }) => {
       const invokeSpy = vi.spyOn(adapter, 'invoke');
 
@@ -343,13 +373,34 @@ describe('Simulation Integration Tests', () => {
       const request = createJobRequest({
         provider: name,
         model: 'test-model',
-        schema: simpleSchema,
-        resolvedInputs: {
-          'Input:Prompt': 'Test prompt',
-        },
-        sdkMapping: {
-          Prompt: { field: 'prompt', required: true },
-        },
+        schema: mimeType === 'video/mp4' ? videoSchema : simpleSchema,
+        resolvedInputs:
+          mimeType === 'video/mp4'
+            ? {
+                'Input:Prompt': 'Test prompt',
+                'Input:SegmentDuration': 5,
+              }
+            : {
+                'Input:Prompt': 'Test prompt',
+              },
+        inputBindings:
+          mimeType === 'video/mp4'
+            ? {
+                Prompt: 'Input:Prompt',
+                Duration: 'Input:SegmentDuration',
+              }
+            : {
+                Prompt: 'Input:Prompt',
+              },
+        sdkMapping:
+          mimeType === 'video/mp4'
+            ? {
+                Prompt: { field: 'prompt', required: true },
+                Duration: { field: 'video_length', required: true },
+              }
+            : {
+                Prompt: { field: 'prompt', required: true },
+              },
       });
 
       await handler.invoke(request);
@@ -367,13 +418,34 @@ describe('Simulation Integration Tests', () => {
       const request = createJobRequest({
         provider: name,
         model: 'test-model',
-        schema: simpleSchema,
-        resolvedInputs: {
-          'Input:Prompt': 'Test prompt',
-        },
-        sdkMapping: {
-          Prompt: { field: 'prompt', required: true },
-        },
+        schema: mimeType === 'video/mp4' ? videoSchema : simpleSchema,
+        resolvedInputs:
+          mimeType === 'video/mp4'
+            ? {
+                'Input:Prompt': 'Test prompt',
+                'Input:SegmentDuration': 5,
+              }
+            : {
+                'Input:Prompt': 'Test prompt',
+              },
+        inputBindings:
+          mimeType === 'video/mp4'
+            ? {
+                Prompt: 'Input:Prompt',
+                Duration: 'Input:SegmentDuration',
+              }
+            : {
+                Prompt: 'Input:Prompt',
+              },
+        sdkMapping:
+          mimeType === 'video/mp4'
+            ? {
+                Prompt: { field: 'prompt', required: true },
+                Duration: { field: 'video_length', required: true },
+              }
+            : {
+                Prompt: { field: 'prompt', required: true },
+              },
       });
 
       const result = await handler.invoke(request);
@@ -395,6 +467,9 @@ describe('Simulation Integration Tests', () => {
         resolvedInputs: {
           // Missing required 'prompt'
         },
+        inputBindings: {
+          Prompt: 'Input:Prompt',
+        },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },
         },
@@ -414,8 +489,9 @@ describe('Simulation Integration Tests', () => {
             type: 'object',
             properties: {
               prompt: { type: 'string' },
+              duration: { type: 'number' },
             },
-            required: ['prompt'],
+            required: ['prompt', 'duration'],
           },
           output_schema: {
             type: 'object',
@@ -445,9 +521,15 @@ describe('Simulation Integration Tests', () => {
         schema: videoSchema,
         resolvedInputs: {
           'Input:Prompt': 'A dancing robot',
+          'Input:SegmentDuration': 5,
+        },
+        inputBindings: {
+          Prompt: 'Input:Prompt',
+          Duration: 'Input:SegmentDuration',
         },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },
+          Duration: { field: 'duration', required: true },
         },
       });
 
@@ -516,6 +598,9 @@ describe('Simulation Integration Tests', () => {
         schema: schemaWithRefs,
         resolvedInputs: {
           'Input:Prompt': 'Complex generation test',
+        },
+        inputBindings: {
+          Prompt: 'Input:Prompt',
         },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },

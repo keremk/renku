@@ -5,6 +5,14 @@ meta:
   version: 0.1.0
 
 inputs:
+  - name: Duration
+    description: Total timeline duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of storyboard/video scenes.
+    type: int
+    required: true
   - name: NumOfCharacters
     description: Number of characters to generate.
     type: int

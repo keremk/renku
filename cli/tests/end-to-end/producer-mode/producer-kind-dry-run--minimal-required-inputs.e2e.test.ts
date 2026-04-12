@@ -61,16 +61,20 @@ describe('Producer dry-run (kind: producer)', () => {
 		expect(job.provider).toBe('replicate');
 		expect(job.providerModel).toBe('bytedance/seedance-1-pro-fast');
 
-		// Verify only required inputs were bound (Prompt)
+		// Verify only the minimal dry-run inputs were bound
 		expect(job.context.inputBindings.Prompt).toBe('Input:Prompt');
+		expect(job.context.inputBindings.Duration).toBe('Input:Duration');
 	});
 
 	it('should NOT require all YAML-defined inputs for producers', async () => {
 		// This test verifies that producer YAML files skip YAML-based required validation
-		// Only JSON schema required fields (like Prompt) are needed
+		// Only the fields needed by the producer contract and dry-run simulation are needed
 
-		// The minimal inputs file has ONLY Prompt - none of the other inputs
-		// like NegativePrompt, Duration, NumFrames, etc.
+		// The minimal inputs file keeps the surface small:
+		// Prompt for the provider payload, and Duration so simulated video can
+		// produce a valid MP4 with a real clip length.
+		// Other YAML-declared inputs like NegativePrompt, NumFrames,
+		// AspectRatio, GenerateAudio, etc. remain omitted.
 
 		// If this test passes, it means the kind:producer logic correctly
 		// skips the YAML required validation

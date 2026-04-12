@@ -16,7 +16,7 @@ AI provider integrations for Renku - includes implementations for OpenAI, Replic
 - **Producer implementations** - Ready-to-use producers for common tasks
 - **Model catalog system** - Centralized model definitions and configuration
 - **Schema validation** - Input/output schema validation for all producers
-- **Mock support** - Test mode with mock responses for development
+- **Simulated mode** - Dry-run/test execution without calling external providers
 
 This package is designed for developers building on top of Renku or extending it with new providers.
 
@@ -116,7 +116,7 @@ import { createProviderRegistry } from '@gorenku/providers';
 
 // Create the provider registry
 const registry = await createProviderRegistry({
-  mode: 'live', // or 'mock' for testing
+  mode: 'live', // or 'simulated' for dry-run/testing
   catalogPath: './catalog/producers'
 });
 

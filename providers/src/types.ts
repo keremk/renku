@@ -9,7 +9,7 @@ import type {
 } from '@gorenku/core';
 import type { SchemaRegistry } from './schema-registry.js';
 
-export type ProviderMode = 'mock' | 'live' | 'simulated';
+export type ProviderMode = 'live' | 'simulated';
 
 // Re-export from core for backward compatibility
 export type { ProviderEnvironment, ProviderAttachment } from '@gorenku/core';

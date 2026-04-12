@@ -5,6 +5,7 @@ import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import type { ProducerInvokeArgs, ProducerRuntime } from '../../sdk/types.js';
 import {
   createOpenAiClientManager,
+  type OpenAiClientManager,
   parseOpenAiConfig,
   renderPrompts,
   callOpenAi,
@@ -27,8 +28,9 @@ export function createOpenAiLlmHandler(): HandlerFactory {
       domain: 'prompt',
       configValidator: parseOpenAiConfig,
       warmStart: async () => {
-        // Both live and simulated modes initialize the client to validate API key
-        // This ensures dry-run catches configuration errors just like live would
+        if (init.mode === 'simulated') {
+          return;
+        }
         try {
           await clientManager.ensure();
         } catch (error) {
@@ -53,7 +55,6 @@ export function createOpenAiLlmHandler(): HandlerFactory {
           timestamp: new Date().toISOString(),
         });
         try {
-
         // 1. Parse config
         const parsedConfig = runtime.config.parse<OpenAiLlmConfig>(parseOpenAiConfig);
         const config = applyRuntimeLlmInvocationSettings(parsedConfig, request);
@@ -93,11 +94,15 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         };
         logger?.debug?.('providers.openai.prompts', promptLogPayload);
 
-        // 4. Call OpenAI via AI SDK
-        // Both live and simulated modes run the same code path - only the final
-        // API call is skipped in simulated mode
-        await clientManager.ensure();
-        const model = clientManager.getModel(request.model);
+        // 4. Call OpenAI via AI SDK. Simulated mode skips client initialization
+        // and only bypasses the final provider call.
+        let model: ReturnType<OpenAiClientManager['getModel']>;
+        if (init.mode === 'simulated') {
+          model = {} as ReturnType<OpenAiClientManager['getModel']>;
+        } else {
+          await clientManager.ensure();
+          model = clientManager.getModel(request.model);
+        }
 
         // Extract condition hints from request context (for dry-run simulation)
         const conditionHints = extractConditionHints(request);

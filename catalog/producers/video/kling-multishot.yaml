@@ -48,6 +48,7 @@ inputs:
   - name: Duration
     description: Video duration in seconds.
     type: integer
+    required: true
 
   # Sizing
   - name: Resolution

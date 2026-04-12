@@ -55,7 +55,7 @@ describe('createProviderProduce', () => {
 			provider: 'renku',
 			model: 'mp4-exporter',
 			environment: 'local',
-			mode: 'mock',
+			mode: 'simulated',
 			async invoke(request) {
 				capturedContext = request;
 				return { status: 'succeeded', artefacts: [] };
@@ -63,7 +63,7 @@ describe('createProviderProduce', () => {
 		};
 
 		const registry: ProviderRegistry = {
-			mode: 'mock',
+			mode: 'simulated',
 			resolve: vi.fn(() => handler),
 			resolveMany: vi.fn(() => []),
 			warmStart: vi.fn(),
@@ -179,7 +179,7 @@ describe('createProviderProduce', () => {
 			provider: 'openai',
 			model: 'gpt-5-mini',
 			environment: 'local',
-			mode: 'mock',
+			mode: 'simulated',
 			async invoke(request) {
 				capturedContext = request;
 				return { status: 'succeeded', artefacts: [] };
@@ -187,7 +187,7 @@ describe('createProviderProduce', () => {
 		};
 
 		const registry: ProviderRegistry = {
-			mode: 'mock',
+			mode: 'simulated',
 			resolve: vi.fn(() => handler),
 			resolveMany: vi.fn(() => []),
 			warmStart: vi.fn(),

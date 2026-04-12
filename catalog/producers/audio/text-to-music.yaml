@@ -20,6 +20,7 @@ inputs:
   - name: Duration
     description: Duration in seconds (for non-lyrics models).
     type: integer
+    required: true
 
 artifacts:
   - name: GeneratedMusic

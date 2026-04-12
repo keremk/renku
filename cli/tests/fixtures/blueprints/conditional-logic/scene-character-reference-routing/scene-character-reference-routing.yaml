@@ -25,6 +25,10 @@ inputs:
     description: Resolution for generated media.
     type: resolution
     required: true
+  - name: Duration
+    description: Duration for each generated scene video in seconds.
+    type: int
+    required: true
 
 artifacts:
   - name: CharacterImages
@@ -68,6 +72,8 @@ connections:
     to: StoryProducer.NumOfCharacters
   - from: NumOfScenes
     to: StoryProducer.NumOfScenes
+  - from: Duration
+    to: SceneVideoProducer[scene].Duration
 
   - from: StoryProducer.Storyboard.CharacterImagePrompts[character]
     to: CharacterImageProducer[character].Prompt

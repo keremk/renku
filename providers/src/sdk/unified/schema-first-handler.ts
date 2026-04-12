@@ -297,6 +297,11 @@ export function createUnifiedHandler(
         const extras = request.context?.extras as
           | Record<string, unknown>
           | undefined;
+        const jobContext = extras?.jobContext as
+          | {
+              inputBindings?: Record<string, string>;
+            }
+          | undefined;
 
         let artefacts: import('@gorenku/core').ProducedArtefact[];
 
@@ -312,6 +317,7 @@ export function createUnifiedHandler(
           const outputUrls = adapter.normalizeOutput(predictionOutput);
           artefacts = await buildArtefactsFromUrls({
             produces: request.produces,
+            durationInputId: jobContext?.inputBindings?.Duration,
             urls: outputUrls,
             mimeType: outputMimeType,
             mode: init.mode,

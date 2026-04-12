@@ -1,4 +1,3 @@
-import { Buffer } from 'node:buffer';
 import { isCanonicalInputId } from '@gorenku/core';
 import {
   Input,
@@ -193,8 +192,6 @@ const TRACK_KINDS_WITH_NATIVE_DURATION = new Set<ClipKind>([
   'Music',
   'Video',
 ]);
-const SIMULATED_OUTPUT_PREFIX = 'simulated-output:';
-
 function canonicalizeClips(
   config: TimelineProducerConfig,
   availableInputs: string[],
@@ -306,11 +303,6 @@ async function buildMasterTrackContext(args: {
   }
 
   const resolvedInputs = inputs.all();
-  const preferredSegmentDuration =
-    primaryClip.kind === 'Video'
-      ? readOptionalPositiveNumber(resolvedInputs, ['Input:SegmentDuration'])
-      : undefined;
-
   for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
     const groupAssets = primaryGroups[groupIndex] ?? [];
 
@@ -322,9 +314,7 @@ async function buildMasterTrackContext(args: {
       segmentToGroup.push(groupIndex);
       segmentIndices.push(segmentIndex);
 
-      const duration =
-        preferredSegmentDuration ??
-        (await determineDurationForSegment({
+      const duration = await determineDurationForSegment({
           groupIndex,
           masterClipsByKind,
           masterKinds,
@@ -333,7 +323,7 @@ async function buildMasterTrackContext(args: {
           inputs,
           durationCache,
           resolvedInputs,
-        }));
+        });
       segmentDurations.push(duration);
     } else {
       // Each item in the group becomes a segment
@@ -345,14 +335,16 @@ async function buildMasterTrackContext(args: {
         // Get duration from this specific asset
         let duration: number | undefined;
 
-        if (preferredSegmentDuration !== undefined) {
-          duration = preferredSegmentDuration;
-        } else if (TRACK_KINDS_WITH_NATIVE_DURATION.has(primaryClip.kind)) {
+        if (TRACK_KINDS_WITH_NATIVE_DURATION.has(primaryClip.kind)) {
           // For master tracks with native duration, use the asset's actual duration
           duration = await tryLoadAssetDuration({
             assetId,
             inputs,
             cache: durationCache,
+            mode:
+              primaryClip.kind === 'Video'
+                ? 'strict-user-facing'
+                : 'allow-missing',
           });
         }
 
@@ -661,7 +653,6 @@ function parseTimelineConfig(raw: unknown): TimelineProducerConfig {
         )
         .filter((entry): entry is ClipKind => Boolean(entry))
     : undefined;
-
   return {
     numTracks:
       typeof source.numTracks === 'number' ? source.numTracks : undefined,
@@ -1708,6 +1699,7 @@ async function tryLoadAssetDuration(args: {
   assetId: string;
   inputs: ResolvedInputsAccessor;
   cache: Map<string, number>;
+  mode?: 'allow-missing' | 'strict-user-facing';
 }): Promise<number | undefined> {
   const cached = args.cache.get(args.assetId);
   if (cached !== undefined) {
@@ -1717,18 +1709,18 @@ async function tryLoadAssetDuration(args: {
   const payload = tryResolveAssetBinary(args.inputs, args.assetId);
   if (payload === undefined) {
     // Asset is missing (was skipped) - return undefined so caller can fallback
+    if (args.mode === 'strict-user-facing') {
+      throw createProviderError(
+        SdkErrorCode.MISSING_ASSET_PAYLOAD,
+        `TimelineProducer could not read the primary video segment "${args.assetId}". Regenerate that segment and try again.`,
+        {
+          kind: 'user_input',
+          causedByUser: true,
+          metadata: { assetId: args.assetId },
+        }
+      );
+    }
     return undefined;
-  }
-
-  const synthetic = maybeResolveSyntheticDuration({
-    assetId: args.assetId,
-    payload,
-    inputs: args.inputs,
-  });
-  if (synthetic !== undefined) {
-    const rounded = roundSeconds(synthetic);
-    args.cache.set(args.assetId, rounded);
-    return rounded;
   }
 
   let input: Input<MediaBufferSource> | undefined;
@@ -1748,11 +1740,11 @@ async function tryLoadAssetDuration(args: {
     return rounded;
   } catch (error) {
     throw createProviderError(
-      SdkErrorCode.MISSING_ASSET,
-      `TimelineProducer failed to read duration for asset "${args.assetId}".`,
+      SdkErrorCode.ASSET_DURATION_FAILED,
+      `TimelineProducer could not determine the duration of asset "${args.assetId}". Ensure the generated media is valid and try again.`,
       {
-        kind: 'unknown',
-        causedByUser: false,
+        kind: args.mode === 'strict-user-facing' ? 'user_input' : 'unknown',
+        causedByUser: args.mode === 'strict-user-facing',
         metadata: { assetId: args.assetId },
         raw: error,
       }
@@ -1806,67 +1798,6 @@ function isBinaryPayload(
   value: unknown
 ): value is ArrayBuffer | ArrayBufferView {
   return value instanceof ArrayBuffer || ArrayBuffer.isView(value);
-}
-
-function maybeResolveSyntheticDuration(args: {
-  assetId: string;
-  payload: ArrayBuffer | ArrayBufferView;
-  inputs: ResolvedInputsAccessor;
-}): number | undefined {
-  if (!isSimulatedPayload(args.payload)) {
-    return undefined;
-  }
-
-  const resolvedInputs = args.inputs.all();
-
-  if (args.assetId.includes('MusicGenerator.Music')) {
-    const timelineDuration = readOptionalPositiveNumber(resolvedInputs, [
-      'Input:TimelineComposer.Duration',
-      'Input:Duration',
-    ]);
-    if (timelineDuration !== undefined) {
-      return timelineDuration;
-    }
-  }
-
-  const segmentDuration = readOptionalPositiveNumber(resolvedInputs, ['Input:SegmentDuration']);
-  if (segmentDuration !== undefined) {
-    return segmentDuration;
-  }
-
-  const totalDuration = readOptionalPositiveNumber(resolvedInputs, [
-    'Input:TimelineComposer.Duration',
-    'Input:Duration',
-  ]);
-  const numSegments = readOptionalPositiveNumber(resolvedInputs, ['Input:NumOfSegments']);
-
-  if (
-    totalDuration !== undefined &&
-    numSegments !== undefined &&
-    numSegments > 0
-  ) {
-    return totalDuration / numSegments;
-  }
-
-  return undefined;
-}
-
-function isSimulatedPayload(payload: ArrayBuffer | ArrayBufferView): boolean {
-  const view = toUint8Array(payload);
-  if (view.byteLength < SIMULATED_OUTPUT_PREFIX.length) {
-    return false;
-  }
-  const prefix = Buffer.from(
-    view.slice(0, SIMULATED_OUTPUT_PREFIX.length)
-  ).toString('utf8');
-  return prefix.startsWith(SIMULATED_OUTPUT_PREFIX);
-}
-
-function toUint8Array(payload: ArrayBuffer | ArrayBufferView): Uint8Array {
-  if (payload instanceof ArrayBuffer) {
-    return new Uint8Array(payload);
-  }
-  return new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength);
 }
 
 function readOptionalPositiveNumber(

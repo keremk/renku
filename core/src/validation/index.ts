@@ -29,6 +29,8 @@ export {
   // Individual validators (exported for testing)
   validateConnectionEndpoints,
   validateProducerInputOutput,
+  validateMediaProducerDurationContract,
+  validateSegmentDurationContract,
   validateInputCountInputs,
   validateLoopCountInputs,
   validateArtifactCountInputs,

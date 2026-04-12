@@ -1,6 +1,5 @@
 import type { LoadedModelCatalog, ModelDefinition, ModelType } from './model-catalog.js';
 import type { HandlerFactory, ProviderImplementation, ProviderMode, ProviderVariantMatch } from './types.js';
-import { createMockProducerHandler } from './mock-producers.js';
 import { createOpenAiLlmHandler } from './producers/llm/openai.js';
 import { createVercelAiGatewayHandler } from './producers/llm/vercel-ai-gateway.js';
 import { createMp4ExporterHandler } from './producers/export/mp4-exporter.js';
@@ -65,15 +64,11 @@ export function generateProviderImplementations(
         implementations.push({ ...impl, mode: 'live' });
         implementations.push({ ...impl, mode: 'simulated' });
 
-        // Internal handlers also need mock mode (used in tests)
-        if (definition.handler) {
-          implementations.push({ ...impl, mode: 'mock' });
-        }
       }
     }
   }
 
-  // Add static entries (OpenAI wildcard, mock fallback)
+  // Add static entries (OpenAI wildcard)
   implementations.push(...getStaticImplementations());
 
   return implementations;
@@ -168,12 +163,6 @@ function getStaticImplementations(): ProviderImplementation[] {
       match: { provider: 'vercel', model: wildcard, environment: wildcard },
       mode: 'simulated' as ProviderMode,
       factory: createVercelAiGatewayHandler(),
-    },
-    // Mock fallback for all unmatched providers (only for mock mode)
-    {
-      match: { provider: wildcard, model: wildcard, environment: wildcard },
-      mode: 'mock' as ProviderMode,
-      factory: createMockProducerHandler(),
     },
   ];
 }

@@ -7,7 +7,7 @@ vi.mock('@gorenku/providers', async () => {
     createProviderRegistry: (options?: Parameters<typeof actual.createProviderRegistry>[0]) =>
       actual.createProviderRegistry({
         ...(options ?? {}),
-        mode: 'mock',
+        mode: 'simulated',
       }),
   };
 });
