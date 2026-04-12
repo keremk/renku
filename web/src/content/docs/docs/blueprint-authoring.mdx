@@ -19,7 +19,12 @@ If you're new to Renku, start with the [Quick Start](/docs/quick-start) guide fi
 
 ### System Inputs
 
-System inputs are special inputs that Renku automatically recognizes by name. **You do not need to declare these in your blueprint's `inputs:` section** - they are automatically available when referenced in connections.
+System inputs are special inputs that Renku automatically recognizes by name. Renku still expects you to model them intentionally when authoring blueprints:
+
+- Top-level orchestration blueprints should explicitly declare user-facing system inputs such as `Duration` and `NumOfSegments` in `inputs:` when the workflow depends on them.
+- Derived or runtime system inputs such as `SegmentDuration`, `MovieId`, `StorageRoot`, and `StorageBasePath` should not be exposed as top-level user inputs.
+- Prompt producers may declare timing context inputs such as `Duration` and `SegmentDuration` if they consume them.
+- Media producers that output audio or video must declare a required `Duration` input.
 
 | System Input      | Type     | Description                                                                |
 | ----------------- | -------- | -------------------------------------------------------------------------- |
@@ -32,9 +37,10 @@ System inputs are special inputs that Renku automatically recognizes by name. **
 
 **How it works:**
 
-- System inputs are automatically injected when referenced in blueprint connections
-- `Duration` and `NumOfSegments` values are provided in the input YAML file
-- `SegmentDuration` is auto-computed as `Duration / NumOfSegments` (unless you provide it explicitly)
+- The runtime recognizes system inputs by name and makes them available when referenced in blueprint connections.
+- In top-level blueprints, declare `Duration` and `NumOfSegments` in `inputs:` if users are expected to provide them.
+- `SegmentDuration` is derived internally as `Duration / NumOfSegments` and should not be exposed as a top-level blueprint input or ordinary input-template field.
+- Parent blueprints must still wire timing values explicitly to child producers.
 - Timeline composers and video exporters automatically receive `MovieId`, `StorageRoot`, `StorageBasePath`
 
 ### Blueprint vs Producer
@@ -185,8 +191,14 @@ meta:
   license: MIT
 
 inputs:
-  # Note: Duration, NumOfSegments, SegmentDuration are system inputs
-  # They don't need to be declared - just provide values in input YAML
+  - name: Duration
+    description: Total movie duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of segments to generate.
+    type: int
+    required: true
   - name: InquiryPrompt
     description: The prompt describing the movie script.
     type: string
@@ -222,9 +234,9 @@ connections:
   - from: InquiryPrompt
     to: ScriptProducer.InquiryPrompt
   - from: Duration
-    to: ScriptProducer.Duration # System input - no declaration needed
+    to: ScriptProducer.Duration
   - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments # System input - no declaration needed
+    to: ScriptProducer.NumOfSegments
 
   # Wire script to VideoPromptProducer (looped)
   - from: ScriptProducer.NarrationScript[segment]
@@ -1100,11 +1112,10 @@ inputs:
     width: 1280
     height: 720
 
-  # System inputs - provide values here, no blueprint declaration needed
+  # User-facing timing inputs for the top-level blueprint
   Duration: 60 # Total movie duration in seconds
   NumOfSegments: 3 # Number of segments to generate
-  # SegmentDuration is auto-computed as Duration/NumOfSegments (20 seconds)
-  # You can override it: SegmentDuration: 15
+  # SegmentDuration is derived internally as Duration/NumOfSegments (20 seconds)
 
 models:
   - model: gpt-5-mini
