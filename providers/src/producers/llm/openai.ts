@@ -28,9 +28,6 @@ export function createOpenAiLlmHandler(): HandlerFactory {
       domain: 'prompt',
       configValidator: parseOpenAiConfig,
       warmStart: async () => {
-        if (init.mode === 'simulated') {
-          return;
-        }
         try {
           await clientManager.ensure();
         } catch (error) {
@@ -94,15 +91,9 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         };
         logger?.debug?.('providers.openai.prompts', promptLogPayload);
 
-        // 4. Call OpenAI via AI SDK. Simulated mode skips client initialization
-        // and only bypasses the final provider call.
-        let model: ReturnType<OpenAiClientManager['getModel']>;
-        if (init.mode === 'simulated') {
-          model = {} as ReturnType<OpenAiClientManager['getModel']>;
-        } else {
-          await clientManager.ensure();
-          model = clientManager.getModel(request.model);
-        }
+        // 4. Initialize the same client/model path in both live and simulated modes.
+        await clientManager.ensure();
+        const model = clientManager.getModel(request.model);
 
         // Extract condition hints from request context (for dry-run simulation)
         const conditionHints = extractConditionHints(request);

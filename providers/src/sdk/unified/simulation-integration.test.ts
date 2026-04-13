@@ -362,7 +362,7 @@ describe('Simulation Integration Tests', () => {
       }),
     };
 
-    it.each(adapters)('$name: simulated mode does not call adapter.invoke()', async ({ adapter, name, mimeType }) => {
+    it.each(adapters)('$name: simulated mode still calls adapter.invoke()', async ({ adapter, name, mimeType }) => {
       const invokeSpy = vi.spyOn(adapter, 'invoke');
 
       const factory = createUnifiedHandler({ adapter, outputMimeType: mimeType });
@@ -405,7 +405,7 @@ describe('Simulation Integration Tests', () => {
 
       await handler.invoke(request);
 
-      expect(invokeSpy).not.toHaveBeenCalled();
+      expect(invokeSpy).toHaveBeenCalled();
       invokeSpy.mockRestore();
     });
 

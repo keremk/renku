@@ -1162,7 +1162,7 @@ describe('createOpenAiLlmHandler', () => {
     expect(args.output).toBeDefined();
   });
 
-  it('does not require an API key during warmStart in simulated mode', async () => {
+  it('requires an API key during warmStart in simulated mode', async () => {
     const factory = createOpenAiLlmHandler();
     const handler = factory({
       descriptor: {
@@ -1179,9 +1179,9 @@ describe('createOpenAiLlmHandler', () => {
       logger: undefined,
     });
 
-    await expect(
-      handler.warmStart?.({ logger: undefined })
-    ).resolves.toBeUndefined();
+    await expect(handler.warmStart?.({ logger: undefined })).rejects.toThrow(
+      /OPENAI_API_KEY is required/
+    );
   });
 
   it('includes usage and response metadata in diagnostics', async () => {

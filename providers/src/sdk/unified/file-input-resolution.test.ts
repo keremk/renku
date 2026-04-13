@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { resolveProviderFileInputs } from './file-input-resolution.js';
 import type { ProviderAdapter } from './provider-adapter.js';
 import { SdkErrorCode } from '../errors.js';
+import {
+  buildSimulatedUploadUrl,
+  createSimulatedProviderClient,
+} from './simulated-client.js';
 
 describe('resolveProviderFileInputs', () => {
   const schema = JSON.stringify({
@@ -16,8 +20,12 @@ describe('resolveProviderFileInputs', () => {
     },
   });
 
-  it('simulated mode resolves blobs to deterministic simulated URLs', async () => {
-    const uploadInputFile = vi.fn();
+  it('resolves blobs through the adapter upload hook in simulated mode', async () => {
+    const uploadInputFile = vi
+      .fn()
+      .mockImplementation(async (_client, file) =>
+        buildSimulatedUploadUrl(file, 'fal-ai')
+      );
     const adapter: ProviderAdapter = {
       name: 'fal-ai',
       secretKey: 'FAL_KEY',
@@ -48,22 +56,20 @@ describe('resolveProviderFileInputs', () => {
       payload,
       inputSchema: schema,
       adapter,
-      client: null,
-      mode: 'simulated',
+      client: createSimulatedProviderClient('fal-ai'),
     });
     const second = await resolveProviderFileInputs({
       payload,
       inputSchema: schema,
       adapter,
-      client: null,
-      mode: 'simulated',
+      client: createSimulatedProviderClient('fal-ai'),
     });
 
     expect(first.image_url).toMatch(
       /^https:\/\/simulated\.fal-ai\.files\.invalid\/blobs\//
     );
     expect(first.image_url).toBe(second.image_url);
-    expect(uploadInputFile).not.toHaveBeenCalled();
+    expect(uploadInputFile).toHaveBeenCalledTimes(2);
   });
 
   it('live mode uses provider native upload when available', async () => {
@@ -101,7 +107,6 @@ describe('resolveProviderFileInputs', () => {
       inputSchema: schema,
       adapter,
       client: { configured: true },
-      mode: 'live',
     });
 
     expect(uploadInputFile).toHaveBeenCalledTimes(1);
@@ -156,7 +161,6 @@ describe('resolveProviderFileInputs', () => {
       inputSchema: schema,
       adapter,
       client: { configured: true },
-      mode: 'live',
     });
 
     expect(resolved.image_urls).toEqual([
@@ -215,7 +219,6 @@ describe('resolveProviderFileInputs', () => {
       inputSchema: nestedSchema,
       adapter,
       client: { configured: true },
-      mode: 'live',
     });
 
     expect(uploadInputFile).toHaveBeenCalledTimes(1);
@@ -257,7 +260,6 @@ describe('resolveProviderFileInputs', () => {
         inputSchema: schema,
         adapter,
         client: { configured: true },
-        mode: 'live',
       })
     ).rejects.toMatchObject({
       code: SdkErrorCode.BLOB_INPUT_NO_STORAGE,
@@ -298,7 +300,6 @@ describe('resolveProviderFileInputs', () => {
         inputSchema: schema,
         adapter,
         client: { configured: true },
-        mode: 'live',
       })
     ).rejects.toThrow(/native upload failed/);
   });
@@ -341,7 +342,6 @@ describe('resolveProviderFileInputs', () => {
         inputSchema: nonUriSchema,
         adapter,
         client: { configured: true },
-        mode: 'live',
       })
     ).rejects.toMatchObject({
       code: SdkErrorCode.BLOB_INPUT_NO_STORAGE,

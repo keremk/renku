@@ -9,6 +9,12 @@ import { normalizeWavespeedOutput } from './output.js';
 import { pollForCompletion } from './polling.js';
 import type { WavespeedResult } from './client.js';
 import { Blob } from 'node:buffer';
+import { generateOutputFromSchema } from '../unified/output-generator.js';
+import {
+  buildSimulatedUploadUrl,
+  createSimulatedProviderClient,
+  isSimulatedProviderClient,
+} from '../unified/simulated-client.js';
 
 const BASE_URL = 'https://api.wavespeed.ai/api/v3';
 
@@ -29,17 +35,14 @@ export const wavespeedAdapter: ProviderAdapter = {
   secretKey: 'WAVESPEED_API_KEY',
 
   async createClient(options: ClientOptions): Promise<ProviderClient> {
-    // In simulated mode, client is not used (handler generates output from schema)
-    // Return a stub that will throw if accidentally called
-    if (options.mode === 'simulated') {
-      return createSimulatedStub();
-    }
-
     const key = await options.secretResolver.getSecret('WAVESPEED_API_KEY');
     if (!key) {
       throw new Error(
         'WAVESPEED_API_KEY is required to use the wavespeed-ai provider.'
       );
+    }
+    if (options.mode === 'simulated') {
+      return createSimulatedProviderClient('wavespeed-ai');
     }
     return {
       apiKey: key,
@@ -55,8 +58,17 @@ export const wavespeedAdapter: ProviderAdapter = {
   async invoke(
     client: ProviderClient,
     model: string,
-    input: Record<string, unknown>
+    input: Record<string, unknown>,
+    context
   ): Promise<unknown> {
+    if (isSimulatedProviderClient(client)) {
+      return generateOutputFromSchema(context.schemaFile, {
+        provider: 'wavespeed-ai',
+        model,
+        producesCount: context.request.produces.length,
+      });
+    }
+
     const wavespeedClient = client as WavespeedClient;
 
     // Submit task
@@ -114,6 +126,10 @@ export const wavespeedAdapter: ProviderAdapter = {
     client: ProviderClient,
     file: ProviderInputFile
   ): Promise<string> {
+    if (isSimulatedProviderClient(client)) {
+      return buildSimulatedUploadUrl(file, 'wavespeed-ai');
+    }
+
     const wavespeedClient = client as WavespeedClient;
     const formData = new FormData();
     formData.set(
@@ -154,22 +170,6 @@ export const wavespeedAdapter: ProviderAdapter = {
     return normalizeWavespeedOutput(response as WavespeedResult);
   },
 };
-
-/**
- * Creates a stub client for simulated mode.
- * This should never be called - the unified handler generates output from schema instead.
- */
-function createSimulatedStub(): ProviderClient {
-  return {
-    apiKey: 'simulated-stub',
-    invoke() {
-      throw new Error(
-        'Wavespeed stub client was called in simulated mode. ' +
-          'This indicates a bug - the unified handler should generate output from schema.'
-      );
-    },
-  } as unknown as ProviderClient;
-}
 
 function buildUploadFilename(mimeType: string): string {
   const [, subtype = 'bin'] = mimeType.split('/');

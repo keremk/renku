@@ -265,7 +265,7 @@ describe('createUnifiedHandler', () => {
     );
   });
 
-  it('handler invoke generates output from schema in simulated mode', async () => {
+  it('handler invoke still calls the adapter boundary in simulated mode', async () => {
     const createClientSpy = vi.fn().mockResolvedValue({ configured: true });
     const invokeSpy = vi.fn().mockResolvedValue({});
     const normalizeOutputSpy = vi
@@ -285,15 +285,13 @@ describe('createUnifiedHandler', () => {
       adapter,
       outputMimeType: 'image/png',
     });
-    // Use simulated mode - should NOT call adapter.invoke()
+    // Use simulated mode - the handler should still flow through the adapter boundary
     const handler = factory(createMockInitContext({ mode: 'simulated' }));
 
     const result = await handler.invoke(createMockRequest());
 
-    // In simulated mode, client is not created and invoke is not called
-    expect(createClientSpy).not.toHaveBeenCalled();
-    expect(invokeSpy).not.toHaveBeenCalled();
-    // But normalizeOutput IS called on the generated output
+    expect(createClientSpy).toHaveBeenCalled();
+    expect(invokeSpy).toHaveBeenCalled();
     expect(normalizeOutputSpy).toHaveBeenCalled();
     expect(result.status).toBe('succeeded');
     expect(result.diagnostics?.simulated).toBe(true);
@@ -440,7 +438,8 @@ describe('createUnifiedHandler', () => {
       {
         prompt: 'test prompt',
         aspect_ratio: '16:9',
-      }
+      },
+      expect.objectContaining({ mode: 'live' })
     );
   });
 
@@ -498,7 +497,8 @@ describe('createUnifiedHandler', () => {
       expect.anything(),
       {
         prompt: 'test prompt', // Only sdk-mapped values
-      }
+      },
+      expect.objectContaining({ mode: 'live' })
     );
   });
 
@@ -569,7 +569,8 @@ describe('createUnifiedHandler', () => {
     expect(invokeSpy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      { image_url: 'https://provider.example.com/uploaded-image.png' }
+      { image_url: 'https://provider.example.com/uploaded-image.png' },
+      expect.objectContaining({ mode: 'live' })
     );
   });
 
@@ -629,13 +630,18 @@ describe('createUnifiedHandler', () => {
       expect.anything(),
       {
         image_urls: ['https://provider.example.com/uploaded-image.png'],
-      }
+      },
+      expect.objectContaining({ mode: 'live' })
     );
   });
 
-  it('uses simulated file URLs without calling provider upload in simulated mode', async () => {
+  it('routes simulated blob inputs through provider upload before invoke', async () => {
     const invokeSpy = vi.fn().mockResolvedValue({});
-    const uploadInputFile = vi.fn();
+    const uploadInputFile = vi
+      .fn()
+      .mockResolvedValue(
+        'https://simulated.blob-provider.files.invalid/blobs/mock-image.png'
+      );
 
     const adapter: ProviderAdapter = {
       name: 'blob-provider',
@@ -679,7 +685,15 @@ describe('createUnifiedHandler', () => {
     const result = await handler.invoke(request);
 
     expect(result.status).toBe('succeeded');
-    expect(uploadInputFile).not.toHaveBeenCalled();
-    expect(invokeSpy).not.toHaveBeenCalled();
+    expect(uploadInputFile).toHaveBeenCalledTimes(1);
+    expect(invokeSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        image_url:
+          'https://simulated.blob-provider.files.invalid/blobs/mock-image.png',
+      },
+      expect.anything()
+    );
   });
 });

@@ -1,6 +1,9 @@
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import type { ProviderAdapter, ProviderClient, ClientOptions } from '../unified/provider-adapter.js';
 import { createElevenlabsClient, resolveVoiceId } from './client.js';
+import { generateWavWithDuration } from '../unified/wav-generator.js';
+import { estimateTTSDuration, extractMusicDuration } from './output.js';
+import { isSimulatedProviderClient } from '../unified/simulated-client.js';
 
 /**
  * Voice settings for ElevenLabs TTS.
@@ -33,7 +36,21 @@ export const elevenlabsAdapter: ProviderAdapter = {
     return model;
   },
 
-  async invoke(client: ProviderClient, model: string, input: Record<string, unknown>): Promise<unknown> {
+  async invoke(
+    client: ProviderClient,
+    model: string,
+    input: Record<string, unknown>
+  ): Promise<unknown> {
+    if (isSimulatedProviderClient(client)) {
+      const audioBuffer = generateWavWithDuration(
+        estimateDuration(model, input)
+      );
+      return {
+        audioStream: createAudioStream(audioBuffer),
+        model,
+      };
+    }
+
     const elevenlabs = client as ElevenLabsClient;
 
     if (model === 'music_v1') {
@@ -76,3 +93,25 @@ export const elevenlabsAdapter: ProviderAdapter = {
     return [];
   },
 };
+
+function estimateDuration(model: string, input: Record<string, unknown>): number {
+  if (model === 'music_v1') {
+    return extractMusicDuration(input);
+  }
+
+  const text = input.text;
+  if (typeof text === 'string') {
+    return estimateTTSDuration(text);
+  }
+
+  return 5;
+}
+
+function createAudioStream(buffer: Buffer): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(buffer));
+      controller.close();
+    },
+  });
+}

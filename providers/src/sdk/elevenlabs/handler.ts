@@ -6,13 +6,10 @@ import { extractPlannerContext } from '../unified/utils.js';
 import { validatePayload } from '../schema-validator.js';
 import type { ProviderClient } from '../unified/provider-adapter.js';
 import { parseSchemaFile, resolveSchemaRefs, type SchemaFile } from '../unified/schema-file.js';
-import { generateWavWithDuration } from '../unified/wav-generator.js';
 import { elevenlabsAdapter } from './adapter.js';
 import {
   collectStreamToBuffer,
   isElevenlabsStreamResponse,
-  estimateTTSDuration,
-  extractMusicDuration,
 } from './output.js';
 import { runWithRetries } from './retry.js';
 
@@ -69,8 +66,7 @@ export function createElevenlabsHandler(options: ElevenlabsHandlerOptions): Hand
       invoke: async ({ request, runtime }) => {
         const isSimulated = init.mode === 'simulated';
 
-        // In live mode, ensure client is initialized
-        if (!isSimulated && !client) {
+        if (!client) {
           client = await elevenlabsAdapter.createClient({
             secretResolver,
             logger,
@@ -115,60 +111,55 @@ export function createElevenlabsHandler(options: ElevenlabsHandlerOptions): Hand
 
         let audioBuffer: Buffer;
 
-        if (isSimulated) {
-          // SIMULATED MODE: Generate mock WAV with appropriate duration
-          const duration = estimateDuration(request.model, input);
-          audioBuffer = generateWavWithDuration(duration);
+        try {
+          audioBuffer = await runWithRetries(
+            async () => {
+              const response = await elevenlabsAdapter.invoke(
+                client!,
+                request.model,
+                input,
+                {
+                  mode: init.mode,
+                  request,
+                  schemaFile,
+                }
+              );
 
-          logger?.debug?.(`providers.elevenlabs.${logKey}.simulate`, {
+              if (!isElevenlabsStreamResponse(response)) {
+                throw createProviderError(
+                  SdkErrorCode.PROVIDER_PREDICTION_FAILED,
+                  'ElevenLabs returned unexpected response format.',
+                  { kind: 'unknown' },
+                );
+              }
+
+              return collectStreamToBuffer(response.audioStream);
+            },
+            {
+              logger,
+              jobId: request.jobId,
+              model: request.model,
+              plannerContext,
+              maxAttempts: 3,
+              defaultRetryMs: 10_000,
+            },
+          );
+        } catch (error) {
+          const rawMessage = error instanceof Error ? error.message : String(error);
+          logger?.error?.(`providers.elevenlabs.${logKey}.invoke.error`, {
             provider: descriptor.provider,
             model: request.model,
             jobId: request.jobId,
-            mockDurationSeconds: duration,
+            error: rawMessage,
+            errorCode: (error as any)?.code,
           });
-        } else {
-          // LIVE MODE: Call ElevenLabs API with retry logic
-          try {
-            audioBuffer = await runWithRetries(
-              async () => {
-                const response = await elevenlabsAdapter.invoke(client!, request.model, input);
-
-                if (!isElevenlabsStreamResponse(response)) {
-                  throw createProviderError(
-                    SdkErrorCode.PROVIDER_PREDICTION_FAILED,
-                    'ElevenLabs returned unexpected response format.',
-                    { kind: 'unknown' },
-                  );
-                }
-
-                return collectStreamToBuffer(response.audioStream);
-              },
-              {
-                logger,
-                jobId: request.jobId,
-                model: request.model,
-                plannerContext,
-                maxAttempts: 3,
-                defaultRetryMs: 10_000,
-              },
-            );
-          } catch (error) {
-            const rawMessage = error instanceof Error ? error.message : String(error);
-            logger?.error?.(`providers.elevenlabs.${logKey}.invoke.error`, {
-              provider: descriptor.provider,
-              model: request.model,
-              jobId: request.jobId,
-              error: rawMessage,
-              errorCode: (error as any)?.code,
-            });
-            notify?.publish({
-              type: 'error',
-              message: `Provider ${notificationLabel} failed for job ${request.jobId}: ${rawMessage}`,
-              timestamp: new Date().toISOString(),
-            });
-            // Re-throw the error - it's already a structured ProviderError from retry module
-            throw error;
-          }
+          notify?.publish({
+            type: 'error',
+            message: `Provider ${notificationLabel} failed for job ${request.jobId}: ${rawMessage}`,
+            timestamp: new Date().toISOString(),
+          });
+          // Re-throw the error - it's already a structured ProviderError from retry module
+          throw error;
         }
 
         // Build artifacts directly from the buffer
@@ -211,22 +202,6 @@ export function createElevenlabsHandler(options: ElevenlabsHandlerOptions): Hand
       },
     })(init);
   };
-}
-
-/**
- * Estimate duration for mock audio generation based on model and input.
- */
-function estimateDuration(model: string, input: Record<string, unknown>): number {
-  if (model === 'music_v1') {
-    return extractMusicDuration(input);
-  }
-  // TTS models: estimate from text
-  const text = input.text;
-  if (typeof text === 'string') {
-    return estimateTTSDuration(text);
-  }
-  // Default to 5 seconds
-  return 5;
 }
 
 /**

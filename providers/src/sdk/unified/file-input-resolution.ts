@@ -1,6 +1,3 @@
-import { inferBlobExtension } from '@gorenku/core';
-import { createHash } from 'node:crypto';
-import type { ProviderMode } from '../../types.js';
 import type {
   ProviderAdapter,
   ProviderClient,
@@ -13,7 +10,6 @@ interface ResolveProviderFileInputsOptions {
   inputSchema: string;
   adapter: ProviderAdapter;
   client: ProviderClient | null;
-  mode: ProviderMode;
 }
 
 interface BlobInput {
@@ -26,8 +22,8 @@ type BlobLikeInput = Uint8Array | BlobInput;
 /**
  * Resolves blob-like payload values to URL strings for URI schema fields.
  *
- * - Native provider upload is required for live mode.
- * - Simulated mode mirrors the same field-resolution logic but emits deterministic fake URLs.
+ * Blob-like values are only resolved through the provider adapter upload hook.
+ * This keeps live and simulated mode on the same adapter-owned boundary.
  */
 export async function resolveProviderFileInputs(
   options: ResolveProviderFileInputsOptions
@@ -247,10 +243,6 @@ async function resolveBlobValueToUrl(
 ): Promise<string> {
   const file = toProviderInputFile(value);
 
-  if (options.mode === 'simulated') {
-    return buildSimulatedFileUrl(file, options.adapter.name);
-  }
-
   if (!options.adapter.uploadInputFile) {
     throw createProviderError(
       SdkErrorCode.BLOB_INPUT_NO_STORAGE,
@@ -275,18 +267,6 @@ async function resolveBlobValueToUrl(
     );
   }
   return uploadedUrl;
-}
-
-function buildSimulatedFileUrl(
-  file: ProviderInputFile,
-  providerName: string
-): string {
-  const data = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data);
-  const hash = createHash('sha256').update(data).digest('hex');
-  const ext = inferBlobExtension(file.mimeType);
-  const safeProvider = providerName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-  const suffix = ext ? `.${ext}` : '';
-  return `https://simulated.${safeProvider}.files.invalid/blobs/${hash.slice(0, 2)}/${hash}${suffix}`;
 }
 
 function collectBlobLikePaths(value: unknown, path: string): string[] {

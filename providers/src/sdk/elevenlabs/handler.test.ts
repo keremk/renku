@@ -8,6 +8,7 @@ import {
 } from './output.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import { createElevenlabsHandler } from './handler.js';
+import { generateWavWithDuration } from '../unified/wav-generator.js';
 
 // Mock elevenlabs adapter
 const mocks = vi.hoisted(() => ({
@@ -385,17 +386,36 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
     vi.restoreAllMocks();
     mocks.createClient.mockReset();
     mocks.invoke.mockReset();
+    mocks.createClient.mockResolvedValue({ configured: true });
+    mocks.invoke.mockImplementation(async (_client, model, input) => {
+      const duration =
+        model === 'music_v1'
+          ? extractMusicDuration(input as Record<string, unknown>)
+          : estimateTTSDuration(
+              String((input as Record<string, unknown>).text ?? '')
+            );
+      const buffer = generateWavWithDuration(duration);
+      return {
+        audioStream: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array(buffer));
+            controller.close();
+          },
+        }),
+        model: String(model),
+      };
+    });
   });
 
   describe('TTS handler simulated mode', () => {
-    it('does NOT call API in simulated mode', async () => {
+    it('still invokes the adapter boundary in simulated mode', async () => {
       const handler = createHandler('simulated');
       const request = createJobContext('eleven_v3');
 
       const result = await handler.invoke(request);
 
-      // API should NOT be called
-      expect(mocks.invoke).not.toHaveBeenCalled();
+      expect(mocks.createClient).toHaveBeenCalled();
+      expect(mocks.invoke).toHaveBeenCalled();
       expect(result.status).toBe('succeeded');
     });
 
@@ -517,13 +537,14 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
   });
 
   describe('Music handler simulated mode', () => {
-    it('does NOT call API in simulated mode', async () => {
+    it('still invokes the adapter boundary in simulated mode', async () => {
       const handler = createMusicHandler('simulated');
       const request = createJobContext('music_v1');
 
       const result = await handler.invoke(request);
 
-      expect(mocks.invoke).not.toHaveBeenCalled();
+      expect(mocks.createClient).toHaveBeenCalled();
+      expect(mocks.invoke).toHaveBeenCalled();
       expect(result.status).toBe('succeeded');
     });
 

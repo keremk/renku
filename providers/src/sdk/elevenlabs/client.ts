@@ -1,5 +1,6 @@
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import type { ClientOptions, ProviderClient } from '../unified/provider-adapter.js';
+import { createSimulatedProviderClient } from '../unified/simulated-client.js';
 
 /**
  * Mapping of preset voice names to ElevenLabs voice IDs.
@@ -55,39 +56,13 @@ export function resolveVoiceId(voiceInput: string): string {
  * Create an ElevenLabs client.
  */
 export async function createElevenlabsClient(options: ClientOptions): Promise<ProviderClient> {
-  if (options.mode === 'simulated') {
-    return createSimulatedStub();
-  }
-
   const apiKey = await options.secretResolver.getSecret('ELEVENLABS_API_KEY');
   if (!apiKey) {
     throw new Error('ELEVENLABS_API_KEY is required to use the ElevenLabs provider.');
   }
+  if (options.mode === 'simulated') {
+    return createSimulatedProviderClient('elevenlabs');
+  }
 
   return new ElevenLabsClient({ apiKey });
-}
-
-/**
- * Creates a stub client for simulated mode.
- * This should never be called - the handler generates mock output instead.
- */
-function createSimulatedStub(): ProviderClient {
-  return {
-    textToSpeech: {
-      convert() {
-        throw new Error(
-          'ElevenLabs stub client was called in simulated mode. ' +
-          'This indicates a bug - the handler should generate mock audio.'
-        );
-      },
-    },
-    music: {
-      compose() {
-        throw new Error(
-          'ElevenLabs stub client was called in simulated mode. ' +
-          'This indicates a bug - the handler should generate mock audio.'
-        );
-      },
-    },
-  } as unknown as ProviderClient;
 }

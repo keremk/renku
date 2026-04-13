@@ -484,6 +484,28 @@ describe('createVercelAiGatewayHandler', () => {
     expect(title?.blob?.data).toContain('Simulated MovieTitle');
   });
 
+  it('requires the gateway API key during warmStart in simulated mode', async () => {
+    const factory = createVercelAiGatewayHandler();
+    const handler = factory({
+      descriptor: {
+        provider: 'vercel',
+        model: 'anthropic/claude-sonnet-4-20250514',
+        environment: 'local',
+      },
+      mode: 'simulated',
+      secretResolver: {
+        async getSecret() {
+          return null;
+        },
+      },
+      logger: undefined,
+    });
+
+    await expect(handler.warmStart?.({ logger: undefined })).rejects.toThrow(
+      /AI_GATEWAY_API_KEY.*not found/
+    );
+  });
+
   it('passes call settings (temperature, maxOutputTokens, penalties, retries) to AI SDK', async () => {
     mocks.generateText.mockResolvedValueOnce({
       text: 'Response',

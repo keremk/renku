@@ -18,6 +18,12 @@ import {
   getTimeoutForModel,
 } from './subscribe.js';
 import type { ProviderLogger } from '../../types.js';
+import { generateOutputFromSchema } from '../unified/output-generator.js';
+import {
+  buildSimulatedUploadUrl,
+  createSimulatedProviderClient,
+  isSimulatedProviderClient,
+} from '../unified/simulated-client.js';
 
 type SubscribeOptions = {
   logger?: ProviderLogger;
@@ -43,15 +49,12 @@ export const falAdapter: ProviderAdapter = {
   secretKey: 'FAL_KEY',
 
   async createClient(options: ClientOptions): Promise<ProviderClient> {
-    // In simulated mode, client is not used (handler generates output from schema)
-    // Return a stub that will throw if accidentally called
-    if (options.mode === 'simulated') {
-      return createSimulatedStub();
-    }
-
     const key = await options.secretResolver.getSecret('FAL_KEY');
     if (!key) {
       throw new Error('FAL_KEY is required to use the fal.ai provider.');
+    }
+    if (options.mode === 'simulated') {
+      return createSimulatedProviderClient('fal-ai');
     }
     fal.config({ credentials: key });
     return fal;
@@ -69,8 +72,20 @@ export const falAdapter: ProviderAdapter = {
   async invoke(
     client: ProviderClient,
     model: string,
-    input: Record<string, unknown>
+    input: Record<string, unknown>,
+    context
   ): Promise<unknown> {
+    if (isSimulatedProviderClient(client)) {
+      return {
+        data: generateOutputFromSchema(context.schemaFile, {
+          provider: 'fal-ai',
+          model,
+          producesCount: context.request.produces.length,
+        }),
+        requestId: `simulated-fal-${context.request.jobId}`,
+      };
+    }
+
     // Always use falSubscribe for better long-running job handling
     // This provides request ID capture for recovery on timeout
     const options = subscribeOptionsStorage.getStore();
@@ -116,6 +131,10 @@ export const falAdapter: ProviderAdapter = {
     client: ProviderClient,
     file: ProviderInputFile
   ): Promise<string> {
+    if (isSimulatedProviderClient(client)) {
+      return buildSimulatedUploadUrl(file, 'fal-ai');
+    }
+
     const falClient = client as typeof fal;
     const blob = new Blob([file.data], { type: file.mimeType });
     return falClient.storage.upload(blob);
@@ -145,24 +164,3 @@ export const falAdapter: ProviderAdapter = {
     };
   },
 };
-
-/**
- * Creates a stub client for simulated mode.
- * This should never be called - the unified handler generates output from schema instead.
- */
-function createSimulatedStub(): ProviderClient {
-  return {
-    run() {
-      throw new Error(
-        'Fal.ai stub client was called in simulated mode. ' +
-          'This indicates a bug - the unified handler should generate output from schema.'
-      );
-    },
-    subscribe() {
-      throw new Error(
-        'Fal.ai stub client subscribe was called in simulated mode. ' +
-          'This indicates a bug - the unified handler should generate output from schema.'
-      );
-    },
-  } as unknown as ProviderClient;
-}

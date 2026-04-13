@@ -34,9 +34,6 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
       domain: 'prompt',
       configValidator: parseOpenAiConfig,
       warmStart: async () => {
-        if (init.mode === 'simulated') {
-          return;
-        }
         try {
           await clientManager.ensure();
         } catch (error) {
@@ -104,14 +101,9 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
           // 4. Get apiKeyName from request context if provided and reinitialize if different
           const apiKeyName = getApiKeyNameFromExtras(request.context.extras);
 
-          // 5. Initialize client and get model
-          let model: ReturnType<VercelGatewayClientManager['getModel']>;
-          if (init.mode === 'simulated') {
-            model = {} as ReturnType<VercelGatewayClientManager['getModel']>;
-          } else {
-            await clientManager.ensure(apiKeyName);
-            model = clientManager.getModel(request.model);
-          }
+          // 5. Initialize client and get model in both live and simulated modes.
+          await clientManager.ensure(apiKeyName);
+          const model = clientManager.getModel(request.model);
 
           // 6. Extract condition hints from request context (for dry-run simulation)
           const conditionHints = extractConditionHints(request);

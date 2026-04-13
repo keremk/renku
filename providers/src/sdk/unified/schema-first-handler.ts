@@ -20,7 +20,6 @@ import {
   type SchemaFile,
 } from './schema-file.js';
 import { validateOutputWithLogging } from './output-validator.js';
-import { generateOutputFromSchema } from './output-generator.js';
 
 export type UnifiedHandlerOptions = {
   adapter: ProviderAdapter;
@@ -77,8 +76,7 @@ export function createUnifiedHandler(
       invoke: async ({ request, runtime }) => {
         const isSimulated = init.mode === 'simulated';
 
-        // In live mode, ensure client is initialized
-        if (!isSimulated && !client) {
+        if (!client) {
           client = await adapter.createClient({
             secretResolver,
             logger,
@@ -115,7 +113,6 @@ export function createUnifiedHandler(
           inputSchema: inputSchemaString,
           adapter,
           client,
-          mode: init.mode,
         });
         validatePayload(inputSchemaString, resolvedPayload, 'input');
         const input = { ...resolvedPayload };
@@ -142,148 +139,140 @@ export function createUnifiedHandler(
         let predictionOutput: unknown;
         // Track provider request ID for recovery (e.g., fal.ai requestId)
         let providerRequestId: string | undefined;
+        const runtimeInvocationSettings = readRuntimeInvocationSettings(request);
+        const maxAttemptsFromSettings =
+          runtimeInvocationSettings?.maxRetries !== undefined
+            ? runtimeInvocationSettings.maxRetries + 1
+            : undefined;
+        const retryWrapper = adapter.createRetryWrapper?.({
+          logger,
+          jobId: request.jobId,
+          model: request.model,
+          plannerContext,
+          maxAttempts: maxAttemptsFromSettings,
+          requestTimeoutMs: runtimeInvocationSettings?.requestTimeoutMs,
+        });
 
-        if (isSimulated) {
-          // SIMULATED MODE: Generate output from schema instead of calling provider
-          predictionOutput = generateOutputFromSchema(schemaFile, {
-            provider: adapter.name,
-            model: request.model,
-            producesCount: request.produces.length,
-          });
+        try {
+          if (retryWrapper) {
+            predictionOutput = await retryWrapper.execute(() =>
+              adapter.invoke(client!, modelIdentifier, input, {
+                mode: init.mode,
+                request,
+                schemaFile,
+              })
+            );
+          } else {
+            predictionOutput = await adapter.invoke(
+              client!,
+              modelIdentifier,
+              input,
+              {
+                mode: init.mode,
+                request,
+                schemaFile,
+              }
+            );
+          }
 
-          logger?.debug?.(`providers.${adapter.name}.${logKey}.simulate`, {
+          // Extract provider request ID if available (e.g., fal.ai returns { data, requestId })
+          if (
+            predictionOutput &&
+            typeof predictionOutput === 'object' &&
+            'requestId' in predictionOutput
+          ) {
+            providerRequestId = (predictionOutput as { requestId?: string })
+              .requestId;
+          }
+        } catch (error) {
+          const rawMessage =
+            error instanceof Error ? error.message : String(error);
+
+          const recoveryError = error as {
+            falRequestId?: string;
+            providerRequestId?: string;
+            requestId?: string;
+            recoverable?: boolean;
+            reason?: string;
+            provider?: string;
+            model?: string;
+          };
+          providerRequestId =
+            recoveryError.providerRequestId ??
+            recoveryError.falRequestId ??
+            recoveryError.requestId ??
+            providerRequestId;
+          const recoverable = recoveryError.recoverable === true;
+          const reason =
+            typeof recoveryError.reason === 'string'
+              ? recoveryError.reason
+              : undefined;
+
+          logger?.error?.(`providers.${adapter.name}.${logKey}.invoke.error`, {
             provider: descriptor.provider,
             model: request.model,
             jobId: request.jobId,
-            hasOutputSchema: !!schemaFile?.outputSchema,
+            error: rawMessage,
+            providerRequestId,
+            recoverable,
+            reason,
           });
-        } else {
-          // LIVE MODE: Call the actual provider API
-          const runtimeInvocationSettings =
-            readRuntimeInvocationSettings(request);
-          const maxAttemptsFromSettings =
-            runtimeInvocationSettings?.maxRetries !== undefined
-              ? runtimeInvocationSettings.maxRetries + 1
-              : undefined;
-          const retryWrapper = adapter.createRetryWrapper?.({
-            logger,
-            jobId: request.jobId,
-            model: request.model,
-            plannerContext,
-            maxAttempts: maxAttemptsFromSettings,
-            requestTimeoutMs: runtimeInvocationSettings?.requestTimeoutMs,
+          notify?.publish({
+            type: 'error',
+            message: `Provider ${notificationLabel} failed for job ${request.jobId}: ${rawMessage}`,
+            timestamp: new Date().toISOString(),
           });
-
-          try {
-            if (retryWrapper) {
-              predictionOutput = await retryWrapper.execute(() =>
-                adapter.invoke(client!, modelIdentifier, input)
-              );
-            } else {
-              predictionOutput = await adapter.invoke(
-                client!,
-                modelIdentifier,
-                input
-              );
-            }
-
-            // Extract provider request ID if available (e.g., fal.ai returns { data, requestId })
-            if (
-              predictionOutput &&
-              typeof predictionOutput === 'object' &&
-              'requestId' in predictionOutput
-            ) {
-              providerRequestId = (predictionOutput as { requestId?: string })
-                .requestId;
-            }
-          } catch (error) {
-            const rawMessage =
-              error instanceof Error ? error.message : String(error);
-
-            const recoveryError = error as {
-              falRequestId?: string;
-              providerRequestId?: string;
-              requestId?: string;
-              recoverable?: boolean;
-              reason?: string;
-              provider?: string;
-              model?: string;
-            };
-            providerRequestId =
-              recoveryError.providerRequestId ??
-              recoveryError.falRequestId ??
-              recoveryError.requestId ??
-              providerRequestId;
-            const recoverable = recoveryError.recoverable === true;
-            const reason =
-              typeof recoveryError.reason === 'string'
-                ? recoveryError.reason
-                : undefined;
-
-            logger?.error?.(
-              `providers.${adapter.name}.${logKey}.invoke.error`,
-              {
-                provider: descriptor.provider,
-                model: request.model,
-                jobId: request.jobId,
-                error: rawMessage,
-                providerRequestId,
-                recoverable,
-                reason,
-              }
-            );
-            notify?.publish({
-              type: 'error',
-              message: `Provider ${notificationLabel} failed for job ${request.jobId}: ${rawMessage}`,
-              timestamp: new Date().toISOString(),
-            });
-            if (isProviderError(error)) {
-              throw error;
-            }
-
-            // Create provider error with recovery info attached
-            const providerError = createProviderError(
-              SdkErrorCode.PROVIDER_PREDICTION_FAILED,
-              `${adapter.name} prediction failed: ${rawMessage}`,
-              {
-                kind: 'transient',
-                retryable: true,
-                raw: error,
-                metadata: {
-                  provider: recoveryError.provider ?? adapter.name,
-                  model: recoveryError.model ?? request.model,
-                  ...(providerRequestId && { providerRequestId }),
-                  ...(recoverable && { recoverable: true }),
-                  ...(reason && { reason }),
-                },
-              }
-            );
-
-            // Attach recovery info to the error for downstream handling
-            if (providerRequestId || recoverable) {
-              (
-                providerError as unknown as Record<string, unknown>
-              ).providerRequestId = providerRequestId;
-              (
-                providerError as unknown as Record<string, unknown>
-              ).recoverable = recoverable;
-              (providerError as unknown as Record<string, unknown>).provider =
-                recoveryError.provider ?? adapter.name;
-              (providerError as unknown as Record<string, unknown>).model =
-                recoveryError.model ?? request.model;
-              if (reason) {
-                (providerError as unknown as Record<string, unknown>).reason =
-                  reason;
-              }
-            }
-
-            throw providerError;
+          if (isProviderError(error)) {
+            throw error;
           }
+
+          // Create provider error with recovery info attached
+          const providerError = createProviderError(
+            SdkErrorCode.PROVIDER_PREDICTION_FAILED,
+            `${adapter.name} prediction failed: ${rawMessage}`,
+            {
+              kind: 'transient',
+              retryable: true,
+              raw: error,
+              metadata: {
+                provider: recoveryError.provider ?? adapter.name,
+                model: recoveryError.model ?? request.model,
+                ...(providerRequestId && { providerRequestId }),
+                ...(recoverable && { recoverable: true }),
+                ...(reason && { reason }),
+              },
+            }
+          );
+
+          // Attach recovery info to the error for downstream handling
+          if (providerRequestId || recoverable) {
+            (
+              providerError as unknown as Record<string, unknown>
+            ).providerRequestId = providerRequestId;
+            (
+              providerError as unknown as Record<string, unknown>
+            ).recoverable = recoverable;
+            (providerError as unknown as Record<string, unknown>).provider =
+              recoveryError.provider ?? adapter.name;
+            (providerError as unknown as Record<string, unknown>).model =
+              recoveryError.model ?? request.model;
+            if (reason) {
+              (providerError as unknown as Record<string, unknown>).reason =
+                reason;
+            }
+          }
+
+          throw providerError;
         }
+
+        const outputForValidation = selectOutputForValidation(
+          adapter.name,
+          predictionOutput
+        );
 
         // Validate output against schema (logs warning if invalid, doesn't throw)
         if (schemaFile) {
-          validateOutputWithLogging(predictionOutput, schemaFile, logger, {
+          validateOutputWithLogging(outputForValidation, schemaFile, logger, {
             provider: adapter.name,
             model: request.model,
             jobId: request.jobId,
@@ -378,6 +367,26 @@ function isProviderError(error: unknown): error is ProviderError {
     typeof candidate.kind === 'string' &&
     typeof candidate.retryable === 'boolean'
   );
+}
+
+function selectOutputForValidation(
+  providerName: string,
+  output: unknown
+): unknown {
+  if (providerName !== 'fal-ai') {
+    return output;
+  }
+
+  if (
+    output &&
+    typeof output === 'object' &&
+    'data' in output &&
+    (output as { data?: unknown }).data !== undefined
+  ) {
+    return (output as { data: unknown }).data;
+  }
+
+  return output;
 }
 
 /**

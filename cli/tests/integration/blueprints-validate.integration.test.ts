@@ -106,22 +106,34 @@ async function createValidationFixtureBundle(
 
 describe('integration: blueprint validation and dry-run profiles', () => {
 	let restoreEnv: () => void = () => {};
-	let originalOpenAiApiKey: string | undefined;
+	const originalProviderSecrets: Record<string, string | undefined> = {};
 	const tempDirs: string[] = [];
+	const testProviderSecrets: Record<string, string> = {
+		OPENAI_API_KEY: 'test-openai-api-key-for-validation',
+		AI_GATEWAY_API_KEY: 'test-ai-gateway-api-key-for-validation',
+		REPLICATE_API_TOKEN: 'test-replicate-api-token-for-validation',
+		FAL_KEY: 'test-fal-key-for-validation',
+		WAVESPEED_API_KEY: 'test-wavespeed-api-key-for-validation',
+		ELEVENLABS_API_KEY: 'test-elevenlabs-api-key-for-validation',
+	};
 
 	beforeEach(async () => {
-		originalOpenAiApiKey = process.env.OPENAI_API_KEY;
-		process.env.OPENAI_API_KEY = 'test-openai-api-key-for-validation';
+		for (const [key, value] of Object.entries(testProviderSecrets)) {
+			originalProviderSecrets[key] = process.env[key];
+			process.env[key] = value;
+		}
 
 		const config = await setupTempCliConfig();
 		restoreEnv = config.restoreEnv;
 	});
 
 	afterEach(() => {
-		if (originalOpenAiApiKey === undefined) {
-			delete process.env.OPENAI_API_KEY;
-		} else {
-			process.env.OPENAI_API_KEY = originalOpenAiApiKey;
+		for (const [key, originalValue] of Object.entries(originalProviderSecrets)) {
+			if (originalValue === undefined) {
+				delete process.env[key];
+			} else {
+				process.env[key] = originalValue;
+			}
 		}
 
 		restoreEnv();

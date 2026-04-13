@@ -1,5 +1,11 @@
-import type { SecretResolver, ProviderLogger, ProviderMode } from '../../types.js';
+import type {
+  SecretResolver,
+  ProviderLogger,
+  ProviderMode,
+  ProviderJobContext,
+} from '../../types.js';
 import type { SchemaRegistry } from '../../schema-registry.js';
+import type { SchemaFile } from './schema-file.js';
 
 /**
  * Context passed to formatModelIdentifier for provider-specific handling.
@@ -36,7 +42,12 @@ export interface ProviderAdapter {
   formatModelIdentifier(model: string, context?: ModelContext): string;
 
   /** Execute the API call and return raw output */
-  invoke(client: ProviderClient, model: string, input: Record<string, unknown>): Promise<unknown>;
+  invoke(
+    client: ProviderClient,
+    model: string,
+    input: Record<string, unknown>,
+    context: ProviderInvokeContext
+  ): Promise<unknown>;
 
   /**
    * Optional native upload capability.
@@ -82,6 +93,12 @@ export interface ClientOptions {
   logger?: ProviderLogger;
   mode: ProviderMode;
   schemaRegistry?: SchemaRegistry;
+}
+
+export interface ProviderInvokeContext {
+  mode: ProviderMode;
+  request: ProviderJobContext;
+  schemaFile?: SchemaFile;
 }
 
 /**
