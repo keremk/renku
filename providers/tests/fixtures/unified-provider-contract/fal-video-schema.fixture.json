@@ -1,0 +1,36 @@
+{
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "type": "string"
+      }
+    },
+    "required": ["prompt"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "video": {
+        "$ref": "#/VideoFile"
+      },
+      "seed": {
+        "type": "integer"
+      }
+    },
+    "required": ["video", "seed"]
+  },
+  "VideoFile": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "format": "uri"
+      },
+      "content_type": {
+        "type": "string"
+      }
+    },
+    "required": ["url"]
+  }
+}

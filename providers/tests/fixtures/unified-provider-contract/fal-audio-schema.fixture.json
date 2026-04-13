@@ -1,0 +1,36 @@
+{
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "type": "string"
+      }
+    },
+    "required": ["prompt"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "audio": {
+        "$ref": "#/File"
+      },
+      "seed": {
+        "type": "integer"
+      }
+    },
+    "required": ["audio", "seed"]
+  },
+  "File": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "format": "uri"
+      },
+      "content_type": {
+        "type": "string"
+      }
+    },
+    "required": ["url"]
+  }
+}

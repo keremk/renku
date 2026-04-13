@@ -13,6 +13,7 @@ import type {
   TextClip,
 } from '@gorenku/compositions';
 import type { AssetPathMap } from './types.js';
+import type { TranscriptionArtifact } from '../../transcription/types.js';
 
 type ProbeFixture = Record<string, boolean>;
 type ImageDimensionsFixture = { width: number; height: number };
@@ -487,6 +488,59 @@ describe('command-builder', () => {
       expect(filterComplex).toContain('drawtext=');
       expect(filterComplex).toContain('sin(12*');
       expect(filterComplex).toContain('if(lt(t');
+    });
+
+    it('uses explicit ass filename syntax for karaoke subtitle overlays', async () => {
+      const imageTrack = createImageTrack([createImageClip()]);
+      const timeline = createTimeline([imageTrack], 10);
+      const assetPaths: AssetPathMap = {
+        'Artifact:TestProducer.Image': '/path/to/image.png',
+      };
+      const transcription: TranscriptionArtifact = {
+        text: 'Hello world',
+        language: 'eng',
+        totalDuration: 10,
+        words: [
+          {
+            text: 'Hello',
+            startTime: 0,
+            endTime: 0.5,
+            clipId: 'clip-1',
+          },
+        ],
+        segments: [
+          {
+            clipId: 'clip-1',
+            assetId: 'Artifact:TestProducer.Image',
+            clipStartTime: 0,
+            clipDuration: 10,
+            text: 'Hello world',
+          },
+        ],
+      };
+
+      const result = await buildFfmpegCommand(
+        timeline,
+        assetPaths,
+        {
+          width: 1920,
+          height: 1080,
+          fps: 30,
+        },
+        transcription,
+        '/Users/test/builds/movie-123/subtitles.ass',
+        {
+          probeImageDimensions: async () => ({ width: 1920, height: 1080 }),
+        }
+      );
+
+      const filterComplex = getFilterComplex(result.args);
+      expect(filterComplex).toContain(
+        "ass=filename='/Users/test/builds/movie-123/subtitles.ass':alpha=1"
+      );
+      expect(filterComplex).not.toContain(
+        "ass='/Users/test/builds/movie-123/subtitles.ass':alpha=1"
+      );
     });
   });
 

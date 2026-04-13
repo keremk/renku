@@ -1,0 +1,54 @@
+{
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "audio_url": {
+        "type": "string",
+        "format": "uri"
+      },
+      "language_code": {
+        "type": "string"
+      }
+    },
+    "required": ["audio_url"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string"
+      },
+      "language_code": {
+        "type": "string"
+      },
+      "language_probability": {
+        "type": "number"
+      },
+      "words": {
+        "type": "array",
+        "items": {
+          "$ref": "#/TranscriptionWord"
+        }
+      }
+    },
+    "required": ["text", "language_code", "language_probability", "words"]
+  },
+  "TranscriptionWord": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string"
+      },
+      "start": {
+        "type": "number"
+      },
+      "end": {
+        "type": "number"
+      },
+      "type": {
+        "type": "string"
+      }
+    },
+    "required": ["text", "start", "end", "type"]
+  }
+}

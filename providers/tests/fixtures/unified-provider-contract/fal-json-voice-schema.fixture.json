@@ -1,0 +1,21 @@
+{
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "voice_url": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "required": ["voice_url"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "voice_id": {
+        "type": "string"
+      }
+    },
+    "required": ["voice_id"]
+  }
+}

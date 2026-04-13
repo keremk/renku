@@ -24,6 +24,16 @@ export interface ProviderInputFile {
 }
 
 /**
+ * Standardized result returned by unified provider adapters.
+ * `result` is always the actual model output that should be validated and saved.
+ * Provider transport metadata like request IDs stays separate.
+ */
+export interface UnifiedInvokeResult {
+  result: unknown;
+  providerRequestId?: string;
+}
+
+/**
  * Provider adapter interface for unified handler.
  * Each provider (replicate, fal-ai, wavespeed-ai) implements this interface
  * to handle provider-specific API invocation and output parsing.
@@ -47,7 +57,7 @@ export interface ProviderAdapter {
     model: string,
     input: Record<string, unknown>,
     context: ProviderInvokeContext
-  ): Promise<unknown>;
+  ): Promise<UnifiedInvokeResult>;
 
   /**
    * Optional native upload capability.

@@ -454,6 +454,52 @@ describe('Simulation Integration Tests', () => {
       expect(result.diagnostics?.provider).toBe(name);
     });
 
+    it.each(adapters)('$name: still generates artifacts successfully in simulated mode', async ({ adapter, name, mimeType }) => {
+      const factory = createUnifiedHandler({ adapter, outputMimeType: mimeType });
+      const handler = factory(createSimulatedContext({
+        descriptor: { provider: name, model: 'test-model', environment: 'local' },
+      }));
+
+      const request = createJobRequest({
+        provider: name,
+        model: 'test-model',
+        schema: mimeType === 'video/mp4' ? videoSchema : simpleSchema,
+        resolvedInputs:
+          mimeType === 'video/mp4'
+            ? {
+                'Input:Prompt': 'Test prompt',
+                'Input:SegmentDuration': 5,
+              }
+            : {
+                'Input:Prompt': 'Test prompt',
+              },
+        inputBindings:
+          mimeType === 'video/mp4'
+            ? {
+                Prompt: 'Input:Prompt',
+                Duration: 'Input:SegmentDuration',
+              }
+            : {
+                Prompt: 'Input:Prompt',
+              },
+        sdkMapping:
+          mimeType === 'video/mp4'
+            ? {
+                Prompt: { field: 'prompt', required: true },
+                Duration: { field: 'video_length', required: true },
+              }
+            : {
+                Prompt: { field: 'prompt', required: true },
+              },
+      });
+
+      const result = await handler.invoke(request);
+
+      expect(result.status).toBe('succeeded');
+      expect(result.artefacts.length).toBeGreaterThan(0);
+      expect(result.artefacts.every((artefact) => artefact.status === 'succeeded')).toBe(true);
+    });
+
     it.each(adapters)('$name: validates required inputs even in simulated mode', async ({ adapter, name, mimeType }) => {
       const factory = createUnifiedHandler({ adapter, outputMimeType: mimeType });
       const handler = factory(createSimulatedContext({

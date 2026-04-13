@@ -224,13 +224,9 @@ export function createTranscriptionHandler(): HandlerFactory {
         };
 
         const sttResult = await sttHandler.invoke(sttJobContext);
-        const sttRawOutput = extractSttOutputFromResult(sttResult);
+        const sttOutput = extractSttOutputFromResult(sttResult);
 
         notify('progress', 'Aligning transcription timestamps...');
-        const sttParsed = sttRawOutput as { data?: STTOutput } | STTOutput;
-        const sttOutput: STTOutput = 'data' in sttParsed && sttParsed.data
-          ? sttParsed.data
-          : sttParsed as STTOutput;
 
         if (runtime.mode !== 'simulated') {
           const wordCount = sttOutput.words.filter(w => w.type === 'word').length;
@@ -313,9 +309,11 @@ function parseTranscriptionConfig(raw: unknown): TranscriptionHandlerConfig {
 }
 
 /**
- * Extract STT output from the handler result.
+ * Extract STT output from the delegated handler result.
+ * Successful delegated JSON handlers must persist the unwrapped result as the
+ * artifact blob. That artifact blob is the only success-path source of truth.
  */
-function extractSttOutputFromResult(result: import('../../types.js').ProviderResult): unknown {
+function extractSttOutputFromResult(result: import('../../types.js').ProviderResult): STTOutput {
   if (result.status === 'failed') {
     throw createProviderError(
       SdkErrorCode.PROVIDER_PREDICTION_FAILED,
@@ -333,20 +331,23 @@ function extractSttOutputFromResult(result: import('../../types.js').ProviderRes
     );
   }
 
-  const diagnostics = firstArtifact.diagnostics as Record<string, unknown> | undefined;
-  if (diagnostics?.rawOutput) {
-    return diagnostics.rawOutput;
+  if (!firstArtifact.blob?.data) {
+    throw createProviderError(
+      SdkErrorCode.PROVIDER_PREDICTION_FAILED,
+      'STT handler returned no artifact blob data',
+      { kind: 'unknown' },
+    );
   }
 
-  if (firstArtifact.blob?.data) {
-    try {
-      return JSON.parse(firstArtifact.blob.data.toString());
-    } catch {
-      return firstArtifact.blob.data;
-    }
+  try {
+    return JSON.parse(firstArtifact.blob.data.toString()) as STTOutput;
+  } catch (error) {
+    throw createProviderError(
+      SdkErrorCode.PROVIDER_PREDICTION_FAILED,
+      'STT handler returned invalid JSON artifact data',
+      { kind: 'unknown', raw: error },
+    );
   }
-
-  return diagnostics ?? {};
 }
 
 /**
@@ -404,5 +405,6 @@ async function loadAudioSegmentsFromTranscriptionTrack(
 // Export for testing
 export const __test__ = {
   parseTranscriptionConfig,
+  extractSttOutputFromResult,
   loadAudioSegmentsFromTranscriptionTrack,
 };

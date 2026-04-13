@@ -124,8 +124,9 @@ export function createElevenlabsHandler(options: ElevenlabsHandlerOptions): Hand
                   schemaFile,
                 }
               );
+              const streamResult = response.result;
 
-              if (!isElevenlabsStreamResponse(response)) {
+              if (!isElevenlabsStreamResponse(streamResult)) {
                 throw createProviderError(
                   SdkErrorCode.PROVIDER_PREDICTION_FAILED,
                   'ElevenLabs returned unexpected response format.',
@@ -133,7 +134,7 @@ export function createElevenlabsHandler(options: ElevenlabsHandlerOptions): Hand
                 );
               }
 
-              return collectStreamToBuffer(response.audioStream);
+              return collectStreamToBuffer(streamResult.audioStream);
             },
             {
               logger,

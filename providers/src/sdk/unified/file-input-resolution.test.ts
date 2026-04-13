@@ -36,7 +36,7 @@ describe('resolveProviderFileInputs', () => {
         return model;
       },
       async invoke() {
-        return {};
+        return { result: {} };
       },
       uploadInputFile,
       normalizeOutput() {
@@ -86,7 +86,7 @@ describe('resolveProviderFileInputs', () => {
         return model;
       },
       async invoke() {
-        return {};
+        return { result: {} };
       },
       uploadInputFile,
       normalizeOutput() {
@@ -133,7 +133,7 @@ describe('resolveProviderFileInputs', () => {
         return model;
       },
       async invoke() {
-        return {};
+        return { result: {} };
       },
       uploadInputFile,
       normalizeOutput() {
@@ -197,7 +197,7 @@ describe('resolveProviderFileInputs', () => {
         return model;
       },
       async invoke() {
-        return {};
+        return { result: {} };
       },
       uploadInputFile,
       normalizeOutput() {
@@ -240,7 +240,7 @@ describe('resolveProviderFileInputs', () => {
         return model;
       },
       async invoke() {
-        return {};
+        return { result: {} };
       },
       normalizeOutput() {
         return [];
@@ -277,7 +277,7 @@ describe('resolveProviderFileInputs', () => {
         return model;
       },
       async invoke() {
-        return {};
+        return { result: {} };
       },
       uploadInputFile: vi
         .fn()
@@ -316,7 +316,7 @@ describe('resolveProviderFileInputs', () => {
         return model;
       },
       async invoke() {
-        return {};
+        return { result: {} };
       },
       uploadInputFile,
       normalizeOutput() {

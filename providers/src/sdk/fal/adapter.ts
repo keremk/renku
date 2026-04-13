@@ -9,6 +9,7 @@ import type {
   RetryWrapperOptions,
   RetryWrapper,
   ProviderInputFile,
+  UnifiedInvokeResult,
 } from '../unified/provider-adapter.js';
 import { normalizeFalOutput } from './output.js';
 import {
@@ -74,15 +75,15 @@ export const falAdapter: ProviderAdapter = {
     model: string,
     input: Record<string, unknown>,
     context
-  ): Promise<unknown> {
+  ): Promise<UnifiedInvokeResult> {
     if (isSimulatedProviderClient(client)) {
       return {
-        data: generateOutputFromSchema(context.schemaFile, {
+        result: generateOutputFromSchema(context.schemaFile, {
           provider: 'fal-ai',
           model,
           producesCount: context.request.produces.length,
         }),
-        requestId: `simulated-fal-${context.request.jobId}`,
+        providerRequestId: `simulated-fal-${context.request.jobId}`,
       };
     }
 
@@ -102,8 +103,10 @@ export const falAdapter: ProviderAdapter = {
         model: options?.model ?? model,
       });
 
-      // Return in fal.run() format: { data, requestId }
-      return { data: result.output, requestId: result.requestId };
+      return {
+        result: result.output,
+        providerRequestId: result.requestId,
+      };
     } catch (error) {
       if (error instanceof FalTimeoutError) {
         // Enhance the error with recoverable info for diagnostics

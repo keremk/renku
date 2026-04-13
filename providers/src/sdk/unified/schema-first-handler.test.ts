@@ -16,7 +16,7 @@ type TestExtras = {
     sdkMapping: Record<string, { field: string; required?: boolean; asArray?: boolean }>;
   };
   plannerContext: Record<string, unknown>;
-  schema: { input: string };
+  schema: { input?: string; raw?: string };
 };
 
 // Mock adapter for testing
@@ -47,11 +47,11 @@ function createMockAdapter(options?: {
       _client: ProviderClient,
       _model: string,
       _input: Record<string, unknown>
-    ): Promise<unknown> {
+    ) {
       if (shouldThrow) {
         throw new Error('Mock API error');
       }
-      return invokeResult;
+      return { result: invokeResult };
     },
 
     normalizeOutput(_response: unknown): string[] {
@@ -170,7 +170,7 @@ describe('createUnifiedHandler', () => {
 
   it('handler invoke calls adapter methods in correct order (live mode)', async () => {
     const createClientSpy = vi.fn().mockResolvedValue({ configured: true });
-    const invokeSpy = vi.fn().mockResolvedValue({});
+    const invokeSpy = vi.fn().mockResolvedValue({ result: {} });
     const normalizeOutputSpy = vi
       .fn()
       .mockReturnValue(['https://example.com/out.png']);
@@ -209,8 +209,8 @@ describe('createUnifiedHandler', () => {
         return { configured: true };
       },
       formatModelIdentifier: (m) => `retry/${m}`,
-      async invoke(): Promise<unknown> {
-        return {};
+      async invoke() {
+        return { result: {} };
       },
       normalizeOutput: () => ['https://mock.example.com/output.png'],
       createRetryWrapper: createRetryWrapperSpy,
@@ -267,7 +267,7 @@ describe('createUnifiedHandler', () => {
 
   it('handler invoke still calls the adapter boundary in simulated mode', async () => {
     const createClientSpy = vi.fn().mockResolvedValue({ configured: true });
-    const invokeSpy = vi.fn().mockResolvedValue({});
+    const invokeSpy = vi.fn().mockResolvedValue({ result: {} });
     const normalizeOutputSpy = vi
       .fn()
       .mockReturnValue(['https://example.com/out.png']);
@@ -352,7 +352,7 @@ describe('createUnifiedHandler', () => {
         return { configured: true };
       },
       formatModelIdentifier: (m) => `structured/${m}`,
-      async invoke(): Promise<unknown> {
+      async invoke() {
         throw providerError;
       },
       normalizeOutput: () => ['https://mock.example.com/output.png'],
@@ -404,7 +404,7 @@ describe('createUnifiedHandler', () => {
   // Coverage restoration tests (from deleted per-media-type tests)
 
   it('builds input strictly from sdk mapping and schema', async () => {
-    const invokeSpy = vi.fn().mockResolvedValue({});
+    const invokeSpy = vi.fn().mockResolvedValue({ result: {} });
     const adapter = createMockAdapterWithSpy(invokeSpy);
     const handler = createUnifiedHandler({
       adapter,
@@ -476,7 +476,7 @@ describe('createUnifiedHandler', () => {
   });
 
   it('ignores providerConfig defaults and customAttributes', async () => {
-    const invokeSpy = vi.fn().mockResolvedValue({});
+    const invokeSpy = vi.fn().mockResolvedValue({ result: {} });
     const adapter = createMockAdapterWithSpy(invokeSpy);
     const handler = createUnifiedHandler({
       adapter,
@@ -519,7 +519,7 @@ describe('createUnifiedHandler', () => {
   });
 
   it('resolves blob URI inputs before validation and invocation in live mode', async () => {
-    const invokeSpy = vi.fn().mockResolvedValue({});
+    const invokeSpy = vi.fn().mockResolvedValue({ result: {} });
     const uploadInputFile = vi
       .fn()
       .mockResolvedValue('https://provider.example.com/uploaded-image.png');
@@ -575,7 +575,7 @@ describe('createUnifiedHandler', () => {
   });
 
   it('resolves blob URI inputs for array URI fields when mapping uses asArray', async () => {
-    const invokeSpy = vi.fn().mockResolvedValue({});
+    const invokeSpy = vi.fn().mockResolvedValue({ result: {} });
     const uploadInputFile = vi
       .fn()
       .mockResolvedValue('https://provider.example.com/uploaded-image.png');
@@ -636,7 +636,7 @@ describe('createUnifiedHandler', () => {
   });
 
   it('routes simulated blob inputs through provider upload before invoke', async () => {
-    const invokeSpy = vi.fn().mockResolvedValue({});
+    const invokeSpy = vi.fn().mockResolvedValue({ result: {} });
     const uploadInputFile = vi
       .fn()
       .mockResolvedValue(
@@ -695,5 +695,65 @@ describe('createUnifiedHandler', () => {
       },
       expect.anything()
     );
+  });
+
+  it('saves JSON artifacts from adapter result without provider envelope metadata', async () => {
+    const factory = createUnifiedHandler({
+      adapter: createMockAdapter({
+        invokeResult: {
+          transcript: 'hello world',
+          words: [{ text: 'hello', start: 0, end: 0.5 }],
+        },
+      }),
+      outputMimeType: 'application/json',
+    });
+    const handler = factory(createMockInitContext({ mode: 'live' }));
+
+    const result = await handler.invoke(createMockRequest());
+
+    expect(result.status).toBe('succeeded');
+    expect(
+      JSON.parse(result.artefacts[0]!.blob!.data.toString('utf-8'))
+    ).toEqual({
+      transcript: 'hello world',
+      words: [{ text: 'hello', start: 0, end: 0.5 }],
+    });
+    expect(result.diagnostics?.rawOutput).toBeUndefined();
+  });
+
+  it('keeps providerRequestId in diagnostics while validating and saving the unwrapped result', async () => {
+    const adapter: ProviderAdapter = {
+      name: 'json-provider',
+      secretKey: 'JSON_KEY',
+      async createClient(): Promise<ProviderClient> {
+        return { configured: true };
+      },
+      formatModelIdentifier: (m) => `json/${m}`,
+      async invoke() {
+        return {
+          result: {
+            transcript: 'ready',
+            words: [],
+          },
+          providerRequestId: 'req-123',
+        };
+      },
+      normalizeOutput: () => [],
+    };
+
+    const handler = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'application/json',
+    })(createMockInitContext({ mode: 'live' }));
+
+    const result = await handler.invoke(createMockRequest());
+
+    expect(result.diagnostics?.providerRequestId).toBe('req-123');
+    expect(
+      JSON.parse(result.artefacts[0]!.blob!.data.toString('utf-8'))
+    ).toEqual({
+      transcript: 'ready',
+      words: [],
+    });
   });
 });

@@ -1,0 +1,39 @@
+{
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "type": "string"
+      }
+    },
+    "required": ["prompt"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "images": {
+        "type": "array",
+        "items": {
+          "$ref": "#/File"
+        }
+      },
+      "seed": {
+        "type": "integer"
+      }
+    },
+    "required": ["images", "seed"]
+  },
+  "File": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "format": "uri"
+      },
+      "content_type": {
+        "type": "string"
+      }
+    },
+    "required": ["url"]
+  }
+}

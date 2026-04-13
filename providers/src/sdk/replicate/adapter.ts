@@ -6,6 +6,7 @@ import type {
   ProviderClient,
   ModelContext,
   ProviderInputFile,
+  UnifiedInvokeResult,
 } from '../unified/provider-adapter.js';
 import { normalizeReplicateOutput } from './output.js';
 import { createReplicateRetryWrapper } from './retry.js';
@@ -47,17 +48,24 @@ export const replicateAdapter: ProviderAdapter = {
     model: string,
     input: Record<string, unknown>,
     context
-  ): Promise<unknown> {
+  ): Promise<UnifiedInvokeResult> {
     if (isSimulatedProviderClient(client)) {
-      return generateOutputFromSchema(context.schemaFile, {
-        provider: 'replicate',
-        model,
-        producesCount: context.request.produces.length,
-      });
+      return {
+        result: generateOutputFromSchema(context.schemaFile, {
+          provider: 'replicate',
+          model,
+          producesCount: context.request.produces.length,
+        }),
+      };
     }
 
     const replicate = client as Replicate;
-    return replicate.run(model as `${string}/${string}` | `${string}/${string}:${string}`, { input });
+    return {
+      result: await replicate.run(
+        model as `${string}/${string}` | `${string}/${string}:${string}`,
+        { input }
+      ),
+    };
   },
 
   async uploadInputFile(

@@ -395,7 +395,7 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
               String((input as Record<string, unknown>).text ?? '')
             );
       const buffer = generateWavWithDuration(duration);
-      return {
+      const streamResponse = {
         audioStream: new ReadableStream<Uint8Array>({
           start(controller) {
             controller.enqueue(new Uint8Array(buffer));
@@ -404,6 +404,7 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
         }),
         model: String(model),
       };
+      return { result: streamResponse };
     });
   });
 
@@ -707,13 +708,15 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
     it('calls API in live mode', async () => {
       mocks.createClient.mockResolvedValue({});
       mocks.invoke.mockResolvedValue({
-        audioStream: new ReadableStream({
-          start(controller) {
-            controller.enqueue(new Uint8Array([0x49, 0x44, 0x33])); // ID3 header
-            controller.close();
-          },
-        }),
-        model: 'eleven_v3',
+        result: {
+          audioStream: new ReadableStream({
+            start(controller) {
+              controller.enqueue(new Uint8Array([0x49, 0x44, 0x33])); // ID3 header
+              controller.close();
+            },
+          }),
+          model: 'eleven_v3',
+        },
       });
 
       const handler = createHandler('live');

@@ -4,6 +4,7 @@ import type {
   ProviderClient,
   ModelContext,
   ProviderInputFile,
+  UnifiedInvokeResult,
 } from '../unified/provider-adapter.js';
 import { normalizeWavespeedOutput } from './output.js';
 import { pollForCompletion } from './polling.js';
@@ -60,13 +61,15 @@ export const wavespeedAdapter: ProviderAdapter = {
     model: string,
     input: Record<string, unknown>,
     context
-  ): Promise<unknown> {
+  ): Promise<UnifiedInvokeResult> {
     if (isSimulatedProviderClient(client)) {
-      return generateOutputFromSchema(context.schemaFile, {
-        provider: 'wavespeed-ai',
-        model,
-        producesCount: context.request.produces.length,
-      });
+      return {
+        result: generateOutputFromSchema(context.schemaFile, {
+          provider: 'wavespeed-ai',
+          model,
+          producesCount: context.request.produces.length,
+        }),
+      };
     }
 
     const wavespeedClient = client as WavespeedClient;
@@ -119,7 +122,10 @@ export const wavespeedAdapter: ProviderAdapter = {
       { logger: wavespeedClient.logger }
     );
 
-    return result;
+    return {
+      result,
+      providerRequestId: requestId,
+    };
   },
 
   async uploadInputFile(

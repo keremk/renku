@@ -255,7 +255,7 @@ export async function buildFfmpegCommand(
       // Use ASS filter with alpha support for semi-transparent backgrounds
       // The 'ass' filter is specifically designed for ASS/SSA subtitles
       const escapedPath = escapeFilterPath(assFilePath);
-      const assFilter = `[${videoOutputLabel}]ass='${escapedPath}':alpha=1[${karaokeOutputLabel}]`;
+      const assFilter = `[${videoOutputLabel}]ass=filename='${escapedPath}':alpha=1[${karaokeOutputLabel}]`;
       filterParts.push(assFilter);
       videoOutputLabel = karaokeOutputLabel;
     }

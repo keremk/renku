@@ -12,6 +12,7 @@ import type {
   ProviderAdapter,
   ProviderClient,
   ModelContext,
+  UnifiedInvokeResult,
 } from './provider-adapter.js';
 import { resolveProviderFileInputs } from './file-input-resolution.js';
 import {
@@ -136,8 +137,7 @@ export function createUnifiedHandler(
           timestamp: new Date().toISOString(),
         });
 
-        let predictionOutput: unknown;
-        // Track provider request ID for recovery (e.g., fal.ai requestId)
+        let invokeResult: UnifiedInvokeResult | undefined;
         let providerRequestId: string | undefined;
         const runtimeInvocationSettings = readRuntimeInvocationSettings(request);
         const maxAttemptsFromSettings =
@@ -155,7 +155,7 @@ export function createUnifiedHandler(
 
         try {
           if (retryWrapper) {
-            predictionOutput = await retryWrapper.execute(() =>
+            invokeResult = await retryWrapper.execute(() =>
               adapter.invoke(client!, modelIdentifier, input, {
                 mode: init.mode,
                 request,
@@ -163,7 +163,7 @@ export function createUnifiedHandler(
               })
             );
           } else {
-            predictionOutput = await adapter.invoke(
+            invokeResult = await adapter.invoke(
               client!,
               modelIdentifier,
               input,
@@ -174,16 +174,7 @@ export function createUnifiedHandler(
               }
             );
           }
-
-          // Extract provider request ID if available (e.g., fal.ai returns { data, requestId })
-          if (
-            predictionOutput &&
-            typeof predictionOutput === 'object' &&
-            'requestId' in predictionOutput
-          ) {
-            providerRequestId = (predictionOutput as { requestId?: string })
-              .requestId;
-          }
+          providerRequestId = invokeResult.providerRequestId;
         } catch (error) {
           const rawMessage =
             error instanceof Error ? error.message : String(error);
@@ -265,14 +256,19 @@ export function createUnifiedHandler(
           throw providerError;
         }
 
-        const outputForValidation = selectOutputForValidation(
-          adapter.name,
-          predictionOutput
-        );
+        if (!invokeResult) {
+          throw createProviderError(
+            SdkErrorCode.PROVIDER_PREDICTION_FAILED,
+            `${adapter.name} prediction completed without a result.`,
+            { kind: 'unknown' }
+          );
+        }
+
+        const predictionOutput = invokeResult.result;
 
         // Validate output against schema (logs warning if invalid, doesn't throw)
         if (schemaFile) {
-          validateOutputWithLogging(outputForValidation, schemaFile, logger, {
+          validateOutputWithLogging(predictionOutput, schemaFile, logger, {
             provider: adapter.name,
             model: request.model,
             jobId: request.jobId,
@@ -344,7 +340,6 @@ export function createUnifiedHandler(
             plannerContext,
             simulated: isSimulated,
             outputType: isJsonOutput ? 'json' : 'media',
-            ...(isJsonOutput && { rawOutput: predictionOutput }),
             // Include provider request ID for recovery on failed requests
             ...(providerRequestId && {
               providerRequestId,
@@ -367,26 +362,6 @@ function isProviderError(error: unknown): error is ProviderError {
     typeof candidate.kind === 'string' &&
     typeof candidate.retryable === 'boolean'
   );
-}
-
-function selectOutputForValidation(
-  providerName: string,
-  output: unknown
-): unknown {
-  if (providerName !== 'fal-ai') {
-    return output;
-  }
-
-  if (
-    output &&
-    typeof output === 'object' &&
-    'data' in output &&
-    (output as { data?: unknown }).data !== undefined
-  ) {
-    return (output as { data: unknown }).data;
-  }
-
-  return output;
 }
 
 /**

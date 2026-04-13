@@ -5,8 +5,13 @@ import { dirname, join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { TranscriptionClip } from '@gorenku/compositions';
 import { __test__ } from './transcription-handler.js';
+import type { STTOutput } from './types.js';
 
-const { parseTranscriptionConfig, loadAudioSegmentsFromTranscriptionTrack } = __test__;
+const {
+  parseTranscriptionConfig,
+  extractSttOutputFromResult,
+  loadAudioSegmentsFromTranscriptionTrack,
+} = __test__;
 
 function makeTranscriptionClip(index: number, startTime: number, duration: number, assetId: string): TranscriptionClip {
   return {
@@ -138,5 +143,71 @@ describe('loadAudioSegmentsFromTranscriptionTrack', () => {
     const absolutePath = resolve(storageRoot, relativeBlobPath);
     const fileData = await readFile(absolutePath);
     expect(fileData.equals(expectedData)).toBe(true);
+  });
+});
+
+describe('extractSttOutputFromResult', () => {
+  const sttOutput: STTOutput = {
+    text: 'hello world',
+    language_code: 'eng',
+    language_probability: 0.99,
+    words: [
+      {
+        text: 'hello',
+        start: 0,
+        end: 0.4,
+        type: 'word',
+      },
+    ],
+  };
+
+  it('reads the delegated STT result from the artifact blob JSON', () => {
+    const result = extractSttOutputFromResult({
+      status: 'succeeded',
+      artefacts: [
+        {
+          artefactId: 'Artifact:TranscriptionProducer.SttTranscription',
+          status: 'succeeded',
+          blob: {
+            data: Buffer.from(JSON.stringify(sttOutput)),
+            mimeType: 'application/json',
+          },
+        },
+      ],
+    });
+
+    expect(result).toEqual(sttOutput);
+  });
+
+  it('fails fast when delegated STT succeeds without an artifact blob', () => {
+    expect(() =>
+      extractSttOutputFromResult({
+        status: 'succeeded',
+        artefacts: [
+          {
+            artefactId: 'Artifact:TranscriptionProducer.SttTranscription',
+            status: 'succeeded',
+          },
+        ],
+      }),
+    ).toThrow(/no artifact blob data/i);
+  });
+
+  it('fails fast when delegated STT artifact blob is not valid JSON', () => {
+    expect(() =>
+      extractSttOutputFromResult({
+        status: 'succeeded',
+        artefacts: [
+          {
+            artefactId: 'Artifact:TranscriptionProducer.SttTranscription',
+            status: 'succeeded',
+            blob: {
+              data: Buffer.from('not-json'),
+              mimeType: 'application/json',
+            },
+          },
+        ],
+      }),
+    ).toThrow(/invalid JSON artifact data/i);
   });
 });

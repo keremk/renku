@@ -1,5 +1,10 @@
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
-import type { ProviderAdapter, ProviderClient, ClientOptions } from '../unified/provider-adapter.js';
+import type {
+  ProviderAdapter,
+  ProviderClient,
+  ClientOptions,
+  UnifiedInvokeResult,
+} from '../unified/provider-adapter.js';
 import { createElevenlabsClient, resolveVoiceId } from './client.js';
 import { generateWavWithDuration } from '../unified/wav-generator.js';
 import { estimateTTSDuration, extractMusicDuration } from './output.js';
@@ -40,14 +45,16 @@ export const elevenlabsAdapter: ProviderAdapter = {
     client: ProviderClient,
     model: string,
     input: Record<string, unknown>
-  ): Promise<unknown> {
+  ): Promise<UnifiedInvokeResult> {
     if (isSimulatedProviderClient(client)) {
       const audioBuffer = generateWavWithDuration(
         estimateDuration(model, input)
       );
       return {
-        audioStream: createAudioStream(audioBuffer),
-        model,
+        result: {
+          audioStream: createAudioStream(audioBuffer),
+          model,
+        },
       };
     }
 
@@ -61,7 +68,7 @@ export const elevenlabsAdapter: ProviderAdapter = {
         modelId: 'music_v1',
         forceInstrumental: input.force_instrumental as boolean | undefined,
       });
-      return { audioStream, model };
+      return { result: { audioStream, model } };
     } else {
       // TTS generation
       const voiceId = resolveVoiceId(input.voice as string);
@@ -82,7 +89,7 @@ export const elevenlabsAdapter: ProviderAdapter = {
         outputFormat: (input.output_format as 'mp3_44100_128' | undefined) ?? 'mp3_44100_128',
         voiceSettings: apiVoiceSettings,
       });
-      return { audioStream, model };
+      return { result: { audioStream, model } };
     }
   },
 
