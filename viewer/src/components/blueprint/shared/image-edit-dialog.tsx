@@ -58,6 +58,7 @@ export interface ImageEditDialogProps {
   imageUrl: string;
   title: string;
   availableModels: AvailableModelOption[];
+  availableEditModels?: AvailableModelOption[];
   initialModel?: AvailableModelOption;
   promptUrl?: string;
   onFileUpload: (files: File[]) => Promise<void>;
@@ -100,6 +101,21 @@ function formatEstimatedCost(
     return `${formatCurrency(min)}-${formatCurrency(max)}`;
   }
   return formatCurrency(estimatedCost.cost);
+}
+
+function findModelIndex(
+  models: AvailableModelOption[],
+  initialModel?: AvailableModelOption
+): number {
+  if (!initialModel) {
+    return -1;
+  }
+
+  return models.findIndex(
+    (model) =>
+      model.provider === initialModel.provider &&
+      model.model === initialModel.model
+  );
 }
 
 function RegenerateButton({
@@ -229,16 +245,20 @@ function useSelectedFilePreview(file: File | null): string | null {
 function useRegenerationCostEstimate({
   open,
   activeTab,
-  availableModels,
-  selectedModelIndex,
+  availableRerunModels,
+  selectedRerunModelIndex,
+  availableEditModels,
+  selectedEditModelIndex,
   onEstimateCost,
   setEstimatedCost,
   setIsEstimatingCost,
 }: {
   open: boolean;
   activeTab: TabId;
-  availableModels: AvailableModelOption[];
-  selectedModelIndex: number;
+  availableRerunModels: AvailableModelOption[];
+  selectedRerunModelIndex: number;
+  availableEditModels: AvailableModelOption[];
+  selectedEditModelIndex: number;
   onEstimateCost?: (
     params: RegenerateParams
   ) => Promise<RegenerateResult['estimatedCost']>;
@@ -256,14 +276,14 @@ function useRegenerationCostEstimate({
     let params: RegenerateParams | null = null;
 
     if (activeTab === 'rerun') {
-      const selectedModel = availableModels[selectedModelIndex];
+      const selectedModel = availableRerunModels[selectedRerunModelIndex];
       params = {
         mode: 'rerun',
         prompt: '',
         ...(selectedModel ? { model: selectedModel } : {}),
       };
     } else if (activeTab === 'edit') {
-      const selectedModel = availableModels[selectedModelIndex];
+      const selectedModel = availableEditModels[selectedEditModelIndex];
       if (!selectedModel) {
         setEstimatedCost(null);
         setIsEstimatingCost(false);
@@ -311,10 +331,12 @@ function useRegenerationCostEstimate({
     };
   }, [
     activeTab,
-    availableModels,
+    availableEditModels,
+    availableRerunModels,
     onEstimateCost,
     open,
-    selectedModelIndex,
+    selectedEditModelIndex,
+    selectedRerunModelIndex,
     setEstimatedCost,
     setIsEstimatingCost,
   ]);
@@ -326,6 +348,7 @@ export function ImageEditDialog({
   imageUrl,
   title,
   availableModels,
+  availableEditModels,
   initialModel,
   promptUrl,
   onFileUpload,
@@ -338,7 +361,8 @@ export function ImageEditDialog({
 
   const [rerunPrompt, setRerunPrompt] = useState('');
   const [editPrompt, setEditPrompt] = useState('');
-  const [selectedModelIndex, setSelectedModelIndex] = useState(0);
+  const [selectedRerunModelIndex, setSelectedRerunModelIndex] = useState(0);
+  const [selectedEditModelIndex, setSelectedEditModelIndex] = useState(0);
   const [cameraParams, setCameraParams] = useState<CameraParams>(
     DEFAULT_CAMERA_PARAMS
   );
@@ -360,6 +384,8 @@ export function ImageEditDialog({
   const [isApplyingGenerated, setIsApplyingGenerated] = useState(false);
 
   const { promptText } = useMediaPrompt(promptUrl, open);
+  const rerunModels = availableModels;
+  const editModels = availableEditModels ?? availableModels;
 
   useEffect(() => {
     if (!promptText) {
@@ -377,14 +403,14 @@ export function ImageEditDialog({
     setActiveTab('rerun');
     setRerunPrompt('');
     setEditPrompt('');
-    const matchingModelIndex = initialModel
-      ? availableModels.findIndex(
-          (model) =>
-            model.provider === initialModel.provider &&
-            model.model === initialModel.model
-        )
-      : -1;
-    setSelectedModelIndex(matchingModelIndex >= 0 ? matchingModelIndex : 0);
+    const matchingRerunModelIndex = findModelIndex(rerunModels, initialModel);
+    const matchingEditModelIndex = findModelIndex(editModels, initialModel);
+    setSelectedRerunModelIndex(
+      matchingRerunModelIndex >= 0 ? matchingRerunModelIndex : 0
+    );
+    setSelectedEditModelIndex(
+      matchingEditModelIndex >= 0 ? matchingEditModelIndex : 0
+    );
     setCameraParams(DEFAULT_CAMERA_PARAMS);
     setSelectedFiles([]);
     setUploadError(null);
@@ -396,7 +422,31 @@ export function ImageEditDialog({
     setIsRegenerating(false);
     setIsUploading(false);
     setIsApplyingGenerated(false);
-  }, [imageUrl, open, availableModels, initialModel]);
+  }, [imageUrl, open, initialModel?.model, initialModel?.provider]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setSelectedRerunModelIndex((prev) => {
+      if (rerunModels[prev]) {
+        return prev;
+      }
+
+      const matchingIndex = findModelIndex(rerunModels, initialModel);
+      return matchingIndex >= 0 ? matchingIndex : 0;
+    });
+
+    setSelectedEditModelIndex((prev) => {
+      if (editModels[prev]) {
+        return prev;
+      }
+
+      const matchingIndex = findModelIndex(editModels, initialModel);
+      return matchingIndex >= 0 ? matchingIndex : 0;
+    });
+  }, [open, rerunModels, editModels, initialModel]);
 
   const selectedUploadPreviewUrl = useSelectedFilePreview(
     selectedFiles[0] ?? null
@@ -405,8 +455,10 @@ export function ImageEditDialog({
   useRegenerationCostEstimate({
     open,
     activeTab,
-    availableModels,
-    selectedModelIndex,
+    availableRerunModels: rerunModels,
+    selectedRerunModelIndex,
+    availableEditModels: editModels,
+    selectedEditModelIndex,
     onEstimateCost,
     setEstimatedCost,
     setIsEstimatingCost,
@@ -415,7 +467,7 @@ export function ImageEditDialog({
   const getParamsForTab = useCallback(
     (tab: Exclude<TabId, 'upload'>): RegenerateParams | null => {
       if (tab === 'rerun') {
-        const selectedModel = availableModels[selectedModelIndex];
+        const selectedModel = rerunModels[selectedRerunModelIndex];
         return {
           mode: 'rerun',
           prompt: rerunPrompt,
@@ -424,7 +476,7 @@ export function ImageEditDialog({
       }
 
       if (tab === 'edit') {
-        const selectedModel = availableModels[selectedModelIndex];
+        const selectedModel = editModels[selectedEditModelIndex];
         if (!selectedModel) {
           return null;
         }
@@ -441,7 +493,15 @@ export function ImageEditDialog({
         cameraParams,
       };
     },
-    [availableModels, cameraParams, editPrompt, rerunPrompt, selectedModelIndex]
+    [
+      cameraParams,
+      editModels,
+      editPrompt,
+      rerunModels,
+      rerunPrompt,
+      selectedEditModelIndex,
+      selectedRerunModelIndex,
+    ]
   );
 
   const currentPrompt = activeTab === 'rerun' ? rerunPrompt : editPrompt;
@@ -462,7 +522,7 @@ export function ImageEditDialog({
       return;
     }
 
-    if (activeTab === 'edit' && availableModels.length === 0) {
+    if (activeTab === 'edit' && editModels.length === 0) {
       setGenerationError('No models are available for edit preview.');
       return;
     }
@@ -503,7 +563,7 @@ export function ImageEditDialog({
     }
   }, [
     activeTab,
-    availableModels.length,
+    editModels.length,
     generatedTempId,
     getParamsForTab,
     onCleanupGenerated,
@@ -619,7 +679,7 @@ export function ImageEditDialog({
     Boolean(onRegenerate) &&
     !isApplyingGenerated &&
     !isUploading &&
-    (activeTab !== 'edit' || availableModels.length > 0);
+    (activeTab !== 'edit' || editModels.length > 0);
 
   const isUpdateDisabled =
     activeTab === 'upload'
@@ -763,11 +823,22 @@ export function ImageEditDialog({
                     <span className='text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground'>
                       Model
                     </span>
-                    {availableModels.length > 0 ? (
+                    {(activeTab === 'rerun' ? rerunModels : editModels).length >
+                    0 ? (
                       <select
-                        value={selectedModelIndex}
+                        value={
+                          activeTab === 'rerun'
+                            ? selectedRerunModelIndex
+                            : selectedEditModelIndex
+                        }
                         onChange={(e) =>
-                          setSelectedModelIndex(Number(e.target.value))
+                          activeTab === 'rerun'
+                            ? setSelectedRerunModelIndex(
+                                Number(e.target.value)
+                              )
+                            : setSelectedEditModelIndex(
+                                Number(e.target.value)
+                              )
                         }
                         className={cn(
                           'bg-muted/30 border border-border/40 text-foreground',
@@ -775,7 +846,10 @@ export function ImageEditDialog({
                           'focus:border-primary/50'
                         )}
                       >
-                        {availableModels.map((model, idx) => (
+                        {(activeTab === 'rerun'
+                          ? rerunModels
+                          : editModels
+                        ).map((model, idx) => (
                           <option
                             key={`${model.provider}/${model.model}`}
                             value={idx}

@@ -46,6 +46,11 @@ const mockModels: AvailableModelOption[] = [
   { provider: 'fal-ai', model: 'flux-schnell' },
 ];
 
+const mockEditModels: AvailableModelOption[] = [
+  { provider: 'fal-ai', model: 'flux-pro/kontext' },
+  { provider: 'fal-ai', model: 'nano-banana-2/edit' },
+];
+
 const defaultProps: ImageEditDialogProps = {
   open: true,
   onOpenChange: vi.fn(),
@@ -78,7 +83,9 @@ describe('ImageEditDialog', () => {
   });
 
   it('switches to Edit tab and shows model selector', async () => {
-    render(<ImageEditDialog {...defaultProps} />);
+    render(
+      <ImageEditDialog {...defaultProps} availableEditModels={mockEditModels} />
+    );
     const editTab = getTab('edit');
     fireEvent.click(editTab!);
 
@@ -87,7 +94,7 @@ describe('ImageEditDialog', () => {
       expect(select).toBeTruthy();
       const options = select?.querySelectorAll('option');
       expect(options?.length).toBe(2);
-      expect(options?.[0]?.textContent).toBe('flux-dev');
+      expect(options?.[0]?.textContent).toBe('flux-pro/kontext');
     });
   });
 
@@ -213,7 +220,11 @@ describe('ImageEditDialog', () => {
     });
 
     render(
-      <ImageEditDialog {...defaultProps} onEstimateCost={onEstimateCost} />
+      <ImageEditDialog
+        {...defaultProps}
+        availableEditModels={mockEditModels}
+        onEstimateCost={onEstimateCost}
+      />
     );
 
     await waitFor(() => {
@@ -228,7 +239,7 @@ describe('ImageEditDialog', () => {
       expect(onEstimateCost).toHaveBeenNthCalledWith(2, {
         mode: 'edit',
         prompt: '',
-        model: mockModels[0],
+        model: mockEditModels[0],
       });
     });
 
@@ -240,7 +251,7 @@ describe('ImageEditDialog', () => {
       expect(onEstimateCost).toHaveBeenNthCalledWith(3, {
         mode: 'edit',
         prompt: '',
-        model: mockModels[1],
+        model: mockEditModels[1],
       });
     });
   });
@@ -288,7 +299,13 @@ describe('ImageEditDialog', () => {
       },
     });
 
-    render(<ImageEditDialog {...defaultProps} onRegenerate={onRegenerate} />);
+    render(
+      <ImageEditDialog
+        {...defaultProps}
+        availableEditModels={mockEditModels}
+        onRegenerate={onRegenerate}
+      />
+    );
 
     const editTab = getTab('edit');
     fireEvent.click(editTab!);
@@ -307,6 +324,127 @@ describe('ImageEditDialog', () => {
       expect(onRegenerate).toHaveBeenCalledWith({
         mode: 'edit',
         prompt: 'turn this into a watercolor style',
+        model: mockEditModels[0],
+      });
+    });
+  });
+
+  it('falls back to rerun models in edit mode while edit models are unavailable', async () => {
+    const onRegenerate = vi.fn().mockResolvedValue({
+      previewUrl: 'https://example.com/generated-edit-fallback.png',
+      tempId: 'tmp-edit-fallback',
+      estimatedCost: {
+        cost: 0.02,
+        minCost: 0.02,
+        maxCost: 0.02,
+        isPlaceholder: false,
+      },
+    });
+
+    render(<ImageEditDialog {...defaultProps} onRegenerate={onRegenerate} />);
+
+    fireEvent.click(getTab('edit')!);
+
+    await waitFor(() => {
+      const select = document.body.querySelector('select');
+      expect(select).toBeTruthy();
+      const options = select?.querySelectorAll('option');
+      expect(options?.[0]?.textContent).toBe('flux-dev');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'REGENERATE' }));
+
+    await waitFor(() => {
+      expect(onRegenerate).toHaveBeenCalledWith({
+        mode: 'edit',
+        prompt: '',
+        model: mockModels[0],
+      });
+    });
+  });
+
+  it('does not reset the active edit session when edit models arrive later', async () => {
+    const { rerender } = render(<ImageEditDialog {...defaultProps} />);
+
+    fireEvent.click(getTab('edit')!);
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        'Describe only the changes you want to apply to the current image (for example: "add warm sunset lighting").'
+      ),
+      {
+        target: { value: 'keep this edit prompt' },
+      }
+    );
+
+    rerender(
+      <ImageEditDialog {...defaultProps} availableEditModels={mockEditModels} />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByDisplayValue('keep this edit prompt')
+      ).toBeTruthy();
+      expect(getTab('edit')?.className).toContain('text-foreground');
+      const options = document.body.querySelectorAll('option');
+      expect(options).toHaveLength(2);
+      expect(options[0]?.textContent).toBe('flux-pro/kontext');
+    });
+  });
+
+  it('keeps rerun models separate from edit-only models', async () => {
+    const onEstimateCost = vi.fn().mockResolvedValue({
+      cost: 0.03,
+      minCost: 0.03,
+      maxCost: 0.03,
+      isPlaceholder: false,
+    });
+    const onRegenerate = vi.fn().mockResolvedValue({
+      previewUrl: 'https://example.com/generated-rerun.png',
+      tempId: 'tmp-rerun',
+      estimatedCost: {
+        cost: 0.01,
+        minCost: 0.01,
+        maxCost: 0.02,
+        isPlaceholder: false,
+      },
+    });
+
+    render(
+      <ImageEditDialog
+        {...defaultProps}
+        availableEditModels={mockEditModels}
+        onEstimateCost={onEstimateCost}
+        onRegenerate={onRegenerate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(onEstimateCost).toHaveBeenCalledWith({
+        mode: 'rerun',
+        prompt: '',
+        model: mockModels[0],
+      });
+    });
+
+    const editTab = getTab('edit');
+    fireEvent.click(editTab!);
+
+    await waitFor(() => {
+      expect(onEstimateCost).toHaveBeenCalledWith({
+        mode: 'edit',
+        prompt: '',
+        model: mockEditModels[0],
+      });
+    });
+
+    const rerunTab = getTab('rerun');
+    fireEvent.click(rerunTab!);
+    fireEvent.click(screen.getByRole('button', { name: 'REGENERATE' }));
+
+    await waitFor(() => {
+      expect(onRegenerate).toHaveBeenCalledWith({
+        mode: 'rerun',
+        prompt: '',
         model: mockModels[0],
       });
     });
@@ -339,6 +477,45 @@ describe('ImageEditDialog', () => {
       expect(onRegenerate).toHaveBeenCalledWith(
         expect.objectContaining({ mode: 'camera', prompt: '' })
       );
+    });
+  });
+
+  it('regenerates in edit mode when edit models exist but rerun models do not', async () => {
+    const onRegenerate = vi.fn().mockResolvedValue({
+      previewUrl: 'https://example.com/generated-edit-only.png',
+      tempId: 'tmp-edit-only',
+      estimatedCost: {
+        cost: 0.02,
+        minCost: 0.02,
+        maxCost: 0.02,
+        isPlaceholder: false,
+      },
+    });
+
+    render(
+      <ImageEditDialog
+        {...defaultProps}
+        availableModels={[]}
+        availableEditModels={mockEditModels}
+        onRegenerate={onRegenerate}
+      />
+    );
+
+    fireEvent.click(getTab('edit')!);
+
+    const regenerateButton = screen.getByRole('button', { name: 'REGENERATE' });
+    expect(regenerateButton.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(regenerateButton);
+
+    await waitFor(() => {
+      expect(onRegenerate).toHaveBeenCalledWith({
+        mode: 'edit',
+        prompt: '',
+        model: mockEditModels[0],
+      });
+      expect(
+        screen.queryByText('No models are available for edit preview.')
+      ).toBeNull();
     });
   });
 

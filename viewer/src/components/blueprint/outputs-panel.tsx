@@ -978,7 +978,7 @@ function SubGroupSection({
   return (
     <div>
       {subGroup.label && <SubGroupHeader label={subGroup.label} />}
-      <MediaGrid className='!grid-cols-[repeat(auto-fill,minmax(20rem,20rem))] justify-start'>
+      <MediaGrid className='grid-cols-[repeat(auto-fill,minmax(20rem,20rem))]! justify-start'>
         {subGroup.artifacts.map((artifact) => {
           return (
             <Fragment key={artifact.id}>
@@ -1559,7 +1559,8 @@ function MediaArtifactCard({
           onOpenChange={setIsEditDialogOpen}
           imageUrl={url}
           title={`Edit Image \u2014 ${displayName}`}
-          availableModels={availableEditModels ?? []}
+          availableModels={availableRerunModels}
+          availableEditModels={availableEditModels}
           initialModel={initialModel}
           promptUrl={promptUrl}
           onFileUpload={handleFileUpload}
