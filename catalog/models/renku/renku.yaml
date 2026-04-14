@@ -19,6 +19,12 @@ models:
       - audio/mpeg
     handler: ffmpeg-exporter
     price: 0
+  - name: ffmpeg/video-stitch
+    type: video
+    mime:
+      - video/mp4
+    handler: custom-ffmpeg
+    price: 0
   - name: speech/transcription
     type: json
     mime:

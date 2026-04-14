@@ -1,0 +1,62 @@
+meta:
+  name: Video Stitcher Fan-In
+  description: Generate two clips and stitch them with the custom FFmpeg stitcher.
+  id: VideoStitcherFanIn
+  version: 0.1.0
+
+inputs:
+  - name: NumOfClips
+    type: int
+    required: true
+  - name: ClipPrompts
+    type: array
+    itemType: string
+    countInput: NumOfClips
+    required: true
+  - name: ClipDuration
+    type: int
+    required: true
+  - name: Duration
+    type: int
+    required: true
+  - name: Resolution
+    type: resolution
+    required: true
+
+artifacts:
+  - name: ClipVideos
+    type: array
+    itemType: video
+    countInput: NumOfClips
+  - name: StitchedVideo
+    type: video
+
+loops:
+  - name: clip
+    countInput: NumOfClips
+
+producers:
+  - name: VideoProducer
+    producer: video/text-to-video
+    loop: clip
+  - name: VideoStitcher
+    producer: composition/video-stitcher
+
+connections:
+  - from: ClipPrompts[clip]
+    to: VideoProducer[clip].Prompt
+  - from: ClipDuration
+    to: VideoProducer[clip].Duration
+  - from: Resolution
+    to: VideoProducer[clip].Resolution
+
+  - from: VideoProducer[clip].GeneratedVideo
+    to: ClipVideos[clip]
+  - from: VideoProducer[clip].GeneratedVideo
+    to: VideoStitcher.VideoSegments
+    groupBy: clip
+  - from: Duration
+    to: VideoStitcher.Duration
+
+  - from: VideoStitcher.StitchedVideo
+    to: StitchedVideo

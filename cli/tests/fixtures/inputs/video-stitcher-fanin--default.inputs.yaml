@@ -1,0 +1,18 @@
+inputs:
+  NumOfClips: 2
+  ClipPrompts:
+    - 'A bright sunrise over the sea'
+    - 'The camera glides toward the horizon'
+  ClipDuration: 4
+  Duration: 8
+  Resolution:
+    width: 1280
+    height: 720
+
+models:
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: VideoProducer
+  - model: ffmpeg/video-stitch
+    provider: renku
+    producerId: VideoStitcher

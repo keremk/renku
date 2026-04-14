@@ -1,0 +1,28 @@
+meta:
+  name: Video Stitcher
+  description: Stitch a fan-in of generated video clips into a single MP4 using FFmpeg.
+  id: VideoStitcher
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: VideoSegments
+    description: Ordered video clips to stitch together.
+    type: array
+    itemType: video
+    fanIn: true
+  - name: Duration
+    description: Total expected output duration in seconds.
+    type: int
+    required: true
+
+artifacts:
+  - name: StitchedVideo
+    description: The stitched video output.
+    type: video
+
+mappings:
+  renku:
+    ffmpeg/video-stitch: {}
