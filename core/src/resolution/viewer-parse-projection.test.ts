@@ -196,17 +196,17 @@ describe('viewer-parse-projection loop grouping', () => {
     );
 
     const graph = convertTreeToGraph(root);
-    const characterGroup = graph.loopGroups?.find(
-      (group) => group.primaryDimension === 'character'
+    const segmentGroup = graph.loopGroups?.find(
+      (group) => group.primaryDimension === 'segment'
     );
 
-    expect(characterGroup).toBeDefined();
-    expect(characterGroup?.countInput).toBe('NumOfCharacters');
-    expect(characterGroup?.members.map((member) => member.inputName)).toEqual(
+    expect(segmentGroup).toBeDefined();
+    expect(segmentGroup?.countInput).toBe('NumOfSegments');
+    expect(segmentGroup?.members.map((member) => member.inputName)).toEqual(
       expect.arrayContaining(['CelebrityThenImages', 'CelebrityNowImages'])
     );
     expect(
-      characterGroup?.members.map((member) => member.inputName)
+      segmentGroup?.members.map((member) => member.inputName)
     ).not.toContain('SettingImage');
   });
 

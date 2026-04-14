@@ -1,6 +1,6 @@
 inputs:
   # Celebrity images - provide one "then" and one "now" image per celebrity
-  # Arrays must have the same length as NumOfCharacters
+  # Arrays must have the same length as NumOfSegments
   CelebrityThenImages:
     - 'file:./images/celebrity1-then.jpg'
     - 'file:./images/celebrity2-then.jpg'
@@ -20,9 +20,11 @@ inputs:
   MusicalStyle: 'Nostalgic orchestral with soft strings and piano, building emotional arc'
 
   # Timing
-  NumOfCharacters: 3
+  NumOfSegments: 3
   MeetingDuration: 10
   TransitionDuration: 5
+  # System-derived segment duration used by orchestration wiring
+  SegmentDuration: 15
 
   # Video settings
   Resolution:
@@ -30,9 +32,10 @@ inputs:
     height: 720
 
   # System inputs
-  # Total Duration = NumOfCharacters * MeetingDuration + (NumOfCharacters - 1) * TransitionDuration
-  # Example: 3 * 10 + 2 * 5 = 40 seconds
-  Duration: 40
+  # SegmentDuration must equal MeetingDuration + TransitionDuration
+  # Total Duration = NumOfSegments * SegmentDuration
+  # Example: 15 = 10 + 5, and 45 = 3 * 15
+  Duration: 45
 
 models:
   # LLM for generating all prompts
@@ -53,17 +56,18 @@ models:
   # Image-to-image for together (then+now side by side) images
   - model: qwen-image-edit-2511
     provider: fal-ai
-    producerId: TogetherImageProducer
+    producerId: CelebrityVideoProducer.TogetherImageProducer
 
-  # Image-to-video for meeting segments (Kling 2.5 Turbo - good start/end frame support)
+  # Image-to-video for stitched celebrity segments
   - model: kling-video/v2.5-turbo/pro/image-to-video
     provider: fal-ai
-    producerId: MeetingVideoProducer
-
-  # Image-to-video for transition segments (Kling 2.5 Turbo)
+    producerId: CelebrityVideoProducer.MeetingVideoProducer
   - model: kling-video/v2.5-turbo/pro/image-to-video
     provider: fal-ai
-    producerId: TransitionVideoProducer
+    producerId: CelebrityVideoProducer.TransitionVideoProducer
+  - model: ffmpeg/video-stitch
+    provider: renku
+    producerId: CelebrityVideoProducer.VideoStitcher
 
   # Music generation
   - model: stability-ai/stable-audio-2.5

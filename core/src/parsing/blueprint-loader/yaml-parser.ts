@@ -709,6 +709,9 @@ function readOptionalLoopSymbol(
     );
   }
   const value = raw.trim();
+  if (key === 'groupBy' && value === 'singleton') {
+    return value;
+  }
   if (!allowedDimensions.has(value)) {
     throw createParserError(
       ParserErrorCode.INVALID_CONNECTION_ENTRY,

@@ -1,0 +1,107 @@
+meta:
+  name: Celebrity Video Segment
+  description: Build one celebrity segment by composing a together image, generating a meeting clip and an exit transition clip, then stitching them into one video.
+  id: CelebrityVideo
+  kind: blueprint
+  version: 0.1.0
+
+inputs:
+  - name: CelebrityThenImage
+    description: Consistent "then" image of the celebrity already placed in the shared setting.
+    type: image
+    required: true
+  - name: CelebrityNowImage
+    description: Consistent "now" image of the celebrity already placed in the shared setting.
+    type: image
+    required: true
+  - name: SettingImage
+    description: Empty shared setting image used as the seamless start and end scene for the segment.
+    type: image
+    required: true
+  - name: TogetherImagePrompt
+    description: Prompt for composing the then and now versions together in one frame.
+    type: string
+    required: true
+  - name: MeetingVideoPrompt
+    description: Prompt for the first video where the then version enters and meets the now version.
+    type: string
+    required: true
+  - name: TransitionVideoPrompt
+    description: Prompt for the second video where the pair exits and the camera returns to an empty scene.
+    type: string
+    required: true
+  - name: MeetingDuration
+    description: Duration of the meeting clip in seconds.
+    type: int
+    required: true
+  - name: TransitionDuration
+    description: Duration of the exit transition clip in seconds.
+    type: int
+    required: true
+  - name: Duration
+    description: Total duration of the stitched celebrity segment in seconds.
+    type: int
+    required: true
+  - name: Resolution
+    description: Video resolution as width/height pixel dimensions.
+    type: resolution
+    required: true
+
+artifacts:
+  - name: CelebrityVideo
+    description: Final stitched celebrity segment video.
+    type: video
+
+producers:
+  - name: TogetherImageProducer
+    producer: image/image-compose
+  - name: MeetingVideoProducer
+    producer: video/image-to-video
+  - name: TransitionVideoProducer
+    producer: video/image-to-video
+  - name: VideoStitcher
+    producer: composition/video-stitcher
+
+connections:
+  - from: CelebrityThenImage
+    to: TogetherImageProducer.SourceImages[0]
+  - from: CelebrityNowImage
+    to: TogetherImageProducer.SourceImages[1]
+  - from: TogetherImagePrompt
+    to: TogetherImageProducer.Prompt
+  - from: Resolution
+    to: TogetherImageProducer.Resolution
+
+  - from: SettingImage
+    to: MeetingVideoProducer.StartImage
+  - from: TogetherImageProducer.ComposedImage
+    to: MeetingVideoProducer.EndImage
+  - from: MeetingVideoPrompt
+    to: MeetingVideoProducer.Prompt
+  - from: Resolution
+    to: MeetingVideoProducer.Resolution
+  - from: MeetingDuration
+    to: MeetingVideoProducer.Duration
+
+  - from: TogetherImageProducer.ComposedImage
+    to: TransitionVideoProducer.StartImage
+  - from: SettingImage
+    to: TransitionVideoProducer.EndImage
+  - from: TransitionVideoPrompt
+    to: TransitionVideoProducer.Prompt
+  - from: Resolution
+    to: TransitionVideoProducer.Resolution
+  - from: TransitionDuration
+    to: TransitionVideoProducer.Duration
+
+  - from: MeetingVideoProducer.GeneratedVideo
+    to: VideoStitcher.VideoSegments
+    groupBy: singleton
+  - from: TransitionVideoProducer.GeneratedVideo
+    to: VideoStitcher.VideoSegments
+    groupBy: singleton
+  - from: Duration
+    to: VideoStitcher.Duration
+
+  - from: VideoStitcher.StitchedVideo
+    to: CelebrityVideo

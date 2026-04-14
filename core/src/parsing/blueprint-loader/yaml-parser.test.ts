@@ -464,6 +464,55 @@ artifacts:
     ]);
   });
 
+  it('allows singleton as explicit groupBy metadata for scalar fan-in', async () => {
+    const reader = {
+      readFile: async () => `
+meta:
+  id: SingletonFanIn
+  name: Singleton FanIn
+inputs:
+  - name: Clips
+    type: array
+    itemType: video
+    fanIn: true
+artifacts:
+  - name: FirstClip
+    type: video
+  - name: SecondClip
+    type: video
+producers:
+  - name: Stitcher
+    producer: composition/video-stitcher
+connections:
+  - from: FirstClip
+    to: Stitcher.Clips
+    groupBy: singleton
+  - from: SecondClip
+    to: Stitcher.Clips
+    groupBy: singleton
+`,
+    };
+
+    const document = await parseYamlBlueprintFile('/virtual/singleton-fanin.yaml', {
+      reader,
+    });
+
+    expect(document.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'FirstClip',
+          to: 'Stitcher.Clips',
+          groupBy: 'singleton',
+        }),
+        expect.objectContaining({
+          from: 'SecondClip',
+          to: 'Stitcher.Clips',
+          groupBy: 'singleton',
+        }),
+      ])
+    );
+  });
+
   it('accepts dimension selectors with offsets', async () => {
     const blueprintPath = resolve(
       TEST_FIXTURES_ROOT,

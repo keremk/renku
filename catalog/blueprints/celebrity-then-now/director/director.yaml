@@ -17,8 +17,12 @@ inputs:
   - name: VisualStyle
     description: Visual style for the video (e.g., cinematic, nostalgic, golden age).
     type: string
-  - name: NumOfCharacters
-    description: Number of celebrities in the video.
+  - name: MusicalStyle
+    description: Optional guidance for the background music style.
+    type: string
+    required: false
+  - name: NumOfSegments
+    description: Number of celebrity segments in the video.
     type: int
   - name: MeetingDuration
     description: Duration of each meeting segment in seconds.
@@ -36,9 +40,9 @@ artifacts:
     type: json
     arrays:
       - path: Characters
-        countInput: NumOfCharacters
+        countInput: NumOfSegments
 
 loops:
-  - name: character
-    description: Iterates over celebrities.
-    countInput: NumOfCharacters
+  - name: segment
+    description: Iterates over celebrity segments.
+    countInput: NumOfSegments
