@@ -3,6 +3,7 @@ import { existsSync, promises as fs } from 'node:fs';
 import { dirname, resolve, relative, sep } from 'node:path';
 import type { FileStorage } from '@flystorage/file-storage';
 import { createParserError, ParserErrorCode } from '../../errors/index.js';
+import { isRenkuError } from '../../errors/types.js';
 import type {
   ArrayDimensionMapping,
   BlueprintArtefactDefinition,
@@ -100,7 +101,20 @@ export async function parseYamlBlueprintFile(
 ): Promise<BlueprintDocument> {
   const reader = options.reader ?? defaultReader;
   const absolute = resolve(filePath);
-  const contents = await reader.readFile(absolute);
+  let contents: string;
+  try {
+    contents = await reader.readFile(absolute);
+  } catch (error) {
+    if (isRenkuError(error)) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    throw createParserError(
+      ParserErrorCode.FILE_LOAD_FAILED,
+      `Failed to load blueprint file "${filePath}": ${message}`,
+      { filePath }
+    );
+  }
   const raw = parseYaml(contents) as RawBlueprint;
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
@@ -236,12 +250,10 @@ function resolveProducerImportPath(
   producerImport: ProducerImportDefinition,
   options: BlueprintLoadOptions = {}
 ): string {
-  // Legacy path support - resolves relative to blueprint file
   if (producerImport.path) {
     return resolve(dirname(parentFile), producerImport.path);
   }
 
-  // Qualified name resolution (e.g., "prompt/script", "audio/text-to-speech")
   if (producerImport.producer && options.catalogRoot) {
     const producersRoot = resolve(options.catalogRoot, 'producers');
     const resolved = findProducerByQualifiedName(
@@ -270,8 +282,11 @@ function resolveProducerImportPath(
     );
   }
 
-  // Default: look in same directory as blueprint
-  return resolve(dirname(parentFile), `${producerImport.name}.yaml`);
+  throw createParserError(
+    ParserErrorCode.MISSING_PRODUCER_IMPORT_SOURCE,
+    `Producer import "${producerImport.name}" must declare exactly one import source: "path" or "producer".`,
+    { filePath: parentFile }
+  );
 }
 
 /**
@@ -589,6 +604,13 @@ function parseProducerImport(raw: unknown): ProducerImportDefinition {
     throw createParserError(
       ParserErrorCode.PRODUCER_PATH_AND_NAME_CONFLICT,
       `Producer import "${name}" cannot have both "path" and "producer" fields. Use one or the other.`
+    );
+  }
+
+  if (!path && !producer) {
+    throw createParserError(
+      ParserErrorCode.MISSING_PRODUCER_IMPORT_SOURCE,
+      `Producer import "${name}" must declare exactly one import source: "path" or "producer".`
     );
   }
 

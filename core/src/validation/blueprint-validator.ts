@@ -396,18 +396,16 @@ export function validateProducerInputOutput(
 
           // Check if this is an artifact of the producer
           if (!producerArtifacts.has(outputName)) {
-            // Could be a nested path into an artifact (e.g., VideoScript.Segments[segment].Script)
-            // We only report an error if the first level isn't an artifact
             issues.push(
               createError(
                 ValidationErrorCode.PRODUCER_OUTPUT_MISMATCH,
-                `Producer "${baseName}" does not have artifact "${outputName}"`,
+                `Producer "${baseName}" does not expose artifact "${outputName}" in its public contract.`,
                 {
                   filePath: node.sourcePath,
                   namespacePath: node.namespacePath,
                   context: `connection from "${edge.from}" to "${edge.to}"`,
                 },
-                `Available artifacts in ${baseName}: ${Array.from(producerArtifacts).join(', ') || '(none)'}`
+                `Connect only to top-level artifacts exposed by "${baseName}". Available artifacts: ${Array.from(producerArtifacts).join(', ') || '(none)'}`
               )
             );
           }
@@ -432,13 +430,13 @@ export function validateProducerInputOutput(
             issues.push(
               createError(
                 ValidationErrorCode.PRODUCER_INPUT_MISMATCH,
-                `Producer "${baseName}" does not have input "${inputName}"`,
+                `Producer "${baseName}" does not expose input "${inputName}" in its public contract.`,
                 {
                   filePath: node.sourcePath,
                   namespacePath: node.namespacePath,
                   context: `connection from "${edge.from}" to "${edge.to}"`,
                 },
-                `Available inputs in ${baseName}: ${
+                `Connect only to top-level inputs exposed by "${baseName}". Available inputs: ${
                   Array.from(producerInputs)
                     .filter((n) => !SYSTEM_INPUT_NAMES.has(n))
                     .join(', ') || '(none)'

@@ -13,6 +13,7 @@ import {
 import {
   CATALOG_ROOT,
   CATALOG_BLUEPRINTS_ROOT,
+  SHARED_TEST_CATALOG_ROOT,
   SHARED_BLUEPRINT_MODULES_ROOT,
   TEST_FIXTURES_ROOT,
 } from '../../../tests/catalog-paths.js';
@@ -857,6 +858,67 @@ producers:
     ).rejects.toThrow(/cannot have both "path" and "producer" fields/);
   });
 
+  it('rejects producer imports that omit both path and producer', async () => {
+    const mockBlueprint = `
+meta:
+  id: test-blueprint
+  name: Test Blueprint
+inputs:
+  - name: TestInput
+    type: string
+artifacts:
+  - name: TestOutput
+    type: string
+producers:
+  - name: AudioProducer
+`;
+    const reader = {
+      readFile: async (path: string) => {
+        if (path.includes('test-blueprint.yaml')) {
+          return mockBlueprint;
+        }
+        const fs = await import('node:fs/promises');
+        return fs.readFile(path, 'utf8');
+      },
+    };
+
+    const entry = resolve(yamlRoot, 'test-blueprint.yaml');
+    await expect(loadYamlBlueprintTree(entry, { reader })).rejects.toThrow(
+      /must declare exactly one import source/
+    );
+  });
+
+  it('fails with a numbered parser error when a local import path is missing', async () => {
+    const mockBlueprint = `
+meta:
+  id: test-blueprint
+  name: Test Blueprint
+inputs:
+  - name: TestInput
+    type: string
+artifacts:
+  - name: TestOutput
+    type: string
+producers:
+  - name: MissingProducer
+    path: ./missing-producer.yaml
+`;
+    const reader = {
+      readFile: async (path: string) => {
+        if (path.includes('test-blueprint.yaml')) {
+          return mockBlueprint;
+        }
+        const fs = await import('node:fs/promises');
+        return fs.readFile(path, 'utf8');
+      },
+    };
+
+    const entry = resolve(yamlRoot, 'test-blueprint.yaml');
+    await expect(loadYamlBlueprintTree(entry, { reader })).rejects.toThrow(
+      /Failed to load blueprint file/
+    );
+  });
+
   it('resolves path syntax for local producers', async () => {
     // audio-only blueprint uses path: syntax for local ScriptProducer
     const entry = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
@@ -867,6 +929,54 @@ producers:
     // Should work with path: syntax for local producers
     expect(root.children.has('ScriptProducer')).toBe(true);
     expect(root.children.has('AudioProducer')).toBe(true);
+  });
+
+  it('loads local composite imports through path', async () => {
+    const entry = resolve(
+      TEST_FIXTURES_ROOT,
+      'composite-blueprint--single-output-segment',
+      'composite-blueprint--single-output-segment.yaml'
+    );
+    const { root } = await loadYamlBlueprintTree(entry, {
+      catalogRoot: catalogRoot,
+    });
+
+    const composite = root.children.get('SegmentUnit');
+    expect(composite?.document.meta.id).toBe('SegmentUnit');
+    expect(composite?.children.has('PrepImage')).toBe(true);
+    expect(composite?.children.has('MainVideo')).toBe(true);
+  });
+
+  it('loads catalog composite imports from direct-file qualified modules', async () => {
+    const entry = resolve(
+      TEST_FIXTURES_ROOT,
+      'catalog-composite-import--qualified-module',
+      'catalog-composite-import--qualified-module.yaml'
+    );
+    const { root } = await loadYamlBlueprintTree(entry, {
+      catalogRoot: SHARED_TEST_CATALOG_ROOT,
+    });
+
+    const composite = root.children.get('VoiceConditionedVideo');
+    expect(composite?.document.meta.id).toBe('DirectCompositeVideo');
+    expect(composite?.children.has('PrepImage')).toBe(true);
+    expect(composite?.children.has('MainVideo')).toBe(true);
+  });
+
+  it('loads catalog composite imports from nested-folder qualified modules', async () => {
+    const entry = resolve(
+      TEST_FIXTURES_ROOT,
+      'catalog-composite-import--nested-folder',
+      'catalog-composite-import--nested-folder.yaml'
+    );
+    const { root } = await loadYamlBlueprintTree(entry, {
+      catalogRoot: SHARED_TEST_CATALOG_ROOT,
+    });
+
+    const composite = root.children.get('NestedVideoUnit');
+    expect(composite?.document.meta.id).toBe('NestedCompositeVideo');
+    expect(composite?.children.has('PrepImage')).toBe(true);
+    expect(composite?.children.has('MainVideo')).toBe(true);
   });
 });
 

@@ -1,0 +1,32 @@
+meta:
+  id: CompositeCatalogNestedVideo
+  name: Composite Catalog Nested Video
+
+inputs:
+  - name: Duration
+    type: number
+    required: true
+  - name: Prompt
+    type: string
+    required: true
+  - name: SourceImage
+    type: image
+    required: true
+
+artifacts:
+  - name: FinalVideo
+    type: video
+
+producers:
+  - name: NestedVideoUnit
+    producer: video/nested-composite
+
+connections:
+  - from: Duration
+    to: NestedVideoUnit.Duration
+  - from: Prompt
+    to: NestedVideoUnit.Prompt
+  - from: SourceImage
+    to: NestedVideoUnit.SourceImage
+  - from: NestedVideoUnit.FinalVideo
+    to: FinalVideo

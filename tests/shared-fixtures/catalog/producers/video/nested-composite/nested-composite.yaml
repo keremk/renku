@@ -1,0 +1,37 @@
+meta:
+  id: NestedCompositeVideo
+  name: Nested Composite Video
+  kind: blueprint
+
+inputs:
+  - name: Duration
+    type: number
+    required: true
+  - name: Prompt
+    type: string
+    required: true
+  - name: SourceImage
+    type: image
+    required: true
+
+artifacts:
+  - name: FinalVideo
+    type: video
+
+producers:
+  - name: PrepImage
+    path: ./prep-image.yaml
+  - name: MainVideo
+    path: ./main-video.yaml
+
+connections:
+  - from: SourceImage
+    to: PrepImage.SourceImage
+  - from: Prompt
+    to: MainVideo.Prompt
+  - from: Duration
+    to: MainVideo.Duration
+  - from: PrepImage.EditedImage
+    to: MainVideo.StartImage
+  - from: MainVideo.GeneratedVideo
+    to: FinalVideo

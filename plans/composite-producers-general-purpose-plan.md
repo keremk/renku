@@ -1,6 +1,6 @@
 # General-Purpose Composite Producers Plan
 
-Updated: 2026-04-12
+Updated: 2026-04-13
 
 ## Summary
 
@@ -8,8 +8,8 @@ Add **composite producers** as a first-class, broadly reusable blueprint authori
 
 The goal is to let authors define a producer-like unit in YAML that internally orchestrates multiple producers, but exposes a clean input/output contract to the parent blueprint. This must work for:
 
-- local blueprint modules imported by relative `path`
-- catalog-hosted composite modules imported by a qualified catalog reference
+- local modules imported from the same folder tree as the parent blueprint
+- catalog-hosted reusable modules imported by a qualified catalog producer reference
 - single-output composites
 - multi-output composites
 - composites whose internal artifacts are only intermediate implementation details
@@ -30,7 +30,7 @@ The current system is close, but incomplete:
 - catalog imports currently distinguish only:
   - `path`: local relative import
   - `producer`: catalog leaf producer under `catalog/producers`
-- there is no first-class catalog import path for a blueprint module under `catalog/blueprints`
+- reusable composite modules are not yet modeled as normal catalog producers
 - imported blueprints are not treated as an explicit public/private boundary yet
 
 ## Goals
@@ -64,9 +64,27 @@ This keeps the model simple:
 
 Both are authored in YAML and both are consumed from the parent through the same `producers:` section.
 
-### 2. Extend producer imports to support catalog blueprints
+### 2. Keep the import surface exactly two-way: `path` for local, `producer` for catalog
 
-Keep `path` and `producer`, and add a third mutually exclusive import source:
+Do **not** add a new `blueprint:` attribute.
+
+Keep the current convention:
+
+- `path:` means import a local YAML module relative to the parent blueprint
+- `producer:` means import a reusable module from the catalog
+
+The important change is internal, not author-facing:
+
+- a module imported through `path:` may be either:
+  - a leaf producer module
+  - a composite blueprint module
+- a module imported through `producer:` may also be either:
+  - a leaf catalog producer
+  - a reusable catalog composite module
+
+In other words, `path` vs `producer` should express **where the module comes from**, not **how it is implemented internally**.
+
+Examples:
 
 ```yaml
 producers:
@@ -77,17 +95,28 @@ producers:
     producer: image/text-to-image
 
   - name: KlingVoiceVideo
-    blueprint: video/kling-voice-conditioned
+    producer: video/kling-voice-conditioned
 ```
 
 Rules:
 
-- exactly one of `path`, `producer`, or `blueprint` must be provided
+- exactly one of `path` or `producer` must be provided
 - `path` resolves relative to the importing blueprint file
-- `producer` resolves under `catalog/producers`
-- `blueprint` resolves under `catalog/blueprints`
+- `producer` resolves through the catalog producer namespace
+- no fallback search is allowed between local and catalog resolution
+- a `producer:` reference must not heuristically search both producer and blueprint namespaces
 
-This is the cleanest way to make catalog composites first-class without overloading the existing `producer` meaning.
+Compatibility:
+
+- this preserves the current authored shape instead of introducing a third import form
+- existing local prompt-style modules keep working unchanged
+- composite modules fit into the same import convention as everything else
+
+This keeps the author mental model simple:
+
+- `path:` means local module
+- `producer:` means catalog module
+- whether that module is leaf or composite is an internal implementation detail
 
 ### 3. Parent blueprints consume only the composite’s public contract
 
@@ -137,7 +166,7 @@ loops:
 
 producers:
   - name: SegmentUnit
-    blueprint: video/segment-unit
+    producer: video/segment-unit
     loop: segment
 
 connections:
@@ -187,24 +216,83 @@ This is the core authoring experience to optimize for.
 
 ### 1. Import parsing and resolution
 
-Update `ProducerImportDefinition` and parser/loading logic so a producer import can resolve one of:
+Keep `ProducerImportDefinition` author-facing shape centered on the current two import sources:
 
 - `path`
 - `producer`
-- `blueprint`
 
 Required behavior:
 
-- reject entries that specify more than one import source
+- reject entries that specify both import sources
 - reject entries that specify none
-- fail fast when `blueprint:` is used without a catalog root
-- fail fast when the referenced catalog blueprint does not exist
+- `path:` continues to resolve relative to the importing blueprint file
+- `producer:` continues to resolve through the catalog producer namespace
+- the resolved target for either import source may be:
+  - a leaf producer module
+  - a composite blueprint module
+- fail fast when the referenced local or catalog module does not exist
 
 Implementation note:
 
-- keep existing `producer` resolution behavior unchanged
-- add a new blueprint resolver rooted at `catalog/blueprints`
-- do not add fallback search order between producers and blueprints
+- keep the import surface unchanged for authors
+- extend the catalog producer resolver so catalog-importable reusable composites live in the same import namespace as catalog producers
+- do not introduce a parallel author-facing blueprint import namespace
+- do not add fallback search order or heuristic resolution between catalog locations
+
+Catalog layout decision:
+
+- reusable composite modules should be publishable through the same catalog producer namespace used by `producer:`
+- from the parent author’s perspective they are producers, even if internally their YAML kind is `blueprint`
+- the catalog structure should therefore make reusable composites addressable by `producer:` without introducing a second catalog import concept
+
+Concrete layout rule:
+
+- keep reusable composites under `catalog/producers`, not `catalog/blueprints`
+- support the same two catalog file shapes the resolver already supports:
+  - direct file form: `catalog/producers/<domain>/<name>.yaml`
+  - nested folder form: `catalog/producers/<domain>/<name>/<name>.yaml`
+- default to the direct single-file form unless the composite genuinely needs sibling files
+
+Simple composite example:
+
+```text
+catalog/producers/video/kling-voice-conditioned.yaml
+```
+
+Imported as:
+
+```yaml
+producers:
+  - name: VoiceConditionedVideo
+    producer: video/kling-voice-conditioned
+```
+
+Optional expanded layout when the composite needs local sibling files:
+
+```text
+catalog/producers/video/kling-voice-conditioned/kling-voice-conditioned.yaml
+catalog/producers/video/kling-voice-conditioned/voice-id-step.yaml
+catalog/producers/video/kling-voice-conditioned/video-step.yaml
+catalog/producers/video/kling-voice-conditioned/*.toml
+catalog/producers/video/kling-voice-conditioned/*.json
+```
+
+Those extra files are not a required extra layer. They are only examples of files the root composite might reference if the implementation becomes large enough that splitting it improves readability.
+
+Resolver compatibility:
+
+- the current qualified-name resolver already supports both direct-file and nested-folder lookup
+- direct single-file form should be the default for v1 because it is simpler to author and explain
+- nested-folder form should be used only when the composite needs room for:
+  - internal child blueprints
+  - prompt files
+  - output schemas
+  - helper assets or config files
+
+This gives a clear rule without changing authored imports:
+
+- local reusable module under the parent blueprint folder: use `path:`
+- reusable module published in the catalog: place it under `catalog/producers/...` and import it with `producer:`
 
 ### 2. Public/private boundary for imported blueprints
 
@@ -270,7 +358,7 @@ This feature must follow the repo’s canonical-ID rules strictly.
 The implementation must never:
 
 - silently substitute a missing internal artifact
-- guess whether a catalog reference meant `producer` or `blueprint`
+- guess between local and catalog import resolution
 - allow parent references to private internals “because it happens to resolve”
 - fall back from canonical to alias lookup during runtime
 
@@ -297,8 +385,8 @@ Examples:
 
 Likely additions:
 
-- parser code for unknown catalog blueprint reference
-- parser code for `producer`/`blueprint`/`path` import source conflicts if existing import conflict codes are no longer precise enough
+- parser code for unknown catalog composite/producer reference if existing `P033` is too producer-leaf-specific
+- parser code for invalid import-source combinations if existing import conflict codes are no longer precise enough
 - runtime or validation code for parent access to private composite internals if existing graph-reference errors are too vague
 
 Messages must be concrete and actionable, for example:
@@ -347,19 +435,20 @@ Follow the existing fixture pattern and naming style, for example:
 - `core/tests/fixtures/composite-blueprint--single-output-segment`
 - `core/tests/fixtures/composite-blueprint--multi-output-artifacts`
 - `core/tests/fixtures/composite-blueprint--private-internal-reference-rejected`
-- `core/tests/fixtures/catalog-blueprint-import--qualified-module`
+- `core/tests/fixtures/catalog-composite-import--qualified-module`
 - `core/tests/fixtures/composite-blueprint--canonical-boundary-bindings`
 
 ### 2. Core parser/loading tests
 
 Add fixture-based tests for:
 
-- parsing `blueprint:` imports
+- parsing local composite imports through `path:`
+- parsing catalog composite imports through `producer:`
+- resolving nested-folder catalog composites through the existing qualified-name lookup
 - rejecting `path` + `producer`
-- rejecting `path` + `blueprint`
-- rejecting `producer` + `blueprint`
 - rejecting missing import source
-- rejecting unknown catalog blueprint reference
+- rejecting unknown catalog composite/producer reference
+- rejecting missing local blueprint path
 - loading nested composites through alias paths
 
 ### 3. Resolution and canonical graph tests
@@ -385,7 +474,8 @@ Add focused tests for:
 Add dedicated integration fixtures under the CLI fixture tree for:
 
 - local composite import by `path`
-- catalog composite import by `blueprint`
+- catalog composite import by `producer`
+- nested-folder catalog composite import with relative child files
 - one-segment-one-final-video composite flow
 - multi-output composite flow
 
@@ -395,9 +485,11 @@ These fixtures should be named by scenario, not by product blueprint.
 
 ### Phase 1: Import Contract
 
-- add `blueprint:` to producer import definitions
+- keep `path`/`producer` authoring unchanged
 - update parser validation for mutually exclusive import sources
-- update loader resolution to find catalog blueprints
+- make both `path` and `producer` able to resolve modules whose implementation is leaf or composite
+- extend catalog import resolution so reusable composites are imported through `producer:`
+- support reusable catalog composites in both existing resolver shapes, with direct single-file as the default
 - add parser fixture coverage
 
 ### Phase 2: Boundary Enforcement
@@ -445,17 +537,18 @@ Mitigation:
 
 ### Risk: ambiguous catalog import behavior
 
-If `producer:` starts heuristically resolving both producers and blueprints, authoring becomes unpredictable.
+If catalog composites are added in a way that forces heuristic searching or introduces two competing catalog import concepts, authoring becomes unpredictable.
 
 Mitigation:
 
-- keep `producer:` and `blueprint:` separate
+- keep the authored import surface to `path` and `producer`
+- place reusable composites in the same catalog import namespace as catalog producers
 - fail fast on invalid or missing import sources
 
 ## Acceptance Criteria
 
 - Authors can build reusable multi-step producer modules entirely in YAML.
-- Both local and catalog composite modules can be imported cleanly.
+- Both local composite modules and catalog composite modules can be imported cleanly using the existing `path` and `producer` convention.
 - Parent blueprints can wire only to a composite’s public interface.
 - Internal execution uses canonical IDs only.
 - Missing bindings or invalid references fail fast with numbered typed errors.

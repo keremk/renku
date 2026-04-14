@@ -1,0 +1,46 @@
+meta:
+  id: CompositeLocalVideo
+  name: Composite Local Video
+
+inputs:
+  - name: Duration
+    type: number
+    required: true
+  - name: NumOfSegments
+    type: int
+    required: true
+  - name: Prompts
+    type: array
+    itemType: string
+    required: true
+    countInput: NumOfSegments
+  - name: SourceImages
+    type: array
+    itemType: image
+    required: true
+    countInput: NumOfSegments
+
+artifacts:
+  - name: SegmentVideos
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+
+loops:
+  - name: segment
+    countInput: NumOfSegments
+
+producers:
+  - name: SegmentUnit
+    path: ./segment-unit/segment-unit.yaml
+    loop: segment
+
+connections:
+  - from: Duration
+    to: SegmentUnit[segment].Duration
+  - from: Prompts[segment]
+    to: SegmentUnit[segment].Prompt
+  - from: SourceImages[segment]
+    to: SegmentUnit[segment].SourceImage
+  - from: SegmentUnit[segment].FinalVideo
+    to: SegmentVideos[segment]

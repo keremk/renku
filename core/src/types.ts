@@ -423,11 +423,15 @@ export interface ResolvedEdgeConditionGroup {
 }
 
 /**
- * Definition for importing a producer blueprint.
+ * Definition for importing a local or catalog-backed module through `producers:`.
  *
- * Producers are imported via the `producers:` section in blueprint YAML.
- * They are inlined into the graph and do NOT create a namespace.
- * The `name` field is the alias used to refer to the producer in connections.
+ * The import source must be declared explicitly with exactly one of:
+ * - `path`: a local YAML module relative to the parent blueprint
+ * - `producer`: a qualified catalog module under `catalog/producers`
+ *
+ * The `name` field is the alias used to refer to the imported module in
+ * connections. Internally that alias becomes the canonical namespace path for
+ * the imported module's public and private nodes.
  */
 export interface ProducerImportDefinition {
   /** Alias used to refer to this producer in connections (e.g., "ScriptProducer") */

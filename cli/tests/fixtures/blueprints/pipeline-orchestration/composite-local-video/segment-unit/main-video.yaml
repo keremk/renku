@@ -1,0 +1,19 @@
+meta:
+  id: MainVideo
+  name: Main Video
+  kind: producer
+
+inputs:
+  - name: Prompt
+    type: string
+    required: true
+  - name: Duration
+    type: number
+    required: true
+  - name: StartImage
+    type: image
+    required: true
+
+artifacts:
+  - name: GeneratedVideo
+    type: video

@@ -283,6 +283,156 @@ describe('validateProducerInputOutput', () => {
 
     expect(issues).toHaveLength(0);
   });
+
+  it('rejects parent access to a composite producer private internal input', () => {
+    const prepDoc = createDocument({
+      inputs: [{ name: 'SourceImage', type: 'image', required: true }],
+      artefacts: [{ name: 'EditedImage', type: 'image', required: true }],
+    });
+    const mainVideoDoc = createDocument({
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'number', required: true },
+        { name: 'StartImage', type: 'image', required: true },
+      ],
+      artefacts: [{ name: 'GeneratedVideo', type: 'video', required: true }],
+    });
+    const compositeDoc = createDocument({
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'number', required: true },
+        { name: 'SourceImage', type: 'image', required: true },
+      ],
+      artefacts: [{ name: 'FinalVideo', type: 'video', required: true }],
+      producerImports: [
+        { name: 'PrepImage', path: './prep-image.yaml' },
+        { name: 'MainVideo', path: './main-video.yaml' },
+      ],
+      edges: [
+        { from: 'SourceImage', to: 'PrepImage.SourceImage' },
+        { from: 'Prompt', to: 'MainVideo.Prompt' },
+        { from: 'Duration', to: 'MainVideo.Duration' },
+        { from: 'PrepImage.EditedImage', to: 'MainVideo.StartImage' },
+        { from: 'MainVideo.GeneratedVideo', to: 'FinalVideo' },
+      ],
+    });
+
+    const compositeNode = createTreeNode(compositeDoc, {
+      namespacePath: ['SegmentUnit'],
+      children: new Map([
+        [
+          'PrepImage',
+          createTreeNode(prepDoc, { namespacePath: ['SegmentUnit', 'PrepImage'] }),
+        ],
+        [
+          'MainVideo',
+          createTreeNode(mainVideoDoc, {
+            namespacePath: ['SegmentUnit', 'MainVideo'],
+          }),
+        ],
+      ]),
+    });
+
+    const rootDoc = createDocument({
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'number', required: true },
+        { name: 'SourceImage', type: 'image', required: true },
+      ],
+      artefacts: [{ name: 'Output', type: 'video', required: true }],
+      producerImports: [{ name: 'SegmentUnit', path: './segment-unit.yaml' }],
+      edges: [
+        { from: 'Prompt', to: 'SegmentUnit.MainVideo.Prompt' },
+        { from: 'Duration', to: 'SegmentUnit.Duration' },
+        { from: 'SourceImage', to: 'SegmentUnit.SourceImage' },
+        { from: 'SegmentUnit.FinalVideo', to: 'Output' },
+      ],
+    });
+    const rootNode = createTreeNode(rootDoc, {
+      children: new Map([['SegmentUnit', compositeNode]]),
+    });
+
+    const issues = validateProducerInputOutput(rootNode);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.PRODUCER_INPUT_MISMATCH,
+        message: expect.stringContaining('does not expose input "MainVideo"'),
+      })
+    );
+  });
+
+  it('rejects parent access to a composite producer private internal artifact', () => {
+    const compositeDoc = createDocument({
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'number', required: true },
+        { name: 'SourceImage', type: 'image', required: true },
+      ],
+      artefacts: [{ name: 'FinalVideo', type: 'video', required: true }],
+      producerImports: [{ name: 'MainVideo', path: './main-video.yaml' }],
+      edges: [
+        { from: 'Prompt', to: 'MainVideo.Prompt' },
+        { from: 'Duration', to: 'MainVideo.Duration' },
+        { from: 'SourceImage', to: 'MainVideo.StartImage' },
+        { from: 'MainVideo.GeneratedVideo', to: 'FinalVideo' },
+      ],
+    });
+
+    const compositeNode = createTreeNode(compositeDoc, {
+      namespacePath: ['SegmentUnit'],
+      children: new Map([
+        [
+          'MainVideo',
+          createTreeNode(
+            createDocument({
+              inputs: [
+                { name: 'Prompt', type: 'string', required: true },
+                { name: 'Duration', type: 'number', required: true },
+                { name: 'StartImage', type: 'image', required: true },
+              ],
+              artefacts: [
+                { name: 'GeneratedVideo', type: 'video', required: true },
+              ],
+            }),
+            {
+              namespacePath: ['SegmentUnit', 'MainVideo'],
+            }
+          ),
+        ],
+      ]),
+    });
+
+    const rootDoc = createDocument({
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'number', required: true },
+        { name: 'SourceImage', type: 'image', required: true },
+      ],
+      artefacts: [{ name: 'Output', type: 'video', required: true }],
+      producerImports: [{ name: 'SegmentUnit', path: './segment-unit.yaml' }],
+      edges: [
+        { from: 'Prompt', to: 'SegmentUnit.Prompt' },
+        { from: 'Duration', to: 'SegmentUnit.Duration' },
+        { from: 'SourceImage', to: 'SegmentUnit.SourceImage' },
+        { from: 'SegmentUnit.MainVideo.GeneratedVideo', to: 'Output' },
+      ],
+    });
+    const rootNode = createTreeNode(rootDoc, {
+      children: new Map([['SegmentUnit', compositeNode]]),
+    });
+
+    const issues = validateProducerInputOutput(rootNode);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.PRODUCER_OUTPUT_MISMATCH,
+        message: expect.stringContaining(
+          'does not expose artifact "MainVideo"'
+        ),
+      })
+    );
+  });
 });
 
 describe('validateMediaProducerDurationContract', () => {

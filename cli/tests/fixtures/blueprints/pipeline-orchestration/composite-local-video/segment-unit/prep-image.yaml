@@ -1,0 +1,13 @@
+meta:
+  id: PrepImage
+  name: Prep Image
+  kind: producer
+
+inputs:
+  - name: SourceImage
+    type: image
+    required: true
+
+artifacts:
+  - name: EditedImage
+    type: image

@@ -948,6 +948,48 @@ describe('input-loader edge cases', () => {
     expect(scriptSelection?.model).toBe('claude-sonnet');
   });
 
+  it('canonicalizes producer-scoped inputs for internal producers inside composites', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-composite-nested-'));
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'composite-blueprint--single-output-segment',
+      'composite-blueprint--single-output-segment.yaml'
+    );
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot,
+    });
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          Duration: 60,
+          NumOfSegments: 2,
+          Prompts: ['first prompt', 'second prompt'],
+          SourceImages: ['image-1', 'image-2'],
+          'SegmentUnit.MainVideo.provider': 'fal-ai',
+          'SegmentUnit.MainVideo.model': 'veo3.1/image-to-video',
+        },
+      }),
+      'utf8'
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    const selection = loaded.modelSelections.find(
+      (entry) => entry.producerId === 'SegmentUnit.MainVideo'
+    );
+
+    expect(selection?.provider).toBe('fal-ai');
+    expect(selection?.model).toBe('veo3.1/image-to-video');
+    expect(loaded.values['Input:SegmentUnit.MainVideo.provider']).toBe(
+      'fal-ai'
+    );
+    expect(loaded.values['Input:SegmentUnit.MainVideo.model']).toBe(
+      'veo3.1/image-to-video'
+    );
+  });
+
   it('handles array values in inputs', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-array-input-'));
     const blueprint: BlueprintTreeNode = {
