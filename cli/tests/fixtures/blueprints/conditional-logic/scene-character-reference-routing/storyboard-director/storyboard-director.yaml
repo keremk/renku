@@ -2,6 +2,7 @@ meta:
   name: Scene Character Storyboard Director
   description: Produces scene prompts, shot type, scene number, and per-scene character presence masks.
   id: SceneCharacterStoryboardDirector
+  kind: producer
   version: 0.1.0
   promptFile: ./storyboard-director.toml
   outputSchema: ./storyboard-director-output.json

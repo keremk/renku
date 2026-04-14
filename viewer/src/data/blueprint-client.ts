@@ -207,6 +207,8 @@ export function fetchProducerConfigSchemas(
  */
 export async function fetchProducerFieldPreview(args: {
   blueprintPath: string;
+  blueprintFolder?: string | null;
+  movieId?: string | null;
   catalogRoot?: string | null;
   inputs: Record<string, unknown>;
   models: Array<{ producerId: string; provider: string; model: string }>;
@@ -216,6 +218,8 @@ export async function fetchProducerFieldPreview(args: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       blueprintPath: args.blueprintPath,
+      blueprintFolder: args.blueprintFolder ?? undefined,
+      movieId: args.movieId ?? undefined,
       catalogRoot: args.catalogRoot ?? undefined,
       inputs: args.inputs,
       models: args.models,
@@ -240,7 +244,9 @@ export function fetchBuildsList(
 
 export function fetchBuildManifest(
   blueprintFolder: string,
-  movieId: string
+  movieId: string,
+  blueprintPath: string,
+  catalogRoot?: string | null
 ): Promise<BuildManifestResponse> {
   const url = new URL(
     `${API_BASE}/blueprints/manifest`,
@@ -248,6 +254,10 @@ export function fetchBuildManifest(
   );
   url.searchParams.set('folder', blueprintFolder);
   url.searchParams.set('movieId', movieId);
+  url.searchParams.set('blueprintPath', blueprintPath);
+  if (catalogRoot) {
+    url.searchParams.set('catalog', catalogRoot);
+  }
   return fetchJson<BuildManifestResponse>(url.toString());
 }
 
@@ -319,7 +329,8 @@ export async function saveBuildInputs(
   blueprintPath: string,
   movieId: string,
   inputs: Record<string, unknown>,
-  models: ModelSelectionValue[]
+  models: ModelSelectionValue[],
+  catalogRoot?: string | null
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/blueprints/builds/inputs`, {
     method: 'PUT',
@@ -327,6 +338,7 @@ export async function saveBuildInputs(
     body: JSON.stringify({
       blueprintFolder,
       blueprintPath,
+      catalogRoot: catalogRoot ?? undefined,
       movieId,
       inputs,
       models,
@@ -952,7 +964,8 @@ export async function saveProducerPrompts(
   movieId: string,
   blueprintPath: string,
   producerId: string,
-  prompts: PromptData
+  prompts: PromptData,
+  catalogRoot?: string | null
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/blueprints/builds/prompts`, {
     method: 'PUT',
@@ -961,6 +974,7 @@ export async function saveProducerPrompts(
       blueprintFolder,
       movieId,
       blueprintPath,
+      catalogRoot: catalogRoot ?? undefined,
       producerId,
       prompts,
     }),
@@ -978,7 +992,9 @@ export async function saveProducerPrompts(
 export async function restoreProducerPrompts(
   blueprintFolder: string,
   movieId: string,
-  producerId: string
+  blueprintPath: string,
+  producerId: string,
+  catalogRoot?: string | null
 ): Promise<void> {
   const response = await fetch(
     `${API_BASE}/blueprints/builds/prompts/restore`,
@@ -988,6 +1004,8 @@ export async function restoreProducerPrompts(
       body: JSON.stringify({
         blueprintFolder,
         movieId,
+        blueprintPath,
+        catalogRoot: catalogRoot ?? undefined,
         producerId,
       }),
     }

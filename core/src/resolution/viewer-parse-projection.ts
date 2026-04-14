@@ -43,6 +43,7 @@ export interface BlueprintParseGraphNode {
   type: 'input' | 'producer' | 'output';
   label: string;
   loop?: string;
+  runnable?: boolean;
   producerType?: string;
   description?: string;
   inputBindings?: ProducerBinding[];
@@ -264,11 +265,13 @@ export function collectNodesAndEdges(
   });
 
   for (const producerImport of doc.producerImports) {
+    const childNode = node.children.get(producerImport.name);
     nodes.push({
       id: `Producer:${producerImport.name}`,
       type: 'producer',
       label: producerImport.name,
       loop: producerImport.loop,
+      runnable: childNode?.document.meta.kind === 'producer',
       producerType: producerImport.producer,
       description: producerImport.description,
       inputBindings: [],

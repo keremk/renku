@@ -2,6 +2,7 @@ meta:
   name: Child Producer B
   description: Second child producer for testing.
   id: ChildProducerB
+  kind: producer
   version: 0.1.0
 
 inputs:

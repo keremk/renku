@@ -34,6 +34,7 @@ export interface CreateBuildResponse {
 export interface BuildInputsRequest {
   blueprintFolder: string;
   blueprintPath: string;
+  catalogRoot?: string;
   movieId: string;
   inputs: Record<string, unknown>;
   models: SerializableModelSelection[];

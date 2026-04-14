@@ -45,7 +45,7 @@ import type { CreateBlueprintFromTemplateRequest } from './types.js';
  *   GET  /blueprints/storyboard?path=...&folder=...&movieId=...&catalog=...
  *   GET  /blueprints/inputs?path=...
  *   GET  /blueprints/builds?folder=...
- *   GET  /blueprints/manifest?folder=...&movieId=...
+ *   GET  /blueprints/manifest?folder=...&movieId=...&blueprintPath=...
  *   GET  /blueprints/timeline?folder=...&movieId=...
  *   GET  /blueprints/asset?folder=...&movieId=...&assetId=...
  *   GET  /blueprints/blob?folder=...&movieId=...&hash=...
@@ -260,10 +260,19 @@ export async function handleBlueprintRequest(
     case 'manifest': {
       const folder = url.searchParams.get('folder');
       const movieId = url.searchParams.get('movieId');
-      if (!folder || !movieId) {
-        return respondBadRequest(res, 'Missing folder or movieId parameter');
+      const blueprintPath = url.searchParams.get('blueprintPath');
+      if (!folder || !movieId || !blueprintPath) {
+        return respondBadRequest(
+          res,
+          'Missing folder, movieId, or blueprintPath parameter'
+        );
       }
-      const manifestData = await getBuildManifest(folder, movieId);
+      const manifestData = await getBuildManifest(
+        folder,
+        movieId,
+        blueprintPath,
+        catalogRoot
+      );
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(manifestData));
       return true;

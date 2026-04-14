@@ -69,6 +69,7 @@ interface BlueprintViewerProps {
 interface ProducerNodeData {
   label: string;
   loop?: string;
+  runnable?: boolean;
   producerType?: string;
   description?: string;
   status: ProducerStatus;
@@ -348,6 +349,7 @@ function parseProducerNodeData(node: Node): ProducerDetails {
   return {
     nodeId: producerFamilyId,
     label: data.label,
+    runnable: data.runnable,
     loop: data.loop,
     producerType: data.producerType,
     description: data.description,
@@ -469,6 +471,14 @@ export function BlueprintViewer({
 
   useEffect(() => {
     if (!dialogProducer || !dialogProducerId) {
+      return;
+    }
+
+    if (dialogProducer.runnable === false) {
+      setSchedulingUiByProducerId((prev) => ({
+        ...prev,
+        [dialogProducerId]: { loading: false, error: null },
+      }));
       return;
     }
 

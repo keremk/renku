@@ -2,6 +2,7 @@ meta:
   name: Educational Character Script Generator
   description: Generate scripts and character definitions for animated educational videos with Pixar-style characters.
   id: EduScriptProducer
+  kind: producer
   version: 0.1.0
   author: User
   license: MIT

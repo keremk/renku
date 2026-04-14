@@ -1,6 +1,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import {
+  createEventLog,
+  createStorageContext,
+  initializeMovieStorage,
+  persistBlobToStorage,
+} from '@gorenku/core';
 import { getProducerFieldPreview } from './producer-field-preview-handler.js';
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -8,6 +16,16 @@ const REPO_ROOT = path.resolve(TEST_DIR, '../../..');
 const CATALOG_ROOT = path.join(REPO_ROOT, 'catalog');
 
 describe('getProducerFieldPreview', () => {
+  const tempDirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(
+      tempDirs.splice(0).map((tempDir) =>
+        rm(tempDir, { recursive: true, force: true })
+      )
+    );
+  });
+
   it('returns producer field preview fields without producer-level contract errors for animated-edu blueprint', async () => {
     const blueprintPath = path.join(
       CATALOG_ROOT,
@@ -26,22 +44,22 @@ describe('getProducerFieldPreview', () => {
       },
       models: [
         {
-          producerId: 'CharacterImageProducer',
+          producerId: 'Producer:CharacterImageProducer',
           provider: 'fal-ai',
           model: 'flux-2',
         },
         {
-          producerId: 'NarrationAudioProducer',
+          producerId: 'Producer:NarrationAudioProducer',
           provider: 'fal-ai',
           model: 'elevenlabs/tts/eleven-v3',
         },
         {
-          producerId: 'LipsyncVideoProducer',
+          producerId: 'Producer:LipsyncVideoProducer',
           provider: 'fal-ai',
           model: 'ltx-2.3/audio-to-video',
         },
         {
-          producerId: 'TranscriptionProducer',
+          producerId: 'Producer:TranscriptionProducer',
           provider: 'renku',
           model: 'speech/transcription',
         },
@@ -50,20 +68,22 @@ describe('getProducerFieldPreview', () => {
 
     expect(Object.keys(response.errorsByProducer ?? {})).toHaveLength(0);
 
-    const imagePreview = response.producers.CharacterImageProducer;
+    const imagePreview = response.producers['Producer:CharacterImageProducer'];
     expect((imagePreview?.fields.length ?? 0) > 0).toBe(true);
 
-    const narrationPreview = response.producers.NarrationAudioProducer;
+    const narrationPreview =
+      response.producers['Producer:NarrationAudioProducer'];
     expect((narrationPreview?.fields.length ?? 0) > 0).toBe(true);
     expect(
       narrationPreview?.fields.some((field) => field.field === 'language_code')
     ).toBe(true);
 
-    const lipsyncPreview = response.producers.LipsyncVideoProducer;
+    const lipsyncPreview = response.producers['Producer:LipsyncVideoProducer'];
     expect(lipsyncPreview).toBeDefined();
     expect(Array.isArray(lipsyncPreview?.fields)).toBe(true);
 
-    const transcriptionPreview = response.producers.TranscriptionProducer;
+    const transcriptionPreview =
+      response.producers['Producer:TranscriptionProducer'];
     expect((transcriptionPreview?.fields.length ?? 0) > 0).toBe(true);
     expect(
       transcriptionPreview?.fields.some(
@@ -86,7 +106,7 @@ describe('getProducerFieldPreview', () => {
       inputs: {},
       models: [
         {
-          producerId: 'CharacterImageProducer',
+          producerId: 'Producer:CharacterImageProducer',
           provider: 'fal-ai',
           model: 'flux-2',
         },
@@ -94,7 +114,7 @@ describe('getProducerFieldPreview', () => {
     });
 
     expect(Object.keys(response.errorsByProducer ?? {})).toHaveLength(0);
-    const preview = response.producers.CharacterImageProducer;
+    const preview = response.producers['Producer:CharacterImageProducer'];
     expect((preview?.fields.length ?? 0) > 0).toBe(true);
     expect(preview?.fields.every((field) => field.status !== 'error')).toBe(
       true
@@ -136,7 +156,7 @@ describe('getProducerFieldPreview', () => {
       },
       models: [
         {
-          producerId: 'ThenImageProducer',
+          producerId: 'Producer:ThenImageProducer',
           provider: 'fal-ai',
           model: 'qwen-image-edit-2511',
         },
@@ -145,7 +165,7 @@ describe('getProducerFieldPreview', () => {
 
     expect(Object.keys(response.errorsByProducer ?? {})).toHaveLength(0);
 
-    const imagePreview = response.producers.ThenImageProducer;
+    const imagePreview = response.producers['Producer:ThenImageProducer'];
     const imageUrlsField = imagePreview?.fields.find(
       (field) => field.field === 'image_urls'
     );
@@ -174,5 +194,163 @@ describe('getProducerFieldPreview', () => {
     expect(imageSizeField?.connectionBehavior).toBe('invariant');
     expect(imageSizeField?.overridePolicy).toBe('editable');
     expect(imageSizeField?.instances).toHaveLength(2);
+  });
+
+  it('resolves canonical prompt artifacts from the selected build for composite leaf producers', async () => {
+    const blueprintPath = path.join(
+      CATALOG_ROOT,
+      'blueprints',
+      'celebrity-then-now',
+      'celebrity-then-now.yaml'
+    );
+    const blueprintFolder = await mkdtemp(
+      path.join(os.tmpdir(), 'producer-field-preview-')
+    );
+    tempDirs.push(blueprintFolder);
+
+    const movieId = 'movie-preview';
+    const storage = createStorageContext({
+      kind: 'local',
+      rootDir: blueprintFolder,
+      basePath: 'builds',
+    });
+    await initializeMovieStorage(storage, movieId);
+    const eventLog = createEventLog(storage);
+
+    const promptArtifacts = [
+      {
+        artifactId:
+          'Artifact:DirectorProducer.Script.Characters[0].TogetherImagePrompt',
+        text: 'Compose the younger and older celebrity standing together in the same scene.',
+        producedBy: 'Producer:DirectorProducer',
+      },
+      {
+        artifactId:
+          'Artifact:DirectorProducer.Script.Characters[1].TogetherImagePrompt',
+        text: 'Create a reunion portrait with both eras of the celebrity sharing the frame.',
+        producedBy: 'Producer:DirectorProducer',
+      },
+    ] as const;
+    const imageArtifacts = [
+      {
+        artifactId: 'Artifact:ThenImageProducer.ComposedImage[0]',
+        payload: new Uint8Array([137, 80, 78, 71, 0]),
+      },
+      {
+        artifactId: 'Artifact:NowImageProducer.ComposedImage[0]',
+        payload: new Uint8Array([137, 80, 78, 71, 1]),
+      },
+      {
+        artifactId: 'Artifact:ThenImageProducer.ComposedImage[1]',
+        payload: new Uint8Array([137, 80, 78, 71, 2]),
+      },
+      {
+        artifactId: 'Artifact:NowImageProducer.ComposedImage[1]',
+        payload: new Uint8Array([137, 80, 78, 71, 3]),
+      },
+    ] as const;
+
+    for (const promptArtifact of promptArtifacts) {
+      const blob = await persistBlobToStorage(storage, movieId, {
+        data: promptArtifact.text,
+        mimeType: 'text/plain',
+      });
+      await eventLog.appendArtefact(movieId, {
+        artefactId: promptArtifact.artifactId,
+        revision: 'rev-preview',
+        inputsHash: 'inputs-preview',
+        output: { blob },
+        status: 'succeeded',
+        producedBy: promptArtifact.producedBy,
+        createdAt: '2026-04-14T12:00:00Z',
+      });
+    }
+
+    const imageBlobHashes = new Map<string, string>();
+    for (const imageArtifact of imageArtifacts) {
+      const blob = await persistBlobToStorage(storage, movieId, {
+        data: imageArtifact.payload,
+        mimeType: 'image/png',
+      });
+      imageBlobHashes.set(imageArtifact.artifactId, blob.hash);
+      await eventLog.appendArtefact(movieId, {
+        artefactId: imageArtifact.artifactId,
+        revision: 'rev-preview',
+        inputsHash: 'inputs-preview',
+        output: { blob },
+        status: 'succeeded',
+        producedBy: 'Producer:ThenImageProducer',
+        createdAt: '2026-04-14T12:00:00Z',
+      });
+    }
+
+    const response = await getProducerFieldPreview({
+      blueprintPath,
+      blueprintFolder,
+      movieId,
+      catalogRoot: CATALOG_ROOT,
+      inputs: {
+        'Input:CelebrityThenImages': [
+          'file:./images/then-1.jpg',
+          'file:./images/then-2.jpg',
+        ],
+        'Input:CelebrityNowImages': [
+          'file:./images/now-1.jpg',
+          'file:./images/now-2.jpg',
+        ],
+        'Input:SettingImage': 'file:./images/setting.jpg',
+        'Input:Theme': 'Theme',
+        'Input:EnvironmentDescription': 'Environment',
+        'Input:VisualStyle': 'Visual style',
+        'Input:MusicalStyle': 'Music style',
+        'Input:NumOfSegments': 2,
+        'Input:MeetingDuration': 10,
+        'Input:TransitionDuration': 5,
+        'Input:SegmentDuration': 15,
+        'Input:Duration': 30,
+        'Input:Resolution': { width: 1280, height: 720 },
+      },
+      models: [
+        {
+          producerId: 'Producer:CelebrityVideoProducer.TogetherImageProducer',
+          provider: 'fal-ai',
+          model: 'xai/grok-imagine-image/edit',
+        },
+      ],
+    });
+
+    expect(Object.keys(response.errorsByProducer ?? {})).toHaveLength(0);
+
+    const promptField = response.producers[
+      'Producer:CelebrityVideoProducer.TogetherImageProducer'
+    ]?.fields.find((field) => field.field === 'prompt');
+
+    expect(promptField).toBeDefined();
+    expect(promptField?.status).toBe('ok');
+    expect(promptField?.errors).toEqual([]);
+    expect(promptField?.value).toBe(promptArtifacts[0].text);
+    expect(promptField?.instances).toHaveLength(2);
+    expect(promptField?.instances?.[0]?.value).toBe(promptArtifacts[0].text);
+    expect(promptField?.instances?.[1]?.value).toBe(promptArtifacts[1].text);
+
+    const imageUrlsField = response.producers[
+      'Producer:CelebrityVideoProducer.TogetherImageProducer'
+    ]?.fields.find((field) => field.field === 'image_urls');
+
+    expect(imageUrlsField).toBeDefined();
+    expect(imageUrlsField?.status).toBe('ok');
+    expect(imageUrlsField?.value).toEqual([
+      `/viewer-api/blueprints/blob?folder=${encodeURIComponent(blueprintFolder)}&movieId=${movieId}&hash=${imageBlobHashes.get('Artifact:ThenImageProducer.ComposedImage[0]')}`,
+      `/viewer-api/blueprints/blob?folder=${encodeURIComponent(blueprintFolder)}&movieId=${movieId}&hash=${imageBlobHashes.get('Artifact:NowImageProducer.ComposedImage[0]')}`,
+    ]);
+    expect(imageUrlsField?.instances).toHaveLength(2);
+    expect(imageUrlsField?.instances?.[0]?.value).toEqual([
+      `/viewer-api/blueprints/blob?folder=${encodeURIComponent(blueprintFolder)}&movieId=${movieId}&hash=${imageBlobHashes.get('Artifact:ThenImageProducer.ComposedImage[0]')}`,
+      `/viewer-api/blueprints/blob?folder=${encodeURIComponent(blueprintFolder)}&movieId=${movieId}&hash=${imageBlobHashes.get('Artifact:NowImageProducer.ComposedImage[0]')}`,
+    ]);
+    expect(imageUrlsField?.instances?.[1]?.value).toEqual([
+      `/viewer-api/blueprints/blob?folder=${encodeURIComponent(blueprintFolder)}&movieId=${movieId}&hash=${imageBlobHashes.get('Artifact:ThenImageProducer.ComposedImage[1]')}`,
+      `/viewer-api/blueprints/blob?folder=${encodeURIComponent(blueprintFolder)}&movieId=${movieId}&hash=${imageBlobHashes.get('Artifact:NowImageProducer.ComposedImage[1]')}`,
+    ]);
   });
 });

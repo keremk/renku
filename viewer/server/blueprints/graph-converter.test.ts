@@ -10,6 +10,17 @@ import {
   resolveEndpoint,
   resolveEdgeEndpoints,
 } from './graph-converter.js';
+import type { BlueprintTreeNode } from '@gorenku/core';
+
+function makeTreeNode(document: Record<string, unknown>): BlueprintTreeNode {
+  return {
+    id: String((document.meta as { id: string }).id),
+    namespacePath: [],
+    document,
+    children: new Map(),
+    sourcePath: '/tmp/test-blueprint.yaml',
+  } as unknown as BlueprintTreeNode;
+}
 
 describe('normalizeProducerName', () => {
   it('removes loop index suffixes', () => {
@@ -212,22 +223,20 @@ describe('resolveEdgeEndpoints', () => {
 
 describe('collectNodesAndEdges', () => {
   it('attaches detailed input/output bindings to producer nodes', () => {
-    const node = {
-      document: {
-        meta: { id: 'id', name: 'test' },
-        inputs: [{ name: 'Title', type: 'string', required: true }],
-        producerImports: [
-          { name: 'AudioGen', producer: 'asset/text-to-audio' },
-          { name: 'VideoGen', producer: 'asset/text-to-video' },
-        ],
-        artefacts: [{ name: 'FinalVideo', type: 'video' }],
-        edges: [
-          { from: 'Title', to: 'AudioGen.Input' },
-          { from: 'AudioGen.Output', to: 'VideoGen.Input', if: 'HasAudio' },
-          { from: 'VideoGen.Output', to: 'FinalVideo' },
-        ],
-      },
-    } as unknown as import('@gorenku/core').BlueprintTreeNode;
+    const node = makeTreeNode({
+      meta: { id: 'id', name: 'test' },
+      inputs: [{ name: 'Title', type: 'string', required: true }],
+      producerImports: [
+        { name: 'AudioGen', producer: 'asset/text-to-audio' },
+        { name: 'VideoGen', producer: 'asset/text-to-video' },
+      ],
+      artefacts: [{ name: 'FinalVideo', type: 'video' }],
+      edges: [
+        { from: 'Title', to: 'AudioGen.Input' },
+        { from: 'AudioGen.Output', to: 'VideoGen.Input', if: 'HasAudio' },
+        { from: 'VideoGen.Output', to: 'FinalVideo' },
+      ],
+    });
 
     const nodes: import('../types.js').BlueprintGraphNode[] = [];
     const edges: import('../types.js').BlueprintGraphEdge[] = [];
@@ -276,46 +285,44 @@ describe('collectNodesAndEdges', () => {
   });
 
   it('resolves nested loop producer references and wires ImageProducer bindings', () => {
-    const node = {
-      document: {
-        meta: { id: 'id', name: 'test' },
-        inputs: [
-          { name: 'Size', type: 'string', required: false },
-          { name: 'AspectRatio', type: 'string', required: false },
-        ],
-        producerImports: [
-          { name: 'ImagePromptProducer', producer: 'prompt/image' },
-          { name: 'ImageProducer', producer: 'asset/text-to-image' },
-          {
-            name: 'TimelineComposer',
-            producer: 'composition/timeline-composer',
-          },
-        ],
-        artefacts: [{ name: 'SegmentImage', type: 'array', itemType: 'image' }],
-        edges: [
-          {
-            from: 'ImagePromptProducer.ImagePrompt[segment][image]',
-            to: 'ImageProducer[segment][image].Prompt',
-          },
-          {
-            from: 'Size',
-            to: 'ImageProducer[segment][image].Resolution',
-          },
-          {
-            from: 'AspectRatio',
-            to: 'ImageProducer[segment][image].AspectRatio',
-          },
-          {
-            from: 'ImageProducer[segment][image].GeneratedImage',
-            to: 'SegmentImage[segment][image]',
-          },
-          {
-            from: 'ImageProducer[segment][image].GeneratedImage',
-            to: 'TimelineComposer.ImageSegments',
-          },
-        ],
-      },
-    } as unknown as import('@gorenku/core').BlueprintTreeNode;
+    const node = makeTreeNode({
+      meta: { id: 'id', name: 'test' },
+      inputs: [
+        { name: 'Size', type: 'string', required: false },
+        { name: 'AspectRatio', type: 'string', required: false },
+      ],
+      producerImports: [
+        { name: 'ImagePromptProducer', producer: 'prompt/image' },
+        { name: 'ImageProducer', producer: 'asset/text-to-image' },
+        {
+          name: 'TimelineComposer',
+          producer: 'composition/timeline-composer',
+        },
+      ],
+      artefacts: [{ name: 'SegmentImage', type: 'array', itemType: 'image' }],
+      edges: [
+        {
+          from: 'ImagePromptProducer.ImagePrompt[segment][image]',
+          to: 'ImageProducer[segment][image].Prompt',
+        },
+        {
+          from: 'Size',
+          to: 'ImageProducer[segment][image].Resolution',
+        },
+        {
+          from: 'AspectRatio',
+          to: 'ImageProducer[segment][image].AspectRatio',
+        },
+        {
+          from: 'ImageProducer[segment][image].GeneratedImage',
+          to: 'SegmentImage[segment][image]',
+        },
+        {
+          from: 'ImageProducer[segment][image].GeneratedImage',
+          to: 'TimelineComposer.ImageSegments',
+        },
+      ],
+    });
 
     const nodes: import('../types.js').BlueprintGraphNode[] = [];
     const edges: import('../types.js').BlueprintGraphEdge[] = [];
@@ -384,20 +391,16 @@ describe('collectNodesAndEdges', () => {
   });
 
   it('throws on unresolved edge endpoints instead of applying fallback classification', () => {
-    const node = {
-      document: {
-        meta: { id: 'id', name: 'test' },
-        inputs: [{ name: 'Title', type: 'string', required: true }],
-        producerImports: [
-          { name: 'AudioGen', producer: 'asset/text-to-audio' },
-        ],
-        artefacts: [{ name: 'FinalAudio', type: 'audio' }],
-        edges: [
-          { from: 'Title', to: 'AudioGen.Input' },
-          { from: 'UnknownThing', to: 'AudioGen.Input' },
-        ],
-      },
-    } as unknown as import('@gorenku/core').BlueprintTreeNode;
+    const node = makeTreeNode({
+      meta: { id: 'id', name: 'test' },
+      inputs: [{ name: 'Title', type: 'string', required: true }],
+      producerImports: [{ name: 'AudioGen', producer: 'asset/text-to-audio' }],
+      artefacts: [{ name: 'FinalAudio', type: 'audio' }],
+      edges: [
+        { from: 'Title', to: 'AudioGen.Input' },
+        { from: 'UnknownThing', to: 'AudioGen.Input' },
+      ],
+    });
 
     const nodes: import('../types.js').BlueprintGraphNode[] = [];
     const edges: import('../types.js').BlueprintGraphEdge[] = [];
@@ -411,20 +414,16 @@ describe('collectNodesAndEdges', () => {
 
 describe('convertTreeToGraph', () => {
   it('injects referenced system inputs into graph input definitions', () => {
-    const root = {
-      document: {
-        meta: { id: 'id', name: 'test' },
-        inputs: [],
-        producerImports: [
-          { name: 'AudioGen', producer: 'asset/text-to-audio' },
-        ],
-        artefacts: [{ name: 'FinalAudio', type: 'audio' }],
-        edges: [
-          { from: 'Duration', to: 'AudioGen.Duration' },
-          { from: 'AudioGen.Output', to: 'FinalAudio' },
-        ],
-      },
-    } as unknown as import('@gorenku/core').BlueprintTreeNode;
+    const root = makeTreeNode({
+      meta: { id: 'id', name: 'test' },
+      inputs: [],
+      producerImports: [{ name: 'AudioGen', producer: 'asset/text-to-audio' }],
+      artefacts: [{ name: 'FinalAudio', type: 'audio' }],
+      edges: [
+        { from: 'Duration', to: 'AudioGen.Duration' },
+        { from: 'AudioGen.Output', to: 'FinalAudio' },
+      ],
+    });
 
     const graph = convertTreeToGraph(root);
 
@@ -447,20 +446,16 @@ describe('convertTreeToGraph', () => {
   });
 
   it('marks derived system inputs as non-user-supplied in metadata', () => {
-    const root = {
-      document: {
-        meta: { id: 'id', name: 'test' },
-        inputs: [],
-        producerImports: [
-          { name: 'VideoGen', producer: 'asset/text-to-video' },
-        ],
-        artefacts: [{ name: 'FinalVideo', type: 'video' }],
-        edges: [
-          { from: 'SegmentDuration', to: 'VideoGen.Duration' },
-          { from: 'VideoGen.Output', to: 'FinalVideo' },
-        ],
-      },
-    } as unknown as import('@gorenku/core').BlueprintTreeNode;
+    const root = makeTreeNode({
+      meta: { id: 'id', name: 'test' },
+      inputs: [],
+      producerImports: [{ name: 'VideoGen', producer: 'asset/text-to-video' }],
+      artefacts: [{ name: 'FinalVideo', type: 'video' }],
+      edges: [
+        { from: 'SegmentDuration', to: 'VideoGen.Duration' },
+        { from: 'VideoGen.Output', to: 'FinalVideo' },
+      ],
+    });
 
     const graph = convertTreeToGraph(root);
     const segmentDuration = graph.inputs.find(
@@ -476,28 +471,26 @@ describe('convertTreeToGraph', () => {
   });
 
   it('injects NumOfSegments when referenced only through loop cardinality', () => {
-    const root = {
-      document: {
-        meta: { id: 'id', name: 'test' },
-        inputs: [{ name: 'Prompt', type: 'string', required: true }],
-        producerImports: [
-          { name: 'ImageGen', producer: 'asset/text-to-image', loop: 'scene' },
-        ],
-        artefacts: [
-          {
-            name: 'SceneImages',
-            type: 'array',
-            itemType: 'image',
-            countInput: 'NumOfSegments',
-          },
-        ],
-        loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
-        edges: [
-          { from: 'Prompt', to: 'ImageGen[scene].Prompt' },
-          { from: 'ImageGen[scene].Output', to: 'SceneImages[scene]' },
-        ],
-      },
-    } as unknown as import('@gorenku/core').BlueprintTreeNode;
+    const root = makeTreeNode({
+      meta: { id: 'id', name: 'test' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      producerImports: [
+        { name: 'ImageGen', producer: 'asset/text-to-image', loop: 'scene' },
+      ],
+      artefacts: [
+        {
+          name: 'SceneImages',
+          type: 'array',
+          itemType: 'image',
+          countInput: 'NumOfSegments',
+        },
+      ],
+      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      edges: [
+        { from: 'Prompt', to: 'ImageGen[scene].Prompt' },
+        { from: 'ImageGen[scene].Output', to: 'SceneImages[scene]' },
+      ],
+    });
 
     const graph = convertTreeToGraph(root);
     const numOfSegments = graph.inputs.find(

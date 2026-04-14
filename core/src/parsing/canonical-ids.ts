@@ -310,10 +310,16 @@ export function formatCanonicalProducerId(
   aliasPath: string[],
   producerName: string
 ): string {
-  return formatCanonicalId(
-    'Producer',
-    formatProducerAlias(aliasPath, producerName).split('.')
+  return formatCanonicalProducerPath(
+    formatProducerAlias(aliasPath, producerName)
   );
+}
+
+export function formatCanonicalProducerPath(producerPath: string): string {
+  const segments = producerPath
+    .split('.')
+    .filter((segment) => segment.length > 0);
+  return formatCanonicalId('Producer', segments);
 }
 
 /**
@@ -521,11 +527,18 @@ export function formatProducerScopedInputId(
   producerName: string,
   key: string
 ): string {
-  const producerSegments = formatProducerAlias(
-    namespacePath,
-    producerName
-  ).split('.');
-  return formatCanonicalId('Input', [...producerSegments, key]);
+  return formatProducerScopedInputIdForCanonicalProducerId(
+    formatCanonicalProducerId(namespacePath, producerName),
+    key
+  );
+}
+
+export function formatProducerScopedInputIdForCanonicalProducerId(
+  canonicalProducerId: string,
+  key: string
+): string {
+  const parsed = parseCanonicalProducerId(canonicalProducerId);
+  return formatCanonicalId('Input', [...parsed.path, parsed.name, key]);
 }
 
 export function parseQualifiedProducerName(name: string): {

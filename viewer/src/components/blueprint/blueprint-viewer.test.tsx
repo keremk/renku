@@ -3,8 +3,8 @@
  */
 
 import React from 'react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { BlueprintViewer } from './blueprint-viewer';
 import type { BlueprintGraphData } from '@/types/blueprint-graph';
 
@@ -15,6 +15,23 @@ const executionMock = vi.hoisted(() => ({
   setProducerOverrideEnabled: vi.fn(),
   setProducerOverrideCount: vi.fn(),
   resetProducerOverride: vi.fn(),
+}));
+
+const layoutMockState = vi.hoisted(() => ({
+  nodes: [
+    {
+      id: 'Producer:AudioProducer[0]',
+      type: 'producerNode',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'AudioProducer',
+        runnable: true,
+        status: 'not-run-yet',
+        inputBindings: [],
+        outputBindings: [],
+      },
+    },
+  ],
 }));
 
 vi.mock('@xyflow/react', () => ({
@@ -81,19 +98,7 @@ vi.mock('@/lib/blueprint-layout', () => ({
     horizontalSpacing: 240,
   },
   layoutBlueprintGraph: () => ({
-    nodes: [
-      {
-        id: 'Producer:AudioProducer[0]',
-        type: 'producerNode',
-        position: { x: 0, y: 0 },
-        data: {
-          label: 'AudioProducer',
-          status: 'not-run-yet',
-          inputBindings: [],
-          outputBindings: [],
-        },
-      },
-    ],
+    nodes: layoutMockState.nodes,
     edges: [],
   }),
 }));
@@ -141,6 +146,20 @@ const graphData: BlueprintGraphData = {
 describe('BlueprintViewer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    layoutMockState.nodes = [
+      {
+        id: 'Producer:AudioProducer[0]',
+        type: 'producerNode',
+        position: { x: 0, y: 0 },
+        data: {
+          label: 'AudioProducer',
+          runnable: true,
+          status: 'not-run-yet',
+          inputBindings: [],
+          outputBindings: [],
+        },
+      },
+    ];
     executionMock.getProducerOverride.mockReturnValue(undefined);
     executionMock.getProducerSchedulingSummary.mockReturnValue(undefined);
     executionMock.requestProducerScheduling.mockResolvedValue({
@@ -160,6 +179,10 @@ describe('BlueprintViewer', () => {
         ok: true,
       },
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it('retries producer scheduling refresh when reopening the same producer dialog', async () => {
@@ -184,5 +207,44 @@ describe('BlueprintViewer', () => {
     await waitFor(() => {
       expect(executionMock.requestProducerScheduling).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('does not request producer scheduling for non-runnable composite nodes', async () => {
+    layoutMockState.nodes = [
+      {
+        id: 'Producer:CelebrityVideoProducer',
+        type: 'producerNode',
+        position: { x: 0, y: 0 },
+        data: {
+          label: 'CelebrityVideoProducer',
+          runnable: false,
+          status: 'not-run-yet',
+          inputBindings: [],
+          outputBindings: [],
+        },
+      },
+    ];
+
+    render(
+      <BlueprintViewer
+        graphData={{
+          ...graphData,
+          layerAssignments: {
+            'Producer:CelebrityVideoProducer': 2,
+          },
+        }}
+        blueprintName='test-blueprint'
+        movieId='movie-123'
+        selectedUpToLayer={null}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('node-Producer:CelebrityVideoProducer'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('producer-dialog')).toBeTruthy();
+    });
+
+    expect(executionMock.requestProducerScheduling).not.toHaveBeenCalled();
   });
 });

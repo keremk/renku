@@ -14,6 +14,7 @@ import type { ProducerSchedulingSummary, ProducerStatus } from "@/types/generati
 interface ProducerDetails {
   nodeId: string;
   label: string;
+  runnable?: boolean;
   producerType?: string;
   description?: string;
   loop?: string;
@@ -584,17 +585,29 @@ function ProducerDetailsDialogBody({
                   <span className="font-medium text-foreground/90">Outputs</span> for connection details.
                 </p>
               </div>
-              <SchedulingOverridesSection
-                producer={producer}
-                producerId={producerId}
-                override={override}
-                scheduling={scheduling}
-                schedulingLoading={schedulingLoading}
-                schedulingError={schedulingError}
-                onSetOverrideEnabled={onSetOverrideEnabled}
-                onSetOverrideCount={onSetOverrideCount}
-                onResetOverride={onResetOverride}
-              />
+              {producer.runnable === false ? (
+                <div className="rounded-lg bg-card p-3 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">
+                    Composite Blueprint Container
+                  </p>
+                  <p className="mt-1 text-xs">
+                    This node groups inner producers. Scheduling and run controls
+                    apply to the inner leaf producers, not to this container.
+                  </p>
+                </div>
+              ) : (
+                <SchedulingOverridesSection
+                  producer={producer}
+                  producerId={producerId}
+                  override={override}
+                  scheduling={scheduling}
+                  schedulingLoading={schedulingLoading}
+                  schedulingError={schedulingError}
+                  onSetOverrideEnabled={onSetOverrideEnabled}
+                  onSetOverrideCount={onSetOverrideCount}
+                  onResetOverride={onResetOverride}
+                />
+              )}
             </div>
           )}
 

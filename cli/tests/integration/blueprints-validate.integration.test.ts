@@ -203,7 +203,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 					'meta:',
 					'  name: Unused Count Input',
 					'  id: UnusedCountInput',
-					'  kind: blueprint',
+					'  kind: producer',
 					'  version: 0.1.0',
 					'inputs:',
 					'  - name: Topic',

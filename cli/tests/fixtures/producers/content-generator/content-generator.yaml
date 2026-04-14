@@ -2,6 +2,7 @@ meta:
   name: Content Generator
   description: Generates content script with segments.
   id: ContentGenerator
+  kind: producer
   version: 0.1.0
   outputSchema: ./content-generator-output.json
 

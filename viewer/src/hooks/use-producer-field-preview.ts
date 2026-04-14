@@ -7,6 +7,8 @@ import type {
 
 export interface UseProducerFieldPreviewOptions {
   blueprintPath: string | null;
+  blueprintFolder?: string | null;
+  movieId?: string | null;
   catalogRoot?: string | null;
   inputs: Record<string, unknown>;
   modelSelections: Array<{
@@ -29,6 +31,8 @@ export function useProducerFieldPreview(
 ): UseProducerFieldPreviewResult {
   const {
     blueprintPath,
+    blueprintFolder,
+    movieId,
     catalogRoot,
     inputs,
     modelSelections,
@@ -59,12 +63,22 @@ export function useProducerFieldPreview(
     () =>
       JSON.stringify({
         blueprintPath,
+        blueprintFolder,
+        movieId,
         catalogRoot,
         inputs,
         requestModels,
         enabled,
       }),
-    [blueprintPath, catalogRoot, enabled, inputs, requestModels]
+    [
+      blueprintPath,
+      blueprintFolder,
+      movieId,
+      catalogRoot,
+      enabled,
+      inputs,
+      requestModels,
+    ]
   );
 
   useEffect(() => {
@@ -84,6 +98,8 @@ export function useProducerFieldPreview(
       try {
         const response = await fetchProducerFieldPreview({
           blueprintPath,
+          blueprintFolder,
+          movieId,
           catalogRoot,
           inputs,
           models: requestModels,

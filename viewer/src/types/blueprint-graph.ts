@@ -15,6 +15,8 @@ export interface BlueprintGraphNode {
   label: string;
   /** Loop dimension (e.g., "segment" or "segment.image") */
   loop?: string;
+  /** Whether this graph node maps to a runnable producer family. */
+  runnable?: boolean;
   /** Producer type (e.g., "asset/text-to-image") */
   producerType?: string;
   /** Description from the blueprint */
@@ -153,7 +155,9 @@ export interface InputTemplateData {
 }
 
 /**
- * Model selection for a producer as stored in inputs.yaml
+ * Model selection for a producer.
+ * Internally the viewer uses canonical producer IDs (Producer:...).
+ * YAML serialization converts those back to authored producer IDs at the edge.
  */
 export interface ModelSelectionValue {
   producerId: string;

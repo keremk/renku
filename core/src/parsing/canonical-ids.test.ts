@@ -21,6 +21,7 @@ import {
   formatCanonicalArtifactId,
   formatCanonicalProducerId,
   formatProducerScopedInputId,
+  formatProducerScopedInputIdForCanonicalProducerId,
   // Utilities
   parseQualifiedProducerName,
   createInputIdResolver,
@@ -331,6 +332,17 @@ describe('Formatters', () => {
 
     it('formats producer-scoped input ID with alias path', () => {
       expect(formatProducerScopedInputId(['MyAlias'], 'InternalName', 'model')).toBe('Input:MyAlias.model');
+    });
+  });
+
+  describe('formatProducerScopedInputIdForCanonicalProducerId', () => {
+    it('formats producer-scoped input ID from exact canonical producer ID', () => {
+      expect(
+        formatProducerScopedInputIdForCanonicalProducerId(
+          'Producer:CelebrityVideoProducer.TogetherImageProducer',
+          'provider'
+        )
+      ).toBe('Input:CelebrityVideoProducer.TogetherImageProducer.provider');
     });
   });
 });

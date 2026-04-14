@@ -1,6 +1,7 @@
 import type { CanonicalBlueprint } from './canonical-expander.js';
-import { formatProducerScopedInputId, isCanonicalArtifactId, isCanonicalInputId, parseQualifiedProducerName } from '../parsing/canonical-ids.js';
+import { formatProducerScopedInputIdForCanonicalProducerId, isCanonicalArtifactId, isCanonicalInputId } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
+import { deriveProducerFamilyId } from '../orchestration/producer-overrides.js';
 import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
@@ -89,13 +90,14 @@ export function createProducerGraph(
         { context: producerAlias },
       );
     }
-    const { namespacePath: producerNamespace, producerName: resolvedProducerName } = parseQualifiedProducerName(
-      producerAlias,
-    );
     const selectionInputs = option.selectionInputKeys ?? [];
     const configInputs = option.configInputPaths ?? [];
+    const canonicalProducerId = deriveProducerFamilyId(node.id);
     const extraInputs = [...selectionInputs, ...configInputs].map((key) =>
-      formatProducerScopedInputId(producerNamespace, resolvedProducerName, key),
+      formatProducerScopedInputIdForCanonicalProducerId(
+        canonicalProducerId,
+        key
+      ),
     );
     const allInputs = Array.from(new Set([...inboundInputs, ...extraInputs]));
 

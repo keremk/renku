@@ -2,6 +2,7 @@ meta:
   name: Music Prompt Generation
   description: Generate music generation prompt using the summary of a movie script.
   id: MusicPromptProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

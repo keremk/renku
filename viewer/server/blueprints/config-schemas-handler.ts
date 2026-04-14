@@ -12,7 +12,6 @@ import {
   isRenkuError,
   loadBlueprintResolutionContext,
   resolveMappingsForModel,
-  type BlueprintTreeNode,
   type BlueprintResolutionContext,
 } from '@gorenku/core';
 import {
@@ -22,7 +21,7 @@ import {
   type LoadedModelCatalog,
   type NestedModelDeclaration,
 } from '@gorenku/providers';
-import { detectProducerCategory } from './producer-models.js';
+import { collectLeafProducerImports } from './producer-models.js';
 import { buildProducerBindingSummary } from './mapping-binding-context.js';
 import {
   buildFieldDescriptors,
@@ -521,61 +520,50 @@ export async function getProducerConfigSchemas(
     voiceOptionsLoader = createVoiceOptionsLoader(catalogRoot);
   }
 
-  const visitNode = async (node: BlueprintTreeNode) => {
-    for (const producerImport of node.document.producerImports) {
-      const producerId = producerImport.name;
-      const childNode = producerImport.path
-        ? node.children.get(producerId)
-        : undefined;
-      const category = detectProducerCategory(producerImport, childNode);
+  for (const entry of collectLeafProducerImports(root)) {
+    const producerId = entry.canonicalProducerId;
+    const category = entry.category;
 
-      if (category === 'prompt' || !catalog || !catalogModelsDir) {
-        producers[producerId] = {
-          producerId,
-          category,
-          modelSchemas: {},
-        };
-        continue;
-      }
-
-      try {
-        producers[producerId] = await buildProducerModelSchemas({
-          context,
-          producerId,
-          category,
-          catalog,
-          catalogModelsDir,
-          voiceOptionsLoader,
-        });
-      } catch (error) {
-        const contractError = isRenkuError(error)
-          ? error
-          : createRuntimeError(
-              RuntimeErrorCode.MODELS_PANE_DESCRIPTOR_MISSING_FOR_MODEL,
-              error instanceof Error
-                ? error.message
-                : `Failed to build models-pane descriptor contract for producer ${producerId}.`
-            );
-
-        errorsByProducer[producerId] = {
-          error: contractError.message,
-          code: contractError.code,
-        };
-
-        producers[producerId] = {
-          producerId,
-          category,
-          modelSchemas: {},
-        };
-      }
+    if (category === 'prompt' || !catalog || !catalogModelsDir) {
+      producers[producerId] = {
+        producerId,
+        category,
+        modelSchemas: {},
+      };
+      continue;
     }
 
-    for (const child of node.children.values()) {
-      await visitNode(child);
-    }
-  };
+    try {
+      producers[producerId] = await buildProducerModelSchemas({
+        context,
+        producerId,
+        category,
+        catalog,
+        catalogModelsDir,
+        voiceOptionsLoader,
+      });
+    } catch (error) {
+      const contractError = isRenkuError(error)
+        ? error
+        : createRuntimeError(
+            RuntimeErrorCode.MODELS_PANE_DESCRIPTOR_MISSING_FOR_MODEL,
+            error instanceof Error
+              ? error.message
+              : `Failed to build models-pane descriptor contract for producer ${producerId}.`
+          );
 
-  await visitNode(root);
+      errorsByProducer[producerId] = {
+        error: contractError.message,
+        code: contractError.code,
+      };
+
+      producers[producerId] = {
+        producerId,
+        category,
+        modelSchemas: {},
+      };
+    }
+  }
 
   return {
     producers,

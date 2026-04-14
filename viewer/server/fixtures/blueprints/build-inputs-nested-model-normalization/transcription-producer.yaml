@@ -1,0 +1,21 @@
+meta:
+  name: Fixture Transcription Producer
+  description: Produces a transcription artifact for nested model normalization tests.
+  id: TranscriptionProducer
+  kind: producer
+  version: 0.1.0
+
+inputs:
+  - name: Duration
+    description: Duration in seconds.
+    type: int
+    required: true
+  - name: LanguageCode
+    description: Optional language code for transcription.
+    type: string
+    required: false
+
+artifacts:
+  - name: Transcription
+    description: Generated transcript output.
+    type: text

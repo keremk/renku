@@ -1,5 +1,9 @@
 import path from 'node:path';
 import {
+  readBlob,
+  type ArtefactEvent,
+  createEventLog,
+  createStorageContext,
   createRuntimeError,
   RuntimeErrorCode,
   expandBlueprintResolutionContext,
@@ -29,6 +33,8 @@ import {
 
 export interface ProducerFieldPreviewRequest {
   blueprintPath: string;
+  blueprintFolder?: string;
+  movieId?: string;
   catalogRoot?: string;
   inputs: Record<string, unknown>;
   models: ProducerFieldPreviewSelection[];
@@ -170,6 +176,18 @@ export async function getProducerFieldPreview(
         });
       }
 
+      const resolvedArtifactValues = await resolvePreviewArtifactValues({
+        blueprintFolder: request.blueprintFolder,
+        movieId: request.movieId,
+        bindingContext,
+        runtimeSnapshot,
+      });
+      const resolvedPreviewValues = {
+        ...bindingContext.resolvedInputs,
+        ...(runtimeSnapshot?.resolvedInputs ?? {}),
+        ...resolvedArtifactValues,
+      };
+
       const schemaFile = await loadSelectionSchemaFile({
         selection,
         catalog,
@@ -202,8 +220,7 @@ export async function getProducerFieldPreview(
       const baseFields = evaluateResolutionMappingPreview({
         mapping,
         context: {
-          inputs:
-            runtimeSnapshot?.resolvedInputs ?? bindingContext.resolvedInputs,
+          inputs: resolvedPreviewValues,
           inputBindings: bindingContext.mappingInputBindings,
         },
         connectedAliases: bindingContext.connectedAliases,
@@ -219,7 +236,7 @@ export async function getProducerFieldPreview(
             fields: evaluateResolutionMappingPreview({
               mapping,
               context: {
-                inputs: runtimeSnapshot.resolvedInputs,
+                inputs: resolvedPreviewValues,
                 inputBindings: instance.inputBindings,
               },
               connectedAliases: collectInstanceConnectedAliases({
@@ -317,6 +334,127 @@ export async function getProducerFieldPreview(
     producers,
     ...(Object.keys(errorsByProducer).length > 0 ? { errorsByProducer } : {}),
   };
+}
+
+async function resolvePreviewArtifactValues(args: {
+  blueprintFolder?: string;
+  movieId?: string;
+  bindingContext: ReturnType<typeof buildProducerBindingSummary>;
+  runtimeSnapshot: ReturnType<typeof buildProducerRuntimeBindingSnapshot> | null;
+}): Promise<Record<string, unknown>> {
+  if (!args.blueprintFolder || !args.movieId) {
+    return {};
+  }
+
+  const artifactIds = collectPreviewArtifactIds({
+    mappingInputBindings: args.bindingContext.mappingInputBindings,
+    runtimeSnapshot: args.runtimeSnapshot,
+  });
+  if (artifactIds.length === 0) {
+    return {};
+  }
+
+  const storage = createStorageContext({
+    kind: 'local',
+    rootDir: args.blueprintFolder,
+    basePath: 'builds',
+  });
+  const eventLog = createEventLog(storage);
+  const latestEvents = await collectLatestSucceededArtifactEvents({
+    artifactIds,
+    eventLog,
+    movieId: args.movieId,
+  });
+
+  const resolvedValues: Record<string, unknown> = {};
+  for (const [artifactId, event] of latestEvents) {
+    const blob = event.output.blob;
+    if (!blob) {
+      continue;
+    }
+
+    resolvedValues[artifactId] = isTextLikeMimeType(blob.mimeType)
+      ? await readBlob(storage, args.movieId, blob)
+      : buildPreviewBlobUrl({
+          blueprintFolder: args.blueprintFolder,
+          movieId: args.movieId,
+          hash: blob.hash,
+        });
+  }
+
+  return resolvedValues;
+}
+
+function collectPreviewArtifactIds(args: {
+  mappingInputBindings: Record<string, string>;
+  runtimeSnapshot: ReturnType<typeof buildProducerRuntimeBindingSnapshot> | null;
+}): string[] {
+  const artifactIds = new Set<string>();
+
+  for (const canonicalId of Object.values(args.mappingInputBindings)) {
+    if (canonicalId.startsWith('Artifact:')) {
+      artifactIds.add(canonicalId);
+    }
+  }
+
+  if (!args.runtimeSnapshot) {
+    return [...artifactIds];
+  }
+
+  for (const instance of args.runtimeSnapshot.instances) {
+    for (const canonicalId of Object.values(instance.inputBindings)) {
+      if (canonicalId.startsWith('Artifact:')) {
+        artifactIds.add(canonicalId);
+      }
+    }
+  }
+
+  return [...artifactIds];
+}
+
+async function collectLatestSucceededArtifactEvents(args: {
+  artifactIds: string[];
+  eventLog: ReturnType<typeof createEventLog>;
+  movieId: string;
+}): Promise<Map<string, ArtefactEvent>> {
+  const requestedIds = new Set(args.artifactIds);
+  const latestEvents = new Map<string, ArtefactEvent>();
+
+  for await (const event of args.eventLog.streamArtefacts(args.movieId)) {
+    if (event.status !== 'succeeded') {
+      continue;
+    }
+    if (!requestedIds.has(event.artefactId)) {
+      continue;
+    }
+    latestEvents.set(event.artefactId, event);
+  }
+
+  return latestEvents;
+}
+
+function isTextLikeMimeType(mimeType?: string): boolean {
+  if (!mimeType) {
+    return false;
+  }
+
+  const normalized = mimeType.toLowerCase();
+  return (
+    normalized.startsWith('text/') || normalized === 'application/json'
+  );
+}
+
+function buildPreviewBlobUrl(args: {
+  blueprintFolder: string;
+  movieId: string;
+  hash: string;
+}): string {
+  const params = new URLSearchParams({
+    folder: args.blueprintFolder,
+    movieId: args.movieId,
+    hash: args.hash,
+  });
+  return `/viewer-api/blueprints/blob?${params.toString()}`;
 }
 
 function collectInstanceConnectedAliases(args: {

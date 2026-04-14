@@ -56,4 +56,25 @@ describe("ProducerDetailsDialog", () => {
     expect(screen.getByText("NarrationArtifact")).toBeTruthy();
     expect(screen.getByText("if NeedsNarration")).toBeTruthy();
   });
+
+  it("hides scheduling overrides for composite blueprint containers", () => {
+    render(
+      <ProducerDetailsDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        producer={{
+          nodeId: "Producer:CelebrityVideoProducer",
+          label: "CelebrityVideoProducer",
+          runnable: false,
+          description: "Composite segment builder",
+          status: "not-run-yet",
+          inputBindings: [],
+          outputBindings: [],
+        }}
+      />
+    );
+
+    expect(screen.queryByText("Scheduling Overrides")).toBeNull();
+    expect(screen.getByText("Composite Blueprint Container")).toBeTruthy();
+  });
 });

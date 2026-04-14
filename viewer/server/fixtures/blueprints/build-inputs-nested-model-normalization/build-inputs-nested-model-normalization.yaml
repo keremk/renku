@@ -1,0 +1,25 @@
+meta:
+  id: BuildInputsNestedModelNormalization
+  name: Build Inputs Nested Model Normalization
+
+inputs:
+  - name: Duration
+    type: int
+    required: true
+  - name: InquiryPrompt
+    type: string
+    required: false
+
+artifacts:
+  - name: Transcript
+    type: text
+
+producers:
+  - name: TranscriptionProducer
+    path: ./transcription-producer.yaml
+
+connections:
+  - from: Duration
+    to: TranscriptionProducer.Duration
+  - from: TranscriptionProducer.Transcription
+    to: Transcript

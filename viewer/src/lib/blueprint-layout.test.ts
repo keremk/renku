@@ -36,6 +36,40 @@ describe("layoutBlueprintGraph", () => {
     expect((producerNode?.data as { status?: string } | undefined)?.status).toBe("error");
   });
 
+  it("preserves runnable metadata on producer nodes", () => {
+    const graphData = createGraphData({
+      nodes: [
+        { id: "Inputs", type: "input", label: "Inputs" },
+        {
+          id: "Producer:CelebrityVideoProducer",
+          type: "producer",
+          label: "CelebrityVideoProducer",
+          runnable: false,
+          inputBindings: [],
+          outputBindings: [],
+        },
+        { id: "Outputs", type: "output", label: "Outputs" },
+      ],
+      edges: [
+        {
+          id: "Inputs->Producer:CelebrityVideoProducer",
+          source: "Inputs",
+          target: "Producer:CelebrityVideoProducer",
+        },
+      ],
+      layerAssignments: { "Producer:CelebrityVideoProducer": 0 },
+    });
+
+    const { nodes } = layoutBlueprintGraph(graphData);
+    const producerNode = nodes.find(
+      (node) => node.id === "Producer:CelebrityVideoProducer"
+    );
+
+    expect(
+      (producerNode?.data as { runnable?: boolean } | undefined)?.runnable
+    ).toBe(false);
+  });
+
   it("throws when producer binding metadata is missing", () => {
     const graphData = createGraphData({
       nodes: [

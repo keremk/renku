@@ -2,7 +2,7 @@ meta:
   name: Historical Documentary Script Generation
   description: Generate historically rich documentary scripts with narration, image prompts, text overlays, and music direction.
   id: HistoricalScriptProducer
-  kind: blueprint
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

@@ -55,7 +55,9 @@ function BlueprintApp() {
   const { manifest: selectedBuildManifest, refetch: refetchManifest } =
     useBuildManifest(
       resolvedPaths?.blueprintFolder ?? null,
-      blueprintRoute?.selectedBuildId ?? null
+      blueprintRoute?.selectedBuildId ?? null,
+      resolvedPaths?.blueprintPath ?? null,
+      resolvedPaths?.catalogRoot
     );
 
   // Reconcile build selection for the current blueprint.

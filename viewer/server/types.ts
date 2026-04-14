@@ -36,6 +36,7 @@ export interface BlueprintGraphNode {
   type: 'input' | 'producer' | 'output';
   label: string;
   loop?: string;
+  runnable?: boolean;
   producerType?: string;
   description?: string;
   inputBindings?: ProducerBinding[];

@@ -181,21 +181,24 @@ export async function handleBuildsSubRoute(
         const body = await parseJsonBody<BuildInputsRequest>(req);
         if (
           !body.blueprintFolder ||
+          !body.blueprintPath ||
           !body.movieId ||
           !body.inputs ||
           !body.models
         ) {
           return respondBadRequest(
             res,
-            'Missing blueprintFolder, movieId, inputs, or models'
+            'Missing blueprintFolder, blueprintPath, movieId, inputs, or models'
           );
         }
         try {
           await saveBuildInputs(
             body.blueprintFolder,
+            body.blueprintPath,
             body.movieId,
             body.inputs,
-            body.models
+            body.models,
+            body.catalogRoot
           );
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ success: true }));
@@ -411,16 +414,23 @@ export async function handleBuildsSubRoute(
       if (promptsSubAction === 'restore' && req.method === 'POST') {
         // Restore prompts to template
         const body = await parseJsonBody<RestorePromptsRequest>(req);
-        if (!body.blueprintFolder || !body.movieId || !body.producerId) {
+        if (
+          !body.blueprintFolder ||
+          !body.movieId ||
+          !body.blueprintPath ||
+          !body.producerId
+        ) {
           return respondBadRequest(
             res,
-            'Missing blueprintFolder, movieId, or producerId'
+            'Missing blueprintFolder, blueprintPath, movieId, or producerId'
           );
         }
         await restoreProducerPrompts(
           body.blueprintFolder,
           body.movieId,
-          body.producerId
+          body.blueprintPath,
+          body.producerId,
+          body.catalogRoot
         );
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ success: true }));
@@ -465,19 +475,22 @@ export async function handleBuildsSubRoute(
         if (
           !body.blueprintFolder ||
           !body.movieId ||
+          !body.blueprintPath ||
           !body.producerId ||
           !body.prompts
         ) {
           return respondBadRequest(
             res,
-            'Missing blueprintFolder, movieId, producerId, or prompts'
+            'Missing blueprintFolder, blueprintPath, movieId, producerId, or prompts'
           );
         }
         await saveProducerPrompts(
           body.blueprintFolder,
           body.movieId,
+          body.blueprintPath,
           body.producerId,
-          body.prompts
+          body.prompts,
+          body.catalogRoot
         );
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ success: true }));

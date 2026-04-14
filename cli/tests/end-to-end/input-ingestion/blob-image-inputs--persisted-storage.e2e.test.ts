@@ -72,6 +72,7 @@ describe('end-to-end: image-to-video with blob input', () => {
 				meta: {
 					name: 'Image to Video Test Producer',
 					id: 'ImageToVideoTestProducer',
+					kind: 'producer',
 					version: '0.1.0',
 				},
 				inputs: [
@@ -210,6 +211,7 @@ describe('end-to-end: image-to-video with blob input', () => {
 				meta: {
 					name: 'Dual Image Test Producer',
 					id: 'DualImageTestProducer',
+					kind: 'producer',
 					version: '0.1.0',
 				},
 				inputs: [

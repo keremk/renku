@@ -365,6 +365,8 @@ function WorkspaceLayoutInner({
   const { fieldPreviewByProducer, fieldPreviewErrorsByProducer } =
     useProducerFieldPreview({
       blueprintPath,
+      blueprintFolder,
+      movieId: selectedBuildId ?? movieId,
       catalogRoot,
       inputs: previewInputs,
       modelSelections: modelEditor.currentSelections,

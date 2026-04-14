@@ -5,8 +5,13 @@
 import { existsSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { extractModelSelectionsFromInputs } from '@gorenku/core';
+import {
+  canonicalizeAuthoredProducerId,
+  extractModelSelectionsFromInputs,
+  loadYamlBlueprintTree,
+} from '@gorenku/core';
 import type { ArtifactInfo, BuildManifestResponse } from './types.js';
+import { normalizeNestedModelSelections } from './model-selection-normalizer.js';
 
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
@@ -141,18 +146,12 @@ async function readLatestArtifactEvents(
  */
 export async function getBuildManifest(
   blueprintFolder: string,
-  movieId: string
+  movieId: string,
+  blueprintPath?: string,
+  catalogRoot?: string
 ): Promise<BuildManifestResponse> {
   const movieDir = path.join(blueprintFolder, 'builds', movieId);
   const currentPath = path.join(movieDir, 'current.json');
-
-  const emptyResponse: BuildManifestResponse = {
-    movieId,
-    revision: null,
-    inputs: {},
-    artefacts: [],
-    createdAt: null,
-  };
 
   try {
     // Step 1: Read current.json for revision & manifestPath (may not exist)
@@ -223,6 +222,14 @@ export async function getBuildManifest(
 
     // Extract model selections from inputs
     const { modelSelections } = extractModelSelectionsFromInputs(parsedInputs);
+    const canonicalModelSelections = blueprintPath
+      ? await canonicalizeManifestModelSelections(
+          blueprintPath,
+          catalogRoot,
+          movieId,
+          modelSelections
+        )
+      : modelSelections;
 
     // Step 5: Build artifacts — merge manifest data with event log data
     const parsedArtifacts: ArtifactInfo[] = [];
@@ -304,13 +311,50 @@ export async function getBuildManifest(
       movieId,
       revision,
       inputs: parsedInputs,
-      models: modelSelections.length > 0 ? modelSelections : undefined,
+      models:
+        canonicalModelSelections.length > 0
+          ? canonicalModelSelections
+          : undefined,
       artefacts: parsedArtifacts,
       createdAt: manifest?.createdAt ?? manifestMtime ?? null,
     };
-  } catch {
-    return emptyResponse;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(String(error));
   }
+}
+
+async function canonicalizeManifestModelSelections(
+  blueprintPath: string,
+  catalogRoot: string | undefined,
+  movieId: string,
+  modelSelections: NonNullable<BuildManifestResponse['models']>
+): Promise<NonNullable<BuildManifestResponse['models']>> {
+  const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+  const normalizedSelections = normalizeNestedModelSelections(
+    root,
+    modelSelections,
+    `manifest for build "${movieId}"`
+  );
+
+  return normalizedSelections.map((selection) => {
+    const canonicalProducerId = canonicalizeAuthoredProducerId(
+      root,
+      selection.producerId
+    );
+    if (!canonicalProducerId) {
+      throw new Error(
+        `Refusing to use unknown producer "${selection.producerId}" from manifest for build "${movieId}".`
+      );
+    }
+
+    return {
+      ...selection,
+      producerId: canonicalProducerId,
+    };
+  });
 }
 
 /**

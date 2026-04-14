@@ -2,6 +2,7 @@ meta:
   name: Celebrity Director
   description: Produces prompts and transition flags per character.
   id: CelebrityDirectorProducer
+  kind: producer
   version: 0.1.0
   outputSchema: ./director-output.json
 

@@ -2,6 +2,7 @@ meta:
   name: Image Generator
   description: Generates an image from a prompt.
   id: ImageGenerator
+  kind: producer
   version: 0.1.0
 
 inputs:

@@ -68,6 +68,47 @@ models:
     expect(document.meta.outputSchema).toBe('./script-output.json');
   });
 
+  it('rejects leaf producer blueprints that omit meta.kind: producer', async () => {
+    const reader = {
+      readFile: async () => `
+meta:
+  id: InvalidPromptProducer
+  name: Invalid Prompt Producer
+  promptFile: ./prompt.toml
+  outputSchema: ./output.json
+artifacts:
+  - name: Script
+    type: json
+`,
+    };
+
+    await expect(
+      parseYamlBlueprintFile('/virtual/invalid-producer-kind-missing.yaml', {
+        reader,
+      })
+    ).rejects.toThrow(/must declare meta\.kind: producer/i);
+  });
+
+  it('rejects leaf producer blueprints that use meta.kind: blueprint', async () => {
+    const reader = {
+      readFile: async () => `
+meta:
+  id: InvalidPromptProducer
+  name: Invalid Prompt Producer
+  kind: blueprint
+artifacts:
+  - name: Script
+    type: json
+`,
+    };
+
+    await expect(
+      parseYamlBlueprintFile('/virtual/invalid-producer-kind-blueprint.yaml', {
+        reader,
+      })
+    ).rejects.toThrow(/must declare meta\.kind: producer/i);
+  });
+
   it('leaves promptFile and outputSchema undefined when not specified', async () => {
     // text-to-music producer has no LLM config files
     const modulePath = resolve(
@@ -85,6 +126,7 @@ models:
 meta:
   id: InvalidArtifactSchemaProducer
   name: Invalid Artifact Schema Producer
+  kind: producer
 artifacts:
   - name: Script
     type: json
@@ -365,6 +407,7 @@ artifacts:
 meta:
   id: InputCountInputParsing
   name: Input CountInput Parsing
+  kind: producer
 inputs:
   - name: CharacterDescriptions
     type: array
@@ -398,6 +441,7 @@ artifacts:
 meta:
   id: InvalidInputCountInput
   name: Invalid Input CountInput
+  kind: producer
 inputs:
   - name: NumOfCharacters
     type: int
@@ -419,6 +463,7 @@ artifacts:
 meta:
   id: InvalidCollectionInputType
   name: Invalid Collection Input Type
+  kind: producer
 inputs:
   - name: SourceImages
     type: collection

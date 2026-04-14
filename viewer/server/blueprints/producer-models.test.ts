@@ -2,10 +2,24 @@
  * Tests for producer models extraction.
  */
 
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
-import { detectProducerCategory, getLlmModelsFromCatalog } from "./producer-models.js";
-import type { ProducerImportDefinition, BlueprintTreeNode } from "@gorenku/core";
+import {
+  collectLeafProducerImports,
+  detectProducerCategory,
+  getLlmModelsFromCatalog,
+} from "./producer-models.js";
+import {
+  loadYamlBlueprintTree,
+  type ProducerImportDefinition,
+  type BlueprintTreeNode,
+} from "@gorenku/core";
 import type { LoadedModelCatalog } from "@gorenku/providers";
+
+const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(TEST_DIR, '../../..');
+const CATALOG_ROOT = path.join(REPO_ROOT, 'catalog');
 
 describe("detectProducerCategory", () => {
   it("detects composition producers", () => {
@@ -24,12 +38,12 @@ describe("detectProducerCategory", () => {
     expect(detectProducerCategory(producerImport, undefined)).toBe("asset");
   });
 
-  it("detects prompt producers with path", () => {
+  it("does not guess prompt producers from path alone", () => {
     const producerImport: ProducerImportDefinition = {
       name: "ScriptWriter",
       path: "./script-writer.yaml",
     };
-    expect(detectProducerCategory(producerImport, undefined)).toBe("prompt");
+    expect(detectProducerCategory(producerImport, undefined)).toBe("asset");
   });
 
   it("detects prompt producers with promptFile in child node", () => {
@@ -53,6 +67,37 @@ describe("detectProducerCategory", () => {
       name: "Unknown",
     };
     expect(detectProducerCategory(producerImport, undefined)).toBe("asset");
+  });
+});
+
+describe("collectLeafProducerImports", () => {
+  it("returns only canonical leaf producers for composite imports", async () => {
+    const blueprintPath = path.join(
+      CATALOG_ROOT,
+      "blueprints",
+      "celebrity-then-now",
+      "celebrity-then-now.yaml"
+    );
+
+    const { root } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+    const entries = collectLeafProducerImports(root);
+    const producerIds = entries.map((entry) => entry.canonicalProducerId);
+
+    expect(producerIds).toContain(
+      "Producer:CelebrityVideoProducer.TogetherImageProducer"
+    );
+    expect(producerIds).toContain(
+      "Producer:CelebrityVideoProducer.MeetingVideoProducer"
+    );
+    expect(producerIds).toContain(
+      "Producer:CelebrityVideoProducer.TransitionVideoProducer"
+    );
+    expect(producerIds).toContain(
+      "Producer:CelebrityVideoProducer.VideoStitcher"
+    );
+    expect(producerIds).not.toContain("Producer:CelebrityVideoProducer");
   });
 });
 

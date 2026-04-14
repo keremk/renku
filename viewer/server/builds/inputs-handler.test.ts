@@ -6,12 +6,19 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { getBuildInputs, saveBuildInputs } from './inputs-handler.js';
 import { parseInputsForDisplay } from '@gorenku/core';
+
+const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(TEST_DIR, '../../..');
+const VIEWER_FIXTURES_ROOT = path.join(TEST_DIR, '../fixtures/blueprints');
 
 describe('inputs-handler', () => {
   let tempDir: string;
   let blueprintFolder: string;
+  let blueprintPath: string;
+  let catalogRoot: string;
   let movieId: string;
   let buildDir: string;
   let inputsPath: string;
@@ -19,6 +26,13 @@ describe('inputs-handler', () => {
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'inputs-handler-test-'));
     blueprintFolder = tempDir;
+    catalogRoot = path.join(REPO_ROOT, 'catalog');
+    blueprintPath = path.join(
+      catalogRoot,
+      'blueprints',
+      'celebrity-then-now',
+      'celebrity-then-now.yaml'
+    );
     movieId = 'movie-test123';
     buildDir = path.join(blueprintFolder, 'builds', movieId);
     inputsPath = path.join(buildDir, 'inputs.yaml');
@@ -33,7 +47,7 @@ describe('inputs-handler', () => {
     await fs.writeFile(inputsPath, 'inputs: [', 'utf8');
 
     await expect(
-      getBuildInputs(blueprintFolder, movieId, '/tmp/blueprint.yaml')
+      getBuildInputs(blueprintFolder, movieId, blueprintPath, catalogRoot)
     ).rejects.toThrow(/Failed to parse build inputs/);
   });
 
@@ -53,7 +67,14 @@ describe('inputs-handler', () => {
     );
 
     await expect(
-      saveBuildInputs(blueprintFolder, movieId, { Theme: 'Template' }, [])
+      saveBuildInputs(
+        blueprintFolder,
+        blueprintPath,
+        movieId,
+        { Theme: 'Template' },
+        [],
+        catalogRoot
+      )
     ).rejects.toThrow(/Refusing to overwrite/);
 
     const current = await fs.readFile(inputsPath, 'utf8');
@@ -62,13 +83,20 @@ describe('inputs-handler', () => {
   });
 
   it('allows saving when payload includes model selections', async () => {
-    await saveBuildInputs(blueprintFolder, movieId, { Theme: 'Updated' }, [
-      {
-        producerId: 'DirectorProducer',
-        provider: 'openai',
-        model: 'gpt-5-mini',
-      },
-    ]);
+    await saveBuildInputs(
+      blueprintFolder,
+      blueprintPath,
+      movieId,
+      { Theme: 'Updated' },
+      [
+        {
+          producerId: 'Producer:DirectorProducer',
+          provider: 'openai',
+          model: 'gpt-5-mini',
+        },
+      ],
+      catalogRoot
+    );
 
     const content = await fs.readFile(inputsPath, 'utf8');
     expect(content).toContain('Theme: "Updated"');
@@ -93,13 +121,20 @@ describe('inputs-handler', () => {
       'utf8'
     );
 
-    await saveBuildInputs(blueprintFolder, movieId, { Theme: 'Updated' }, [
-      {
-        producerId: 'DirectorProducer',
-        provider: 'openai',
-        model: 'gpt-5-mini',
-      },
-    ]);
+    await saveBuildInputs(
+      blueprintFolder,
+      blueprintPath,
+      movieId,
+      { Theme: 'Updated' },
+      [
+        {
+          producerId: 'Producer:DirectorProducer',
+          provider: 'openai',
+          model: 'gpt-5-mini',
+        },
+      ],
+      catalogRoot
+    );
 
     const parsed = await parseInputsForDisplay(inputsPath);
     expect(parsed.models).toHaveLength(1);
@@ -138,11 +173,12 @@ describe('inputs-handler', () => {
 
     await saveBuildInputs(
       blueprintFolder,
+      blueprintPath,
       movieId,
       { Theme: 'Updated' },
       [
         {
-          producerId: 'TimelineComposer',
+          producerId: 'Producer:TimelineComposer',
           provider: 'renku',
           model: 'timeline/ordered',
           config: {
@@ -153,7 +189,8 @@ describe('inputs-handler', () => {
             },
           },
         },
-      ]
+      ],
+      catalogRoot
     );
 
     const parsed = await parseInputsForDisplay(inputsPath);
@@ -189,12 +226,12 @@ describe('inputs-handler', () => {
     const putPayload = JSON.parse(
       JSON.stringify({
         blueprintFolder,
-        blueprintPath: '/tmp/blueprint.yaml',
+        blueprintPath,
         movieId,
         inputs: { Theme: 'Updated' },
         models: [
           {
-            producerId: 'DirectorProducer',
+            producerId: 'Producer:DirectorProducer',
             provider: 'openai',
             model: 'gpt-5-mini',
             config: {},
@@ -203,6 +240,7 @@ describe('inputs-handler', () => {
       })
     ) as {
       blueprintFolder: string;
+      blueprintPath: string;
       movieId: string;
       inputs: Record<string, unknown>;
       models: Array<{
@@ -215,9 +253,11 @@ describe('inputs-handler', () => {
 
     await saveBuildInputs(
       putPayload.blueprintFolder,
+      putPayload.blueprintPath,
       putPayload.movieId,
       putPayload.inputs,
-      putPayload.models
+      putPayload.models,
+      catalogRoot
     );
 
     const parsed = await parseInputsForDisplay(inputsPath);
@@ -252,13 +292,20 @@ describe('inputs-handler', () => {
       'utf8'
     );
 
-    await saveBuildInputs(blueprintFolder, movieId, { Theme: 'Updated' }, [
-      {
-        producerId: 'DirectorProducer',
-        provider: 'openai',
-        model: 'gpt-5-mini',
-      },
-    ]);
+    await saveBuildInputs(
+      blueprintFolder,
+      blueprintPath,
+      movieId,
+      { Theme: 'Updated' },
+      [
+        {
+          producerId: 'Producer:DirectorProducer',
+          provider: 'openai',
+          model: 'gpt-5-mini',
+        },
+      ],
+      catalogRoot
+    );
 
     const parsed = await parseInputsForDisplay(inputsPath);
     expect(parsed.models).toHaveLength(2);
@@ -292,13 +339,20 @@ describe('inputs-handler', () => {
       'utf8'
     );
 
-    await saveBuildInputs(blueprintFolder, movieId, { Theme: 'Updated' }, [
-      {
-        producerId: 'DirectorProducer',
-        provider: 'openai',
-        model: 'gpt-5-mini',
-      },
-    ]);
+    await saveBuildInputs(
+      blueprintFolder,
+      blueprintPath,
+      movieId,
+      { Theme: 'Updated' },
+      [
+        {
+          producerId: 'Producer:DirectorProducer',
+          provider: 'openai',
+          model: 'gpt-5-mini',
+        },
+      ],
+      catalogRoot
+    );
 
     const parsed = await parseInputsForDisplay(inputsPath);
     expect(parsed.inputs.Theme).toBe('Updated');
@@ -306,6 +360,134 @@ describe('inputs-handler', () => {
       'file:./input-files/then-1.jpg',
       'file:./input-files/then-2.jpg',
     ]);
+  });
+
+  it('normalizes legacy nested model entries from inputs yaml into the parent TranscriptionProducer config', async () => {
+    const transcriptionBlueprintPath = path.join(
+      VIEWER_FIXTURES_ROOT,
+      'build-inputs-nested-model-normalization',
+      'build-inputs-nested-model-normalization.yaml'
+    );
+
+    await fs.writeFile(
+      inputsPath,
+      [
+        'inputs:',
+        '  InquiryPrompt: "Tell the story of Ada Lovelace."',
+        '  Duration: 30',
+        'models:',
+        '  - producerId: "TranscriptionProducer"',
+        '    provider: "renku"',
+        '    model: "speech/transcription"',
+        '    config:',
+        '      stt:',
+        '        confidenceThreshold: 0.5',
+        '  - producerId: "TranscriptionProducer.stt"',
+        '    provider: "fal-ai"',
+        '    model: "elevenlabs/speech-to-text"',
+        '    config:',
+        '      language: "en"',
+        '',
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = await getBuildInputs(
+      blueprintFolder,
+      movieId,
+      transcriptionBlueprintPath
+    );
+
+    expect(result.models).toHaveLength(1);
+    expect(result.models[0]).toEqual({
+      producerId: 'Producer:TranscriptionProducer',
+      provider: 'renku',
+      model: 'speech/transcription',
+      config: {
+        stt: {
+          confidenceThreshold: 0.5,
+          provider: 'fal-ai',
+          model: 'elevenlabs/speech-to-text',
+          language: 'en',
+        },
+      },
+    });
+  });
+
+  it('rewrites legacy nested model entries in inputs yaml into the parent TranscriptionProducer config on save', async () => {
+    const transcriptionBlueprintPath = path.join(
+      VIEWER_FIXTURES_ROOT,
+      'build-inputs-nested-model-normalization',
+      'build-inputs-nested-model-normalization.yaml'
+    );
+
+    await fs.writeFile(
+      inputsPath,
+      [
+        'inputs:',
+        '  InquiryPrompt: "Tell the story of Ada Lovelace."',
+        '  Duration: 30',
+        'models:',
+        '  - producerId: "TranscriptionProducer"',
+        '    provider: "renku"',
+        '    model: "speech/transcription"',
+        '    config:',
+        '      stt:',
+        '        confidenceThreshold: 0.5',
+        '  - producerId: "TranscriptionProducer.stt"',
+        '    provider: "fal-ai"',
+        '    model: "elevenlabs/speech-to-text"',
+        '    config:',
+        '      language: "en"',
+        '',
+      ].join('\n'),
+      'utf8'
+    );
+
+    await saveBuildInputs(
+      blueprintFolder,
+      transcriptionBlueprintPath,
+      movieId,
+      {
+        InquiryPrompt: 'Tell the story of Ada Lovelace.',
+        Duration: 45,
+      },
+      [
+        {
+          producerId: 'Producer:TranscriptionProducer',
+          provider: 'renku',
+          model: 'speech/transcription',
+          config: {
+            stt: {
+              confidenceThreshold: 0.8,
+              provider: 'fal-ai',
+              model: 'elevenlabs/speech-to-text',
+              language: 'en',
+            },
+          },
+        },
+      ],
+      undefined
+    );
+
+    const parsed = await parseInputsForDisplay(inputsPath);
+    expect(parsed.models).toHaveLength(1);
+    expect(parsed.models[0]).toEqual({
+      producerId: 'TranscriptionProducer',
+      provider: 'renku',
+      model: 'speech/transcription',
+      config: {
+        stt: {
+          confidenceThreshold: 0.8,
+          provider: 'fal-ai',
+          model: 'elevenlabs/speech-to-text',
+          language: 'en',
+        },
+      },
+    });
+
+    const content = await fs.readFile(inputsPath, 'utf8');
+    expect(content).not.toContain('TranscriptionProducer.stt');
   });
 
   it('throws when incoming models payload contains duplicate producer IDs', async () => {
@@ -324,18 +506,25 @@ describe('inputs-handler', () => {
     );
 
     await expect(
-      saveBuildInputs(blueprintFolder, movieId, { Theme: 'Updated' }, [
-        {
-          producerId: 'DirectorProducer',
-          provider: 'openai',
-          model: 'gpt-5-mini',
-        },
-        {
-          producerId: 'DirectorProducer',
-          provider: 'openai',
-          model: 'gpt-5.2',
-        },
-      ])
-    ).rejects.toThrow(/duplicate producer "DirectorProducer"/);
+      saveBuildInputs(
+        blueprintFolder,
+        blueprintPath,
+        movieId,
+        { Theme: 'Updated' },
+        [
+          {
+            producerId: 'Producer:DirectorProducer',
+            provider: 'openai',
+            model: 'gpt-5-mini',
+          },
+          {
+            producerId: 'Producer:DirectorProducer',
+            provider: 'openai',
+            model: 'gpt-5.2',
+          },
+        ],
+        catalogRoot
+      )
+    ).rejects.toThrow(/duplicate producer "Producer:DirectorProducer"/);
   });
 });

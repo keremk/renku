@@ -853,10 +853,8 @@ describe('createProducerGraph', () => {
       });
       const result = createProducerGraph(canonical, defaultCatalog, options);
 
-      // When aliasPath is ['Namespace'], formatProducerAlias returns 'Namespace' (alias takes precedence)
-      // So the producer-scoped input is Input:Namespace.provider
       const node = result.nodes[0]!;
-      expect(node.inputs).toContain('Input:Namespace.provider');
+      expect(node.inputs).toContain('Input:Namespace.NestedProducer.provider');
     });
   });
 

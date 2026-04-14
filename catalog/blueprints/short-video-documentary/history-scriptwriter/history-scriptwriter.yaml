@@ -2,6 +2,7 @@ meta:
   name: History Scriptwriter
   description: Research historical topics and generate compelling narratives with cut-scene video prompts for short documentary videos
   id: HistoryScriptwriter
+  kind: producer
   version: 0.1.0
   promptFile: ./history-scriptwriter.toml
   outputSchema: ./history-scriptwriter-output.json

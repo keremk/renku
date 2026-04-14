@@ -73,7 +73,12 @@ async function resolveEffectiveInputs(args: {
       return buildInputs.inputs;
     }
 
-    const manifest = await getBuildManifest(args.blueprintFolder, args.movieId);
+    const manifest = await getBuildManifest(
+      args.blueprintFolder,
+      args.movieId,
+      args.blueprintPath,
+      args.catalogRoot
+    );
     if (Object.keys(manifest.inputs).length > 0) {
       return manifest.inputs;
     }

@@ -135,7 +135,7 @@ function collectMissingEdgeEndpointNodeIds(root: BlueprintTreeNode): {
 describe('producer-binding-summary', () => {
   it('extracts producer aliases from edge target references', () => {
     const root = createFixtureTree();
-    const entries = collectProducerBindingEntries(root, 'VideoProducer');
+    const entries = collectProducerBindingEntries(root, 'Producer:VideoProducer');
 
     const aliases = entries.map((entry) => entry.aliasBase);
     expect(aliases).toContain('Prompt');
@@ -149,7 +149,7 @@ describe('producer-binding-summary', () => {
     const root = createFixtureTree();
     const summary = buildProducerBindingSummary({
       root,
-      producerId: 'VideoProducer',
+      producerId: 'Producer:VideoProducer',
       inputs: {
         'Input:Resolution': { width: 1280, height: 720 },
         'Input:Prompt': 'Plain input prompt',
@@ -186,7 +186,7 @@ describe('producer-binding-summary', () => {
     const root = createFixtureTree();
     const summary = buildProducerBindingSummary({
       root,
-      producerId: 'VideoProducer',
+      producerId: 'Producer:VideoProducer',
       inputs: {},
       mode: 'static',
     });
@@ -211,7 +211,7 @@ describe('producer-binding-summary', () => {
     expect(() =>
       buildProducerBindingSummary({
         root,
-        producerId: 'CharacterImageProducer',
+        producerId: 'Producer:CharacterImageProducer',
         mode: 'static',
       })
     ).toThrowError(
@@ -227,7 +227,7 @@ describe('producer-binding-summary', () => {
 
     const summary = buildProducerBindingSummary({
       root,
-      producerId: 'CharacterImageProducer',
+      producerId: 'Producer:CharacterImageProducer',
       mode: 'static',
     });
 
@@ -246,7 +246,7 @@ describe('producer-binding-summary', () => {
 
     const summary = buildProducerBindingSummary({
       root,
-      producerId: 'ThenImageProducer',
+      producerId: 'Producer:ThenImageProducer',
       inputs: {
         'Input:NumOfCharacters': 1,
         'Input:Prompt': 'compose then image',
@@ -281,7 +281,7 @@ describe('producer-binding-summary', () => {
 
     const runtimeSnapshot = buildProducerRuntimeBindingSnapshot({
       root,
-      producerId: 'ThenImageProducer',
+      producerId: 'Producer:ThenImageProducer',
       inputs: {
         'Input:NumOfCharacters': 2,
         'Input:Prompt': 'compose then image',
@@ -314,7 +314,7 @@ describe('producer-binding-summary', () => {
     expect(() =>
       buildProducerRuntimeBindingSnapshot({
         root,
-        producerId: 'VideoProducer',
+        producerId: 'Producer:VideoProducer',
         inputs: {
           Prompt: 'non-canonical key',
         },
@@ -324,7 +324,7 @@ describe('producer-binding-summary', () => {
 
   it('filters producer-local fallback aliases from runtime connected metadata', () => {
     const connectedAliases = collectRuntimeConnectedAliases({
-      producerId: 'VideoProducer',
+      producerId: 'Producer:VideoProducer',
       staticConnectedAliases: new Set(['Prompt', 'Resolution']),
       runtimeInstances: [
         {

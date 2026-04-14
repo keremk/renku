@@ -6,10 +6,12 @@ import { parseOutputs } from './blueprint-loader/yaml-parser.js';
 import {
   createInputIdResolver,
   type CanonicalInputEntry,
+  formatCanonicalProducerId,
+  formatCanonicalProducerPath,
   formatProducerAlias,
-  formatProducerScopedInputId,
+  formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalInputId,
-  parseQualifiedProducerName,
+  parseCanonicalProducerId,
 } from './canonical-ids.js';
 import { createParserError, ParserErrorCode } from '../errors/index.js';
 import { flattenConfigValues } from '../orchestration/config-utils.js';
@@ -373,16 +375,15 @@ function applyModelSelectionsToInputs(
   selections: ModelSelection[]
 ): void {
   for (const selection of selections) {
-    const namespacePath = selection.namespacePath ?? [];
-    const { producerName } = parseQualifiedProducerName(selection.producerId);
-    const providerId = formatProducerScopedInputId(
-      namespacePath,
-      producerName,
+    const canonicalProducerId = formatCanonicalProducerPath(
+      selection.producerId
+    );
+    const providerId = formatProducerScopedInputIdForCanonicalProducerId(
+      canonicalProducerId,
       'provider'
     );
-    const modelId = formatProducerScopedInputId(
-      namespacePath,
-      producerName,
+    const modelId = formatProducerScopedInputIdForCanonicalProducerId(
+      canonicalProducerId,
       'model'
     );
     values[providerId] = selection.provider;
@@ -390,9 +391,8 @@ function applyModelSelectionsToInputs(
     if (selection.config && typeof selection.config === 'object') {
       const flattened = flattenConfigValues(selection.config);
       for (const [key, value] of Object.entries(flattened)) {
-        const canonicalKey = formatProducerScopedInputId(
-          namespacePath,
-          producerName,
+        const canonicalKey = formatProducerScopedInputIdForCanonicalProducerId(
+          canonicalProducerId,
           key
         );
         values[canonicalKey] = value;
@@ -406,17 +406,19 @@ function collectProducerScopedInputs(
 ): CanonicalInputEntry[] {
   const entries: Map<string, CanonicalInputEntry> = new Map();
 
-  const addEntry = (
-    namespacePath: string[],
-    producerName: string,
-    name: string
-  ) => {
-    const canonicalId = formatProducerScopedInputId(
-      namespacePath,
-      producerName,
+  const addEntry = (canonicalProducerId: string, name: string) => {
+    const canonicalId = formatProducerScopedInputIdForCanonicalProducerId(
+      canonicalProducerId,
       name
     );
     if (!entries.has(canonicalId)) {
+      const parsedProducerId = parseCanonicalProducerId(
+        canonicalProducerId
+      );
+      const namespacePath = [
+        ...parsedProducerId.path,
+        parsedProducerId.name,
+      ];
       entries.set(canonicalId, {
         canonicalId,
         name,
@@ -432,11 +434,12 @@ function collectProducerScopedInputs(
 
   const visit = (node: BlueprintTreeNode) => {
     for (const producer of node.document.producers) {
-      const namespacePath = node.namespacePath;
-      const producerName = producer.name;
-
-      addEntry(namespacePath, producerName, 'provider');
-      addEntry(namespacePath, producerName, 'model');
+      const canonicalProducerId = formatCanonicalProducerId(
+        node.namespacePath,
+        producer.name
+      );
+      addEntry(canonicalProducerId, 'provider');
+      addEntry(canonicalProducerId, 'model');
     }
     for (const child of node.children.values()) {
       visit(child);
@@ -778,15 +781,20 @@ function collectSelectionEntries(
 ): CanonicalInputEntry[] {
   const entries: Map<string, CanonicalInputEntry> = new Map();
   for (const selection of selections) {
-    const namespacePath = selection.namespacePath ?? [];
-    const { producerName: producer } = parseQualifiedProducerName(
+    const canonicalProducerId = formatCanonicalProducerPath(
       selection.producerId
     );
+    const parsedProducerId = parseCanonicalProducerId(
+      canonicalProducerId
+    );
+    const namespacePath = [
+      ...parsedProducerId.path,
+      parsedProducerId.name,
+    ];
     const flattened = flattenConfigValues(selection.config ?? {});
     for (const key of Object.keys(flattened)) {
-      const canonicalId = formatProducerScopedInputId(
-        namespacePath,
-        producer,
+      const canonicalId = formatProducerScopedInputIdForCanonicalProducerId(
+        canonicalProducerId,
         key
       );
       if (!entries.has(canonicalId)) {

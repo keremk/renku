@@ -21,7 +21,9 @@ export {
   formatCanonicalInputId,
   formatCanonicalArtifactId,
   formatCanonicalProducerId,
+  formatCanonicalProducerPath,
   formatProducerScopedInputId,
+  formatProducerScopedInputIdForCanonicalProducerId,
   // Utilities
   collectCanonicalInputs,
   createInputIdResolver,

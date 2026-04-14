@@ -71,6 +71,7 @@ describe('end-to-end: blob inputs via file: prefix', () => {
 				meta: {
 					name: 'Test Image to Video Producer',
 					id: 'TestImageToVideoProducer',
+					kind: 'producer',
 					version: '0.1.0',
 				},
 				inputs: [
@@ -188,6 +189,7 @@ describe('end-to-end: blob inputs via file: prefix', () => {
 				meta: {
 					name: 'Test Multi-Image Producer',
 					id: 'TestMultiImageProducer',
+					kind: 'producer',
 					version: '0.1.0',
 				},
 				inputs: [

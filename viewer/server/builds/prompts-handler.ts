@@ -6,16 +6,16 @@
 
 import path from "node:path";
 import {
+  decanonicalizeProducerId,
+  findLeafProducerReferenceByCanonicalId,
   loadYamlBlueprintTree,
   loadPromptFile,
   promptFileExists,
   saveProducerPrompts as coreSaveProducerPrompts,
   restoreProducerPrompts as coreRestoreProducerPrompts,
   getBuildPromptPath as coreGetBuildPromptPath,
-  type BlueprintTreeNode,
   type PromptFileData,
 } from "@gorenku/core";
-import { detectProducerCategory } from "../blueprints/producer-models.js";
 
 /**
  * Response from GET /blueprints/builds/prompts
@@ -37,6 +37,7 @@ export interface SavePromptsRequest {
   blueprintFolder: string;
   movieId: string;
   blueprintPath: string;
+  catalogRoot?: string;
   producerId: string;
   prompts: PromptFileData;
 }
@@ -47,6 +48,8 @@ export interface SavePromptsRequest {
 export interface RestorePromptsRequest {
   blueprintFolder: string;
   movieId: string;
+  blueprintPath: string;
+  catalogRoot?: string;
   producerId: string;
 }
 
@@ -64,54 +67,34 @@ async function findProducerPromptPath(
   blueprintPath: string,
   producerId: string,
   catalogRoot?: string,
-): Promise<{ promptPath: string; producerSourcePath: string } | null> {
+): Promise<
+  | {
+      promptPath: string;
+      producerSourcePath: string;
+      authoredProducerId: string;
+    }
+  | null
+> {
   const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
-
-  // Find the producer in the tree
-  const findProducer = (
-    node: BlueprintTreeNode,
-  ): { promptFile: string; sourcePath: string } | null => {
-    for (const producerImport of node.document.producerImports) {
-      if (producerImport.name !== producerId) continue;
-
-      const childNode = producerImport.path ? node.children.get(producerId) : undefined;
-      const category = detectProducerCategory(producerImport, childNode);
-
-      // Only prompt producers have prompt files
-      if (category !== "prompt") {
-        return null;
-      }
-
-      // Get promptFile from the producer's meta
-      if (childNode?.document.meta.promptFile) {
-        return {
-          promptFile: childNode.document.meta.promptFile,
-          sourcePath: childNode.sourcePath,
-        };
-      }
-
-      return null;
-    }
-
-    // Search children
-    for (const child of node.children.values()) {
-      const result = findProducer(child);
-      if (result) return result;
-    }
-
-    return null;
-  };
-
-  const result = findProducer(root);
-  if (!result) {
+  const producerReference = findLeafProducerReferenceByCanonicalId(
+    root,
+    producerId
+  );
+  if (!producerReference || !producerReference.node.document.meta.promptFile) {
     return null;
   }
 
-  // Resolve the prompt file path relative to the producer's source path
-  const producerDir = path.dirname(result.sourcePath);
-  const promptPath = path.resolve(producerDir, result.promptFile);
+  const producerDir = path.dirname(producerReference.node.sourcePath);
+  const promptPath = path.resolve(
+    producerDir,
+    producerReference.node.document.meta.promptFile
+  );
 
-  return { promptPath, producerSourcePath: result.sourcePath };
+  return {
+    promptPath,
+    producerSourcePath: producerReference.node.sourcePath,
+    authoredProducerId: producerReference.authoredProducerId,
+  };
 }
 
 /**
@@ -133,7 +116,10 @@ export async function getProducerPrompts(
 
   // Check if there's an edited version in the build folder
   const buildsDir = resolveBuildsDir(blueprintFolder, movieId);
-  const buildPromptPath = coreGetBuildPromptPath(buildsDir, producerId);
+  const buildPromptPath = coreGetBuildPromptPath(
+    buildsDir,
+    templateInfo.authoredProducerId
+  );
 
   if (promptFileExists(buildPromptPath)) {
     // Return the edited version
@@ -167,11 +153,18 @@ export async function getProducerPrompts(
 export async function saveProducerPrompts(
   blueprintFolder: string,
   movieId: string,
+  blueprintPath: string,
   producerId: string,
   prompts: PromptFileData,
+  catalogRoot?: string,
 ): Promise<void> {
   const buildsDir = resolveBuildsDir(blueprintFolder, movieId);
-  await coreSaveProducerPrompts(buildsDir, producerId, prompts);
+  const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+  const authoredProducerId = decanonicalizeProducerId(root, producerId);
+  if (!authoredProducerId) {
+    throw new Error(`Unknown canonical producer "${producerId}" for prompt save.`);
+  }
+  await coreSaveProducerPrompts(buildsDir, authoredProducerId, prompts);
 }
 
 /**
@@ -181,8 +174,17 @@ export async function saveProducerPrompts(
 export async function restoreProducerPrompts(
   blueprintFolder: string,
   movieId: string,
+  blueprintPath: string,
   producerId: string,
+  catalogRoot?: string,
 ): Promise<void> {
   const buildsDir = resolveBuildsDir(blueprintFolder, movieId);
-  await coreRestoreProducerPrompts(buildsDir, producerId);
+  const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+  const authoredProducerId = decanonicalizeProducerId(root, producerId);
+  if (!authoredProducerId) {
+    throw new Error(
+      `Unknown canonical producer "${producerId}" for prompt restore.`
+    );
+  }
+  await coreRestoreProducerPrompts(buildsDir, authoredProducerId);
 }

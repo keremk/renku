@@ -131,19 +131,22 @@ describe('getProducerConfigSchemas', () => {
 
     expect(Object.keys(response.errorsByProducer ?? {})).toHaveLength(0);
 
-    expect(response.producers.EduScriptProducer?.category).toBe('prompt');
+    expect(response.producers['Producer:EduScriptProducer']?.category).toBe(
+      'prompt'
+    );
 
-    const imageProducer = response.producers.CharacterImageProducer;
+    const imageProducer = response.producers['Producer:CharacterImageProducer'];
     expect(Object.keys(imageProducer?.modelSchemas ?? {}).length > 0).toBe(
       true
     );
 
-    const narrationProducer = response.producers.NarrationAudioProducer;
+    const narrationProducer =
+      response.producers['Producer:NarrationAudioProducer'];
     expect(Object.keys(narrationProducer?.modelSchemas ?? {}).length > 0).toBe(
       true
     );
 
-    const lipsyncProducer = response.producers.LipsyncVideoProducer;
+    const lipsyncProducer = response.producers['Producer:LipsyncVideoProducer'];
     expect(Object.keys(lipsyncProducer?.modelSchemas ?? {}).length > 0).toBe(
       true
     );
@@ -162,7 +165,8 @@ describe('getProducerConfigSchemas', () => {
       CATALOG_ROOT
     );
 
-    const narrationProducer = response.producers.NarrationAudioProducer;
+    const narrationProducer =
+      response.producers['Producer:NarrationAudioProducer'];
     const elevenV3Schema =
       narrationProducer?.modelSchemas['fal-ai/elevenlabs/tts/eleven-v3'];
     expect(elevenV3Schema).toBeDefined();
@@ -198,7 +202,8 @@ describe('getProducerConfigSchemas', () => {
       CATALOG_ROOT
     );
 
-    const narrationProducer = response.producers.NarrationAudioProducer;
+    const narrationProducer =
+      response.producers['Producer:NarrationAudioProducer'];
     const elevenV3Schema =
       narrationProducer?.modelSchemas['fal-ai/elevenlabs/tts/eleven-v3'];
     expect(elevenV3Schema).toBeDefined();
@@ -246,7 +251,7 @@ describe('getProducerConfigSchemas', () => {
       CATALOG_ROOT
     );
 
-    const lipsyncProducer = response.producers.LipsyncVideoProducer;
+    const lipsyncProducer = response.producers['Producer:LipsyncVideoProducer'];
     const ltxSchema =
       lipsyncProducer?.modelSchemas['fal-ai/ltx-2.3/audio-to-video'];
     const ltx19Schema =
@@ -322,7 +327,7 @@ describe('getProducerConfigSchemas', () => {
       CATALOG_ROOT
     );
 
-    const videoProducer = response.producers.VideoProducer;
+    const videoProducer = response.producers['Producer:VideoProducer'];
     const klingSchema =
       videoProducer?.modelSchemas['fal-ai/kling-video/v3/pro/image-to-video'];
     expect(klingSchema).toBeDefined();
@@ -395,7 +400,7 @@ describe('getProducerConfigSchemas', () => {
 
     expect(Object.keys(response.errorsByProducer ?? {})).toHaveLength(0);
 
-    const thenImageProducer = response.producers.ThenImageProducer;
+    const thenImageProducer = response.producers['Producer:ThenImageProducer'];
     const nanoBananaSchema =
       thenImageProducer?.modelSchemas['replicate/google/nano-banana-pro'];
     expect(nanoBananaSchema).toBeDefined();
@@ -447,7 +452,8 @@ describe('getProducerConfigSchemas', () => {
       CATALOG_ROOT
     );
 
-    const transcriptionProducer = response.producers.TranscriptionProducer;
+    const transcriptionProducer =
+      response.producers['Producer:TranscriptionProducer'];
     expect(transcriptionProducer).toBeDefined();
 
     const sttNested = transcriptionProducer?.nestedModels?.find(
@@ -464,5 +470,35 @@ describe('getProducerConfigSchemas', () => {
     expect(fieldPaths.includes('language_code')).toBe(false);
     expect(fieldPaths.includes('diarize')).toBe(true);
     expect(fieldPaths.includes('tag_audio_events')).toBe(true);
+  });
+
+  it('exposes canonical nested VideoStitcher config fields and omits the composite container', async () => {
+    const blueprintPath = path.join(
+      CATALOG_ROOT,
+      'blueprints',
+      'celebrity-then-now',
+      'celebrity-then-now.yaml'
+    );
+
+    const response = await getProducerConfigSchemas(
+      blueprintPath,
+      CATALOG_ROOT
+    );
+
+    expect(response.producers['Producer:CelebrityVideoProducer']).toBeUndefined();
+
+    const videoStitcher =
+      response.producers['Producer:CelebrityVideoProducer.VideoStitcher'];
+    expect(videoStitcher?.category).toBe('composition');
+
+    const schema = videoStitcher?.modelSchemas['renku/ffmpeg/video-stitch'];
+    expect(schema).toBeDefined();
+
+    const fieldPaths = collectFieldPaths(schema?.fields ?? []);
+    expect(fieldPaths).toEqual(
+      expect.arrayContaining(['preset', 'crf', 'audioBitrate', 'ffmpegPath'])
+    );
+    expect(fieldPaths).not.toContain('VideoSegments');
+    expect(fieldPaths).not.toContain('Duration');
   });
 });

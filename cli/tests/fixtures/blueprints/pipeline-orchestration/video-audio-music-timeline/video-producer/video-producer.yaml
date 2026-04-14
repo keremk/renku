@@ -2,6 +2,7 @@ meta:
   name: Video Prompt Generation
   description: Generate video generation prompt.
   id: VideoPromptProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

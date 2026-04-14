@@ -1,9 +1,12 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseYamlBlueprintFile } from '../parsing/blueprint-loader/yaml-parser.js';
+import {
+  loadYamlBlueprintTree,
+  parseYamlBlueprintFile,
+} from '../parsing/blueprint-loader/yaml-parser.js';
 import { isRenkuError, RuntimeErrorCode } from '../errors/index.js';
 import type { BlueprintTreeNode } from '../types.js';
-import { TEST_FIXTURES_ROOT } from '../../tests/catalog-paths.js';
+import { CATALOG_ROOT, TEST_FIXTURES_ROOT } from '../../tests/catalog-paths.js';
 import {
   collectNodesAndEdges,
   convertTreeToGraph,
@@ -147,6 +150,103 @@ describe('viewer-parse-projection helpers', () => {
         }),
       ])
     );
+  });
+
+  it('marks composite producer-import nodes as non-runnable containers', () => {
+    const root = makeTreeNode({
+      meta: { id: 'ViewerParseComposite', name: 'Viewer Parse Composite' },
+      inputs: [],
+      producers: [],
+      producerImports: [
+        {
+          name: 'CelebrityVideoProducer',
+          path: './celebrity-video-producer.yaml',
+        },
+        {
+          name: 'TimelineComposer',
+          producer: 'video/timeline-compose',
+        },
+      ],
+      artefacts: [],
+      edges: [],
+    });
+
+    root.children.set(
+      'CelebrityVideoProducer',
+      makeTreeNode({
+        meta: {
+          id: 'CelebrityVideoProducer',
+          name: 'Celebrity Video Producer',
+          kind: 'blueprint',
+        },
+        inputs: [],
+        producers: [],
+        producerImports: [],
+        artefacts: [],
+        edges: [],
+      })
+    );
+    root.children.set(
+      'TimelineComposer',
+      makeTreeNode({
+        meta: {
+          id: 'TimelineComposer',
+          name: 'Timeline Composer',
+          kind: 'producer',
+        },
+        inputs: [],
+        producers: [],
+        producerImports: [],
+        artefacts: [],
+        edges: [],
+      })
+    );
+
+    const graph = convertTreeToGraph(root);
+    const compositeNode = graph.nodes.find(
+      (node) => node.id === 'Producer:CelebrityVideoProducer'
+    );
+    const leafNode = graph.nodes.find(
+      (node) => node.id === 'Producer:TimelineComposer'
+    );
+
+    expect(compositeNode).toBeDefined();
+    expect(compositeNode?.runnable).toBe(false);
+    expect(leafNode).toBeDefined();
+    expect(leafNode?.runnable).toBe(true);
+  });
+
+  it('marks real path-backed producer blueprints as runnable when catalog metadata uses kind: producer', async () => {
+    const celebrityPath = resolve(
+      CATALOG_ROOT,
+      'blueprints/celebrity-then-now/celebrity-then-now.yaml'
+    );
+    const eduPath = resolve(
+      CATALOG_ROOT,
+      'blueprints/animated-edu-characters/animated-edu-characters.yaml'
+    );
+
+    const [{ root: celebrityRoot }, { root: eduRoot }] = await Promise.all([
+      loadYamlBlueprintTree(celebrityPath, { catalogRoot: CATALOG_ROOT }),
+      loadYamlBlueprintTree(eduPath, { catalogRoot: CATALOG_ROOT }),
+    ]);
+
+    const celebrityGraph = convertTreeToGraph(celebrityRoot);
+    const eduGraph = convertTreeToGraph(eduRoot);
+
+    const directorNode = celebrityGraph.nodes.find(
+      (node) => node.id === 'Producer:DirectorProducer'
+    );
+    const compositeNode = celebrityGraph.nodes.find(
+      (node) => node.id === 'Producer:CelebrityVideoProducer'
+    );
+    const eduScriptNode = eduGraph.nodes.find(
+      (node) => node.id === 'Producer:EduScriptProducer'
+    );
+
+    expect(directorNode?.runnable).toBe(true);
+    expect(eduScriptNode?.runnable).toBe(true);
+    expect(compositeNode?.runnable).toBe(false);
   });
 });
 

@@ -2,7 +2,7 @@ meta:
   name: Celebrity Then-Now Director
   description: Generate image transformation prompts, video prompts, and music direction for a celebrity then-and-now retrospective video.
   id: DirectorProducer
-  kind: blueprint
+  kind: producer
   version: 0.1.0
   promptFile: ./director.toml
   outputSchema: ./director-output.json

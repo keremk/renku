@@ -6,13 +6,18 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { getBuildManifest } from './manifest-handler.js';
+
+const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
+const VIEWER_FIXTURES_ROOT = path.join(TEST_DIR, '../fixtures/blueprints');
 
 describe('getBuildManifest', () => {
   let tempDir: string;
   let blueprintFolder: string;
   let movieId: string;
   let movieDir: string;
+  let transcriptionBlueprintPath: string;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
@@ -21,6 +26,11 @@ describe('getBuildManifest', () => {
     blueprintFolder = tempDir;
     movieId = 'movie-test123';
     movieDir = path.join(blueprintFolder, 'builds', movieId);
+    transcriptionBlueprintPath = path.join(
+      VIEWER_FIXTURES_ROOT,
+      'build-inputs-nested-model-normalization',
+      'build-inputs-nested-model-normalization.yaml'
+    );
 
     // Create directory structure
     await fs.mkdir(path.join(movieDir, 'events'), { recursive: true });
@@ -40,6 +50,59 @@ describe('getBuildManifest', () => {
     expect(result.movieId).toBe(movieId);
     expect(result.revision).toBeNull();
     expect(result.artefacts).toEqual([]);
+  });
+
+  it('normalizes nested manifest model fields into the canonical TranscriptionProducer config', async () => {
+    await fs.writeFile(
+      path.join(movieDir, 'current.json'),
+      JSON.stringify({
+        revision: 'rev-001',
+        manifestPath: 'manifests/rev-001.json',
+      })
+    );
+
+    await fs.mkdir(path.join(movieDir, 'manifests'), { recursive: true });
+    await fs.writeFile(
+      path.join(movieDir, 'manifests', 'rev-001.json'),
+      JSON.stringify({
+        inputs: {
+          'Input:TranscriptionProducer.provider': {
+            payloadDigest: '"renku"',
+          },
+          'Input:TranscriptionProducer.model': {
+            payloadDigest: '"speech/transcription"',
+          },
+          'Input:TranscriptionProducer.stt.provider': {
+            payloadDigest: '"fal-ai"',
+          },
+          'Input:TranscriptionProducer.stt.model': {
+            payloadDigest: '"elevenlabs/speech-to-text"',
+          },
+        },
+        artefacts: {},
+        createdAt: '2024-01-01T00:00:00Z',
+      })
+    );
+
+    const result = await getBuildManifest(
+      blueprintFolder,
+      movieId,
+      transcriptionBlueprintPath
+    );
+
+    expect(result.models).toEqual([
+      {
+        producerId: 'Producer:TranscriptionProducer',
+        provider: 'renku',
+        model: 'speech/transcription',
+        config: {
+          stt: {
+            provider: 'fal-ai',
+            model: 'elevenlabs/speech-to-text',
+          },
+        },
+      },
+    ]);
   });
 
   it('returns artifacts from manifest file', async () => {

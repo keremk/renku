@@ -89,6 +89,7 @@ export function layoutBlueprintGraph(
       data: {
         label: node.label,
         loop: node.loop,
+        runnable: node.runnable,
         producerType: node.producerType,
         description: node.description,
         status: producerStatuses?.[node.id] ?? 'not-run-yet',

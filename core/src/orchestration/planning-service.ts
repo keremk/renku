@@ -16,10 +16,10 @@ import {
 import type { PlanExplanation } from '../planning/explanation.js';
 import { evaluateInputConditions } from '../condition-evaluator.js';
 import {
-  formatProducerScopedInputId,
+  formatCanonicalProducerPath,
+  formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalArtifactId,
   isCanonicalInputId,
-  parseQualifiedProducerName,
 } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { EventLog } from '../event-log.js';
@@ -511,13 +511,22 @@ function collectPlanningCanonicalInputIds(
   const ids = new Set<string>();
 
   for (const [producerAlias, option] of providerOptions.entries()) {
-    const { namespacePath, producerName } =
-      parseQualifiedProducerName(producerAlias);
+    const canonicalProducerId = formatCanonicalProducerPath(producerAlias);
     for (const key of option.selectionInputKeys ?? []) {
-      ids.add(formatProducerScopedInputId(namespacePath, producerName, key));
+      ids.add(
+        formatProducerScopedInputIdForCanonicalProducerId(
+          canonicalProducerId,
+          key
+        )
+      );
     }
     for (const key of option.configInputPaths ?? []) {
-      ids.add(formatProducerScopedInputId(namespacePath, producerName, key));
+      ids.add(
+        formatProducerScopedInputIdForCanonicalProducerId(
+          canonicalProducerId,
+          key
+        )
+      );
     }
   }
 

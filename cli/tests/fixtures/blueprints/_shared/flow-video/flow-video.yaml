@@ -2,6 +2,7 @@ meta:
   name: Generate Long Form Video Prompt
   description: Generate prompts for long form video content from segments with begin and end images
   id: FlowVideoPromptProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

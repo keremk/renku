@@ -6,25 +6,27 @@ import { existsSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import {
+  canonicalizeAuthoredProducerId,
+  decanonicalizeProducerId,
+  loadYamlBlueprintTree,
   parseInputsForDisplay,
   serializeInputsToYaml,
   type SerializableModelSelection,
 } from '@gorenku/core';
 import type { BuildInputsResponse } from './types.js';
+import { normalizeNestedModelSelections } from './model-selection-normalizer.js';
 
 /**
  * Gets the inputs.yaml content for a build using core's parseInputsForDisplay.
  * Returns structured JSON with file references preserved as strings for UI display.
  * The frontend uses these strings to build streaming URLs for actual file content.
  *
- * Note: _blueprintPath and _catalogRoot are kept for API compatibility but no longer
- * used since parseInputsForDisplay doesn't require blueprint validation context.
  */
 export async function getBuildInputs(
   blueprintFolder: string,
   movieId: string,
-  _blueprintPath: string,
-  _catalogRoot?: string
+  blueprintPath: string,
+  catalogRoot?: string
 ): Promise<BuildInputsResponse> {
   const inputsPath = path.join(
     blueprintFolder,
@@ -39,12 +41,24 @@ export async function getBuildInputs(
   }
 
   try {
-    // Parse inputs using core's display parser (preserves file references as strings)
+    const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
     const { inputs, models } = await parseInputsForDisplay(inputsPath);
+    const normalizedModels = normalizeNestedModelSelections(
+      root,
+      models,
+      `"${inputsPath}"`
+    );
 
     return {
       inputs,
-      models,
+      models: normalizedModels.map((selection) => ({
+        ...selection,
+        producerId: canonicalizeProducerIdOrThrow(
+          root,
+          selection.producerId,
+          inputsPath
+        ),
+      })),
       inputsPath,
     };
   } catch (error) {
@@ -61,13 +75,16 @@ export async function getBuildInputs(
  */
 export async function saveBuildInputs(
   blueprintFolder: string,
+  blueprintPath: string,
   movieId: string,
   inputs: Record<string, unknown>,
-  models: SerializableModelSelection[]
+  models: SerializableModelSelection[],
+  catalogRoot?: string
 ): Promise<void> {
   const buildDir = path.join(blueprintFolder, 'builds', movieId);
   await fs.mkdir(buildDir, { recursive: true });
   const inputsPath = path.join(buildDir, 'inputs.yaml');
+  const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
 
   let nextInputs = inputs;
   let nextModels = models;
@@ -75,11 +92,24 @@ export async function saveBuildInputs(
   if (existsSync(inputsPath)) {
     const existing = await parseInputsForDisplay(inputsPath);
     nextInputs = mergeInputValues(existing.inputs, inputs);
-    nextModels = mergeModelSelections(existing.models, models, inputsPath);
+    nextModels = mergeModelSelections(
+      canonicalizeModelSelections(
+        root,
+        normalizeNestedModelSelections(root, existing.models, `"${inputsPath}"`),
+        inputsPath
+      ),
+      models,
+      inputsPath
+    );
   }
 
+  const authoredModels = decanonicalizeModelSelections(root, nextModels, inputsPath);
+
   // Serialize to YAML using core's serializer
-  const content = serializeInputsToYaml({ inputs: nextInputs, models: nextModels });
+  const content = serializeInputsToYaml({
+    inputs: nextInputs,
+    models: authoredModels,
+  });
   const tempPath = `${inputsPath}.tmp-${Date.now()}`;
   await fs.writeFile(tempPath, content, 'utf8');
   await fs.rename(tempPath, inputsPath);
@@ -181,4 +211,68 @@ function normalizeSelectionConfig(
     provider: selection.provider,
     model: selection.model,
   };
+}
+
+function canonicalizeProducerIdOrThrow(
+  blueprintTree: Awaited<ReturnType<typeof loadYamlBlueprintTree>>['root'],
+  authoredProducerId: string,
+  inputsPath: string
+): string {
+  const canonicalProducerId = canonicalizeAuthoredProducerId(
+    blueprintTree,
+    authoredProducerId
+  );
+  if (!canonicalProducerId) {
+    throw new Error(
+      `Refusing to use unknown producer "${authoredProducerId}" from "${inputsPath}".`
+    );
+  }
+  return canonicalProducerId;
+}
+
+function decanonicalizeProducerIdOrThrow(
+  blueprintTree: Awaited<ReturnType<typeof loadYamlBlueprintTree>>['root'],
+  canonicalProducerId: string,
+  inputsPath: string
+): string {
+  const authoredProducerId = decanonicalizeProducerId(
+    blueprintTree,
+    canonicalProducerId
+  );
+  if (!authoredProducerId) {
+    throw new Error(
+      `Refusing to save unknown canonical producer "${canonicalProducerId}" into "${inputsPath}".`
+    );
+  }
+  return authoredProducerId;
+}
+
+function canonicalizeModelSelections(
+  blueprintTree: Awaited<ReturnType<typeof loadYamlBlueprintTree>>['root'],
+  models: SerializableModelSelection[],
+  inputsPath: string
+): SerializableModelSelection[] {
+  return models.map((selection) => ({
+    ...selection,
+    producerId: canonicalizeProducerIdOrThrow(
+      blueprintTree,
+      selection.producerId,
+      inputsPath
+    ),
+  }));
+}
+
+function decanonicalizeModelSelections(
+  blueprintTree: Awaited<ReturnType<typeof loadYamlBlueprintTree>>['root'],
+  models: SerializableModelSelection[],
+  inputsPath: string
+): SerializableModelSelection[] {
+  return models.map((selection) => ({
+    ...selection,
+    producerId: decanonicalizeProducerIdOrThrow(
+      blueprintTree,
+      selection.producerId,
+      inputsPath
+    ),
+  }));
 }

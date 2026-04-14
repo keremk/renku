@@ -30,6 +30,15 @@ export {
 } from './mapping-resolver.js';
 export type { ResolvedMappingContext } from './mapping-resolver.js';
 export {
+  collectLeafProducerReferences,
+  findLeafProducerReferenceByCanonicalId,
+  findLeafProducerReferenceByAuthoredId,
+  canonicalizeAuthoredProducerId,
+  decanonicalizeProducerId,
+  getCanonicalProducerDisplayParts,
+} from './producer-id-resolver.js';
+export type { LeafProducerReference } from './producer-id-resolver.js';
+export {
   collectProducerBindingEntries,
   buildProducerBindingSummary,
   buildProducerRuntimeBindingSnapshot,

@@ -131,7 +131,8 @@ export function useProducerPrompts(
         movieId,
         blueprintPath,
         producerId,
-        prompts
+        prompts,
+        catalogRoot
       );
 
       // Update local state
@@ -149,16 +150,22 @@ export function useProducerPrompts(
   // Restore prompt to template version
   const restorePrompt = useCallback(
     async (producerId: string) => {
-      if (!blueprintFolder || !movieId) {
+      if (!blueprintFolder || !blueprintPath || !movieId) {
         throw new Error("Cannot restore prompts: missing required parameters");
       }
 
-      await restoreProducerPrompts(blueprintFolder, movieId, producerId);
+      await restoreProducerPrompts(
+        blueprintFolder,
+        movieId,
+        blueprintPath,
+        producerId,
+        catalogRoot
+      );
 
       // Refresh to get the template version
       await loadPrompts();
     },
-    [blueprintFolder, movieId, loadPrompts]
+    [blueprintFolder, blueprintPath, movieId, catalogRoot, loadPrompts]
   );
 
   return {

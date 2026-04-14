@@ -127,6 +127,7 @@ export async function parseYamlBlueprintFile(
   const meta = parseMeta(raw.meta, filePath);
   const rawProducerImports = Array.isArray(raw.producers) ? raw.producers : [];
   const isProducerBlueprint = rawProducerImports.length === 0;
+  assertProducerBlueprintKind(raw.meta, filePath, isProducerBlueprint);
 
   const inputs = Array.isArray(raw.inputs)
     ? raw.inputs.map((entry) => parseInput(entry, isProducerBlueprint))
@@ -375,6 +376,38 @@ function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {
     outputSchema:
       typeof meta.outputSchema === 'string' ? meta.outputSchema : undefined,
   };
+}
+
+function assertProducerBlueprintKind(
+  rawMeta: unknown,
+  filePath: string,
+  isProducerBlueprint: boolean
+): void {
+  if (!isProducerBlueprint) {
+    return;
+  }
+
+  if (!rawMeta || typeof rawMeta !== 'object') {
+    throw createParserError(
+      ParserErrorCode.MISSING_REQUIRED_SECTION,
+      `Blueprint YAML at ${filePath} must include a meta section.`,
+      { filePath }
+    );
+  }
+
+  const meta = rawMeta as Record<string, unknown>;
+  if (meta.kind === 'producer') {
+    return;
+  }
+
+  throw createParserError(
+    ParserErrorCode.INVALID_PRODUCER_BLUEPRINT_KIND,
+    `Leaf producer blueprint at ${filePath} must declare meta.kind: producer.`,
+    {
+      filePath,
+      suggestion: 'Set meta.kind to "producer" for leaf producer blueprints.',
+    }
+  );
 }
 
 function parseLoops(rawLoops: unknown[]): Array<{

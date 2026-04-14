@@ -253,12 +253,47 @@ export function getOutputNameFromNodeId(
  * Example: "VideoExporter" -> "Video Exporter"
  */
 export function formatProducerDisplayName(producerId: string): string {
-  return producerId
+  const rawName = producerId.includes(':')
+    ? (parseNodeId(producerId)?.name ?? producerId)
+    : (producerId.split('.').pop() ?? producerId);
+
+  return rawName
     .replace(/[_-]+/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+export interface ProducerDisplayParts {
+  canonicalProducerId: string;
+  groupPath: string[];
+  groupKey: string | null;
+  groupLabel: string | null;
+  leafLabel: string;
+}
+
+export function getProducerDisplayParts(
+  producerId: string
+): ProducerDisplayParts {
+  const parsed = parseNodeId(producerId);
+  const path = parsed?.type === 'Producer' ? parsed.path : producerId;
+  const segments = path.split('.').filter(Boolean);
+  const leafName = segments[segments.length - 1] ?? path;
+  const groupPath = segments.slice(0, -1);
+  const groupKey = groupPath.length > 0 ? groupPath.join('.') : null;
+  const groupLabel =
+    groupPath.length > 0
+      ? formatProducerDisplayName(groupPath[groupPath.length - 1]!)
+      : null;
+
+  return {
+    canonicalProducerId: producerId,
+    groupPath,
+    groupKey,
+    groupLabel,
+    leafLabel: formatProducerDisplayName(leafName),
+  };
 }
 
 // ============================================================================

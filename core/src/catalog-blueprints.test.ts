@@ -20,6 +20,7 @@ const MINIMAL_BLUEPRINT_YAML = `meta:
   name: Template Title
   description: Template description
   id: TemplateId
+  kind: producer
   version: 0.1.0
 
 artifacts:

@@ -3,6 +3,7 @@ import {
   formatCanonicalArtifactId,
   formatCanonicalInputId,
   isCanonicalId,
+  parseCanonicalProducerId,
 } from '../parsing/canonical-ids.js';
 import { parseDimensionSelector } from '../parsing/dimension-selectors.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
@@ -49,6 +50,7 @@ export function collectProducerBindingEntries(
   rootOrContext: BlueprintTreeNode | BlueprintResolutionContext,
   producerId: string
 ): ProducerBindingEntry[] {
+  const producerAlias = canonicalProducerIdToAlias(producerId);
   const graph = resolveBlueprintResolutionContext(rootOrContext).graph;
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
 
@@ -61,7 +63,7 @@ export function collectProducerBindingEntries(
     }
 
     const targetProducerId = targetNode.namespacePath.join('.');
-    if (targetProducerId !== producerId) {
+    if (targetProducerId !== producerAlias) {
       continue;
     }
 
@@ -176,11 +178,11 @@ export function buildProducerRuntimeBindingSnapshot(args: {
       assertRuntimeInputs(args.inputs, args.producerId)
     );
   const canonical = expanded.canonical;
+  const producerAlias = canonicalProducerIdToAlias(args.producerId);
 
   const producerInstances = canonical.nodes
     .filter(
-      (node) =>
-        node.type === 'Producer' && node.producerAlias === args.producerId
+      (node) => node.type === 'Producer' && node.producerAlias === producerAlias
     )
     .sort((left, right) => compareProducerInstanceOrder(left.id, right.id));
 
@@ -206,6 +208,11 @@ export function buildProducerRuntimeBindingSnapshot(args: {
     instances,
     resolvedInputs,
   };
+}
+
+function canonicalProducerIdToAlias(canonicalProducerId: string): string {
+  const parsed = parseCanonicalProducerId(canonicalProducerId);
+  return [...parsed.path, parsed.name].join('.');
 }
 
 function resolveArgsContext(args: {
@@ -516,7 +523,8 @@ function inferBindingSourceKind(
   }
 
   if (canonicalId.startsWith('Input:')) {
-    if (canonicalId.startsWith(`Input:${producerId}.`)) {
+    const producerAlias = canonicalProducerIdToAlias(producerId);
+    if (canonicalId.startsWith(`Input:${producerAlias}.`)) {
       return null;
     }
     return 'input';

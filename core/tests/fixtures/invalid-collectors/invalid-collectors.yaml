@@ -1,6 +1,7 @@
 meta:
   name: Invalid Collectors Fixture
   id: InvalidCollectorsFixture
+  kind: producer
   version: 0.1.0
 
 inputs:

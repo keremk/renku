@@ -17,7 +17,7 @@ function createRegularSelection(
   overrides: Partial<ModelSelectionValue> = {}
 ): ModelSelectionValue {
   return {
-    producerId: 'ImageProducer',
+    producerId: 'Producer:ImageProducer',
     provider: 'fal-ai',
     model: 'flux-pro/text-to-image',
     ...overrides,
@@ -28,7 +28,7 @@ function createNestedSttSelection(
   overrides: Partial<ModelSelectionValue> = {}
 ): ModelSelectionValue {
   return {
-    producerId: 'TranscriptionProducer',
+    producerId: 'Producer:TranscriptionProducer',
     provider: 'renku',
     model: 'speech/transcription',
     config: {
@@ -43,7 +43,7 @@ function createNestedSttSelection(
 
 function createSpeechSelectionWithoutConfig(): ModelSelectionValue {
   return {
-    producerId: 'TranscriptionProducer',
+    producerId: 'Producer:TranscriptionProducer',
     provider: 'renku',
     model: 'speech/transcription',
   };
@@ -80,8 +80,8 @@ function createTranscriptionProducerInfo(): ProducerModelInfo {
 
 describe('ModelsPanel', () => {
   const defaultProducerModels: Record<string, ProducerModelInfo> = {
-    ImageProducer: createProducerModelInfo(),
-    TranscriptionProducer: createTranscriptionProducerInfo(),
+    'Producer:ImageProducer': createProducerModelInfo(),
+    'Producer:TranscriptionProducer': createTranscriptionProducerInfo(),
   };
 
   describe('read-only mode display', () => {
@@ -112,7 +112,7 @@ describe('ModelsPanel', () => {
       );
 
       const transcriptionButton = screen.getByRole('button', {
-        name: 'Select producer TranscriptionProducer',
+        name: 'Select producer Producer:TranscriptionProducer',
       });
       fireEvent.click(transcriptionButton);
 
@@ -133,7 +133,7 @@ describe('ModelsPanel', () => {
       );
 
       const imageProducerButton = screen.getByRole('button', {
-        name: 'Select producer ImageProducer',
+        name: 'Select producer Producer:ImageProducer',
       });
       fireEvent.click(imageProducerButton);
 
@@ -141,7 +141,7 @@ describe('ModelsPanel', () => {
       expect(screen.getByText('fal-ai/flux-pro/text-to-image')).toBeTruthy();
 
       const transcriptionButton = screen.getByRole('button', {
-        name: 'Select producer TranscriptionProducer',
+        name: 'Select producer Producer:TranscriptionProducer',
       });
       fireEvent.click(transcriptionButton);
 
@@ -187,7 +187,7 @@ describe('ModelsPanel', () => {
       );
 
       const transcriptionButton = screen.getByRole('button', {
-        name: 'Select producer TranscriptionProducer',
+        name: 'Select producer Producer:TranscriptionProducer',
       });
       fireEvent.click(transcriptionButton);
 
@@ -253,10 +253,67 @@ describe('ModelsPanel', () => {
       );
 
       const imageProducerSelector = screen.getByRole('button', {
-        name: 'Select producer ImageProducer',
+        name: 'Select producer Producer:ImageProducer',
       });
 
       expect(imageProducerSelector.getAttribute('aria-current')).toBe('true');
+    });
+  });
+
+  describe('composite grouping', () => {
+    it('groups nested canonical producers under their composite and shows short leaf labels', () => {
+      render(
+        <ModelsPanel
+          producerModels={{
+            'Producer:ThenImageProducer': createProducerModelInfo(),
+            'Producer:CelebrityVideoProducer.MeetingVideoProducer':
+              createProducerModelInfo({
+                producerType: 'asset/image-to-video',
+              }),
+            'Producer:CelebrityVideoProducer.VideoStitcher':
+              createProducerModelInfo({
+                category: 'composition',
+                producerType: 'composition/video-stitch',
+                availableModels: [],
+              }),
+          }}
+          modelSelections={[
+            createRegularSelection({
+              producerId: 'Producer:ThenImageProducer',
+            }),
+            {
+              producerId: 'Producer:CelebrityVideoProducer.MeetingVideoProducer',
+              provider: 'fal-ai',
+              model: 'kling-video/v2.5-turbo/pro/image-to-video',
+            },
+            {
+              producerId: 'Producer:CelebrityVideoProducer.VideoStitcher',
+              provider: 'renku',
+              model: 'ffmpeg/video-stitch',
+              config: { preset: 'medium' },
+            },
+          ]}
+          configFieldsByProducer={{
+            'Producer:CelebrityVideoProducer.VideoStitcher': [
+              {
+                keyPath: 'preset',
+                label: 'Preset',
+                component: 'string-enum',
+                required: false,
+                mappingSource: 'none',
+                mappedAliases: [],
+                schema: { enum: ['medium', 'slow'] },
+              },
+            ],
+          }}
+          selectedNodeId={null}
+        />
+      );
+
+      expect(screen.getByText('Celebrity Video Producer')).toBeTruthy();
+      expect(screen.getByText('Meeting Video Producer')).toBeTruthy();
+      expect(screen.getByText('Video Stitcher')).toBeTruthy();
+      expect(screen.queryByText('CelebrityVideoProducer.VideoStitcher')).toBeNull();
     });
   });
 });

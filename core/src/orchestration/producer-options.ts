@@ -18,7 +18,10 @@ import type {
   ProviderAttachment,
   ProviderEnvironment,
 } from '../types.js';
-import { formatProducerAlias } from '../parsing/canonical-ids.js';
+import {
+  formatCanonicalProducerPath,
+  formatProducerAlias,
+} from '../parsing/canonical-ids.js';
 import { resolveMappingsForModel } from '../resolution/mapping-resolver.js';
 import type { ModelSelection } from '../parsing/input-loader.js';
 
@@ -415,7 +418,7 @@ function resolveSdkMappingFromProducer(
   const resolved = resolveMappingsForModel(rootBlueprint, {
     provider,
     model,
-    producerId,
+    producerId: formatCanonicalProducerPath(producerId),
   });
   return resolved ?? undefined;
 }

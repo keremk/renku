@@ -19,6 +19,8 @@ import {
   findLatestSucceededArtifactEvent,
   findSurgicalTargetLayer,
   formatBlobFileName,
+  formatCanonicalProducerPath,
+  formatProducerScopedInputIdForCanonicalProducerId,
   injectAllSystemInputs,
   initializeMovieStorage,
   isCanonicalArtifactId,
@@ -28,8 +30,6 @@ import {
   prepareBlueprintResolutionContext,
   type BlueprintResolutionContext,
   persistArtifactOverrideBlobs,
-  formatProducerScopedInputId,
-  parseQualifiedProducerName,
   resolveBlobRefsToInputs,
   resolveMappingsForModel,
   resolveMovieInputsPath,
@@ -454,7 +454,7 @@ async function applyRerunModelOverride(args: {
   const sdkMapping = resolveMappingsForModel(blueprintTree, {
     provider: request.model.provider,
     model: request.model.model,
-    producerId: producerAlias,
+    producerId: formatCanonicalProducerPath(producerAlias),
   });
   if (!sdkMapping || Object.keys(sdkMapping).length === 0) {
     throw new Error(
@@ -474,16 +474,13 @@ async function applyRerunModelOverride(args: {
     ...currentEntries.slice(1),
   ]);
 
-  const { namespacePath, producerName } =
-    parseQualifiedProducerName(producerAlias);
-  const providerInputId = formatProducerScopedInputId(
-    namespacePath,
-    producerName,
+  const canonicalProducerId = formatCanonicalProducerPath(producerAlias);
+  const providerInputId = formatProducerScopedInputIdForCanonicalProducerId(
+    canonicalProducerId,
     'provider'
   );
-  const modelInputId = formatProducerScopedInputId(
-    namespacePath,
-    producerName,
+  const modelInputId = formatProducerScopedInputIdForCanonicalProducerId(
+    canonicalProducerId,
     'model'
   );
   resolvedInputs[providerInputId] = request.model.provider;

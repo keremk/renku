@@ -122,7 +122,8 @@ export function useBuildInputs(
         blueprintPath,
         selectedBuildId,
         newInputs,
-        models
+        models,
+        catalogRoot
       );
 
       // Update local state
@@ -135,6 +136,7 @@ export function useBuildInputs(
       hasLoadedInputs,
       inputs,
       models,
+      catalogRoot,
     ]
   );
 
@@ -158,13 +160,21 @@ export function useBuildInputs(
         blueprintPath,
         selectedBuildId,
         inputs ?? {},
-        newModels
+        newModels,
+        catalogRoot
       );
 
       // Update local state
       setModels(newModels);
     },
-    [blueprintFolder, blueprintPath, selectedBuildId, hasLoadedInputs, inputs]
+    [
+      blueprintFolder,
+      blueprintPath,
+      selectedBuildId,
+      hasLoadedInputs,
+      inputs,
+      catalogRoot,
+    ]
   );
 
   return {

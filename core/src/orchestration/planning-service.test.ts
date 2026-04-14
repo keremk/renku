@@ -538,6 +538,54 @@ describe('createPlanningService', () => {
     return makeTreeNode(doc, []);
   }
 
+  function createNestedLeafBlueprint(): BlueprintTreeNode {
+    const leafDoc = makeBlueprintDocument(
+      'InternalVideoProducer',
+      [{ name: 'Duration', type: 'int', required: true }],
+      [{ name: 'GeneratedVideo', type: 'video' }],
+      [{ name: 'InternalVideoProducer' }],
+      [
+        { from: 'Duration', to: 'InternalVideoProducer.Duration' },
+        { from: 'InternalVideoProducer.GeneratedVideo', to: 'GeneratedVideo' },
+      ]
+    );
+
+    const compositeDoc = makeBlueprintDocument(
+      'SegmentUnit',
+      [{ name: 'Duration', type: 'int', required: true }],
+      [{ name: 'Video', type: 'video' }],
+      [],
+      [
+        { from: 'Duration', to: 'MainVideo.Duration' },
+        { from: 'MainVideo.GeneratedVideo', to: 'Video' },
+      ]
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'NestedBlueprint',
+      [{ name: 'Duration', type: 'int', required: true }],
+      [{ name: 'Movie', type: 'video' }],
+      [],
+      [
+        { from: 'Duration', to: 'SegmentUnit.Duration' },
+        { from: 'SegmentUnit.Video', to: 'Movie' },
+      ]
+    );
+
+    const leafNode = makeTreeNode(leafDoc, ['SegmentUnit', 'MainVideo']);
+    const compositeNode = makeTreeNode(
+      compositeDoc,
+      ['SegmentUnit'],
+      new Map([['MainVideo', leafNode]])
+    );
+
+    return makeTreeNode(
+      rootDoc,
+      [],
+      new Map([['SegmentUnit', compositeNode]])
+    );
+  }
+
   describe('generatePlan', () => {
     it('generates a plan for first run (new manifest)', async () => {
       const service = createPlanningService();
@@ -609,6 +657,44 @@ describe('createPlanningService', () => {
 
       // SegmentDuration is derived as 10, so the loop expands to 10 instances.
       expect(result.plan.layers.flat()).toHaveLength(10);
+    });
+
+    it('accepts canonical producer-scoped model inputs for nested leaf producers', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createNestedLeafBlueprint(),
+        inputValues: {
+          'Input:Duration': 8,
+          'Input:SegmentUnit.MainVideo.provider': 'fal-ai',
+          'Input:SegmentUnit.MainVideo.model': 'veo3.1/image-to-video',
+        },
+        providerCatalog: {
+          'SegmentUnit.MainVideo': {
+            provider: 'fal-ai',
+            providerModel: 'veo3.1/image-to-video',
+            rateKey: 'fal-ai:veo3.1/image-to-video',
+          },
+        },
+        providerOptions: new Map([
+          [
+            'SegmentUnit.MainVideo',
+            {
+              selectionInputKeys: ['provider', 'model'],
+            },
+          ],
+        ]),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(result.plan.layers.flat().map((job) => job.jobId)).toContain(
+        'Producer:SegmentUnit.MainVideo'
+      );
     });
 
     it('generates a plan with subsequent revision', async () => {

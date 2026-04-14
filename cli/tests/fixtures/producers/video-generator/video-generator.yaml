@@ -2,6 +2,7 @@ meta:
   name: Video Generator
   description: Generates a video from multiple inputs.
   id: VideoGenerator
+  kind: producer
   version: 0.1.0
 
 inputs:

@@ -304,6 +304,14 @@ function resolveCurrentValue(
     };
   }
 
+  const viewerBlobUrl = parseViewerBlobUrl(value);
+  if (viewerBlobUrl) {
+    return {
+      displayName: 'Build media',
+      previewUrl: value,
+    };
+  }
+
   return {
     displayName: extractDisplayNameFromUri(value),
     previewUrl: canPreviewDirectly(value) ? value : null,
@@ -357,8 +365,13 @@ function extractDisplayNameFromUri(uri: string): string {
     return 'embedded-file';
   }
 
+  const viewerBlobUrl = parseViewerBlobUrl(uri);
+  if (viewerBlobUrl) {
+    return 'Build media';
+  }
+
   try {
-    const parsed = new URL(uri);
+    const parsed = new URL(uri, 'http://localhost');
     const filename = parsed.pathname.split('/').filter(Boolean).pop();
     if (filename) {
       return decodeURIComponent(filename);
@@ -375,11 +388,27 @@ function canPreviewDirectly(uri: string): boolean {
     return true;
   }
 
+  if (uri.startsWith('/')) {
+    return true;
+  }
+
   try {
     const parsed = new URL(uri);
     return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
+  }
+}
+
+function parseViewerBlobUrl(uri: string): URL | null {
+  try {
+    const parsed = new URL(uri, 'http://localhost');
+    if (parsed.pathname !== '/viewer-api/blueprints/blob') {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
   }
 }
 

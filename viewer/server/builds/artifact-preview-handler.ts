@@ -5,7 +5,11 @@
 import { existsSync, promises as fs } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
-import { getProducerMappings, loadYamlBlueprintTree } from '@gorenku/core';
+import {
+  formatCanonicalProducerId,
+  getProducerMappings,
+  loadYamlBlueprintTree,
+} from '@gorenku/core';
 import { requireCliConfig } from '../generation/config.js';
 import { streamFileWithRange } from '../shared/stream-utils.js';
 import { applyArtifactEditWithDerivedArtifactsFromBuffer } from './artifact-edit-handler.js';
@@ -188,7 +192,10 @@ export async function handleArtifactPreviewEditModels(
     const { root: producerTree } = await loadYamlBlueprintTree(producerPath, {
       catalogRoot,
     });
-    const mappings = getProducerMappings(producerTree, IMAGE_EDIT_PRODUCER_ID);
+    const mappings = getProducerMappings(
+      producerTree,
+      formatCanonicalProducerId([], IMAGE_EDIT_PRODUCER_ID)
+    );
     if (!mappings) {
       throw new Error(
         `Producer mappings are missing for ${IMAGE_EDIT_PRODUCER_ID}.`
