@@ -65,13 +65,15 @@ interface ExecutionState {
   /** Set of artifact IDs that are pinned (kept from regeneration) */
   pinnedArtifacts: Set<string>;
   /** Producer-level scheduling overrides keyed by canonical producer ID. */
-  producerOverrides: Record<
-    string,
-    { enabled?: boolean; count?: number }
-  >;
+  producerOverrides: ProducerOverrides;
   /** Whether the completion dialog should be shown */
   showCompletionDialog: boolean;
 }
+
+type ProducerOverrides = Record<
+  string,
+  { enabled?: boolean; count?: number }
+>;
 
 // =============================================================================
 // Action Types
@@ -88,7 +90,12 @@ type ExecutionAction =
     }
   | { type: 'PLAN_READY'; planInfo: PlanDisplayInfo }
   | { type: 'PLAN_FAILED'; error: string }
-  | { type: 'START_EXECUTION'; jobId: string }
+  | {
+      type: 'START_EXECUTION';
+      jobId: string;
+      planInfo: PlanDisplayInfo;
+      producerOverrides: ProducerOverrides;
+    }
   | { type: 'UPDATE_PROGRESS'; progress: ExecutionProgress }
   | { type: 'UPDATE_PRODUCER_STATUS'; producer: string; status: ProducerStatus }
   | { type: 'EXECUTION_COMPLETE'; status: 'completed' | 'failed' }
@@ -175,6 +182,7 @@ function executionReducer(
       return {
         ...state,
         status: 'planning',
+        planInfo: null,
         error: null,
         blueprintName: action.blueprintName,
         movieId: action.movieId,
@@ -199,21 +207,21 @@ function executionReducer(
     case 'START_EXECUTION': {
       // Mark all producers in the plan as pending
       const pendingStatuses: ProducerStatusMap = {};
-      if (state.planInfo) {
-        for (const layer of state.planInfo.layerBreakdown) {
-          for (const job of layer.jobs) {
-            pendingStatuses[toProducerNodeId(job.producer)] = 'pending';
-          }
+      for (const layer of action.planInfo.layerBreakdown) {
+        for (const job of layer.jobs) {
+          pendingStatuses[toProducerNodeId(job.producer)] = 'pending';
         }
       }
       return {
         ...state,
         status: 'executing',
+        planInfo: action.planInfo,
+        producerOverrides: action.producerOverrides,
         currentJobId: action.jobId,
         producerStatuses: { ...state.producerStatuses, ...pendingStatuses },
         progress: {
           currentLayer: 0,
-          totalLayers: state.planInfo?.layers ?? 0,
+          totalLayers: action.planInfo.layers,
           progress: 0,
         },
       };
@@ -254,7 +262,6 @@ function executionReducer(
       return {
         ...state,
         status: 'idle',
-        planInfo: null,
         error: null,
       };
 
@@ -393,8 +400,12 @@ function executionReducer(
     case 'SET_PRODUCER_OVERRIDE_ENABLED': {
       const existing = state.producerOverrides[action.producerId] ?? {};
       const nextOverride = action.enabled
-        ? { ...existing, enabled: true }
-        : { ...existing, enabled: false, count: undefined };
+        ? {
+            ...existing,
+            enabled: true,
+            count: existing.count === 0 ? undefined : existing.count,
+          }
+        : { ...existing, enabled: false, count: 0 };
       return {
         ...state,
         producerOverrides: {
@@ -408,8 +419,10 @@ function executionReducer(
       const existing = state.producerOverrides[action.producerId] ?? {};
       const nextOverride =
         action.count === null
-          ? { ...existing, count: undefined }
-          : { ...existing, count: action.count };
+          ? { ...existing, enabled: undefined, count: undefined }
+          : action.count === 0
+            ? { ...existing, enabled: false, count: 0 }
+            : { ...existing, enabled: true, count: action.count };
       if (
         nextOverride.enabled === undefined &&
         nextOverride.count === undefined
@@ -629,6 +642,14 @@ interface ExecutionContextValue {
     movieId?: string,
     upToLayer?: number
   ) => Promise<void>;
+  /** Build a preview plan without changing the committed run state. */
+  previewPlan: (args: {
+    blueprintName: string;
+    movieId?: string;
+    upToLayer?: number;
+    producerOverrides: ProducerOverrides;
+    signal?: AbortSignal;
+  }) => Promise<PlanDisplayInfo>;
   /** Refresh producer scheduling metadata without opening the run confirmation dialog. */
   requestProducerScheduling: (
     blueprintName: string,
@@ -637,7 +658,15 @@ interface ExecutionContextValue {
     movieId?: string,
     upToLayer?: number
   ) => Promise<ProducerSchedulingResponse>;
-  confirmExecution: (dryRun?: boolean) => Promise<void>;
+  confirmExecution: (
+    args?:
+      | boolean
+      | {
+          dryRun?: boolean;
+          planInfo?: PlanDisplayInfo;
+          producerOverrides?: ProducerOverrides;
+        }
+  ) => Promise<void>;
   cancelExecution: () => Promise<void>;
   dismissDialog: () => void;
   /** Dismiss the completion dialog, optionally clearing regeneration selections */
@@ -713,6 +742,8 @@ export function ExecutionProvider({
   const [state, dispatch] = useReducer(executionReducer, initialState);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const planAbortControllerRef = useRef<AbortController | null>(null);
+  const latestPlanRequestIdRef = useRef(0);
   const onArtifactProducedRef = useRef(onArtifactProduced);
 
   // Keep ref in sync with prop (avoids stale closures in SSE handler)
@@ -731,6 +762,10 @@ export function ExecutionProvider({
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
+      if (planAbortControllerRef.current) {
+        planAbortControllerRef.current.abort();
+        planAbortControllerRef.current = null;
+      }
     };
   }, []);
 
@@ -742,8 +777,41 @@ export function ExecutionProvider({
     dispatch({ type: 'SET_TOTAL_LAYERS', totalLayers });
   }, []);
 
+  const fetchPlanDisplayInfo = useCallback(
+    async (args: {
+      blueprintName: string;
+      movieId?: string;
+      upToLayer?: number;
+      producerOverrides: ProducerOverrides;
+      signal?: AbortSignal;
+    }) => {
+      const response = await createPlan(
+        buildPlanRequest({
+          blueprintName: args.blueprintName,
+          movieId: args.movieId,
+          upToLayer: args.upToLayer,
+          selectedForRegeneration: state.selectedForRegeneration,
+          pinnedArtifacts: state.pinnedArtifacts,
+          producerOverrides: args.producerOverrides,
+        }),
+        { signal: args.signal }
+      );
+
+      return planResponseToDisplayInfo(response);
+    },
+    [state.selectedForRegeneration, state.pinnedArtifacts]
+  );
+
   const requestPlan = useCallback(
     async (blueprintName: string, movieId?: string, upToLayer?: number) => {
+      const requestId = latestPlanRequestIdRef.current + 1;
+      latestPlanRequestIdRef.current = requestId;
+      if (planAbortControllerRef.current) {
+        planAbortControllerRef.current.abort();
+      }
+      const abortController = new AbortController();
+      planAbortControllerRef.current = abortController;
+
       dispatch({
         type: 'START_PLANNING',
         blueprintName,
@@ -752,30 +820,56 @@ export function ExecutionProvider({
       });
 
       try {
-        const response = await createPlan(
-          buildPlanRequest({
-            blueprintName,
-            movieId,
-            upToLayer,
-            selectedForRegeneration: state.selectedForRegeneration,
-            pinnedArtifacts: state.pinnedArtifacts,
-            producerOverrides: state.producerOverrides,
-          })
-        );
+        const planInfo = await fetchPlanDisplayInfo({
+          blueprintName,
+          movieId,
+          upToLayer,
+          producerOverrides: state.producerOverrides,
+          signal: abortController.signal,
+        });
 
-        const planInfo = planResponseToDisplayInfo(response);
+        if (requestId !== latestPlanRequestIdRef.current) {
+          return;
+        }
+        if (planAbortControllerRef.current === abortController) {
+          planAbortControllerRef.current = null;
+        }
         dispatch({ type: 'PLAN_READY', planInfo });
       } catch (error) {
+        if (abortController.signal.aborted) {
+          if (planAbortControllerRef.current === abortController) {
+            planAbortControllerRef.current = null;
+          }
+          return;
+        }
+        if (requestId !== latestPlanRequestIdRef.current) {
+          return;
+        }
+        if (planAbortControllerRef.current === abortController) {
+          planAbortControllerRef.current = null;
+        }
         const message =
           error instanceof Error ? error.message : 'Failed to create plan';
         dispatch({ type: 'PLAN_FAILED', error: message });
       }
     },
     [
-      state.selectedForRegeneration,
-      state.pinnedArtifacts,
+      fetchPlanDisplayInfo,
       state.producerOverrides,
     ]
+  );
+
+  const previewPlan = useCallback(
+    async (args: {
+      blueprintName: string;
+      movieId?: string;
+      upToLayer?: number;
+      producerOverrides: ProducerOverrides;
+      signal?: AbortSignal;
+    }) => {
+      return fetchPlanDisplayInfo(args);
+    },
+    [fetchPlanDisplayInfo]
   );
 
   const requestProducerScheduling = useCallback(
@@ -814,17 +908,35 @@ export function ExecutionProvider({
   );
 
   const confirmExecution = useCallback(
-    async (dryRun = false) => {
-      if (!state.planInfo) return;
+    async (
+      args?:
+        | boolean
+        | {
+            dryRun?: boolean;
+            planInfo?: PlanDisplayInfo;
+            producerOverrides?: ProducerOverrides;
+          }
+    ) => {
+      const options =
+        typeof args === 'boolean' ? { dryRun: args } : (args ?? {});
+      const planInfo = options.planInfo ?? state.planInfo;
+      if (!planInfo) return;
+      const producerOverrides =
+        options.producerOverrides ?? state.producerOverrides;
 
       try {
         const response = await executePlan({
-          planId: state.planInfo.planId,
+          planId: planInfo.planId,
           upToLayer: state.layerRange.upToLayer ?? undefined,
-          dryRun,
+          dryRun: options.dryRun ?? false,
         });
 
-        dispatch({ type: 'START_EXECUTION', jobId: response.jobId });
+        dispatch({
+          type: 'START_EXECUTION',
+          jobId: response.jobId,
+          planInfo,
+          producerOverrides,
+        });
 
         // Subscribe to SSE for real-time updates
         unsubscribeRef.current = subscribeToJobStream(
@@ -874,7 +986,7 @@ export function ExecutionProvider({
         dispatch({ type: 'PLAN_FAILED', error: message });
       }
     },
-    [state.planInfo, state.layerRange]
+    [state.planInfo, state.producerOverrides, state.layerRange]
   );
 
   const cancelExecution = useCallback(async () => {
@@ -904,6 +1016,11 @@ export function ExecutionProvider({
   }, [state.currentJobId]);
 
   const dismissDialog = useCallback(() => {
+    latestPlanRequestIdRef.current += 1;
+    if (planAbortControllerRef.current) {
+      planAbortControllerRef.current.abort();
+      planAbortControllerRef.current = null;
+    }
     dispatch({ type: 'DISMISS_DIALOG' });
   }, []);
 
@@ -925,6 +1042,11 @@ export function ExecutionProvider({
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
+    }
+    latestPlanRequestIdRef.current += 1;
+    if (planAbortControllerRef.current) {
+      planAbortControllerRef.current.abort();
+      planAbortControllerRef.current = null;
     }
     dispatch({ type: 'RESET' });
   }, []);
@@ -1034,6 +1156,7 @@ export function ExecutionProvider({
     setLayerRange,
     setTotalLayers,
     requestPlan,
+    previewPlan,
     requestProducerScheduling,
     confirmExecution,
     cancelExecution,

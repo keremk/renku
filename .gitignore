@@ -71,3 +71,5 @@ cli/catalog/
 cli/undefined
 
 .wrangler
+
+.playwright-mcp/

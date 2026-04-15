@@ -1170,7 +1170,9 @@ function collectProducedArtifactIds(
     if (!info) {
       continue;
     }
-    for (const artifactId of info.node.produces) {
+    const producedArtifactIds =
+      info.node.context?.resolvedProduces ?? info.node.produces;
+    for (const artifactId of producedArtifactIds) {
       if (isCanonicalArtifactId(artifactId)) {
         produced.add(artifactId);
       }

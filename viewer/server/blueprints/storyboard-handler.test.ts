@@ -212,6 +212,7 @@ describe('getStoryboardProjection', () => {
       [
         'meta:',
         '  id: StoryProducerImpl',
+        '  kind: producer',
         '  name: Story Producer',
         '  outputSchema: ./story-producer-output.json',
         '',
@@ -235,6 +236,7 @@ describe('getStoryboardProjection', () => {
       [
         'meta:',
         '  id: VideoProducerImpl',
+        '  kind: producer',
         '  name: Video Producer',
         '',
         'inputs:',

@@ -72,6 +72,17 @@ export function createProducerGraph(
       .filter((id) => isCanonicalArtifactId(id))
       // Only include artifacts that are actually connected downstream
       .filter((id) => connectedArtifacts.has(id));
+    const resolvedProducedArtefacts = canonical.nodes
+      .filter(
+        (candidate): candidate is CanonicalBlueprint['nodes'][number] & { type: 'Artifact' } =>
+          candidate.type === 'Artifact'
+      )
+      .map((candidate) => candidate.id)
+      .filter(
+        (artifactId) =>
+          connectedArtifacts.has(artifactId) &&
+          artefactProducers.get(artifactId) === node.id
+      );
 
     const producerAlias = node.producerAlias;
     const catalogEntry = resolveCatalogEntry(producerAlias, catalog);
@@ -175,6 +186,10 @@ export function createProducerGraph(
       producerAlias: producerAlias,
       inputs: allInputs,
       produces: producedArtefacts,
+      resolvedProduces:
+        resolvedProducedArtefacts.length > 0
+          ? resolvedProducedArtefacts
+          : undefined,
       inputBindings: inputBindings && Object.keys(inputBindings).length > 0 ? inputBindings : undefined,
       sdkMapping: canonicalSdkMapping,
       outputs: option.outputs ?? node.producer?.outputs,

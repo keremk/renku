@@ -1,18 +1,21 @@
 /**
  * Plan confirmation dialog.
- * Shows a non-interactive overview of the execution plan with cost breakdown.
- * User selects artifacts in Outputs panel and layer limit via Run button dropdown.
+ * Shows an interactive overview of the execution plan with per-producer controls.
  */
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { CheckCircle2, AlertCircle, Layers, Briefcase, DollarSign, X, Copy, Check, Pin, AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { useExecution } from "@/contexts/execution-context";
 import type { PlanDisplayInfo } from "@/types/generation";
 import { formatViewerMessage } from "@/utils/format-viewer-message";
+import { getProducerDisplayParts } from "@/lib/panel-utils";
+import { ProducerCountStepper } from "./producer-count-stepper";
 
 /**
  * Format currency value for display.
@@ -41,7 +44,7 @@ function buildFallbackCliCommand(args: {
   upToLayer: number | null;
   selectedForRegeneration: Set<string>;
   pinnedArtifacts: Set<string>;
-  producerOverrides: Record<string, { enabled?: boolean; count?: number }>;
+  producerOverrides: ProducerOverrides;
 }): string | undefined {
   if (!args.blueprintName) {
     return undefined;
@@ -88,23 +91,364 @@ function buildFallbackCliCommand(args: {
 }
 
 /**
- * Sort cost by producer entries by layer (producers in earlier layers first).
+ * Shared display state for a producer family row in the run dialog.
  */
-function sortCostByLayer(planInfo: PlanDisplayInfo): PlanDisplayInfo['costByProducer'] {
+interface ProducerPlanRow {
+  producerId: string;
+  displayKey: string;
+  groupKey: string | null;
+  groupLabel: string | null;
+  leafLabel: string;
+  sortLayer: number;
+  inheritedCount: number;
+  effectiveCount: number;
+  maxSelectableCount: number | null;
+  scheduledJobCount: number;
+  cost: number;
+  hasPlaceholders: boolean;
+  hasCostData: boolean;
+  isDirty: boolean;
+  isDisabled: boolean;
+  blockedReason?: string;
+}
+
+type ProducerOverrides = Record<
+  string,
+  { enabled?: boolean; count?: number }
+>;
+
+function stripProducerPrefix(producerId: string): string {
+  return producerId.startsWith('Producer:')
+    ? producerId.slice('Producer:'.length)
+    : producerId;
+}
+
+function toCanonicalProducerId(producerId: string): string {
+  return producerId.startsWith('Producer:')
+    ? producerId
+    : `Producer:${producerId}`;
+}
+
+function serializeProducerOverrides(
+  producerOverrides: ProducerOverrides
+): string {
+  return Object.entries(producerOverrides)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([producerId, override]) =>
+      `${producerId}:${override.enabled === false ? 'disabled' : 'enabled'}:${override.count ?? 'inherit'}`
+    )
+    .join('|');
+}
+
+function buildProducerRows(
+  planInfo: PlanDisplayInfo,
+  producerOverrides: ProducerOverrides,
+  args?: {
+    baselineCountByProducerId?: Map<string, number>;
+    baselineOverrideSignatureByProducerId?: Map<string, string>;
+    blockedReasonByProducerId?: Map<string, string>;
+  }
+): ProducerPlanRow[] {
   const producerLayerMap = new Map<string, number>();
   for (const layer of planInfo.layerBreakdown) {
     for (const job of layer.jobs) {
-      if (!producerLayerMap.has(job.producer)) {
-        producerLayerMap.set(job.producer, layer.index);
+      const producerKey = stripProducerPrefix(job.producer);
+      if (!producerLayerMap.has(producerKey)) {
+        producerLayerMap.set(producerKey, layer.index);
       }
     }
   }
 
-  return [...planInfo.costByProducer].sort((a, b) => {
-    const layerA = producerLayerMap.get(a.name) ?? Infinity;
-    const layerB = producerLayerMap.get(b.name) ?? Infinity;
-    return layerA - layerB;
-  });
+  const costByProducer = new Map(
+    planInfo.costByProducer.map((entry) => [stripProducerPrefix(entry.name), entry])
+  );
+  const schedulingByProducer = new Map(
+    (planInfo.producerScheduling ?? []).map((entry) => [
+      stripProducerPrefix(entry.producerId),
+      entry,
+    ])
+  );
+  const overridesByProducer = new Map(
+    Object.entries(producerOverrides).map(([producerId, override]) => [
+      stripProducerPrefix(producerId),
+      override,
+    ])
+  );
+
+  const visibleProducerKeys = new Set<string>();
+  for (const key of costByProducer.keys()) {
+    visibleProducerKeys.add(key);
+  }
+  for (const [key, scheduling] of schedulingByProducer) {
+    if (scheduling.scheduledJobCount > 0 || scheduling.scheduledCount > 0) {
+      visibleProducerKeys.add(key);
+    }
+  }
+  for (const key of overridesByProducer.keys()) {
+    visibleProducerKeys.add(key);
+  }
+
+  return Array.from(visibleProducerKeys)
+    .map((displayKey) => {
+      const scheduling = schedulingByProducer.get(displayKey);
+      const costEntry = costByProducer.get(displayKey);
+      const override = overridesByProducer.get(displayKey);
+      const displayParts = getProducerDisplayParts(displayKey);
+
+      const inheritedCount =
+        scheduling?.effectiveCountLimit === null
+          ? scheduling.maxSelectableCount
+          : scheduling?.effectiveCountLimit;
+      const effectiveCount =
+        override?.enabled === false
+          ? 0
+          : override?.count !== undefined
+            ? override.count
+            : inheritedCount ?? scheduling?.scheduledCount ?? costEntry?.count ?? 0;
+      const maxSelectableCount =
+        scheduling?.maxSelectableCount ?? costEntry?.count ?? null;
+      const baselineCount =
+        args?.baselineCountByProducerId?.get(
+          scheduling?.producerId ?? toCanonicalProducerId(displayKey)
+        ) ?? effectiveCount;
+      const currentOverrideSignature = `${override?.enabled ?? 'inherit'}:${override?.count ?? 'inherit'}`;
+      const baselineOverrideSignature =
+        args?.baselineOverrideSignatureByProducerId?.get(
+          scheduling?.producerId ?? toCanonicalProducerId(displayKey)
+        ) ?? currentOverrideSignature;
+
+      return {
+        producerId: scheduling?.producerId ?? toCanonicalProducerId(displayKey),
+        displayKey,
+        groupKey: displayParts.groupKey,
+        groupLabel: displayParts.groupLabel,
+        leafLabel: displayParts.leafLabel,
+        sortLayer: producerLayerMap.get(displayKey) ?? Number.MAX_SAFE_INTEGER,
+        inheritedCount: baselineCount,
+        effectiveCount,
+        maxSelectableCount,
+        scheduledJobCount:
+          effectiveCount === 0
+            ? 0
+            : scheduling?.scheduledJobCount ?? costEntry?.count ?? 0,
+        cost:
+          effectiveCount === 0 && costEntry === undefined ? 0 : (costEntry?.cost ?? 0),
+        hasPlaceholders: costEntry?.hasPlaceholders ?? false,
+        hasCostData:
+          effectiveCount === 0 ? true : (costEntry?.hasCostData ?? false),
+        isDirty: currentOverrideSignature !== baselineOverrideSignature,
+        isDisabled: effectiveCount === 0,
+        blockedReason: args?.blockedReasonByProducerId?.get(
+          scheduling?.producerId ?? toCanonicalProducerId(displayKey)
+        ),
+      } satisfies ProducerPlanRow;
+    })
+    .sort((left, right) => {
+      if (left.sortLayer !== right.sortLayer) {
+        return left.sortLayer - right.sortLayer;
+      }
+
+      const leftGroup = left.groupKey ?? left.displayKey;
+      const rightGroup = right.groupKey ?? right.displayKey;
+      const groupCompare = leftGroup.localeCompare(rightGroup);
+      if (groupCompare !== 0) {
+        return groupCompare;
+      }
+
+      return left.leafLabel.localeCompare(right.leafLabel);
+    });
+}
+
+function buildProducerListItems(rows: ProducerPlanRow[]) {
+  const items: Array<
+    | { type: 'producer'; row: ProducerPlanRow }
+    | {
+        type: 'group';
+        groupKey: string;
+        groupLabel: string;
+        rows: ProducerPlanRow[];
+      }
+  > = [];
+  const seenGroups = new Set<string>();
+
+  for (const row of rows) {
+    if (!row.groupKey || !row.groupLabel) {
+      items.push({ type: 'producer', row });
+      continue;
+    }
+
+    if (seenGroups.has(row.groupKey)) {
+      continue;
+    }
+
+    seenGroups.add(row.groupKey);
+    items.push({
+      type: 'group',
+      groupKey: row.groupKey,
+      groupLabel: row.groupLabel,
+      rows: rows.filter((candidate) => candidate.groupKey === row.groupKey),
+    });
+  }
+
+  return items;
+}
+
+interface InvalidPlanIssue {
+  producerId: string;
+  producerLabel: string;
+  artifactLabels: string[];
+  summary: string;
+}
+
+interface InvalidPlanExplanation {
+  summary: string;
+  action: string;
+  issues: InvalidPlanIssue[];
+}
+
+function formatProducerFamilyLabel(producerId: string): string {
+  const displayParts = getProducerDisplayParts(stripProducerPrefix(producerId));
+  if (displayParts.groupLabel) {
+    return `${displayParts.groupLabel} / ${displayParts.leafLabel}`;
+  }
+  return displayParts.leafLabel;
+}
+
+function normalizeArtifactGroupKey(label: string): string {
+  return label.replace(/\s+\(item \d+\)$/i, '').trim();
+}
+
+function summarizeArtifactLabels(labels: string[]): string {
+  if (labels.length === 0) {
+    return 'required output';
+  }
+
+  const counts = new Map<string, number>();
+  for (const label of labels) {
+    const key = normalizeArtifactGroupKey(label);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  const entries = Array.from(counts.entries());
+  if (entries.length === 1) {
+    const [label, count] = entries[0]!;
+    return count === 1 ? label : `${label} (${count} items)`;
+  }
+
+  const [firstLabel] = entries[0]!;
+  return `${firstLabel} +${entries.length - 1} more`;
+}
+
+function extractRawErrorMessage(errorMessage: string): string {
+  const requestEnvelopePattern = /^Request failed \(\d+\):\s*/;
+  const candidate = errorMessage.replace(requestEnvelopePattern, '').trim();
+  if (!candidate.startsWith('{') && !candidate.startsWith('[')) {
+    return candidate;
+  }
+
+  try {
+    const parsed = JSON.parse(candidate) as unknown;
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'error' in parsed &&
+      typeof (parsed as { error?: unknown }).error === 'object' &&
+      (parsed as { error?: { message?: unknown } }).error?.message &&
+      typeof (parsed as { error?: { message?: unknown } }).error?.message === 'string'
+    ) {
+      return (parsed as { error: { message: string } }).error.message;
+    }
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'message' in parsed &&
+      typeof (parsed as { message?: unknown }).message === 'string'
+    ) {
+      return (parsed as { message: string }).message;
+    }
+  } catch {
+    return candidate;
+  }
+
+  return candidate;
+}
+
+function parseInvalidPlanExplanation(errorMessage: string): InvalidPlanExplanation {
+  const formattedMessage = formatViewerMessage(errorMessage);
+  const dependencyPrefix =
+    'Producer overrides leave required upstream artifacts unavailable:';
+
+  if (!formattedMessage.startsWith(dependencyPrefix)) {
+    return {
+      summary: formattedMessage,
+      action:
+        'Adjust the counts until every downstream producer still has the outputs it needs.',
+      issues: [],
+    };
+  }
+
+  const rawMessage = extractRawErrorMessage(errorMessage);
+  const rawDetails = rawMessage
+    .replace(dependencyPrefix, '')
+    .replace(/\s+\(Code:\s*[A-Z]\d+\)\s*$/i, '')
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  const formattedDetails = formattedMessage
+    .slice(dependencyPrefix.length)
+    .replace(/\s+\(Code:\s*[A-Z]\d+\)\s*$/i, '')
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+
+  const issuesByProducerId = new Map<string, InvalidPlanIssue>();
+  for (const [index, detail] of formattedDetails.entries()) {
+    const rawDetail = rawDetails[index] ?? detail;
+    const producerMatch = /^Producer:([^ ;]+?)(?:\[\d+\])?\s+requires\b/i.exec(
+      rawDetail
+    );
+    if (!producerMatch) {
+      continue;
+    }
+
+    const producerId = toCanonicalProducerId(
+      stripProducerPrefix(producerMatch[1]!).replace(/\[\d+\]/g, '')
+    );
+    const artifactMatch = / requires (.*)$/i.exec(detail);
+    const artifactLabel = artifactMatch?.[1]?.trim() ?? 'required output';
+    const existingIssue = issuesByProducerId.get(producerId);
+
+    if (existingIssue) {
+      existingIssue.artifactLabels.push(artifactLabel);
+      existingIssue.summary = `${existingIssue.producerLabel} needs ${summarizeArtifactLabels(
+        existingIssue.artifactLabels
+      )}.`;
+      continue;
+    }
+
+    const producerLabel = formatProducerFamilyLabel(producerId);
+    issuesByProducerId.set(producerId, {
+      producerId,
+      producerLabel,
+      artifactLabels: [artifactLabel],
+      summary: `${producerLabel} needs ${artifactLabel}.`,
+    });
+  }
+
+  const issues = Array.from(issuesByProducerId.values()).map((issue) => ({
+    ...issue,
+    summary: `${issue.producerLabel} needs ${summarizeArtifactLabels(
+      issue.artifactLabels
+    )}.`,
+  }));
+
+  return {
+    summary:
+      'This draft is missing output that another producer in the preview still needs.',
+    action:
+      'Raise the upstream count again, or lower the producer that depends on that missing output.',
+    issues,
+  };
 }
 
 /**
@@ -210,46 +554,282 @@ function CopyCliCommandButton({ cliCommand }: { cliCommand: string }) {
   );
 }
 
+function ProducerPlanRowView({
+  row,
+  onCountChange,
+}: {
+  row: ProducerPlanRow;
+  onCountChange: (producerId: string, count: number) => void;
+}) {
+  const placeholderMarker = row.hasPlaceholders && row.hasCostData ? '*' : '';
+  const metaBadges: string[] = [];
+  if (row.isDirty) {
+    metaBadges.push('Changed');
+  }
+  if (row.isDisabled) {
+    metaBadges.push("Won't run");
+  }
+
+  return (
+    <div
+      className={`grid grid-cols-[minmax(0,1fr)_88px_74px] items-center gap-3 px-3 py-2.5 transition-colors ${
+        row.blockedReason
+          ? 'bg-amber-500/6'
+          : row.isDirty
+            ? 'bg-sky-500/5'
+            : ''
+      }`}
+    >
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium text-foreground/90">
+          {row.leafLabel}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <span>{row.scheduledJobCount} job{row.scheduledJobCount === 1 ? '' : 's'}</span>
+          {row.maxSelectableCount !== null && (
+            <span>Range 0-{row.maxSelectableCount}</span>
+          )}
+          {metaBadges.map((badge) => (
+            <span
+              key={badge}
+              className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                badge === 'Changed'
+                  ? 'bg-sky-500/12 text-sky-300'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {badge}
+            </span>
+          ))}
+        </div>
+        {row.blockedReason && (
+          <div className="mt-1 text-[11px] text-amber-300/90">
+            {row.blockedReason}
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end">
+        {row.maxSelectableCount !== null ? (
+          <ProducerCountStepper
+            value={row.effectiveCount}
+            max={row.maxSelectableCount}
+            inputLabel={`Count for ${row.leafLabel}`}
+            onChange={(count) => onCountChange(row.producerId, count)}
+          />
+        ) : (
+          <span className="text-xs text-muted-foreground">Count unavailable</span>
+        )}
+      </div>
+
+      <div className="text-right text-xs font-medium tabular-nums text-foreground/85">
+        {formatCurrencyOrNA(row.cost, row.hasCostData)}
+        {placeholderMarker && (
+          <span className="ml-1 text-amber-500" title="Estimated">*</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PreviewStatusRail({
+  hasDraftChanges,
+  isPreviewPlanning,
+  invalidPlanExplanation,
+  isNoop,
+  onResetDraft,
+}: {
+  hasDraftChanges: boolean;
+  isPreviewPlanning: boolean;
+  invalidPlanExplanation: InvalidPlanExplanation | null;
+  isNoop: boolean;
+  onResetDraft: () => void;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+
+  useEffect(() => {
+    setShowDetails(false);
+  }, [invalidPlanExplanation?.summary]);
+
+  const toneClasses = invalidPlanExplanation
+    ? 'border-amber-500/25 bg-amber-500/8'
+    : hasDraftChanges
+      ? 'border-sky-500/18 bg-sky-500/6'
+      : 'border-border/30 bg-muted/20';
+  const title = invalidPlanExplanation
+    ? "Preview can't run yet"
+    : isPreviewPlanning
+      ? 'Recalculating preview'
+      : isNoop
+        ? 'Nothing will run with these counts'
+        : hasDraftChanges
+          ? 'Preview ready'
+          : 'Preview matches the committed run';
+  const message = invalidPlanExplanation
+    ? `Showing the last runnable preview above. ${invalidPlanExplanation.action}`
+    : isPreviewPlanning
+      ? 'Keeping the last valid preview visible while the new draft is being calculated.'
+      : isNoop
+        ? 'Increase any producer count above 0 to make this draft runnable.'
+        : hasDraftChanges
+          ? 'These changes stay local to the dialog until you click Run.'
+          : 'Changes here are only a preview until you click Run.';
+
+  return (
+    <div
+      aria-live="polite"
+      className={`mx-6 mb-3 min-h-[4.75rem] rounded-xl border px-4 py-3 ${toneClasses}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            {isPreviewPlanning ? (
+              <div className="size-3.5 rounded-full border-2 border-primary/70 border-t-transparent animate-spin" />
+            ) : invalidPlanExplanation ? (
+              <AlertTriangle className="size-3.5 text-amber-300" />
+            ) : (
+              <CheckCircle2 className="size-3.5 text-emerald-400/80" />
+            )}
+            <p className="text-xs font-medium text-foreground/90">{title}</p>
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            {message}
+          </p>
+          {invalidPlanExplanation && showDetails && invalidPlanExplanation.issues.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {invalidPlanExplanation.issues.slice(0, 3).map((issue) => (
+                <p key={issue.producerId} className="text-[11px] text-amber-200/90">
+                  {issue.summary}
+                </p>
+              ))}
+              {invalidPlanExplanation.issues.length > 3 && (
+                <p className="text-[11px] text-amber-200/75">
+                  +{invalidPlanExplanation.issues.length - 3} more blocked producer
+                  {invalidPlanExplanation.issues.length - 3 === 1 ? '' : 's'}.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {invalidPlanExplanation && invalidPlanExplanation.issues.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowDetails((current) => !current)}
+              className="rounded-md border border-border/40 bg-background/50 px-2.5 py-1 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-background/80 hover:text-foreground"
+            >
+              {showDetails ? 'Hide details' : 'Why?'}
+            </button>
+          )}
+          {hasDraftChanges && (
+            <button
+              type="button"
+              onClick={onResetDraft}
+              className="rounded-md border border-border/40 bg-background/50 px-2.5 py-1 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-background/80 hover:text-foreground"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProducerRunList({
+  items,
+  onCountChange,
+}: {
+  items: ReturnType<typeof buildProducerListItems>;
+  onCountChange: (producerId: string, count: number) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+        No scheduled producers in the current plan.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 p-2">
+      {items.map((item) => {
+        if (item.type === 'producer') {
+          return (
+            <div
+              key={item.row.displayKey}
+              className="rounded-xl border border-border/35 bg-background/35"
+            >
+              <ProducerPlanRowView
+                row={item.row}
+                onCountChange={onCountChange}
+              />
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={item.groupKey}
+            className="rounded-xl border border-border/40 bg-background/40 overflow-hidden"
+          >
+            <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground bg-muted/25 border-b border-border/25">
+              {item.groupLabel}
+            </div>
+            <div className="divide-y divide-border/10">
+              {item.rows.map((row) => (
+                <ProducerPlanRowView
+                  key={row.displayKey}
+                  row={row}
+                  onCountChange={onCountChange}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * Execution plan dialog content.
  */
 function PlanContent({
   planInfo,
-  sortedCostByProducer,
+  producerListItems,
+  displayedStageCount,
   showCostRange,
   isSurgicalMode,
-  isReplanning,
-  errorMessage,
+  isPreviewPlanning,
+  invalidPlanExplanation,
+  hasDraftChanges,
   cliCommand,
   pinnedCount,
+  isNoop,
+  onCountChange,
+  onResetDraft,
   onCancel,
   onExecute,
 }: {
   planInfo: PlanDisplayInfo;
-  sortedCostByProducer: PlanDisplayInfo['costByProducer'];
+  producerListItems: ReturnType<typeof buildProducerListItems>;
+  displayedStageCount: number;
   showCostRange: boolean;
   isSurgicalMode: boolean;
-  isReplanning: boolean;
-  errorMessage?: string;
+  isPreviewPlanning: boolean;
+  invalidPlanExplanation: InvalidPlanExplanation | null;
+  hasDraftChanges: boolean;
   cliCommand?: string;
   pinnedCount: number;
+  isNoop: boolean;
+  onCountChange: (producerId: string, count: number) => void;
+  onResetDraft: () => void;
   onCancel: () => void;
   onExecute: () => void;
 }) {
-  const formattedInlineError = errorMessage ? formatViewerMessage(errorMessage) : null;
-
   return (
-    <div className="relative">
-      {/* Re-planning overlay */}
-      {isReplanning && (
-        <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-muted-foreground">Updating plan...</span>
-          </div>
-        </div>
-      )}
-
+    <div>
       {/* Header */}
       <div className="px-6 pt-6 pb-4 border-b border-border/30">
         <h2 className="text-lg font-semibold text-foreground">
@@ -268,8 +848,8 @@ function PlanContent({
         <div className="grid grid-cols-3 gap-3">
           <StatCard
             icon={Layers}
-            value={planInfo.layers}
-            label="Layers"
+            value={displayedStageCount}
+            label="Stages"
             iconColor="text-blue-500"
           />
           <StatCard
@@ -289,18 +869,6 @@ function PlanContent({
           />
         </div>
       </div>
-
-      {formattedInlineError && (
-        <div className="mx-6 mb-2 rounded-lg border border-red-500/30 bg-red-500/8 p-3">
-          <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-300">
-            <AlertCircle className="size-3.5" />
-            Planning Error
-          </div>
-          <p className="text-xs text-red-700/90 dark:text-red-300/90">
-            {formattedInlineError}
-          </p>
-        </div>
-      )}
 
       {/* Pinned artifacts info */}
       {pinnedCount > 0 && (
@@ -328,42 +896,22 @@ function PlanContent({
         </div>
       )}
 
-      {/* Cost Breakdown */}
+      {/* Producer Breakdown */}
       <div className="px-6 pb-5">
         <div className="rounded-xl border border-border/40 overflow-hidden">
           <div className="bg-muted/30 px-4 py-2.5 border-b border-border/30">
-            <span className="text-sm font-medium text-foreground/90">Cost by Producer</span>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-foreground/90">Run by Producer</span>
+              <span className="text-[11px] text-muted-foreground">
+                Preview only until you click Run
+              </span>
+            </div>
           </div>
-          <div className="max-h-44 overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/20 bg-muted/20">
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">Producer</th>
-                  <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">Count</th>
-                  <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">Cost</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/10">
-                {sortedCostByProducer.map((entry) => (
-                  <tr key={entry.name} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-2.5">
-                      <span className="flex items-center gap-1.5 text-foreground/90">
-                        {entry.name}
-                        {entry.hasPlaceholders && entry.hasCostData && (
-                          <span className="text-amber-500 text-xs" title="Estimated">*</span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="text-right px-4 py-2.5 text-muted-foreground tabular-nums">
-                      {entry.count}
-                    </td>
-                    <td className="text-right px-4 py-2.5 font-medium tabular-nums">
-                      {formatCurrencyOrNA(entry.cost, entry.hasCostData)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="max-h-72 overflow-y-auto bg-muted/10">
+            <ProducerRunList
+              items={producerListItems}
+              onCountChange={onCountChange}
+            />
           </div>
         </div>
       </div>
@@ -376,6 +924,14 @@ function PlanContent({
           </p>
         </div>
       )}
+
+      <PreviewStatusRail
+        hasDraftChanges={hasDraftChanges}
+        isPreviewPlanning={isPreviewPlanning}
+        invalidPlanExplanation={invalidPlanExplanation}
+        isNoop={isNoop}
+        onResetDraft={onResetDraft}
+      />
 
       {/* Footer */}
       <div className="px-6 py-4 border-t border-border/30 bg-muted/20 flex justify-between items-center">
@@ -395,10 +951,10 @@ function PlanContent({
           </button>
           <button
             onClick={onExecute}
-            disabled={isReplanning || Boolean(errorMessage)}
+            disabled={isPreviewPlanning || invalidPlanExplanation !== null || isNoop}
             className="py-2 px-5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
           >
-            {isReplanning ? 'Updating...' : 'Execute'}
+            {isPreviewPlanning ? 'Updating...' : 'Run'}
           </button>
         </div>
       </div>
@@ -454,18 +1010,95 @@ export function PlanDialog() {
     dismissDialog,
     clearLogs,
     getPinnedArtifacts,
+    previewPlan,
   } = useExecution();
 
-  const { planInfo, status, error } = state;
+  const { planInfo: committedPlanInfo, status, error } = state;
+  const [draftOverrides, setDraftOverrides] = useState<ProducerOverrides>({});
+  const [draftPlanInfo, setDraftPlanInfo] = useState<PlanDisplayInfo | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [draftErrorSignature, setDraftErrorSignature] = useState<string | null>(null);
+  const [isPreviewPlanning, setIsPreviewPlanning] = useState(false);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewAbortControllerRef = useRef<AbortController | null>(null);
+  const previewRequestIdRef = useRef(0);
+  const draftSessionKeyRef = useRef<string | null>(null);
+  const lastDraftOverrideSignatureRef = useRef<string | null>(null);
 
-  const isReplanning = status === 'planning' && planInfo !== null;
-  const isOpen = status === 'confirming' || (status === 'failed' && error !== null) || isReplanning;
-  const inlineError = status === 'failed' ? (error ?? undefined) : undefined;
-
-  const sortedCostByProducer = useMemo(() => {
-    if (!planInfo) return [];
-    return sortCostByLayer(planInfo);
-  }, [planInfo]);
+  const committedOverrideSignature = useMemo(
+    () => serializeProducerOverrides(state.producerOverrides),
+    [state.producerOverrides]
+  );
+  const draftOverrideSignature = useMemo(
+    () => serializeProducerOverrides(draftOverrides),
+    [draftOverrides]
+  );
+  const committedProducerRows = useMemo(() => {
+    if (!committedPlanInfo) {
+      return [];
+    }
+    return buildProducerRows(committedPlanInfo, state.producerOverrides);
+  }, [committedPlanInfo, state.producerOverrides]);
+  const baselineCountByProducerId = useMemo(
+    () =>
+      new Map(
+        committedProducerRows.map((row) => [row.producerId, row.effectiveCount])
+      ),
+    [committedProducerRows]
+  );
+  const baselineOverrideSignatureByProducerId = useMemo(
+    () =>
+      new Map(
+        committedProducerRows.map((row) => [
+          row.producerId,
+          `${state.producerOverrides[row.producerId]?.enabled ?? 'inherit'}:${state.producerOverrides[row.producerId]?.count ?? 'inherit'}`,
+        ])
+      ),
+    [committedProducerRows, state.producerOverrides]
+  );
+  const isOpen =
+    status === 'confirming' ||
+    (status === 'failed' && error !== null && !state.showCompletionDialog);
+  const planInfo = draftPlanInfo ?? committedPlanInfo;
+  const currentErrorMessage =
+    draftError !== null && draftErrorSignature === draftOverrideSignature
+      ? draftError
+      : undefined;
+  const invalidPlanExplanation = useMemo(
+    () => (currentErrorMessage ? parseInvalidPlanExplanation(currentErrorMessage) : null),
+    [currentErrorMessage]
+  );
+  const blockedReasonByProducerId = useMemo(
+    () =>
+      new Map(
+        (invalidPlanExplanation?.issues ?? []).map((issue) => [
+          issue.producerId,
+          `Needs ${summarizeArtifactLabels(issue.artifactLabels)}.`,
+        ])
+      ),
+    [invalidPlanExplanation]
+  );
+  const producerRows = useMemo(() => {
+    if (!planInfo) {
+      return [];
+    }
+    return buildProducerRows(planInfo, draftOverrides, {
+      baselineCountByProducerId,
+      baselineOverrideSignatureByProducerId,
+      blockedReasonByProducerId,
+    });
+  }, [
+    baselineCountByProducerId,
+    baselineOverrideSignatureByProducerId,
+    blockedReasonByProducerId,
+    draftOverrides,
+    planInfo,
+  ]);
+  const producerListItems = useMemo(
+    () => buildProducerListItems(producerRows),
+    [producerRows]
+  );
+  const hasDraftChanges = draftOverrideSignature !== committedOverrideSignature;
 
   const fallbackCliCommand = useMemo(
     () =>
@@ -475,40 +1108,284 @@ export function PlanDialog() {
         upToLayer: state.layerRange.upToLayer,
         selectedForRegeneration: state.selectedForRegeneration,
         pinnedArtifacts: state.pinnedArtifacts,
-        producerOverrides: state.producerOverrides,
+        producerOverrides:
+          committedPlanInfo !== null ? draftOverrides : state.producerOverrides,
       }),
     [
+      committedPlanInfo,
       state.blueprintName,
       state.movieId,
       state.layerRange.upToLayer,
       state.selectedForRegeneration,
       state.pinnedArtifacts,
+      draftOverrides,
       state.producerOverrides,
     ]
   );
   const cliCommand = planInfo?.cliCommand ?? fallbackCliCommand;
-
-  if (!isOpen) return null;
-
   const isSurgicalMode = planInfo?.surgicalInfo && planInfo.surgicalInfo.length > 0;
   const isNoop = planInfo?.totalJobs === 0;
   const showCostRange = planInfo?.hasRanges && planInfo.minCost !== planInfo.maxCost;
   const pinnedCount = getPinnedArtifacts().length;
+  const displayedStageCount = useMemo(() => {
+    if (!planInfo) {
+      return 0;
+    }
+    if (state.layerRange.upToLayer !== null) {
+      return state.layerRange.upToLayer + 1;
+    }
+    return planInfo.blueprintLayers;
+  }, [planInfo, state.layerRange.upToLayer]);
+
+  useEffect(() => {
+    return () => {
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
+      if (previewAbortControllerRef.current) {
+        previewAbortControllerRef.current.abort();
+        previewAbortControllerRef.current = null;
+      }
+      previewRequestIdRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !committedPlanInfo) {
+      draftSessionKeyRef.current = null;
+      lastDraftOverrideSignatureRef.current = null;
+      previewRequestIdRef.current += 1;
+      setDraftPlanInfo(null);
+      setDraftError(null);
+      setDraftErrorSignature(null);
+      setIsPreviewPlanning(false);
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
+      if (previewAbortControllerRef.current) {
+        previewAbortControllerRef.current.abort();
+        previewAbortControllerRef.current = null;
+      }
+      return;
+    }
+
+    const nextSessionKey = `${committedPlanInfo.planId}:${committedOverrideSignature}`;
+    if (draftSessionKeyRef.current === nextSessionKey) {
+      return;
+    }
+
+    draftSessionKeyRef.current = nextSessionKey;
+    lastDraftOverrideSignatureRef.current = committedOverrideSignature;
+    setDraftOverrides(state.producerOverrides);
+    setDraftPlanInfo(committedPlanInfo);
+    setDraftError(null);
+    setDraftErrorSignature(null);
+    setIsPreviewPlanning(false);
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    if (previewAbortControllerRef.current) {
+      previewAbortControllerRef.current.abort();
+      previewAbortControllerRef.current = null;
+    }
+    previewRequestIdRef.current += 1;
+  }, [committedPlanInfo, committedOverrideSignature, isOpen, state.producerOverrides]);
+
+  useEffect(() => {
+    if (!isOpen || !committedPlanInfo || !state.blueprintName) {
+      return;
+    }
+
+    if (lastDraftOverrideSignatureRef.current === draftOverrideSignature) {
+      return;
+    }
+
+    lastDraftOverrideSignatureRef.current = draftOverrideSignature;
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+    }
+    if (previewAbortControllerRef.current) {
+      previewAbortControllerRef.current.abort();
+      previewAbortControllerRef.current = null;
+    }
+
+    previewTimerRef.current = setTimeout(() => {
+      previewTimerRef.current = null;
+      const requestId = previewRequestIdRef.current + 1;
+      const requestSignature = draftOverrideSignature;
+      previewRequestIdRef.current = requestId;
+      const abortController = new AbortController();
+      previewAbortControllerRef.current = abortController;
+      setIsPreviewPlanning(true);
+
+      void previewPlan({
+        blueprintName: state.blueprintName!,
+        movieId: state.movieId ?? undefined,
+        upToLayer: state.layerRange.upToLayer ?? undefined,
+        producerOverrides: draftOverrides,
+        signal: abortController.signal,
+      })
+        .then((nextPlanInfo) => {
+          if (requestId !== previewRequestIdRef.current) {
+            return;
+          }
+          if (previewAbortControllerRef.current === abortController) {
+            previewAbortControllerRef.current = null;
+          }
+          setDraftPlanInfo(nextPlanInfo);
+          setDraftError(null);
+          setDraftErrorSignature(null);
+          setIsPreviewPlanning(false);
+        })
+        .catch((previewError) => {
+          if (abortController.signal.aborted) {
+            if (previewAbortControllerRef.current === abortController) {
+              previewAbortControllerRef.current = null;
+            }
+            return;
+          }
+          if (requestId !== previewRequestIdRef.current) {
+            return;
+          }
+          if (previewAbortControllerRef.current === abortController) {
+            previewAbortControllerRef.current = null;
+          }
+          setDraftError(
+            previewError instanceof Error
+              ? previewError.message
+              : 'Failed to update plan preview'
+          );
+          setDraftErrorSignature(requestSignature);
+          setIsPreviewPlanning(false);
+        });
+    }, 200);
+  }, [
+    state.blueprintName,
+    state.movieId,
+    state.layerRange.upToLayer,
+    committedPlanInfo,
+    draftOverrideSignature,
+    draftOverrides,
+    isOpen,
+    previewPlan,
+  ]);
+
+  const handleCountChange = useCallback(
+    (producerId: string, count: number) => {
+      const baselineCount = baselineCountByProducerId.get(producerId);
+      const committedOverride = state.producerOverrides[producerId];
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
+      if (previewAbortControllerRef.current) {
+        previewAbortControllerRef.current.abort();
+        previewAbortControllerRef.current = null;
+      }
+      previewRequestIdRef.current += 1;
+      setIsPreviewPlanning(false);
+      setDraftError(null);
+      setDraftErrorSignature(null);
+      setDraftOverrides((currentOverrides) => {
+        const nextOverrides = { ...currentOverrides };
+        if (baselineCount !== undefined && count === baselineCount) {
+          if (committedOverride) {
+            nextOverrides[producerId] = committedOverride;
+          } else {
+            delete nextOverrides[producerId];
+          }
+          return nextOverrides;
+        }
+
+        nextOverrides[producerId] =
+          count === 0
+            ? { enabled: false, count: 0 }
+            : { enabled: true, count };
+        return nextOverrides;
+      });
+    },
+    [baselineCountByProducerId, state.producerOverrides]
+  );
+
+  const handleResetDraft = useCallback(() => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    if (previewAbortControllerRef.current) {
+      previewAbortControllerRef.current.abort();
+      previewAbortControllerRef.current = null;
+    }
+    previewRequestIdRef.current += 1;
+    lastDraftOverrideSignatureRef.current = committedOverrideSignature;
+    setDraftOverrides(state.producerOverrides);
+    setDraftPlanInfo(committedPlanInfo);
+    setDraftError(null);
+    setDraftErrorSignature(null);
+    setIsPreviewPlanning(false);
+  }, [committedOverrideSignature, committedPlanInfo, state.producerOverrides]);
+
+  const handleDismiss = useCallback(() => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    if (previewAbortControllerRef.current) {
+      previewAbortControllerRef.current.abort();
+      previewAbortControllerRef.current = null;
+    }
+    previewRequestIdRef.current += 1;
+    dismissDialog();
+  }, [dismissDialog]);
 
   const handleExecute = () => {
+    const executionPlanInfo = draftPlanInfo ?? committedPlanInfo;
+    const executionOverrides =
+      draftSessionKeyRef.current !== null ? draftOverrides : state.producerOverrides;
+    if (!executionPlanInfo || currentErrorMessage) {
+      return;
+    }
     clearLogs();
-    confirmExecution(false);
+    void confirmExecution({
+      dryRun: false,
+      planInfo: executionPlanInfo,
+      producerOverrides: executionOverrides,
+    });
   };
 
+  if (!isOpen) return null;
+
+  const dialogTitle =
+    status === 'failed' && error && !committedPlanInfo
+      ? 'Plan Could Not Be Prepared'
+      : isNoop && invalidPlanExplanation === null && producerRows.length === 0
+          ? 'All Caught Up'
+          : isSurgicalMode
+            ? 'Confirm Regeneration'
+            : 'Confirm Execution';
+  const dialogDescription =
+    status === 'failed' && error && !committedPlanInfo
+      ? 'The planner returned an error and execution cannot start.'
+      : isNoop && invalidPlanExplanation === null && producerRows.length === 0
+          ? 'There is no work to run for the current selection.'
+          : 'Review the plan before running.';
+
   return (
-    <Dialog open={true} onOpenChange={() => dismissDialog()}>
+    <Dialog open={true} onOpenChange={() => handleDismiss()}>
       <DialogContent
-        className="sm:max-w-md p-0 gap-0 overflow-hidden"
+        className="sm:max-w-lg p-0 gap-0 overflow-hidden"
         showCloseButton={false}
       >
+        <DialogTitle className="sr-only">{dialogTitle}</DialogTitle>
+        <DialogDescription className="sr-only">
+          {dialogDescription}
+        </DialogDescription>
         {/* Custom close button */}
         <button
-          onClick={dismissDialog}
+          onClick={handleDismiss}
           className="absolute right-4 top-4 p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/80 transition-colors z-20"
         >
           <X className="w-4 h-4" />
@@ -516,25 +1393,30 @@ export function PlanDialog() {
         </button>
 
         {/* Content */}
-        {status === 'failed' && error && !planInfo ? (
+        {status === 'failed' && error && !committedPlanInfo ? (
           <PlanningFailureContent
             error={error}
             cliCommand={cliCommand}
-            onClose={dismissDialog}
+            onClose={handleDismiss}
           />
-        ) : isNoop && !inlineError ? (
-          <NoopContent onClose={dismissDialog} />
+        ) : isNoop && invalidPlanExplanation === null && producerRows.length === 0 ? (
+          <NoopContent onClose={handleDismiss} />
         ) : planInfo ? (
           <PlanContent
             planInfo={planInfo}
-            sortedCostByProducer={sortedCostByProducer}
+            producerListItems={producerListItems}
+            displayedStageCount={displayedStageCount}
             showCostRange={showCostRange ?? false}
             isSurgicalMode={isSurgicalMode ?? false}
-            isReplanning={isReplanning}
-            errorMessage={inlineError}
+            isPreviewPlanning={isPreviewPlanning}
+            invalidPlanExplanation={invalidPlanExplanation}
+            hasDraftChanges={hasDraftChanges}
             cliCommand={cliCommand}
             pinnedCount={pinnedCount}
-            onCancel={dismissDialog}
+            isNoop={isNoop ?? false}
+            onCountChange={handleCountChange}
+            onResetDraft={handleResetDraft}
+            onCancel={handleDismiss}
             onExecute={handleExecute}
           />
         ) : null}

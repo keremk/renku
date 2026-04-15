@@ -120,6 +120,15 @@ function createMockPlanResponse(
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+
+  return { promise, resolve };
+}
+
 // =============================================================================
 // Mock the generation-client module
 // =============================================================================
@@ -361,6 +370,9 @@ describe('ExecutionContext', () => {
               ]),
             }),
           }),
+        }),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
         })
       );
     });
@@ -385,6 +397,9 @@ describe('ExecutionContext', () => {
               upToLayer: 2,
             }),
           }),
+        }),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
         })
       );
       expect(
@@ -426,6 +441,9 @@ describe('ExecutionContext', () => {
               ],
             },
           },
+        }),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
         })
       );
     });
@@ -467,6 +485,9 @@ describe('ExecutionContext', () => {
               ],
             },
           },
+        }),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
         })
       );
 
@@ -493,6 +514,9 @@ describe('ExecutionContext', () => {
         expect.objectContaining({
           blueprint: 'test-blueprint',
           movieId: undefined,
+        }),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
         })
       );
       expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty(
@@ -501,6 +525,80 @@ describe('ExecutionContext', () => {
       expect(
         mockCreatePlan.mock.calls[0]?.[0]?.planningControls?.scope
       ).toBeUndefined();
+    });
+
+    it('keeps the newest plan when requests resolve out of order', async () => {
+      const firstPlan = createDeferred<PlanResponse>();
+      const secondPlan = createDeferred<PlanResponse>();
+      mockCreatePlan
+        .mockImplementationOnce(() => firstPlan.promise)
+        .mockImplementationOnce(() => secondPlan.promise);
+
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        void result.current.requestPlan('test-blueprint', 'movie-123');
+        void result.current.requestPlan('test-blueprint', 'movie-123', 1);
+      });
+
+      const firstCallOptions = mockCreatePlan.mock.calls[0]?.[1];
+      expect(firstCallOptions).toBeDefined();
+      expect(firstCallOptions?.signal).toBeDefined();
+      expect(firstCallOptions?.signal?.aborted).toBe(true);
+
+      await act(async () => {
+        secondPlan.resolve(
+          createMockPlanResponse({
+            planId: 'plan-second',
+            movieId: 'movie-second',
+            layers: 1,
+          })
+        );
+        await Promise.resolve();
+      });
+
+      expect(result.current.state.status).toBe('confirming');
+      expect(result.current.state.planInfo?.planId).toBe('plan-second');
+
+      await act(async () => {
+        firstPlan.resolve(
+          createMockPlanResponse({
+            planId: 'plan-first',
+            movieId: 'movie-first',
+          })
+        );
+        await Promise.resolve();
+      });
+
+      expect(result.current.state.planInfo?.planId).toBe('plan-second');
+      expect(result.current.state.planInfo?.movieId).toBe('movie-second');
+    });
+
+    it('ignores an in-flight plan response after the dialog is dismissed', async () => {
+      const deferredPlan = createDeferred<PlanResponse>();
+      mockCreatePlan.mockImplementationOnce(() => deferredPlan.promise);
+
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        void result.current.requestPlan('test-blueprint', 'movie-123');
+      });
+
+      act(() => {
+        result.current.dismissDialog();
+      });
+
+      await act(async () => {
+        deferredPlan.resolve(createMockPlanResponse({ planId: 'late-plan' }));
+        await Promise.resolve();
+      });
+
+      expect(result.current.state.status).toBe('idle');
+      expect(result.current.state.planInfo).toBeNull();
     });
 
     it('exposes producer scheduling summary from the latest plan', async () => {

@@ -30,12 +30,14 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 
 async function postJson<TRequest, TResponse>(
   url: string,
-  body: TRequest
+  body: TRequest,
+  options?: Pick<RequestInit, 'signal'>
 ): Promise<TResponse> {
   return fetchJson<TResponse>(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: options?.signal,
   });
 }
 
@@ -46,8 +48,13 @@ async function postJson<TRequest, TResponse>(
 /**
  * Create an execution plan with cost estimation.
  */
-export function createPlan(params: PlanRequest): Promise<PlanResponse> {
-  return postJson<PlanRequest, PlanResponse>(`${API_BASE}/plan`, params);
+export function createPlan(
+  params: PlanRequest,
+  options?: { signal?: AbortSignal }
+): Promise<PlanResponse> {
+  return postJson<PlanRequest, PlanResponse>(`${API_BASE}/plan`, params, {
+    signal: options?.signal,
+  });
 }
 
 /**

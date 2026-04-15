@@ -572,7 +572,8 @@ function validateProducerOverrideDependencies(args: {
     if (!node) {
       continue;
     }
-    for (const artifactId of node.produces) {
+    const producedArtifactIds = node.context?.resolvedProduces ?? node.produces;
+    for (const artifactId of producedArtifactIds) {
       if (isCanonicalArtifactId(artifactId)) {
         producedByScheduled.add(artifactId);
       }

@@ -1179,6 +1179,9 @@ describe('createProducerGraph', () => {
       const videoProducer = result.nodes.find((n) => n.jobId === 'Producer:VideoProducer')!;
       // GeneratedVideo is connected (chains to SegmentVideo)
       expect(videoProducer.produces).toContain('Artifact:VideoProducer.GeneratedVideo');
+      // The producer should also expose the chained blueprint artifact alias
+      // through the resolved produces set used by planning validation.
+      expect(videoProducer.context?.resolvedProduces).toContain('Artifact:SegmentVideo');
       // FirstFrame has no downstream connection
       expect(videoProducer.produces).not.toContain('Artifact:VideoProducer.FirstFrame');
     });

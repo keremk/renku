@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { AlertTriangle, ArrowRight, Layers, MapPin, RotateCcw } from "lucide-react";
 import type { ProducerBinding } from "@/types/blueprint-graph";
 import type { ProducerSchedulingSummary, ProducerStatus } from "@/types/generation";
+import { ProducerCountStepper } from "./producer-count-stepper";
 
 interface ProducerDetails {
   nodeId: string;
@@ -352,14 +353,16 @@ function SchedulingOverridesSection({
   onResetOverride?: (producerId: string) => void;
 }) {
   const hasOverride = override !== undefined;
-  const effectiveEnabled = override?.enabled ?? true;
   const maxSelectableCount = scheduling?.maxSelectableCount;
   const inheritedCountLimit =
     scheduling?.effectiveCountLimit === null
       ? maxSelectableCount
       : scheduling?.effectiveCountLimit;
   const effectiveCount =
-    override?.count ?? inheritedCountLimit ?? maxSelectableCount;
+    override?.enabled === false
+      ? 0
+      : override?.count ?? inheritedCountLimit ?? maxSelectableCount ?? 0;
+  const effectiveEnabled = effectiveCount > 0;
 
   const warningText = scheduling?.warnings[0];
 
@@ -400,38 +403,20 @@ function SchedulingOverridesSection({
       </div>
 
       <div className="mt-3 rounded-md bg-muted px-2.5 py-2">
-        <label className="text-xs font-medium text-foreground" htmlFor={`producer-count-${producerId}`}>
-          Artifact Count
-        </label>
+        <p className="text-xs font-medium text-foreground">
+          Run Count
+        </p>
         {maxSelectableCount !== undefined ? (
           <>
             <div className="mt-1 flex items-center gap-2">
-              <input
-                id={`producer-count-${producerId}`}
-                type="number"
-                min={1}
+              <ProducerCountStepper
+                value={effectiveCount}
                 max={maxSelectableCount}
-                disabled={!effectiveEnabled}
-                value={effectiveCount ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value.trim();
-                  if (value.length === 0) {
-                    onSetOverrideCount?.(producerId, null);
-                    return;
-                  }
-                  const parsed = Number.parseInt(value, 10);
-                  if (!Number.isInteger(parsed)) {
-                    return;
-                  }
-                  if (parsed < 1 || parsed > maxSelectableCount) {
-                    return;
-                  }
-                  onSetOverrideCount?.(producerId, parsed);
-                }}
-                className="w-20 rounded border border-border/50 bg-background px-2 py-1 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                inputLabel={`Run count for ${producer.label}`}
+                onChange={(count) => onSetOverrideCount?.(producerId, count)}
               />
               <span className="text-[11px] text-muted-foreground">
-                1 to {maxSelectableCount}
+                0 to {maxSelectableCount}
               </span>
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">
@@ -439,6 +424,9 @@ function SchedulingOverridesSection({
               {scheduling?.effectiveCountLimit === null
                 ? 'No cap'
                 : scheduling?.effectiveCountLimit}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Set the count to 0 to keep this producer out of the run.
             </p>
           </>
         ) : schedulingLoading ? (

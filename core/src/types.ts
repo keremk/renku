@@ -538,6 +538,11 @@ export interface ProducerJobContext {
   producerAlias: string;
   inputs: Id[];
   produces: Id[];
+  /**
+   * Canonical artifact IDs this job satisfies after resolving artifact-to-artifact
+   * alias chains, e.g. composite-exported blueprint artifacts.
+   */
+  resolvedProduces?: Id[];
   inputBindings?: Record<string, Id>;
   sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
