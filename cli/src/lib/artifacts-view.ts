@@ -6,8 +6,10 @@ import {
 	createManifestService,
 	createMovieMetadataService,
 	createStorageContext,
+	filterActiveOutputBindings,
 	formatBlobFileName,
 	getCliArtifactsConfig,
+	isCanonicalArtifactId,
 	materializeArtifactFile,
 	materializeManifestArtifacts,
 	resolveArtifactsMovieFolderName,
@@ -15,13 +17,14 @@ import {
 	resolveExpectedArtifactPath,
 	type BlobRef,
 	type Manifest,
+	type RootOutputBinding,
 } from '@gorenku/core';
 import type { PendingArtefactDraft } from './planner.js';
 import type { CliConfig } from './cli-config.js';
 
 const log = globalThis.console;
 
-interface ArtifactInfo {
+export interface ArtifactInfo {
 	artefactId: string;
 	artifactPath: string;
 	sourcePath: string;
@@ -29,6 +32,14 @@ interface ArtifactInfo {
 	producedBy: string;
 	mimeType?: string;
 	kind: 'blob';
+}
+
+export interface MaterializedRootOutput {
+	outputId: string;
+	artifactId: string;
+	artifactPath: string;
+	producedBy: string;
+	mimeType?: string;
 }
 
 export interface ArtifactsViewContext {
@@ -41,6 +52,54 @@ export interface ArtifactsPreflightResult {
 	pendingArtefacts: PendingArtefactDraft[];
 	changed: boolean;
 	artifacts: ArtifactsViewContext;
+}
+
+export function resolveMaterializedRootOutputs(args: {
+	rootOutputBindings: RootOutputBinding[];
+	artefacts: ArtifactInfo[];
+	resolvedArtifacts?: Record<string, unknown>;
+	resolvedInputs?: Record<string, unknown>;
+}): MaterializedRootOutput[] {
+	const artefactsById = new Map(
+		args.artefacts.map((artefact) => [artefact.artefactId, artefact])
+	);
+	const outputs: MaterializedRootOutput[] = [];
+	const activeBindings = filterActiveOutputBindings(args.rootOutputBindings, {
+		resolvedArtifacts: args.resolvedArtifacts ?? {},
+		resolvedInputs: args.resolvedInputs,
+		hasProducedStoryState: args.artefacts.length > 0,
+	});
+
+	for (const binding of activeBindings) {
+		if (!isCanonicalArtifactId(binding.sourceId)) {
+			continue;
+		}
+		const artefact = artefactsById.get(binding.sourceId);
+		if (!artefact) {
+			continue;
+		}
+		outputs.push({
+			outputId: binding.outputId,
+			artifactId: artefact.artefactId,
+			artifactPath: artefact.artifactPath,
+			producedBy: artefact.producedBy,
+			mimeType: artefact.mimeType,
+		});
+	}
+
+	return outputs;
+}
+
+export function selectFinalStageOutputs(args: {
+	rootOutputs: MaterializedRootOutput[];
+	finalStageProducerJobIds: string[];
+}): MaterializedRootOutput[] {
+	if (args.rootOutputs.length === 0 || args.finalStageProducerJobIds.length === 0) {
+		return [];
+	}
+
+	const finalStageJobIds = new Set(args.finalStageProducerJobIds);
+	return args.rootOutputs.filter((output) => finalStageJobIds.has(output.producedBy));
 }
 
 export async function loadCurrentManifest(

@@ -5,6 +5,7 @@ import {
   buildStoryboardProjection,
   formatBlobFileName,
   expandBlueprintResolutionContext,
+  isCanonicalArtifactId,
   loadBlueprintResolutionContext,
   parseInputsForDisplay,
   selectBlueprintResolutionInputs,
@@ -48,12 +49,64 @@ export async function getStoryboardProjection(
     effectiveInputs
   );
   const expanded = expandBlueprintResolutionContext(context, canonicalInputs);
+  const normalizedArtifactContext = normalizeStoryboardArtifactContext({
+    artifactStates,
+    resolvedArtifactValues,
+    outputSources: expanded.canonical.outputSources,
+  });
 
   return buildStoryboardProjection({
     expanded,
+    artifactStates: normalizedArtifactContext.artifactStates,
+    resolvedArtifactValues: normalizedArtifactContext.resolvedArtifactValues,
+  });
+}
+
+function normalizeStoryboardArtifactContext(args: {
+  artifactStates: Record<string, StoryboardArtifactState>;
+  resolvedArtifactValues: Record<string, unknown>;
+  outputSources: Record<string, string>;
+}): {
+  artifactStates: Record<string, StoryboardArtifactState>;
+  resolvedArtifactValues: Record<string, unknown>;
+} {
+  const artifactStates = { ...args.artifactStates };
+  const resolvedArtifactValues = { ...args.resolvedArtifactValues };
+
+  for (const [outputId, sourceId] of Object.entries(args.outputSources)) {
+    if (!isCanonicalArtifactId(sourceId)) {
+      continue;
+    }
+    const authoredArtifactId = `Artifact:${outputId.slice('Output:'.length)}`;
+
+    const authoredState = artifactStates[authoredArtifactId] ?? artifactStates[outputId];
+    if (authoredState && !artifactStates[sourceId]) {
+      artifactStates[sourceId] = {
+        ...authoredState,
+        canonicalArtifactId: sourceId,
+      };
+    }
+
+    if (
+      resolvedArtifactValues[sourceId] === undefined &&
+      resolvedArtifactValues[authoredArtifactId] !== undefined
+    ) {
+      resolvedArtifactValues[sourceId] =
+        resolvedArtifactValues[authoredArtifactId];
+    }
+    if (
+      resolvedArtifactValues[sourceId] === undefined &&
+      resolvedArtifactValues[outputId] !== undefined
+    ) {
+      resolvedArtifactValues[sourceId] =
+        resolvedArtifactValues[outputId];
+    }
+  }
+
+  return {
     artifactStates,
     resolvedArtifactValues,
-  });
+  };
 }
 
 async function resolveEffectiveInputs(args: {

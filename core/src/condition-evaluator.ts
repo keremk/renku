@@ -15,6 +15,7 @@ import type {
 import {
   formatCanonicalArtifactId,
   isCanonicalArtifactId,
+  isCanonicalInputId,
 } from './parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 
@@ -32,6 +33,8 @@ export interface ConditionEvaluationResult {
 export interface ConditionEvaluationContext {
   /** Resolved artifact data (keyed by canonical artifact ID) */
   resolvedArtifacts: Record<string, unknown>;
+  /** Resolved input data (keyed by canonical input ID) */
+  resolvedInputs?: Record<string, unknown>;
 }
 
 /**
@@ -145,25 +148,46 @@ function evaluateConditionClause(
   indices: Record<string, number>,
   context: ConditionEvaluationContext,
 ): ConditionEvaluationResult {
-  // Resolve the artifact path - try both decomposed and nested formats
-  const { artifactId, fieldPath, decomposedArtifactId } = resolveConditionPath(clause.when, indices);
-
   let value: unknown;
-
-  // First, try decomposed artifact (full path is artifact ID, e.g., "Artifact:Producer.Output.Field[0].SubField")
-  // This is the format used when artifacts are stored as individual blobs
-  if (decomposedArtifactId && context.resolvedArtifacts[decomposedArtifactId] !== undefined) {
-    value = context.resolvedArtifacts[decomposedArtifactId];
-  } else if (context.resolvedArtifacts[artifactId] !== undefined) {
-    // Fall back to nested artifact (first two segments are artifact ID, navigate field path)
-    const artifactData = context.resolvedArtifacts[artifactId];
-    value = getValueAtPath(artifactData, fieldPath);
+  if (isCanonicalInputId(clause.when)) {
+    const { inputId, fieldPath, exactInputId } = resolveInputConditionPath(
+      clause.when,
+      indices,
+    );
+    const inputValue =
+      context.resolvedInputs?.[exactInputId] ??
+      context.resolvedInputs?.[inputId];
+    if (inputValue === undefined) {
+      const triedIds =
+        exactInputId === inputId ? inputId : `${exactInputId} or ${inputId}`;
+      return { satisfied: false, reason: `Input not found (tried: ${triedIds})` };
+    }
+    value = fieldPath.length > 0 ? getValueAtPath(inputValue, fieldPath) : inputValue;
   } else {
-    // If neither format exists, we can't evaluate
-    const triedIds = decomposedArtifactId
-      ? `${decomposedArtifactId} or ${artifactId}`
-      : artifactId;
-    return { satisfied: false, reason: `Artifact not found (tried: ${triedIds})` };
+    // Resolve the artifact path - try both decomposed and nested formats
+    const { artifactId, fieldPath, decomposedArtifactId } = resolveConditionPath(
+      clause.when,
+      indices,
+    );
+
+    // First, try decomposed artifact (full path is artifact ID, e.g., "Artifact:Producer.Output.Field[0].SubField")
+    // This is the format used when artifacts are stored as individual blobs
+    if (
+      decomposedArtifactId &&
+      context.resolvedArtifacts[decomposedArtifactId] !== undefined
+    ) {
+      value = context.resolvedArtifacts[decomposedArtifactId];
+    } else if (context.resolvedArtifacts[artifactId] !== undefined) {
+      // Fall back to nested artifact (first two segments are artifact ID, navigate field path)
+      const artifactData = context.resolvedArtifacts[artifactId];
+      value = getValueAtPath(artifactData, fieldPath);
+    } else {
+      // If neither format exists, we can't evaluate
+      const triedIds = decomposedArtifactId
+        ? `${decomposedArtifactId} or ${artifactId}`
+        : artifactId;
+      return { satisfied: false, reason: `Artifact not found (tried: ${triedIds})` };
+    }
   }
 
   // Evaluate each operator
@@ -231,6 +255,17 @@ function evaluateConditionClause(
   }
 
   return { satisfied: true };
+}
+
+export function collectConditionArtifactIds(
+  condition: EdgeConditionDefinition,
+  indices: Record<string, number>,
+): string[] {
+  const artifactIds = new Set<string>();
+
+  collectConditionArtifactIdsFromItem(condition, indices, artifactIds);
+
+  return Array.from(artifactIds);
 }
 
 /**
@@ -311,6 +346,86 @@ function resolveConditionPath(
   }
 
   return { artifactId, fieldPath, decomposedArtifactId };
+}
+
+function collectConditionArtifactIdsFromItem(
+  item: EdgeConditionDefinition | EdgeConditionClause | EdgeConditionGroup,
+  indices: Record<string, number>,
+  output: Set<string>,
+): void {
+  if (Array.isArray(item)) {
+    for (const entry of item) {
+      collectConditionArtifactIdsFromItem(entry, indices, output);
+    }
+    return;
+  }
+
+  if ('all' in item || 'any' in item) {
+    for (const clause of item.all ?? []) {
+      collectConditionArtifactIdsFromItem(clause, indices, output);
+    }
+    for (const clause of item.any ?? []) {
+      collectConditionArtifactIdsFromItem(clause, indices, output);
+    }
+    return;
+  }
+
+  if (!('when' in item) || !isCanonicalArtifactId(item.when)) {
+    return;
+  }
+
+  const { artifactId, decomposedArtifactId } = resolveConditionPath(
+    item.when,
+    indices,
+  );
+  output.add(artifactId);
+  if (decomposedArtifactId) {
+    output.add(decomposedArtifactId);
+  }
+}
+
+function resolveIndexedCanonicalId(
+  canonicalId: string,
+  indices: Record<string, number>,
+): string {
+  let resolvedId = canonicalId;
+  const indexEntries = Object.entries(indices).reverse();
+
+  for (const [symbol, index] of indexEntries) {
+    const label = extractDimensionLabel(symbol);
+    resolvedId = resolvedId.replace(
+      new RegExp(`\\[${escapeRegex(label)}\\]`, 'g'),
+      `[${index}]`,
+    );
+  }
+
+  return resolvedId;
+}
+
+function resolveInputConditionPath(
+  whenPath: string,
+  indices: Record<string, number>,
+): { inputId: string; fieldPath: string[]; exactInputId: string } {
+  const exactInputId = resolveIndexedCanonicalId(whenPath, indices);
+  const body = exactInputId.slice('Input:'.length);
+  const trailingIndices = body.match(/(\[\d+\])+$/)?.[0] ?? '';
+
+  if (!trailingIndices) {
+    return {
+      inputId: exactInputId,
+      fieldPath: [],
+      exactInputId,
+    };
+  }
+
+  const inputBody = body.slice(0, body.length - trailingIndices.length);
+  const fieldPath = trailingIndices.match(/\[\d+\]/g) ?? [];
+
+  return {
+    inputId: `Input:${inputBody}`,
+    fieldPath,
+    exactInputId,
+  };
 }
 
 /**

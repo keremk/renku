@@ -239,6 +239,62 @@ describe('producer-binding-summary', () => {
     );
   });
 
+  it('resolves composite output sources to upstream artifacts in static binding summaries', () => {
+    const childProducerDoc = {
+      meta: { id: 'child-producer', name: 'Child Producer', kind: 'producer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      producers: [{ name: 'ImageGenerator', provider: 'fal-ai', model: 'image' }],
+      producerImports: [],
+      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      edges: [
+        { from: 'Prompt', to: 'ImageGenerator.Prompt' },
+        { from: 'ImageGenerator.GeneratedImage', to: 'GeneratedImage' },
+      ],
+    };
+
+    const timelineDoc = {
+      meta: { id: 'timeline-producer', name: 'Timeline Producer', kind: 'producer' },
+      inputs: [{ name: 'VideoSegments', type: 'array', required: false, fanIn: true }],
+      producers: [{ name: 'TimelineBuilder', provider: 'renku', model: 'timeline/ordered' }],
+      producerImports: [],
+      artefacts: [{ name: 'Timeline', type: 'json' }],
+      edges: [
+        { from: 'VideoSegments', to: 'TimelineBuilder.VideoSegments' },
+        { from: 'TimelineBuilder.Timeline', to: 'Timeline' },
+      ],
+    };
+
+    const rootDoc = {
+      meta: { id: 'root', name: 'Root' },
+      inputs: [{ name: 'ImagePrompt', type: 'string', required: true }],
+      producers: [],
+      producerImports: [],
+      artefacts: [{ name: 'SegmentVideo', type: 'image' }],
+      edges: [
+        { from: 'ImagePrompt', to: 'ChildProducer.Prompt' },
+        { from: 'ChildProducer.GeneratedImage', to: 'SegmentVideo' },
+        { from: 'SegmentVideo', to: 'TimelineComposer.VideoSegments' },
+      ],
+    };
+
+    const root = makeTreeNode([], rootDoc, [
+      ['ChildProducer', makeTreeNode(['ChildProducer'], childProducerDoc)],
+      ['TimelineComposer', makeTreeNode(['TimelineComposer'], timelineDoc)],
+    ]);
+
+    const summary = buildProducerBindingSummary({
+      root,
+      producerId: 'Producer:TimelineComposer',
+      mode: 'static',
+    });
+
+    expect(summary.mappingInputBindings.VideoSegments).toBe(
+      'Artifact:ChildProducer.GeneratedImage'
+    );
+    expect(summary.aliasSources.get('VideoSegments')?.has('artifact')).toBe(true);
+    expect(summary.connectedAliases.has('VideoSegments')).toBe(true);
+  });
+
   it('uses canonical runtime bindings for looped array aliases', async () => {
     const { root } = await loadYamlBlueprintTree(
       LOOPED_SOURCE_IMAGES_FIXTURE_BLUEPRINT

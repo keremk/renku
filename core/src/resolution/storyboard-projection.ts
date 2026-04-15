@@ -1,7 +1,8 @@
-import { evaluateCondition } from '../condition-evaluator.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
+import { evaluateCondition } from '../condition-evaluator.js';
 import {
   formatCanonicalProducerId,
+  isCanonicalArtifactId,
   parseCanonicalArtifactId,
 } from '../parsing/canonical-ids.js';
 import type { BlueprintTreeNode } from '../types.js';
@@ -11,6 +12,7 @@ import {
   type BlueprintResolutionContext,
   type ExpandedBlueprintResolution,
 } from './blueprint-resolution-context.js';
+import { collectPublishedArtifactIds } from './output-publication.js';
 import type {
   CanonicalEdgeInstance,
   CanonicalNodeInstance,
@@ -186,9 +188,18 @@ export function buildStoryboardProjection(
     resolvedArtifactValues,
     hasProducedStoryState
   );
+  const publishedArtifactIds = collectPublishedArtifactIds(
+    canonical.outputSourceBindings,
+    {
+      resolvedArtifacts: resolvedArtifactValues,
+      resolvedInputs: normalizedInputs,
+      hasProducedStoryState,
+    }
+  );
   const preliminaryVisibleNodeInfos = filterDisconnectedProducerArtifacts({
     visibleNodeInfos: candidateVisibleNodeInfos,
     adjacency: buildAdjacency(activeEdges),
+    publishedArtifactIds,
   });
   const adjacency = buildAdjacency(activeEdges);
   const reverseAdjacency = buildReverseAdjacency(activeEdges);
@@ -681,9 +692,14 @@ function isPassThroughAliasArtifact(args: {
 function filterDisconnectedProducerArtifacts(args: {
   visibleNodeInfos: ExpectedNodeInfo[];
   adjacency: Map<string, string[]>;
+  publishedArtifactIds: Set<string>;
 }): ExpectedNodeInfo[] {
   return args.visibleNodeInfos.filter((info) => {
     if (info.node.type !== 'Artifact' || info.mediaType === 'text') {
+      return true;
+    }
+
+    if (args.publishedArtifactIds.has(info.node.id)) {
       return true;
     }
 
@@ -736,27 +752,41 @@ function filterActiveEdges(
   hasProducedStoryState: boolean
 ): CanonicalEdgeInstance[] {
   return edges.filter((edge) => {
-    if (!edge.conditions) {
-      return true;
-    }
-
-    const result = evaluateCondition(edge.conditions, edge.indices ?? {}, {
+    return isConditionActive(
+      edge.conditions,
+      edge.indices,
       resolvedArtifacts,
-    });
-    if (result.satisfied) {
-      return true;
-    }
-
-    if (
-      hasProducedStoryState &&
-      typeof result.reason === 'string' &&
-      result.reason.startsWith('Artifact not found')
-    ) {
-      return true;
-    }
-
-    return false;
+      hasProducedStoryState
+    );
   });
+}
+
+function isConditionActive(
+  conditions: CanonicalEdgeInstance['conditions'],
+  indices: Record<string, number> | undefined,
+  resolvedArtifacts: Record<string, unknown>,
+  hasProducedStoryState: boolean
+): boolean {
+  if (!conditions) {
+    return true;
+  }
+
+  const result = evaluateCondition(conditions, indices ?? {}, {
+    resolvedArtifacts,
+  });
+  if (result.satisfied) {
+    return true;
+  }
+
+  if (
+    hasProducedStoryState &&
+    typeof result.reason === 'string' &&
+    result.reason.startsWith('Artifact not found')
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function buildAdjacency(edges: CanonicalEdgeInstance[]): Map<string, string[]> {

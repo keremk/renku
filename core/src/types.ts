@@ -23,7 +23,7 @@ type Id = string;
 type IsoDatetime = string;
 
 // --- node kinds ---
-export type NodeKind = 'InputSource' | 'Producer' | 'Artifact';
+export type NodeKind = 'InputSource' | 'Producer' | 'Artifact' | 'Output';
 
 // --- artifacts ---
 export type ArtifactKind = string;
@@ -537,12 +537,8 @@ export interface ProducerJobContext {
   /** The producer alias - the reference name used in blueprint connections */
   producerAlias: string;
   inputs: Id[];
+  /** Canonical Artifact:... IDs only. Output connectors must never appear here. */
   produces: Id[];
-  /**
-   * Canonical artifact IDs this job satisfies after resolving artifact-to-artifact
-   * alias chains, e.g. composite-exported blueprint artifacts.
-   */
-  resolvedProduces?: Id[];
   inputBindings?: Record<string, Id>;
   sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
@@ -556,11 +552,23 @@ export interface JobDescriptor {
   jobId: Id;
   producer: ProducerKind | string;
   inputs: Id[];
+  /** Canonical Artifact:... IDs only. Output connectors must never appear here. */
   produces: Id[];
   provider: ProviderName;
   providerModel: string;
   rateKey: string;
   context?: ProducerJobContext;
+}
+
+export interface RootOutputBinding {
+  /** Canonical root-level Output:... connector ID. */
+  outputId: Id;
+  /** Exact canonical upstream source for that connector: Input:... or Artifact:.... */
+  sourceId: Id;
+  /** Optional binding conditions copied from the canonical output edge. */
+  conditions?: EdgeConditionDefinition;
+  /** Expanded loop indices used to evaluate binding conditions. */
+  indices?: Record<string, number>;
 }
 
 export interface ExecutionPlan {
@@ -570,6 +578,10 @@ export interface ExecutionPlan {
   createdAt: IsoDatetime;
   /** Total layers in the full blueprint (before upToLayer filtering). Used for UI dropdown. */
   blueprintLayerCount: number;
+  /** Exact root Output:... connector bindings for blueprint interface consumers. */
+  rootOutputBindings?: RootOutputBinding[];
+  /** Producer:... job IDs that belong to the terminal producer layer of the full blueprint graph. */
+  finalStageProducerJobIds?: Id[];
 }
 
 /**

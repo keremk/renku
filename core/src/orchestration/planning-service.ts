@@ -4,6 +4,7 @@ import {
   prepareBlueprintResolutionContext,
   type BlueprintResolutionContext,
 } from '../resolution/blueprint-resolution-context.js';
+import type { CanonicalBlueprint } from '../resolution/canonical-expander.js';
 import { createProducerGraph } from '../resolution/producer-graph.js';
 import {
   createPlanAdapter,
@@ -20,6 +21,7 @@ import {
   formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalArtifactId,
   isCanonicalInputId,
+  parseCanonicalOutputId,
 } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { EventLog } from '../event-log.js';
@@ -55,6 +57,7 @@ import type {
   PlanningWarning,
   RevisionId,
   InputConditionInfo,
+  RootOutputBinding,
   SurgicalRegenerationScope,
 } from '../types.js';
 
@@ -201,10 +204,14 @@ export function createPlanningService(
         context,
         inputsWithDerived
       );
+      const rootOutputBindings = collectRootOutputBindings(expanded.canonical);
       const producerGraph = createProducerGraph(
         expanded.canonical,
         args.providerCatalog,
         args.providerOptions
+      );
+      const finalStageProducerJobIds = collectFinalStageProducerJobIds(
+        producerGraph
       );
 
       const latestArtefactSnapshot = await readLatestArtefactSnapshot(
@@ -277,6 +284,13 @@ export function createPlanningService(
         scheduledJobIds,
       });
 
+      if (rootOutputBindings.length > 0) {
+        plan.rootOutputBindings = rootOutputBindings;
+      }
+      if (finalStageProducerJobIds.length > 0) {
+        plan.finalStageProducerJobIds = finalStageProducerJobIds;
+      }
+
       await planStore.save(plan, {
         movieId: args.movieId,
         storage: args.storage,
@@ -311,6 +325,47 @@ export function createPlanningService(
       };
     },
   };
+}
+
+function collectRootOutputBindings(
+  canonical: CanonicalBlueprint
+): RootOutputBinding[] {
+  const rootBindings: RootOutputBinding[] = [];
+
+  for (const binding of canonical.outputSourceBindings) {
+    const parsed = parseCanonicalOutputId(binding.outputId);
+    if (parsed.path.length > 0) {
+      continue;
+    }
+    rootBindings.push({
+      outputId: binding.outputId,
+      sourceId: binding.sourceId,
+      ...(binding.conditions ? { conditions: binding.conditions } : {}),
+      ...(binding.indices ? { indices: binding.indices } : {}),
+    });
+  }
+
+  return rootBindings;
+}
+
+function collectFinalStageProducerJobIds(
+  producerGraph: ProducerGraph
+): string[] {
+  if (producerGraph.nodes.length === 0) {
+    return [];
+  }
+
+  const jobLayerMap = buildJobLayerMap(producerGraph);
+  const maxLayer =
+    jobLayerMap.size === 0 ? -1 : Math.max(...jobLayerMap.values());
+  if (maxLayer < 0) {
+    return [];
+  }
+
+  return Array.from(jobLayerMap.entries())
+    .filter(([, layer]) => layer === maxLayer)
+    .map(([jobId]) => jobId)
+    .sort();
 }
 
 async function loadOrCreateManifest(
@@ -572,7 +627,7 @@ function validateProducerOverrideDependencies(args: {
     if (!node) {
       continue;
     }
-    const producedArtifactIds = node.context?.resolvedProduces ?? node.produces;
+    const producedArtifactIds = node.produces;
     for (const artifactId of producedArtifactIds) {
       if (isCanonicalArtifactId(artifactId)) {
         producedByScheduled.add(artifactId);

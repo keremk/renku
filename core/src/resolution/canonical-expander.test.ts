@@ -10,7 +10,7 @@ import type { BlueprintTreeNode, BlueprintDocument } from '../types.js';
 describe('expandBlueprintGraph', () => {
   it('expands nodes with indices and collapses input aliases', () => {
     const scriptDoc: BlueprintDocument = {
-      meta: { id: 'ScriptGenerator', name: 'ScriptGenerator' },
+      meta: { id: 'ScriptGenerator', name: 'ScriptGenerator', kind: 'producer' },
       inputs: [
         { name: 'InquiryPrompt', type: 'string', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
@@ -100,10 +100,147 @@ describe('expandBlueprintGraph', () => {
     expect(edges.every((edge) => edge.from.startsWith('Input:'))).toBe(true);
   });
 
+  it('normalizes producer input bindings that flow through collapsed output connectors', () => {
+    const imageSourceDoc: BlueprintDocument = {
+      meta: { id: 'ImageSource', name: 'ImageSource', kind: 'producer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      producers: [{ name: 'ImageGenerator', provider: 'fal-ai', model: 'image' }],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'ImageGenerator' },
+        { from: 'ImageGenerator', to: 'GeneratedImage' },
+      ],
+    };
+
+    const videoProducerDoc: BlueprintDocument = {
+      meta: { id: 'VideoProducer', name: 'VideoProducer', kind: 'producer' },
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'SourceImages', type: 'array', required: false },
+      ],
+      artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
+      producers: [{ name: 'VideoGenerator', provider: 'fal-ai', model: 'video' }],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'VideoGenerator' },
+        { from: 'SourceImages', to: 'VideoGenerator' },
+        { from: 'VideoGenerator', to: 'GeneratedVideo' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [
+        { name: 'ImagePrompt', type: 'string', required: true },
+        { name: 'VideoPrompt', type: 'string', required: true },
+      ],
+      artefacts: [
+        { name: 'SharedImage', type: 'image' },
+        { name: 'FinalVideo', type: 'video' },
+      ],
+      producers: [],
+      producerImports: [],
+      edges: [
+        { from: 'ImagePrompt', to: 'ImageSource.Prompt' },
+        { from: 'ImageSource.GeneratedImage', to: 'SharedImage' },
+        { from: 'SharedImage', to: 'VideoProducer.SourceImages[0]' },
+        { from: 'VideoPrompt', to: 'VideoProducer.Prompt' },
+        { from: 'VideoProducer.GeneratedVideo', to: 'FinalVideo' },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'ImageSource',
+          {
+            id: 'ImageSource',
+            namespacePath: ['ImageSource'],
+            document: imageSourceDoc,
+            children: new Map(),
+            sourcePath: '/test/mock-blueprint.yaml',
+          },
+        ],
+        [
+          'VideoProducer',
+          {
+            id: 'VideoProducer',
+            namespacePath: ['VideoProducer'],
+            document: videoProducerDoc,
+            children: new Map(),
+            sourcePath: '/test/mock-blueprint.yaml',
+          },
+        ],
+      ]),
+      sourcePath: '/test/mock-blueprint.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:ImagePrompt': 'Create a style frame',
+        'Input:VideoPrompt': 'Animate the frame',
+      },
+      inputSources
+    );
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    expect(expanded.outputSources['Output:SharedImage']).toBe(
+      'Artifact:ImageSource.GeneratedImage'
+    );
+    expect(expanded.inputBindings['Producer:VideoProducer']?.['SourceImages[0]']).toBe(
+      'Artifact:ImageSource.GeneratedImage'
+    );
+    expect(
+      Object.values(expanded.inputBindings['Producer:VideoProducer'] ?? {}).some(
+        (binding) => binding.startsWith('Output:')
+      )
+    ).toBe(false);
+  });
+
+  it('resolves input-to-output passthrough connectors to canonical input IDs', () => {
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [{ name: 'Duration', type: 'int', required: true }],
+      artefacts: [{ name: 'MovieDuration', type: 'int' }],
+      producers: [],
+      producerImports: [],
+      edges: [{ from: 'Duration', to: 'MovieDuration' }],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map(),
+      sourcePath: '/test/mock-blueprint.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:Duration': 42,
+      },
+      inputSources
+    );
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    expect(expanded.outputSources['Output:MovieDuration']).toBe('Input:Duration');
+    expect(Object.keys(expanded.inputBindings)).toHaveLength(0);
+  });
+
   it('expands array artifacts using countInput', () => {
     // Test the countInput-based dimension expansion (traditional approach)
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
       artefacts: [
         { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
@@ -147,7 +284,7 @@ describe('expandBlueprintGraph', () => {
 
   it('handles countInputOffset for array artifacts', () => {
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
       artefacts: [
         {
@@ -198,7 +335,7 @@ describe('expandBlueprintGraph', () => {
     // Test nested dimensions (2 segments × 3 images = 6 image artifacts)
     // Uses loops to define dimension sizing for both dimensions
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [
         { name: 'NumOfSegments', type: 'int', required: true },
         { name: 'NumOfImages', type: 'int', required: true },

@@ -11,7 +11,7 @@ import { createParserError, ParserErrorCode } from '../errors/index.js';
  *   Type:path.to.name[index0][index1]...
  *
  * Where:
- *   - Type is one of: Input, Artifact, Producer
+ *   - Type is one of: Input, Output, Artifact, Producer
  *   - path.to.name is the producer alias path plus the item name
  *   - [indexN] are optional dimension indices (only present after expansion)
  *
@@ -22,7 +22,7 @@ import { createParserError, ParserErrorCode } from '../errors/index.js';
  *   - Artifact:SegmentImage[0][1] (expanded artifact with dimension indices)
  */
 
-export type CanonicalIdType = 'Input' | 'Artifact' | 'Producer';
+export type CanonicalIdType = 'Input' | 'Output' | 'Artifact' | 'Producer';
 
 // -----------------------------------------------------------------------------
 // Validators
@@ -33,6 +33,13 @@ export type CanonicalIdType = 'Input' | 'Artifact' | 'Producer';
  */
 export function isCanonicalInputId(value: string): boolean {
   return typeof value === 'string' && value.startsWith('Input:');
+}
+
+/**
+ * Returns true if value is a canonical Output ID (starts with "Output:").
+ */
+export function isCanonicalOutputId(value: string): boolean {
+  return typeof value === 'string' && value.startsWith('Output:');
 }
 
 /**
@@ -55,6 +62,7 @@ export function isCanonicalProducerId(value: string): boolean {
 export function isCanonicalId(value: string): boolean {
   return (
     isCanonicalInputId(value) ||
+    isCanonicalOutputId(value) ||
     isCanonicalArtifactId(value) ||
     isCanonicalProducerId(value)
   );
@@ -69,6 +77,9 @@ export function getCanonicalIdType(value: string): CanonicalIdType | null {
   }
   if (value.startsWith('Input:')) {
     return 'Input';
+  }
+  if (value.startsWith('Output:')) {
+    return 'Output';
   }
   if (value.startsWith('Artifact:')) {
     return 'Artifact';
@@ -106,6 +117,16 @@ export function parseCanonicalInputId(id: string): ParsedCanonicalId {
   assertCanonicalInputId(id);
   const body = id.slice('Input:'.length);
   return parseIdBody('Input', body);
+}
+
+/**
+ * Parses a canonical Output ID into its components.
+ * Throws if the ID is not a valid canonical Output ID.
+ */
+export function parseCanonicalOutputId(id: string): ParsedCanonicalId {
+  assertCanonicalOutputId(id);
+  const body = id.slice('Output:'.length);
+  return parseIdBody('Output', body);
 }
 
 /**
@@ -193,6 +214,25 @@ export function assertCanonicalInputId(value: string): void {
 }
 
 /**
+ * Throws if value is not a valid canonical Output ID.
+ */
+export function assertCanonicalOutputId(value: string): void {
+  if (!isCanonicalOutputId(value)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_CANONICAL_ID,
+      `Expected canonical Output ID (Output:...), got "${value}".`,
+    );
+  }
+  const body = value.slice('Output:'.length);
+  if (body.length === 0 || body === '.') {
+    throw createParserError(
+      ParserErrorCode.EMPTY_CANONICAL_ID_BODY,
+      `Invalid canonical Output ID: "${value}" has empty body.`,
+    );
+  }
+}
+
+/**
  * Throws if value is not a valid canonical Artifact ID.
  */
 export function assertCanonicalArtifactId(value: string): void {
@@ -239,7 +279,7 @@ export function assertCanonicalId(value: string): void {
   if (!isCanonicalId(value)) {
     throw createParserError(
       ParserErrorCode.INVALID_CANONICAL_ID,
-      `Expected canonical ID (Input:..., Artifact:..., or Producer:...), got "${value}".`,
+      `Expected canonical ID (Input:..., Output:..., Artifact:..., or Producer:...), got "${value}".`,
     );
   }
 }
@@ -334,6 +374,20 @@ export function formatCanonicalInputId(
   name: string
 ): string {
   return formatCanonicalId('Input', joinSegments(aliasPath, name));
+}
+
+/**
+ * Formats a canonical Output ID.
+ *
+ * @example
+ * formatCanonicalOutputId([], 'Movie') // 'Output:Movie'
+ * formatCanonicalOutputId(['SegmentUnit'], 'Video') // 'Output:SegmentUnit.Video'
+ */
+export function formatCanonicalOutputId(
+  aliasPath: string[],
+  name: string
+): string {
+  return formatCanonicalId('Output', joinSegments(aliasPath, name));
 }
 
 /**

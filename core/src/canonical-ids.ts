@@ -1,16 +1,19 @@
 export {
   // Validators
   isCanonicalInputId,
+  isCanonicalOutputId,
   isCanonicalArtifactId,
   isCanonicalProducerId,
   isCanonicalId,
   getCanonicalIdType,
   // Parsers
   parseCanonicalInputId,
+  parseCanonicalOutputId,
   parseCanonicalProducerId,
   parseCanonicalArtifactId,
   // Assertions
   assertCanonicalInputId,
+  assertCanonicalOutputId,
   assertCanonicalArtifactId,
   assertCanonicalProducerId,
   assertCanonicalId,
@@ -19,6 +22,7 @@ export {
   formatProducerPath, // deprecated, use formatProducerAlias
   formatCanonicalProducerName, // deprecated, use formatProducerAlias
   formatCanonicalInputId,
+  formatCanonicalOutputId,
   formatCanonicalArtifactId,
   formatCanonicalProducerId,
   formatCanonicalProducerPath,

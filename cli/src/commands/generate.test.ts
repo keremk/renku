@@ -130,6 +130,21 @@ describe('runGenerate (new runs)', () => {
 				'utf8'
 			)
 		);
+		expect(plan.rootOutputBindings).toBeDefined();
+		expect(plan.rootOutputBindings).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					outputId: expect.stringMatching(/^Output:/),
+					sourceId: expect.stringMatching(/^(Input|Artifact):/),
+				}),
+			])
+		);
+		expect(plan.finalStageProducerJobIds).toBeDefined();
+		expect(plan.finalStageProducerJobIds).toEqual(
+			expect.arrayContaining([
+				expect.stringMatching(/^Producer:/),
+			])
+		);
 		const firstJob = plan.layers.flat()[0];
 		expect(firstJob.context.inputBindings.InquiryPrompt).toBe(
 			'Input:InquiryPrompt'
@@ -152,6 +167,30 @@ describe('runGenerate (new runs)', () => {
 		expect(current.revision).toBe(result.targetRevision);
 		const artifactsStats = await stat(result.artifactsRoot ?? '');
 		expect(artifactsStats.isDirectory()).toBe(true);
+		expect(result.rootOutputs).toBeDefined();
+		expect(result.rootOutputs?.length).toBeGreaterThan(0);
+		expect(result.rootOutputs).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					outputId: expect.stringMatching(/^Output:/),
+					artifactId: expect.stringMatching(/^Artifact:/),
+					artifactPath: expect.any(String),
+					producedBy: expect.stringMatching(/^Producer:/),
+				}),
+			])
+		);
+		expect(result.finalStageOutputs).toBeDefined();
+		expect(result.finalStageOutputs?.length).toBeGreaterThan(0);
+		expect(result.finalStageOutputs).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					outputId: expect.stringMatching(/^Output:/),
+					artifactId: expect.stringMatching(/^Artifact:/),
+					artifactPath: expect.any(String),
+					producedBy: expect.stringMatching(/^Producer:/),
+				}),
+			])
+		);
 	});
 
 	it('can perform a dry run and report summary', async () => {

@@ -91,6 +91,8 @@ describe('createProducerGraph', () => {
           { from: 'Producer:TestProducer', to: 'Artifact:Output' },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -154,6 +156,8 @@ describe('createProducerGraph', () => {
           { from: 'Producer:ImageProducer', to: 'Artifact:Image' },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -213,6 +217,8 @@ describe('createProducerGraph', () => {
           { from: 'Producer:TestProducer[1]', to: 'Artifact:Output[1]' },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -449,6 +455,8 @@ describe('createProducerGraph', () => {
         ],
         edges: [],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -482,6 +490,8 @@ describe('createProducerGraph', () => {
         ],
         edges: [],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -554,6 +564,8 @@ describe('createProducerGraph', () => {
         ],
         edges: [],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -582,6 +594,8 @@ describe('createProducerGraph', () => {
         ],
         edges: [],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -660,6 +674,8 @@ describe('createProducerGraph', () => {
           },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -735,6 +751,8 @@ describe('createProducerGraph', () => {
           },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -783,6 +801,8 @@ describe('createProducerGraph', () => {
           },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -817,6 +837,8 @@ describe('createProducerGraph', () => {
         ],
         edges: [],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -845,6 +867,8 @@ describe('createProducerGraph', () => {
         ],
         edges: [],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -874,6 +898,8 @@ describe('createProducerGraph', () => {
         ],
         edges: [],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -899,6 +925,8 @@ describe('createProducerGraph', () => {
         ],
         edges: [],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -926,6 +954,8 @@ describe('createProducerGraph', () => {
         ],
         edges: [],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -1003,6 +1033,8 @@ describe('createProducerGraph', () => {
           { from: 'Artifact:VideoProducer.GeneratedVideo', to: 'Producer:TimelineComposer' },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -1090,6 +1122,8 @@ describe('createProducerGraph', () => {
           { from: 'Artifact:VideoProducer.LastFrame[0]', to: 'Producer:VideoProducer[1]' },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -1162,6 +1196,8 @@ describe('createProducerGraph', () => {
           { from: 'Artifact:VideoProducer.GeneratedVideo', to: 'Artifact:SegmentVideo' },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -1179,9 +1215,10 @@ describe('createProducerGraph', () => {
       const videoProducer = result.nodes.find((n) => n.jobId === 'Producer:VideoProducer')!;
       // GeneratedVideo is connected (chains to SegmentVideo)
       expect(videoProducer.produces).toContain('Artifact:VideoProducer.GeneratedVideo');
-      // The producer should also expose the chained blueprint artifact alias
-      // through the resolved produces set used by planning validation.
-      expect(videoProducer.context?.resolvedProduces).toContain('Artifact:SegmentVideo');
+      // Only the real runtime artifact stays on the job contract.
+      expect(videoProducer.context?.produces).toEqual([
+        'Artifact:VideoProducer.GeneratedVideo',
+      ]);
       // FirstFrame has no downstream connection
       expect(videoProducer.produces).not.toContain('Artifact:VideoProducer.FirstFrame');
     });
@@ -1215,6 +1252,8 @@ describe('createProducerGraph', () => {
           { from: 'Producer:SimpleProducer', to: 'Artifact:Output' },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -1283,6 +1322,8 @@ describe('createProducerGraph', () => {
           { from: 'Artifact:Script2', to: 'Producer:ImageProducer' },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 

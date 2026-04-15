@@ -6,7 +6,7 @@ import type { BlueprintDocument, BlueprintTreeNode } from '../types.js';
 
 function makeChildBlueprint(): BlueprintDocument {
   return {
-    meta: { id: 'Child', name: 'Child' },
+    meta: { id: 'Child', name: 'Child', kind: 'producer' },
     inputs: [
       { name: 'ImagesPer', type: 'int', required: false },
     ],
@@ -84,7 +84,7 @@ describe('input source mapping', () => {
 
   it('includes root system inputs referenced only by countInput', () => {
     const rootDoc: BlueprintDocument = {
-      meta: { id: 'Root', name: 'Root' },
+      meta: { id: 'Root', name: 'Root', kind: 'producer' },
       inputs: [],
       artefacts: [
         { name: 'SceneVideos', type: 'array', countInput: 'NumOfSegments' },

@@ -43,6 +43,7 @@ export interface BlueprintGraphNode {
   dimensions: string[];
   input?: BlueprintInputDefinition;
   artefact?: BlueprintArtefactDefinition;
+  output?: BlueprintArtefactDefinition;
   producer?: ProducerConfig;
 }
 
@@ -596,6 +597,13 @@ function collectGraphNodes(
     });
   }
   for (const artefact of tree.document.artefacts) {
+    const isProducerBlueprint =
+      tree.document.meta.kind === 'producer' ||
+      (tree.children.size === 0 && tree.document.producers.length > 0);
+    const artifactNodeKind: NodeKind = isProducerBlueprint
+      ? 'Artifact'
+      : 'Output';
+
     // Handle JSON artifacts with schema decomposition
     if (artefact.type === 'json' && artefact.schema && artefact.arrays) {
       const decomposed = decomposeJsonSchema(
@@ -634,11 +642,13 @@ function collectGraphNodes(
         };
         output.push({
           id: fieldNodeKey,
-          type: 'Artifact',
+          type: artifactNodeKind,
           namespacePath: tree.namespacePath,
           name: field.path,
           dimensions: [...namespaceQualified, ...localQualified],
-          artefact: fieldArtefact,
+          ...(artifactNodeKind === 'Artifact'
+            ? { artefact: fieldArtefact }
+            : { output: fieldArtefact }),
         });
       }
     } else {
@@ -659,11 +669,13 @@ function collectGraphNodes(
       const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
       output.push({
         id: nodeKey,
-        type: 'Artifact',
+        type: artifactNodeKind,
         namespacePath: tree.namespacePath,
         name: artefact.name,
         dimensions: [...namespaceQualified, ...localQualified],
-        artefact,
+        ...(artifactNodeKind === 'Artifact'
+          ? { artefact }
+          : { output: artefact }),
       });
     }
   }

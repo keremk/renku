@@ -11,15 +11,21 @@ import {
 	buildArtifactsView,
 	loadCurrentManifest,
 	prepareArtifactsPreflight,
+	resolveMaterializedRootOutputs,
+	selectFinalStageOutputs,
+	type MaterializedRootOutput,
 } from '../lib/artifacts-view.js';
 import crypto from 'node:crypto';
 import { resolve } from 'node:path';
 import {
+	collectOutputBindingConditionArtifactIds,
+	createStorageContext,
 	createRuntimeError,
 	getCliArtifactsConfig,
 	isCanonicalArtifactId,
 	isCanonicalProducerId,
 	parseProducerDirectiveToken,
+	resolveManifestArtifactValues,
 	RuntimeErrorCode,
 	type PlanningUserControls,
 	type BlueprintDryRunValidationResult,
@@ -83,8 +89,10 @@ export interface GenerateResult {
 	storagePath: string;
 	/** Path to artifacts folder (symlinks to build outputs) */
 	artifactsRoot?: string;
-	/** Path to final video/audio output (if available) */
-	finalOutputPath?: string;
+	/** Materialized root outputs whose source artifacts are produced by the terminal producer layer. */
+	finalStageOutputs?: MaterializedRootOutput[];
+	/** Explicitly materialized root Output:... connectors backed by Artifact:... IDs. */
+	rootOutputs?: MaterializedRootOutput[];
 	isNew: boolean;
 	cleanedUp?: boolean;
 }
@@ -225,7 +233,8 @@ export async function runGenerate(
 		});
 
 		let artifactsRoot: string | undefined;
-		let finalOutputPath: string | undefined;
+		let finalStageOutputs: MaterializedRootOutput[] | undefined;
+		let rootOutputs: MaterializedRootOutput[] | undefined;
 		if (!options.dryRun && editResult.build && artifactsConfig.enabled) {
 			const { manifest: nextManifest } = await loadCurrentManifest(
 				activeConfig,
@@ -237,7 +246,24 @@ export async function runGenerate(
 				manifest: nextManifest,
 			});
 			artifactsRoot = artifacts.artifactsRoot;
-			finalOutputPath = findFinalOutput(artifacts.artefacts);
+			const resolvedConditionArtifacts =
+				await resolveRootOutputConditionArtifacts({
+					cliConfig: activeConfig,
+					movieId: storageMovieId,
+					manifest: nextManifest,
+					rootOutputBindings: editResult.rootOutputBindings ?? [],
+				});
+			const materializedRootOutputs = resolveMaterializedRootOutputs({
+				rootOutputBindings: editResult.rootOutputBindings ?? [],
+				artefacts: artifacts.artefacts,
+				resolvedArtifacts: resolvedConditionArtifacts,
+				resolvedInputs: editResult.resolvedInputs,
+			});
+			rootOutputs = materializedRootOutputs;
+			finalStageOutputs = selectFinalStageOutputs({
+				rootOutputs: materializedRootOutputs,
+				finalStageProducerJobIds: editResult.finalStageProducerJobIds ?? [],
+			});
 		}
 
 		return {
@@ -251,7 +277,8 @@ export async function runGenerate(
 			manifestPath: editResult.manifestPath,
 			storagePath: editResult.storagePath,
 			artifactsRoot,
-			finalOutputPath,
+			finalStageOutputs,
+			rootOutputs,
 			isNew: false,
 			cleanedUp: editResult.cleanedUp,
 		};
@@ -301,7 +328,8 @@ export async function runGenerate(
 	});
 
 	let artifactsRoot: string | undefined;
-	let finalOutputPath: string | undefined;
+	let finalStageOutputs: MaterializedRootOutput[] | undefined;
+	let rootOutputs: MaterializedRootOutput[] | undefined;
 	if (!options.dryRun && queryResult.build && artifactsConfig.enabled) {
 		// Try to load manifest and build artifacts view, but don't fail if manifest doesn't exist
 		// (can happen if build failed before manifest was saved)
@@ -316,7 +344,24 @@ export async function runGenerate(
 				manifest,
 			});
 			artifactsRoot = artifacts.artifactsRoot;
-			finalOutputPath = findFinalOutput(artifacts.artefacts);
+			const resolvedConditionArtifacts =
+				await resolveRootOutputConditionArtifacts({
+					cliConfig: activeConfig,
+					movieId: queryResult.storageMovieId,
+					manifest,
+					rootOutputBindings: queryResult.rootOutputBindings ?? [],
+				});
+			const materializedRootOutputs = resolveMaterializedRootOutputs({
+				rootOutputBindings: queryResult.rootOutputBindings ?? [],
+				artefacts: artifacts.artefacts,
+				resolvedArtifacts: resolvedConditionArtifacts,
+				resolvedInputs: queryResult.resolvedInputs,
+			});
+			rootOutputs = materializedRootOutputs;
+			finalStageOutputs = selectFinalStageOutputs({
+				rootOutputs: materializedRootOutputs,
+				finalStageProducerJobIds: queryResult.finalStageProducerJobIds ?? [],
+			});
 		} catch {
 			// Manifest may not exist if build failed - continue without artifacts view
 			logger.debug?.(
@@ -336,10 +381,37 @@ export async function runGenerate(
 		manifestPath: queryResult.manifestPath,
 		storagePath: queryResult.storagePath,
 		artifactsRoot,
-		finalOutputPath,
+		finalStageOutputs,
+		rootOutputs,
 		isNew: true,
 		cleanedUp: queryResult.cleanedUp,
 	};
+}
+
+async function resolveRootOutputConditionArtifacts(args: {
+	cliConfig: CliConfig;
+	movieId: string;
+	manifest: Awaited<ReturnType<typeof loadCurrentManifest>>['manifest'];
+	rootOutputBindings: ExecuteResult['rootOutputBindings'];
+}): Promise<Record<string, unknown>> {
+	const rootOutputBindings = args.rootOutputBindings ?? [];
+	const artifactIds = collectOutputBindingConditionArtifactIds(rootOutputBindings);
+	if (artifactIds.length === 0) {
+		return {};
+	}
+
+	const storage = createStorageContext({
+		kind: 'local',
+		rootDir: args.cliConfig.storage.root,
+		basePath: args.cliConfig.storage.basePath,
+	});
+
+	return resolveManifestArtifactValues({
+		artifactIds,
+		manifest: args.manifest,
+		storage,
+		movieId: args.movieId,
+	});
 }
 
 function normalizePublicId(storageMovieId: string): string {
@@ -426,36 +498,4 @@ function buildPlanningUserControls(args: {
 		...(hasScope ? { scope } : {}),
 		...(hasSurgical ? { surgical } : {}),
 	};
-}
-
-interface ArtifactInfo {
-	artefactId: string;
-	artifactPath: string;
-	mimeType?: string;
-}
-
-/**
- * Find the final video or audio output from the artifacts list.
- * Returns the path to the final output, or undefined if not found.
- */
-function findFinalOutput(artefacts: ArtifactInfo[]): string | undefined {
-	// Look for video output first (FinalVideo)
-	const videoArtifact = artefacts.find(
-		(a) =>
-			a.mimeType?.startsWith('video/') && a.artefactId.includes('FinalVideo')
-	);
-	if (videoArtifact) {
-		return videoArtifact.artifactPath;
-	}
-
-	// Fall back to audio output (FinalAudio)
-	const audioArtifact = artefacts.find(
-		(a) =>
-			a.mimeType?.startsWith('audio/') && a.artefactId.includes('FinalAudio')
-	);
-	if (audioArtifact) {
-		return audioArtifact.artifactPath;
-	}
-
-	return undefined;
 }

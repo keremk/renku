@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { BlueprintTreeNode } from '../types.js';
+import type { BlueprintDocument, BlueprintTreeNode } from '../types.js';
 import {
   hydrateOutputSchemasFromProducerMetadata,
   loadYamlBlueprintTree,
@@ -19,6 +19,19 @@ function makeTreeNode(document: Record<string, unknown>): BlueprintTreeNode {
     children: new Map(),
     sourcePath: '/tmp/storyboard-blueprint.yaml',
   } as unknown as BlueprintTreeNode;
+}
+
+function makeChildTreeNode(
+  document: BlueprintDocument,
+  namespacePath: string[]
+): BlueprintTreeNode {
+  return {
+    id: document.meta.id,
+    namespacePath,
+    document,
+    children: new Map(),
+    sourcePath: '/tmp/storyboard-blueprint.yaml',
+  };
 }
 
 describe('buildStoryboardProjection', () => {
@@ -151,6 +164,288 @@ describe('buildStoryboardProjection', () => {
 
     expect(secondColumnItems.map((item) => item.id)).not.toContain('Input:InitialImage');
     expect(pendingSecondSceneImage?.state).toBe('pending');
+  });
+
+  it('only treats conditional exports as published when their export binding is active', () => {
+    const imageProducerDoc: BlueprintDocument = {
+      meta: { id: 'MainImageProducer', name: 'Main Image Producer', kind: 'producer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      producers: [
+        {
+          name: 'ImageGenerator',
+          provider: 'fal-ai',
+          model: 'image',
+        },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'ImageGenerator' },
+        { from: 'ImageGenerator', to: 'GeneratedImage' },
+      ],
+    };
+
+    const gateProducerDoc: BlueprintDocument = {
+      meta: { id: 'GateProducer', name: 'Gate Producer', kind: 'producer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'ShouldPublish', type: 'json' }],
+      producers: [
+        {
+          name: 'GateGenerator',
+          provider: 'openai',
+          model: 'gpt-5-mini',
+        },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'GateGenerator' },
+        { from: 'GateGenerator', to: 'ShouldPublish' },
+      ],
+    };
+
+    const optionalImageProducerDoc: BlueprintDocument = {
+      meta: {
+        id: 'OptionalImageProducer',
+        name: 'Optional Image Producer',
+        kind: 'producer',
+      },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      producers: [
+        {
+          name: 'ImageGenerator',
+          provider: 'fal-ai',
+          model: 'image',
+        },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'ImageGenerator' },
+        { from: 'ImageGenerator', to: 'GeneratedImage' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: {
+        id: 'ConditionalExportFixture',
+        name: 'Conditional Export Fixture',
+      },
+      inputs: [
+        { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
+        { name: 'NumOfSegments', type: 'int', required: true },
+      ],
+      artefacts: [
+        {
+          name: 'SceneImage',
+          type: 'array',
+          itemType: 'image',
+          countInput: 'NumOfSegments',
+        },
+        {
+          name: 'PublishedOptionalImage',
+          type: 'array',
+          itemType: 'image',
+          countInput: 'NumOfSegments',
+        },
+      ],
+      producers: [],
+      producerImports: [],
+      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      edges: [
+        { from: 'ScenePrompt[scene]', to: 'MainImageProducer[scene].Prompt' },
+        {
+          from: 'MainImageProducer[scene].GeneratedImage',
+          to: 'SceneImage[scene]',
+        },
+        { from: 'ScenePrompt[scene]', to: 'GateProducer[scene].Prompt' },
+        { from: 'ScenePrompt[scene]', to: 'OptionalImageProducer[scene].Prompt' },
+        {
+          from: 'OptionalImageProducer[scene].GeneratedImage',
+          to: 'PublishedOptionalImage[scene]',
+          conditions: {
+            when: 'Artifact:GateProducer.ShouldPublish[scene]',
+            is: true,
+          },
+        },
+      ],
+    };
+
+    const root: BlueprintTreeNode = {
+      id: 'ConditionalExportFixture',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        ['MainImageProducer', makeChildTreeNode(imageProducerDoc, ['MainImageProducer'])],
+        ['GateProducer', makeChildTreeNode(gateProducerDoc, ['GateProducer'])],
+        [
+          'OptionalImageProducer',
+          makeChildTreeNode(optionalImageProducerDoc, ['OptionalImageProducer']),
+        ],
+      ]),
+      sourcePath: '/tmp/storyboard-blueprint.yaml',
+    };
+
+    const inactiveProjection = buildStoryboardProjection({
+      root,
+      effectiveInputs: {
+        ScenePrompt: ['Scene one'],
+        NumOfSegments: 1,
+      },
+      resolvedArtifactValues: {
+        'Artifact:GateProducer.ShouldPublish[0]': false,
+      },
+    });
+
+    const inactiveItemIds =
+      inactiveProjection.columns[0]?.groups.flatMap((group) => group.items).map((item) => item.id) ?? [];
+    expect(inactiveItemIds.length).toBeGreaterThan(0);
+    expect(inactiveItemIds).not.toContain(
+      'Artifact:OptionalImageProducer.GeneratedImage[0]'
+    );
+
+    const activeProjection = buildStoryboardProjection({
+      root,
+      effectiveInputs: {
+        ScenePrompt: ['Scene one'],
+        NumOfSegments: 1,
+      },
+      resolvedArtifactValues: {
+        'Artifact:GateProducer.ShouldPublish[0]': true,
+      },
+    });
+
+    const activeItemIds =
+      activeProjection.columns[0]?.groups.flatMap((group) => group.items).map((item) => item.id) ?? [];
+    expect(activeItemIds).toContain('Artifact:OptionalImageProducer.GeneratedImage[0]');
+  });
+
+  it('treats input-gated exports as published only when the input condition is satisfied', () => {
+    const mainImageProducerDoc: BlueprintDocument = {
+      meta: { id: 'MainImageProducer', name: 'Main Image Producer', kind: 'producer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      producers: [
+        {
+          name: 'ImageGenerator',
+          provider: 'fal-ai',
+          model: 'image',
+        },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'ImageGenerator' },
+        { from: 'ImageGenerator', to: 'GeneratedImage' },
+      ],
+    };
+
+    const optionalImageProducerDoc: BlueprintDocument = {
+      meta: {
+        id: 'OptionalImageProducer',
+        name: 'Optional Image Producer',
+        kind: 'producer',
+      },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      producers: [
+        {
+          name: 'ImageGenerator',
+          provider: 'fal-ai',
+          model: 'image',
+        },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'ImageGenerator' },
+        { from: 'ImageGenerator', to: 'GeneratedImage' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: {
+        id: 'InputConditionalExportFixture',
+        name: 'Input Conditional Export Fixture',
+      },
+      inputs: [
+        { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
+        { name: 'PublishOptionalImage', type: 'array', itemType: 'boolean', required: true },
+        { name: 'NumOfSegments', type: 'int', required: true },
+      ],
+      artefacts: [
+        {
+          name: 'SceneImage',
+          type: 'array',
+          itemType: 'image',
+          countInput: 'NumOfSegments',
+        },
+        {
+          name: 'PublishedOptionalImage',
+          type: 'array',
+          itemType: 'image',
+          countInput: 'NumOfSegments',
+        },
+      ],
+      producers: [],
+      producerImports: [],
+      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      edges: [
+        { from: 'ScenePrompt[scene]', to: 'MainImageProducer[scene].Prompt' },
+        {
+          from: 'MainImageProducer[scene].GeneratedImage',
+          to: 'SceneImage[scene]',
+        },
+        { from: 'ScenePrompt[scene]', to: 'OptionalImageProducer[scene].Prompt' },
+        {
+          from: 'OptionalImageProducer[scene].GeneratedImage',
+          to: 'PublishedOptionalImage[scene]',
+          conditions: {
+            when: 'Input:PublishOptionalImage[scene]',
+            is: true,
+          },
+        },
+      ],
+    };
+
+    const root: BlueprintTreeNode = {
+      id: 'InputConditionalExportFixture',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        ['MainImageProducer', makeChildTreeNode(mainImageProducerDoc, ['MainImageProducer'])],
+        [
+          'OptionalImageProducer',
+          makeChildTreeNode(optionalImageProducerDoc, ['OptionalImageProducer']),
+        ],
+      ]),
+      sourcePath: '/tmp/storyboard-blueprint.yaml',
+    };
+
+    const inactiveProjection = buildStoryboardProjection({
+      root,
+      effectiveInputs: {
+        ScenePrompt: ['Scene one'],
+        PublishOptionalImage: [false],
+        NumOfSegments: 1,
+      },
+    });
+
+    const inactiveItemIds =
+      inactiveProjection.columns[0]?.groups.flatMap((group) => group.items).map((item) => item.id) ?? [];
+    expect(inactiveItemIds).not.toContain(
+      'Artifact:OptionalImageProducer.GeneratedImage[0]'
+    );
+
+    const activeProjection = buildStoryboardProjection({
+      root,
+      effectiveInputs: {
+        ScenePrompt: ['Scene one'],
+        PublishOptionalImage: [true],
+        NumOfSegments: 1,
+      },
+    });
+
+    const activeItemIds =
+      activeProjection.columns[0]?.groups.flatMap((group) => group.items).map((item) => item.id) ?? [];
+    expect(activeItemIds).toContain('Artifact:OptionalImageProducer.GeneratedImage[0]');
   });
 
   it('prefers the NumOfSegments-driven segment axis when multiple axes are present', () => {

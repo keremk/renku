@@ -52,6 +52,12 @@ export {
   resolveEndpoint,
 } from './viewer-parse-projection.js';
 export { buildStoryboardProjection } from './storyboard-projection.js';
+export {
+  collectOutputBindingConditionArtifactIds,
+  collectPublishedArtifactIds,
+  filterActiveOutputBindings,
+  isOutputBindingActive,
+} from './output-publication.js';
 export type {
   BindingSourceKind,
   ProducerBindingSummaryMode,
@@ -85,3 +91,7 @@ export type {
   StoryboardConnector,
   BuildStoryboardProjectionArgs,
 } from './storyboard-projection.js';
+export type {
+  ConditionedOutputBinding,
+  OutputPublicationContext,
+} from './output-publication.js';

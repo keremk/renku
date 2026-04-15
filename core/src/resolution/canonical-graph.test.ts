@@ -391,8 +391,8 @@ describe('edge cases', () => {
     const tree = makeTreeNode(doc, []);
     const graph = buildBlueprintGraph(tree);
 
-    const artefactNodes = graph.nodes.filter((n) => n.type === 'Artifact');
-    expect(artefactNodes).toHaveLength(1);
+    const outputNodes = graph.nodes.filter((n) => n.type === 'Output');
+    expect(outputNodes).toHaveLength(1);
   });
 
   it('correctly tracks dimensions from multiple levels of nesting', () => {

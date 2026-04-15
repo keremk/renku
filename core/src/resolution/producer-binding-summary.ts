@@ -53,6 +53,13 @@ export function collectProducerBindingEntries(
   const producerAlias = canonicalProducerIdToAlias(producerId);
   const graph = resolveBlueprintResolutionContext(rootOrContext).graph;
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const inboundEdgesByNodeId = new Map<string, typeof graph.edges>();
+
+  for (const edge of graph.edges) {
+    const inbound = inboundEdgesByNodeId.get(edge.to.nodeId) ?? [];
+    inbound.push(edge);
+    inboundEdgesByNodeId.set(edge.to.nodeId, inbound);
+  }
 
   const entries: ProducerBindingEntry[] = [];
 
@@ -75,7 +82,12 @@ export function collectProducerBindingEntries(
       );
     }
 
-    const source = resolveSourceBinding(sourceNode, producerId);
+    const source = resolveSourceBinding(
+      sourceNode,
+      producerId,
+      nodesById,
+      inboundEdgesByNodeId
+    );
     const targetAlias = parseTargetAlias(targetNode.name, producerId);
 
     entries.push({
@@ -269,7 +281,10 @@ function assertRuntimeInputs(
 
 function resolveSourceBinding(
   sourceNode: BlueprintGraphNode,
-  producerId: string
+  producerId: string,
+  nodesById: Map<string, BlueprintGraphNode>,
+  inboundEdgesByNodeId: Map<string, Array<{ from: { nodeId: string } }>>,
+  visitedOutputIds = new Set<string>()
 ): { kind: BindingSourceKind; canonicalId: string } {
   if (sourceNode.type === 'InputSource') {
     return {
@@ -291,9 +306,74 @@ function resolveSourceBinding(
     };
   }
 
+  if (sourceNode.type === 'Output') {
+    return resolveOutputSourceBinding(
+      sourceNode,
+      producerId,
+      nodesById,
+      inboundEdgesByNodeId,
+      visitedOutputIds
+    );
+  }
+
   throw createRuntimeError(
     RuntimeErrorCode.INVALID_INPUT_BINDING,
     `Unsupported source node type "${sourceNode.type}" while collecting producer binding entries for "${producerId}".`
+  );
+}
+
+function resolveOutputSourceBinding(
+  outputNode: BlueprintGraphNode,
+  producerId: string,
+  nodesById: Map<string, BlueprintGraphNode>,
+  inboundEdgesByNodeId: Map<string, Array<{ from: { nodeId: string } }>>,
+  visitedOutputIds: Set<string>
+): { kind: BindingSourceKind; canonicalId: string } {
+  if (visitedOutputIds.has(outputNode.id)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.ALIAS_CYCLE_DETECTED,
+      `Output connector cycle detected while collecting producer binding entries for "${producerId}".`
+    );
+  }
+
+  visitedOutputIds.add(outputNode.id);
+
+  const inboundEdges = inboundEdgesByNodeId.get(outputNode.id) ?? [];
+  if (inboundEdges.length === 0) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_BINDING,
+      `Output node "${outputNode.id}" is unbound while collecting producer binding entries for "${producerId}".`
+    );
+  }
+  if (inboundEdges.length > 1) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_BINDING,
+      `Output node "${outputNode.id}" has multiple upstream bindings while collecting producer binding entries for "${producerId}".`
+    );
+  }
+
+  const upstreamNodeId = inboundEdges[0]?.from.nodeId;
+  if (!upstreamNodeId) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_BINDING,
+      `Output node "${outputNode.id}" is missing its upstream source while collecting producer binding entries for "${producerId}".`
+    );
+  }
+
+  const upstreamNode = nodesById.get(upstreamNodeId);
+  if (!upstreamNode) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_BINDING,
+      `Missing source graph node "${upstreamNodeId}" while collecting producer binding entries for "${producerId}".`
+    );
+  }
+
+  return resolveSourceBinding(
+    upstreamNode,
+    producerId,
+    nodesById,
+    inboundEdgesByNodeId,
+    visitedOutputIds
   );
 }
 

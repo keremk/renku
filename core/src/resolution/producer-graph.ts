@@ -72,18 +72,6 @@ export function createProducerGraph(
       .filter((id) => isCanonicalArtifactId(id))
       // Only include artifacts that are actually connected downstream
       .filter((id) => connectedArtifacts.has(id));
-    const resolvedProducedArtefacts = canonical.nodes
-      .filter(
-        (candidate): candidate is CanonicalBlueprint['nodes'][number] & { type: 'Artifact' } =>
-          candidate.type === 'Artifact'
-      )
-      .map((candidate) => candidate.id)
-      .filter(
-        (artifactId) =>
-          connectedArtifacts.has(artifactId) &&
-          artefactProducers.get(artifactId) === node.id
-      );
-
     const producerAlias = node.producerAlias;
     const catalogEntry = resolveCatalogEntry(producerAlias, catalog);
     if (!catalogEntry) {
@@ -186,10 +174,6 @@ export function createProducerGraph(
       producerAlias: producerAlias,
       inputs: allInputs,
       produces: producedArtefacts,
-      resolvedProduces:
-        resolvedProducedArtefacts.length > 0
-          ? resolvedProducedArtefacts
-          : undefined,
       inputBindings: inputBindings && Object.keys(inputBindings).length > 0 ? inputBindings : undefined,
       sdkMapping: canonicalSdkMapping,
       outputs: option.outputs ?? node.producer?.outputs,
@@ -223,7 +207,6 @@ function computeArtefactProducers(
 ): Map<string, string> {
   const map = new Map<string, string>();
 
-  // First pass: capture direct Producer -> Artifact edges
   for (const edge of canonical.edges) {
     const fromNode = nodeMap.get(edge.from);
     const toNode = nodeMap.get(edge.to);
@@ -234,39 +217,6 @@ function computeArtefactProducers(
       map.set(edge.to, edge.from);
     }
   }
-
-  // Build artifact-to-artifact edge lookup for chain resolution
-  const artifactAliases = new Map<string, string>();
-  for (const edge of canonical.edges) {
-    const fromNode = nodeMap.get(edge.from);
-    const toNode = nodeMap.get(edge.to);
-    if (!fromNode || !toNode) {
-      continue;
-    }
-    // Track Artifact -> Artifact edges (e.g., producer output -> blueprint artifact)
-    if (fromNode.type === 'Artifact' && toNode.type === 'Artifact') {
-      artifactAliases.set(edge.to, edge.from);
-    }
-  }
-
-  // Second pass: resolve chains transitively
-  // If ArtifactB is written from ArtifactA, and ArtifactA is produced by ProducerX,
-  // then ArtifactB is also produced by ProducerX
-  for (const [artifactId, sourceArtifactId] of artifactAliases) {
-    let current = sourceArtifactId;
-    const visited = new Set<string>();
-    while (current && !visited.has(current)) {
-      visited.add(current);
-      const producer = map.get(current);
-      if (producer) {
-        map.set(artifactId, producer);
-        break;
-      }
-      // Follow the chain
-      current = artifactAliases.get(current) ?? '';
-    }
-  }
-
   return map;
 }
 
@@ -316,7 +266,14 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
     }
   }
 
-  // Also include root-level artifacts (empty namespace path) as they're blueprint outputs
+  // Include runtime artifacts exported through blueprint Output connectors.
+  for (const sourceId of Object.values(canonical.outputSources ?? {})) {
+    if (isCanonicalArtifactId(sourceId)) {
+      connected.add(sourceId);
+    }
+  }
+
+  // Root-level runtime artifacts are final outputs for leaf producer blueprints.
   for (const node of canonical.nodes) {
     if (node.type === 'Artifact' && node.namespacePath.length === 0) {
       connected.add(node.id);
@@ -324,7 +281,21 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
   }
 
   // Include artifacts referenced in condition `when` clauses
-  const conditionPatterns = extractConditionArtifactPatterns(canonical.edges);
+  const outputConditionEdges: CanonicalEdgeInstance[] =
+    canonical.outputSourceBindings?.flatMap((binding) =>
+      isCanonicalArtifactId(binding.sourceId)
+        ? [{
+            from: binding.sourceId,
+            to: binding.outputId,
+            conditions: binding.conditions,
+            indices: binding.indices,
+          }]
+        : []
+    ) ?? [];
+  const conditionPatterns = extractConditionArtifactPatterns([
+    ...canonical.edges,
+    ...outputConditionEdges,
+  ]);
   for (const node of canonical.nodes) {
     if (node.type === 'Artifact' && !connected.has(node.id)) {
       // Check if this artifact matches any condition pattern

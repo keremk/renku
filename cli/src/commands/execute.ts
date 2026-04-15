@@ -27,6 +27,7 @@ import {
 	createStorageContext,
 	createMovieMetadataService,
 	type Logger,
+	type RootOutputBinding,
 } from '@gorenku/core';
 
 /**
@@ -113,6 +114,15 @@ export interface ExecuteResult {
 
 	/** Path to movie storage directory */
 	storagePath: string;
+
+	/** Exact root Output:... connector bindings captured on the plan. */
+	rootOutputBindings?: RootOutputBinding[];
+
+	/** Producer:... job IDs belonging to the terminal producer layer of the full blueprint graph. */
+	finalStageProducerJobIds?: string[];
+
+	/** Resolved canonical input values used for planning and execution. */
+	resolvedInputs: Record<string, unknown>;
 
 	/** Whether cleanup was performed on cancel/costs-only */
 	cleanedUp?: boolean;
@@ -309,6 +319,9 @@ export async function runExecute(
 		dryRunValidation,
 		manifestPath: buildResult.manifestPath,
 		storagePath: movieDir,
+		rootOutputBindings: planResult.plan.rootOutputBindings,
+		finalStageProducerJobIds: planResult.plan.finalStageProducerJobIds,
+		resolvedInputs: planResult.resolvedInputs,
 	};
 }
 
@@ -621,6 +634,7 @@ async function handleCostsOnly(args: {
 		isDryRun: undefined,
 		manifestPath: undefined,
 		storagePath: movieDir,
+		resolvedInputs: planResult.resolvedInputs,
 		cleanedUp,
 	};
 }
@@ -685,6 +699,7 @@ async function handleExplain(args: {
 		isDryRun: undefined,
 		manifestPath: undefined,
 		storagePath: movieDir,
+		resolvedInputs: planResult.resolvedInputs,
 		cleanedUp,
 	};
 }
@@ -733,6 +748,7 @@ async function handleCancellation(args: {
 		isDryRun: undefined,
 		manifestPath: undefined,
 		storagePath: movieDir,
+		resolvedInputs: planResult.resolvedInputs,
 		cleanedUp,
 	};
 }

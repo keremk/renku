@@ -838,10 +838,22 @@ function printGenerateSummary(
 		logger.info(`${bullet} ${label}: ${value}`);
 	}
 
-	// Show final output path prominently at the end
-	if (result.finalOutputPath) {
+	if (result.finalStageOutputs && result.finalStageOutputs.length > 0) {
 		logger.info('');
-		logger.info(chalk.green.bold(`Output: ${result.finalOutputPath}`));
+		for (const output of result.finalStageOutputs) {
+			logger.info(
+				chalk.green.bold(
+					`Final stage output ${output.outputId}: ${output.artifactPath}`
+				)
+			);
+		}
+	}
+
+	if (result.rootOutputs && result.rootOutputs.length > 0) {
+		logger.info('');
+		for (const output of result.rootOutputs) {
+			logger.info(chalk.dim(`Published output ${output.outputId}: ${output.artifactPath}`));
+		}
 	}
 }
 

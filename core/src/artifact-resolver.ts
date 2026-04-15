@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import type { EventLog } from './event-log.js';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import type { StorageContext } from './storage.js';
-import type { BlobRef, ArtefactEvent } from './types.js';
+import type { BlobRef, ArtefactEvent, Manifest } from './types.js';
 import { formatBlobFileName } from './blob-utils.js';
 
 /**
@@ -51,6 +51,35 @@ export async function resolveArtifactsFromEventLog(args: {
     if (event.output.blob) {
       const decoded = await readBlob(args.storage, args.movieId, event.output.blob);
       resolvedByCanonicalId.set(artifactId, decoded);
+    }
+  }
+
+  return Object.fromEntries(resolvedByCanonicalId.entries());
+}
+
+export async function resolveManifestArtifactValues(args: {
+  artifactIds: string[];
+  manifest: Manifest;
+  storage: StorageContext;
+  movieId: string;
+}): Promise<Record<string, unknown>> {
+  if (args.artifactIds.length === 0) {
+    return {};
+  }
+
+  const resolvedByCanonicalId = new Map<string, unknown>();
+
+  for (const artifactId of args.artifactIds) {
+    const entry = args.manifest.artefacts[artifactId];
+    if (!entry?.blob || entry.status !== 'succeeded') {
+      continue;
+    }
+
+    try {
+      const decoded = await readBlob(args.storage, args.movieId, entry.blob);
+      resolvedByCanonicalId.set(artifactId, decoded);
+    } catch {
+      continue;
     }
   }
 

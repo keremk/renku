@@ -7,7 +7,9 @@ import type {
   BlueprintArtefactDefinition,
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
+  EdgeConditionClause,
   EdgeConditionDefinition,
+  EdgeConditionGroup,
   ProducerConfig,
   FanInDescriptor,
 } from '../types.js';
@@ -15,14 +17,16 @@ import {
   formatProducerAlias,
   formatCanonicalProducerId,
   formatCanonicalInputId,
+  formatCanonicalOutputId,
   formatCanonicalArtifactId,
   isCanonicalInputId,
+  isCanonicalOutputId,
 } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 
 export interface CanonicalNodeInstance {
   id: string;
-  type: 'Input' | 'Artifact' | 'Producer';
+  type: 'Input' | 'Output' | 'Artifact' | 'Producer';
   /** The producer alias - the reference name used in blueprint connections */
   producerAlias: string;
   namespacePath: string[];
@@ -30,6 +34,7 @@ export interface CanonicalNodeInstance {
   indices: Record<string, number>;
   dimensions: string[];
   artefact?: BlueprintArtefactDefinition;
+  output?: BlueprintArtefactDefinition;
   input?: BlueprintInputDefinition;
   producer?: ProducerConfig;
 }
@@ -48,10 +53,19 @@ export interface CanonicalEdgeInstance {
   indices?: Record<string, number>;
 }
 
+export interface CanonicalOutputBinding {
+  outputId: string;
+  sourceId: string;
+  conditions?: EdgeConditionDefinition;
+  indices?: Record<string, number>;
+}
+
 export interface CanonicalBlueprint {
   nodes: CanonicalNodeInstance[];
   edges: CanonicalEdgeInstance[];
   inputBindings: Record<string, Record<string, string>>;
+  outputSources: Record<string, string>;
+  outputSourceBindings: CanonicalOutputBinding[];
   fanIn: Record<string, FanInDescriptor>;
 }
 
@@ -82,9 +96,17 @@ export function expandBlueprintGraph(
   }
 
   const rawEdges = expandEdges(graph.edges, instancesByNodeId);
-  const { edges, nodes, inputBindings } = collapseInputNodes(
+  const collapsedInputs = collapseInputNodes(
     rawEdges,
     allNodes
+  );
+  const { edges, nodes, outputSources, outputSourceBindings } = collapseOutputNodes(
+    collapsedInputs.edges,
+    collapsedInputs.nodes
+  );
+  const inputBindings = normalizeCollapsedInputBindings(
+    collapsedInputs.inputBindings,
+    outputSources
   );
   const fanIn = buildFanInCollections(nodes, edges, instanceByCanonicalId);
 
@@ -92,8 +114,42 @@ export function expandBlueprintGraph(
     nodes,
     edges,
     inputBindings,
+    outputSources,
+    outputSourceBindings,
     fanIn,
   };
+}
+
+function normalizeCollapsedInputBindings(
+  inputBindings: Record<string, Record<string, string>>,
+  outputSources: Record<string, string>
+): Record<string, Record<string, string>> {
+  const normalized: Record<string, Record<string, string>> = {};
+
+  for (const [targetId, bindings] of Object.entries(inputBindings)) {
+    const normalizedBindings: Record<string, string> = {};
+
+    for (const [alias, canonicalId] of Object.entries(bindings)) {
+      if (!isCanonicalOutputId(canonicalId)) {
+        normalizedBindings[alias] = canonicalId;
+        continue;
+      }
+
+      const sourceId = outputSources[canonicalId];
+      if (!sourceId) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+          `Input binding for "${targetId}.${alias}" references output connector "${canonicalId}", but that connector was not resolved to a canonical source.`
+        );
+      }
+
+      normalizedBindings[alias] = sourceId;
+    }
+
+    normalized[targetId] = normalizedBindings;
+  }
+
+  return normalized;
 }
 
 function resolveDimensionSizes(
@@ -108,10 +164,10 @@ function resolveDimensionSizes(
 
   // Phase 1: assign sizes from explicit countInput declarations.
   for (const node of nodes) {
-    if (node.type !== 'Artifact') {
+    if (node.type !== 'Artifact' && node.type !== 'Output') {
       continue;
     }
-    const definition = node.artefact;
+    const definition = node.artefact ?? node.output;
     if (!definition?.countInput) {
       continue;
     }
@@ -1115,10 +1171,180 @@ function collapseInputNodes(
   };
 }
 
+interface OutputCollapseResult {
+  edges: CanonicalEdgeInstance[];
+  nodes: CanonicalNodeInstance[];
+  outputSources: Record<string, string>;
+  outputSourceBindings: CanonicalOutputBinding[];
+}
+
+interface ResolvedOutputBinding {
+  sourceId: string;
+  conditions?: EdgeConditionDefinition;
+  indices?: Record<string, number>;
+}
+
+function collapseOutputNodes(
+  edges: CanonicalEdgeInstance[],
+  nodes: CanonicalNodeInstance[]
+): OutputCollapseResult {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const inbound = new Map<string, CanonicalEdgeInstance[]>();
+  const outbound = new Map<string, CanonicalEdgeInstance[]>();
+
+  for (const edge of edges) {
+    const inList = inbound.get(edge.to) ?? [];
+    inList.push(edge);
+    inbound.set(edge.to, inList);
+
+    const outList = outbound.get(edge.from) ?? [];
+    outList.push(edge);
+    outbound.set(edge.from, outList);
+  }
+
+  const bindingCache = new Map<string, ResolvedOutputBinding>();
+
+  function resolveOutputBinding(
+    outputId: string,
+    stack: Set<string>
+  ): ResolvedOutputBinding {
+    const cached = bindingCache.get(outputId);
+    if (cached) {
+      return cached;
+    }
+
+    const outputNode = nodeById.get(outputId);
+    if (!outputNode || outputNode.type !== 'Output') {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Output connector "${outputId}" is missing from the canonical node set.`
+      );
+    }
+
+    const inboundEdges = inbound.get(outputId) ?? [];
+    if (inboundEdges.length === 0) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Output connector "${outputId}" is unbound. Every Output must bind to exactly one upstream canonical source.`
+      );
+    }
+    if (inboundEdges.length > 1) {
+      const parents = inboundEdges.map((edge) => edge.from).join(', ');
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Output connector "${outputId}" has multiple upstream bindings (${parents}). Output connectors must resolve to exactly one canonical source.`
+      );
+    }
+
+    const inboundEdge = inboundEdges[0]!;
+    if (inboundEdge.groupBy || inboundEdge.orderBy) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Output connector "${outputId}" uses groupBy/orderBy on its inbound binding. Output connectors must be single-source passthrough bindings.`
+      );
+    }
+
+    const sourceNode = nodeById.get(inboundEdge.from);
+    if (!sourceNode) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Output connector "${outputId}" references missing source node "${inboundEdge.from}".`
+      );
+    }
+
+    if (sourceNode.type === 'Artifact' || sourceNode.type === 'Input') {
+      const resolved: ResolvedOutputBinding = {
+        sourceId: sourceNode.id,
+        conditions: inboundEdge.conditions,
+        indices: inboundEdge.indices,
+      };
+      bindingCache.set(outputId, resolved);
+      return resolved;
+    }
+
+    if (sourceNode.type !== 'Output') {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Output connector "${outputId}" resolves from "${sourceNode.id}" (${sourceNode.type}). Output connectors must bind only to canonical Inputs, canonical Artifacts, or other Output connectors.`
+      );
+    }
+
+    if (stack.has(sourceNode.id)) {
+      throw createRuntimeError(
+        RuntimeErrorCode.ALIAS_CYCLE_DETECTED,
+        `Output connector cycle detected while resolving "${outputId}".`
+      );
+    }
+
+    stack.add(sourceNode.id);
+    const upstream = resolveOutputBinding(sourceNode.id, stack);
+    stack.delete(sourceNode.id);
+
+    const resolved: ResolvedOutputBinding = {
+      sourceId: upstream.sourceId,
+      conditions: combineEdgeConditions(upstream.conditions, inboundEdge.conditions),
+      indices: mergeConditionIndices(upstream.indices, inboundEdge.indices),
+    };
+    bindingCache.set(outputId, resolved);
+    return resolved;
+  }
+
+  const resolvedEdges: CanonicalEdgeInstance[] = [];
+  for (const edge of edges) {
+    const targetNode = nodeById.get(edge.to);
+    if (targetNode?.type === 'Output') {
+      continue;
+    }
+
+    const sourceNode = nodeById.get(edge.from);
+    if (sourceNode?.type !== 'Output') {
+      resolvedEdges.push(edge);
+      continue;
+    }
+
+    const resolvedBinding = resolveOutputBinding(edge.from, new Set([edge.from]));
+    if (resolvedBinding.sourceId === edge.to) {
+      continue;
+    }
+
+    resolvedEdges.push({
+      ...edge,
+      from: resolvedBinding.sourceId,
+      conditions: combineEdgeConditions(resolvedBinding.conditions, edge.conditions),
+      indices: mergeConditionIndices(resolvedBinding.indices, edge.indices),
+    });
+  }
+
+  const outputSources: Record<string, string> = {};
+  const outputSourceBindings: CanonicalOutputBinding[] = [];
+  for (const node of nodes) {
+    if (node.type !== 'Output') {
+      continue;
+    }
+    const resolvedBinding = resolveOutputBinding(node.id, new Set([node.id]));
+    outputSources[node.id] = resolvedBinding.sourceId;
+    outputSourceBindings.push({
+      outputId: node.id,
+      sourceId: resolvedBinding.sourceId,
+      conditions: resolvedBinding.conditions,
+      indices: resolvedBinding.indices,
+    });
+  }
+
+  return {
+    edges: dedupeCanonicalEdges(resolvedEdges),
+    nodes: nodes.filter((node) => node.type !== 'Output'),
+    outputSources,
+    outputSourceBindings,
+  };
+}
+
 function mapNodeType(kind: string): CanonicalNodeInstance['type'] {
   switch (kind) {
     case 'InputSource':
       return 'Input';
+    case 'Output':
+      return 'Output';
     case 'Artifact':
       return 'Artifact';
     case 'Producer':
@@ -1139,7 +1365,7 @@ function formatCanonicalNodeId(
   // For decomposed artifacts, we need to replace placeholders with indices inline
   const hasPlaceholders = /\[[a-zA-Z_][a-zA-Z0-9_]*\]/.test(node.name);
 
-  if (hasPlaceholders && node.type === 'Artifact') {
+  if (hasPlaceholders && (node.type === 'Artifact' || node.type === 'Output')) {
     // Replace dimension placeholders with corresponding numeric indices
     let resolvedName = node.name;
     for (const symbol of node.dimensions) {
@@ -1156,13 +1382,17 @@ function formatCanonicalNodeId(
         `[${indices[symbol]}]`
       );
     }
-    return formatCanonicalArtifactId(node.namespacePath, resolvedName);
+    return node.type === 'Artifact'
+      ? formatCanonicalArtifactId(node.namespacePath, resolvedName)
+      : formatCanonicalOutputId(node.namespacePath, resolvedName);
   }
 
   // Standard handling: append indices as suffix
   const baseId =
     node.type === 'InputSource'
       ? formatCanonicalInputId(node.namespacePath, node.name)
+      : node.type === 'Output'
+        ? formatCanonicalOutputId(node.namespacePath, node.name)
       : node.type === 'Artifact'
         ? formatCanonicalArtifactId(node.namespacePath, node.name)
         : formatCanonicalProducerId(node.namespacePath, node.name);
@@ -1182,6 +1412,78 @@ function formatCanonicalNodeId(
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function combineEdgeConditions(
+  left?: EdgeConditionDefinition,
+  right?: EdgeConditionDefinition
+): EdgeConditionDefinition | undefined {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+
+  return [...normalizeConditionList(left), ...normalizeConditionList(right)];
+}
+
+function normalizeConditionList(
+  condition: EdgeConditionDefinition
+): Array<EdgeConditionClause | EdgeConditionGroup> {
+  return Array.isArray(condition) ? condition : [condition];
+}
+
+function mergeConditionIndices(
+  left?: Record<string, number>,
+  right?: Record<string, number>
+): Record<string, number> | undefined {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+
+  const merged: Record<string, number> = { ...left };
+  for (const [key, value] of Object.entries(right)) {
+    const existing = merged[key];
+    if (existing !== undefined && existing !== value) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Conflicting condition indices for "${key}" while collapsing output connectors (${existing} vs ${value}).`
+      );
+    }
+    merged[key] = value;
+  }
+  return merged;
+}
+
+function dedupeCanonicalEdges(
+  edges: CanonicalEdgeInstance[]
+): CanonicalEdgeInstance[] {
+  const seen = new Set<string>();
+  const deduped: CanonicalEdgeInstance[] = [];
+
+  for (const edge of edges) {
+    const key = JSON.stringify({
+      from: edge.from,
+      to: edge.to,
+      note: edge.note,
+      groupBy: edge.groupBy,
+      orderBy: edge.orderBy,
+      bindingAlias: edge.bindingAlias,
+      conditions: edge.conditions,
+      indices: edge.indices,
+    });
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    deduped.push(edge);
+  }
+
+  return deduped;
 }
 
 function mapOfMapsToRecord(

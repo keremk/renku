@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import type {
   BlueprintArtefactDefinition,
   BlueprintDocument,
+  BlueprintEdgeDefinition,
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
   BlueprintTreeNode,
@@ -405,7 +406,7 @@ function makeBlueprintDocument(
   inputs: BlueprintInputDefinition[],
   artefacts: BlueprintArtefactDefinition[],
   producers: ProducerConfig[],
-  edges: { from: string; to: string }[],
+  edges: BlueprintEdgeDefinition[],
   loops?: BlueprintLoopDefinition[]
 ): BlueprintDocument {
   return {
@@ -586,6 +587,64 @@ describe('createPlanningService', () => {
     );
   }
 
+  function createConditionalRootOutputBlueprint(): BlueprintTreeNode {
+    const previewDoc = makeBlueprintDocument(
+      'PreviewProducer',
+      [{ name: 'Duration', type: 'int', required: true }],
+      [{ name: 'GeneratedVideo', type: 'video' }],
+      [{ name: 'PreviewProducer' }],
+      [
+        { from: 'Duration', to: 'PreviewProducer.Duration' },
+        { from: 'PreviewProducer.GeneratedVideo', to: 'GeneratedVideo' },
+      ]
+    );
+
+    const gateDoc = makeBlueprintDocument(
+      'GateProducer',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'ShouldPublish', type: 'json' }],
+      [{ name: 'GateProducer' }],
+      [
+        { from: 'Prompt', to: 'GateProducer.Prompt' },
+        { from: 'GateProducer.ShouldPublish', to: 'ShouldPublish' },
+      ]
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'ConditionalRootOutputBlueprint',
+      [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'int', required: true },
+      ],
+      [
+        { name: 'Movie', type: 'video' },
+        { name: 'PreviewVideo', type: 'video' },
+      ],
+      [],
+      [
+        { from: 'Duration', to: 'PreviewProducer.Duration' },
+        { from: 'Prompt', to: 'GateProducer.Prompt' },
+        { from: 'PreviewProducer.GeneratedVideo', to: 'Movie' },
+        {
+          from: 'PreviewProducer.GeneratedVideo',
+          to: 'PreviewVideo',
+          conditions: { when: 'Artifact:GateProducer.ShouldPublish', is: true },
+        },
+      ]
+    );
+
+    const previewNode = makeTreeNode(previewDoc, ['PreviewProducer']);
+    const gateNode = makeTreeNode(gateDoc, ['GateProducer']);
+    return makeTreeNode(
+      rootDoc,
+      [],
+      new Map([
+        ['PreviewProducer', previewNode],
+        ['GateProducer', gateNode],
+      ])
+    );
+  }
+
   describe('generatePlan', () => {
     it('generates a plan for first run (new manifest)', async () => {
       const service = createPlanningService();
@@ -611,6 +670,80 @@ describe('createPlanningService', () => {
       expect(result.inputEvents).toHaveLength(1);
       expect(result.inputEvents[0]?.id).toBe('Input:Prompt');
       expect(result.inputEvents[0]?.payload).toBe('Hello world');
+    });
+
+    it('records exact root output bindings on the execution plan', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createNestedLeafBlueprint(),
+        inputValues: { 'Input:Duration': 8 },
+        providerCatalog: {
+          'SegmentUnit.MainVideo': {
+            provider: 'fal-ai',
+            providerModel: 'veo3.1/image-to-video',
+            rateKey: 'fal-ai:veo3.1/image-to-video',
+          },
+        },
+        providerOptions: createDefaultOptions(['SegmentUnit.MainVideo']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(result.plan.rootOutputBindings).toEqual([
+        {
+          outputId: 'Output:Movie',
+          sourceId: 'Artifact:SegmentUnit.MainVideo.GeneratedVideo',
+        },
+      ]);
+      expect(result.plan.finalStageProducerJobIds).toEqual([
+        'Producer:SegmentUnit.MainVideo',
+      ]);
+    });
+
+    it('preserves root output binding conditions on the execution plan', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createConditionalRootOutputBlueprint(),
+        inputValues: {
+          'Input:Prompt': 'show preview',
+          'Input:Duration': 8,
+        },
+        providerCatalog: {
+          PreviewProducer: {
+            provider: 'fal-ai',
+            providerModel: 'veo3.1/image-to-video',
+            rateKey: 'fal-ai:veo3.1/image-to-video',
+          },
+          GateProducer: {
+            provider: 'openai',
+            providerModel: 'gpt-4o',
+            rateKey: 'openai-gpt4o',
+          },
+        },
+        providerOptions: createDefaultOptions(['PreviewProducer', 'GateProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(result.plan.rootOutputBindings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            outputId: 'Output:PreviewVideo',
+            sourceId: 'Artifact:PreviewProducer.GeneratedVideo',
+            conditions: { when: 'Artifact:GateProducer.ShouldPublish', is: true },
+          }),
+        ])
+      );
     });
 
     it('supports NumOfSegments used only in countInput declarations', async () => {
