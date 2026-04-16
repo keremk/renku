@@ -1,12 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
-import { EnableEditingBanner } from './shared';
+import { EnableEditingBanner, ProducerNavigationPane } from './shared';
 import { ProducerSection } from './models/producer-section';
 import {
   formatProducerDisplayName,
-  getProducerDisplayParts,
+  sortProducerIdsByExecutionFlow,
 } from '@/lib/panel-utils';
-import { cn } from '@/lib/utils';
 import type {
+  BlueprintGraphData,
   ModelSelectionValue,
   ProducerModelInfo,
   ProducerConfigSchemas,
@@ -19,6 +19,8 @@ import type {
 interface ModelsPanelProps {
   /** Available models per producer from API */
   producerModels: Record<string, ProducerModelInfo>;
+  /** Parsed graph data for layer-based ordering */
+  graphData?: BlueprintGraphData;
   /** Current model selections (from hook, includes edits) */
   modelSelections: ModelSelectionValue[];
   /** Currently selected node ID for highlighting */
@@ -58,10 +60,15 @@ interface ModelsPanelProps {
   blueprintFolder?: string | null;
   /** Build movie ID for file uploads */
   movieId?: string | null;
+  /** Shared active producer selection across detail tabs */
+  activeProducerId?: string | null;
+  /** Callback when the active producer changes */
+  onActiveProducerChange?: (producerId: string) => void;
 }
 
 export function ModelsPanel({
   producerModels,
+  graphData,
   modelSelections,
   selectedNodeId,
   isEditable = false,
@@ -80,8 +87,13 @@ export function ModelsPanel({
   fieldPreviewErrorsByProducer = {},
   blueprintFolder = null,
   movieId = null,
+  activeProducerId: controlledActiveProducerId,
+  onActiveProducerChange,
 }: ModelsPanelProps) {
   const [isEnabling, setIsEnabling] = useState(false);
+  const [internalActiveProducerId, setInternalActiveProducerId] = useState<
+    string | null
+  >(null);
 
   // Handle enable editing
   const handleEnableEditing = useCallback(async () => {
@@ -125,7 +137,7 @@ export function ModelsPanel({
 
   // Get list of producer IDs, filtering out producers with only unhandled complex properties
   const producerIds = useMemo(() => {
-    return Object.keys(producerModels).filter((producerId) => {
+    const visibleProducerIds = Object.keys(producerModels).filter((producerId) => {
       const info = producerModels[producerId];
       const configFields = configFieldsByProducer[producerId] ?? [];
 
@@ -146,70 +158,31 @@ export function ModelsPanel({
       // Default: show if has displayable config
       return hasDisplayableConfig;
     });
-  }, [producerModels, configFieldsByProducer]);
 
-  const producerEntries = useMemo(
-    () =>
-      producerIds.map((producerId) => ({
-        producerId,
-        ...getProducerDisplayParts(producerId),
-      })),
-    [producerIds]
+    return sortProducerIdsByExecutionFlow(visibleProducerIds, graphData);
+  }, [producerModels, configFieldsByProducer, graphData]);
+
+  const resolvedActiveProducerId =
+    controlledActiveProducerId ?? internalActiveProducerId;
+
+  const handleActiveProducerChange = useCallback(
+    (producerId: string) => {
+      if (onActiveProducerChange) {
+        onActiveProducerChange(producerId);
+        return;
+      }
+
+      setInternalActiveProducerId(producerId);
+    },
+    [onActiveProducerChange]
   );
-
-  const producerListItems = useMemo(() => {
-    const items: Array<
-      | { type: 'producer'; producerId: string; leafLabel: string }
-      | {
-          type: 'group';
-          groupKey: string;
-          groupLabel: string;
-          producers: Array<{ producerId: string; leafLabel: string }>;
-        }
-    > = [];
-    const seenGroupKeys = new Set<string>();
-
-    for (const entry of producerEntries) {
-      if (!entry.groupKey || !entry.groupLabel) {
-        items.push({
-          type: 'producer',
-          producerId: entry.producerId,
-          leafLabel: entry.leafLabel,
-        });
-        continue;
-      }
-
-      if (seenGroupKeys.has(entry.groupKey)) {
-        continue;
-      }
-
-      seenGroupKeys.add(entry.groupKey);
-      items.push({
-        type: 'group',
-        groupKey: entry.groupKey,
-        groupLabel: entry.groupLabel,
-        producers: producerEntries
-          .filter((candidate) => candidate.groupKey === entry.groupKey)
-          .map((candidate) => ({
-            producerId: candidate.producerId,
-            leafLabel: candidate.leafLabel,
-          })),
-      });
-    }
-
-    return items;
-  }, [producerEntries]);
-
-  const [manualActiveProducerId, setManualActiveProducerId] = useState<
-    string | null
-  >(null);
 
   const activeProducerId = useMemo(() => {
     if (
-      manualActiveProducerId &&
-      producerIds.includes(manualActiveProducerId)
+      resolvedActiveProducerId &&
+      producerIds.includes(resolvedActiveProducerId)
     ) {
-      return manualActiveProducerId;
+      return resolvedActiveProducerId;
     }
 
     if (selectedProducerId && producerIds.includes(selectedProducerId)) {
@@ -217,7 +190,7 @@ export function ModelsPanel({
     }
 
     return producerIds[0] ?? null;
-  }, [producerIds, selectedProducerId, manualActiveProducerId]);
+  }, [producerIds, selectedProducerId, resolvedActiveProducerId]);
 
   const activeProducerInfo =
     activeProducerId !== null ? producerModels[activeProducerId] : undefined;
@@ -240,92 +213,18 @@ export function ModelsPanel({
       )}
 
       <div className='flex-1 min-h-0 flex gap-4'>
-        <aside className='w-72 shrink-0 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
-          <div className='px-4 py-3 border-b border-border/40 bg-panel-header-bg'>
-            <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
-              Producers
-            </h3>
-          </div>
-
-          <div className='flex-1 overflow-y-auto p-2'>
-            <div className='space-y-1.5'>
-              {producerListItems.map((item) => {
-                if (item.type === 'producer') {
-                  const isActive = activeProducerId === item.producerId;
-
-                  return (
-                    <button
-                      key={item.producerId}
-                      type='button'
-                      onClick={() => setManualActiveProducerId(item.producerId)}
-                      aria-label={`Select producer ${item.producerId}`}
-                      aria-current={isActive ? 'true' : undefined}
-                      className={cn(
-                        'group flex w-full items-center gap-2 rounded-lg border p-2.5 text-left transition-colors',
-                        isActive
-                          ? 'bg-item-active-bg border-item-active-border'
-                          : 'bg-background/30 border-transparent hover:bg-item-hover-bg hover:border-border/50'
-                      )}
-                    >
-                      <span className='min-w-0 flex-1 truncate text-sm font-medium text-foreground'>
-                        {item.leafLabel}
-                      </span>
-                    </button>
-                  );
-                }
-
-                return (
-                  <div
-                    key={item.groupKey}
-                    className='rounded-xl border border-border/50 bg-background/40 p-2'
-                  >
-                    <div className='px-2 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
-                      {item.groupLabel}
-                    </div>
-                    <div className='space-y-1'>
-                      {item.producers.map((producer) => {
-                        const isActive = activeProducerId === producer.producerId;
-
-                        return (
-                          <button
-                            key={producer.producerId}
-                            type='button'
-                            onClick={() =>
-                              setManualActiveProducerId(producer.producerId)
-                            }
-                            aria-label={`Select producer ${producer.producerId}`}
-                            aria-current={isActive ? 'true' : undefined}
-                            className={cn(
-                              'group flex w-full items-center gap-2 rounded-lg border p-2.5 text-left transition-colors',
-                              isActive
-                                ? 'bg-item-active-bg border-item-active-border'
-                                : 'bg-background/30 border-transparent hover:bg-item-hover-bg hover:border-border/50'
-                            )}
-                          >
-                            <span className='min-w-0 flex-1 truncate text-sm font-medium text-foreground'>
-                              {producer.leafLabel}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </aside>
+        <ProducerNavigationPane
+          producerIds={producerIds}
+          activeProducerId={activeProducerId}
+          onSelectProducer={handleActiveProducerChange}
+        />
 
         <section className='min-w-0 flex-1 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
           {activeProducerId && activeProducerInfo ? (
             <>
               <div className='px-4 py-3 border-b border-border/40 bg-panel-header-bg'>
                 <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
-                  {
-                    producerEntries.find(
-                      (entry) => entry.producerId === activeProducerId
-                    )?.leafLabel ?? formatProducerDisplayName(activeProducerId)
-                  }
+                  {formatProducerDisplayName(activeProducerId)}
                 </h3>
               </div>
 

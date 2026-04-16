@@ -3,16 +3,12 @@
  */
 
 import type { ArtifactInfo } from '@/types/builds';
-import type { BlueprintGraphData } from '@/types/blueprint-graph';
 
 export function resolveArtifactProducerNodeId(
   artifact: ArtifactInfo
 ): string | null {
   if (artifact.producerNodeId) {
     return artifact.producerNodeId;
-  }
-  if (artifact.producedBy?.startsWith('Producer:')) {
-    return artifact.producedBy;
   }
   return null;
 }
@@ -358,41 +354,4 @@ export function getBlobUrl(
     hash,
   });
   return `/viewer-api/blueprints/blob?${params.toString()}`;
-}
-
-// ============================================================================
-// Topological sorting
-// ============================================================================
-
-/**
- * Sort producer names in topological order using graph data.
- * Producers that appear earlier in the execution flow come first.
- * If no graph data is provided, returns the original order.
- *
- * Uses the graph's nodes array order as a proxy for topological order,
- * since nodes are typically already ordered by layer/dependency.
- */
-export function sortProducersByTopology(
-  producerNames: string[],
-  graphData?: BlueprintGraphData
-): string[] {
-  if (!graphData) {
-    return producerNames;
-  }
-
-  // Build a map of canonical producer node ID -> index in graph nodes.
-  const nodeOrderMap = new Map<string, number>();
-  graphData.nodes.forEach((node, index) => {
-    if (node.type === 'producer') {
-      nodeOrderMap.set(node.id, index);
-    }
-  });
-
-  // Sort producers by their order in the graph
-  // Producers not in the graph go to the end
-  return [...producerNames].sort((a, b) => {
-    const indexA = nodeOrderMap.get(a) ?? Number.MAX_SAFE_INTEGER;
-    const indexB = nodeOrderMap.get(b) ?? Number.MAX_SAFE_INTEGER;
-    return indexA - indexB;
-  });
 }

@@ -1618,6 +1618,34 @@ describe('ExecutionContext', () => {
         'success'
       );
     });
+
+    it('ignores producedBy-only artifacts without canonical producerNodeId', () => {
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.initializeFromManifest([
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[0]',
+            producerNodeId: undefined,
+            producedBy: 'Producer:ProducerA[0]',
+            status: 'failed',
+          }),
+          createMockArtifact({
+            id: 'Artifact:ProducerB.Output[0]',
+            status: 'succeeded',
+          }),
+        ]);
+      });
+
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        undefined
+      );
+      expect(result.current.state.producerStatuses['Producer:ProducerB']).toBe(
+        'success'
+      );
+    });
   });
 
   // =============================================================================

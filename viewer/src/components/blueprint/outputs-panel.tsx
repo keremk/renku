@@ -33,7 +33,6 @@ import {
 import {
   shortenArtifactDisplayName,
   groupArtifactsByProducer,
-  sortProducersByTopology,
   classifyAndGroupArtifacts,
   getArtifactLabel,
   getBlobUrl,
@@ -46,6 +45,7 @@ import { ObjectArraySection } from './outputs/object-array-section';
 import {
   getOutputNameFromNodeId,
   formatProducerDisplayName,
+  sortProducerIdsByExecutionFlow,
 } from '@/lib/panel-utils';
 import { useExecution } from '@/contexts/execution-context';
 import {
@@ -53,6 +53,7 @@ import {
   MediaGrid,
   CollapsibleSection,
   CardActionsFooter,
+  ProducerNavigationPane,
   TextEditorDialog,
   SyntaxPreview,
   VideoCard,
@@ -99,6 +100,10 @@ interface OutputsPanelProps {
   buildInputs?: Record<string, unknown> | null;
   /** Callback when an artifact is edited or restored */
   onArtifactUpdated?: () => void;
+  /** Shared active producer selection across detail tabs */
+  activeProducerId?: string | null;
+  /** Callback when the active producer changes */
+  onActiveProducerChange?: (producerId: string) => void;
 }
 
 export function OutputsPanel({
@@ -112,6 +117,8 @@ export function OutputsPanel({
   modelSelections,
   buildInputs,
   onArtifactUpdated,
+  activeProducerId,
+  onActiveProducerChange,
 }: OutputsPanelProps) {
   const selectedOutputName = getOutputNameFromNodeId(selectedNodeId);
 
@@ -135,6 +142,8 @@ export function OutputsPanel({
         modelSelections={modelSelections}
         buildInputs={buildInputs}
         onArtifactUpdated={onArtifactUpdated}
+        activeProducerId={activeProducerId}
+        onActiveProducerChange={onActiveProducerChange}
       />
     );
   }
@@ -213,6 +222,8 @@ function ArtifactGallery({
   modelSelections,
   buildInputs,
   onArtifactUpdated,
+  activeProducerId: controlledActiveProducerId,
+  onActiveProducerChange,
 }: {
   artifacts: ArtifactInfo[];
   blueprintFolder: string;
@@ -223,9 +234,9 @@ function ArtifactGallery({
   modelSelections?: ModelSelectionValue[];
   buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
+  activeProducerId?: string | null;
+  onActiveProducerChange?: (producerId: string) => void;
 }) {
-  const PRODUCER_LIST_PANEL_WIDTH_CLASS = 'w-[19rem]';
-
   const {
     isArtifactSelected,
     selectProducerArtifacts,
@@ -235,19 +246,28 @@ function ArtifactGallery({
     unpinProducerArtifacts,
   } = useExecution();
 
-  // Group artifacts by producer and sort by topological order
+  // Group artifacts by producer and order them to match the Models pane first.
   const { groupedByProducer, orderedProducers } = useMemo(() => {
     const grouped = groupArtifactsByProducer(artifacts);
+    const modelProducerNames = producerModels ? Object.keys(producerModels) : [];
     const graphProducerNames =
       graphData?.nodes
         .filter((node) => node.type === 'producer')
         .map((node) => node.id) ?? [];
-    const producerNames = Array.from(
-      new Set([...graphProducerNames, ...Array.from(grouped.keys())])
+    const artifactProducerNames = Array.from(grouped.keys());
+    const producerIds = Array.from(
+      new Set([
+        ...modelProducerNames,
+        ...graphProducerNames,
+        ...artifactProducerNames,
+      ])
     );
-    const ordered = sortProducersByTopology(producerNames, graphData);
-    return { groupedByProducer: grouped, orderedProducers: ordered };
-  }, [artifacts, graphData]);
+
+    return {
+      groupedByProducer: grouped,
+      orderedProducers: sortProducerIdsByExecutionFlow(producerIds, graphData),
+    };
+  }, [artifacts, graphData, producerModels]);
 
   const selectedProducerFromNode =
     selectedNodeId?.startsWith('Producer:') === true ? selectedNodeId : null;
@@ -318,7 +338,7 @@ function ArtifactGallery({
     ]
   );
 
-  const [manualActiveProducerName, setManualActiveProducerName] = useState<
+  const [internalActiveProducerId, setInternalActiveProducerId] = useState<
     string | null
   >(null);
   const [openingProducerName, setOpeningProducerName] = useState<string | null>(
@@ -327,6 +347,21 @@ function ArtifactGallery({
   const [availableEditModels, setAvailableEditModels] = useState<
     AvailableModelOption[]
   >([]);
+
+  const resolvedActiveProducerId =
+    controlledActiveProducerId ?? internalActiveProducerId;
+
+  const handleActiveProducerChange = useCallback(
+    (producerId: string) => {
+      if (onActiveProducerChange) {
+        onActiveProducerChange(producerId);
+        return;
+      }
+
+      setInternalActiveProducerId(producerId);
+    },
+    [onActiveProducerChange]
+  );
 
   const graphProducerNodeById = useMemo(
     () =>
@@ -390,9 +425,9 @@ function ArtifactGallery({
   }, []);
 
   const activeSection = useMemo(() => {
-    if (manualActiveProducerName) {
+    if (resolvedActiveProducerId) {
       const manualSection = producerSections.find(
-        (section) => section.producerName === manualActiveProducerName
+        (section) => section.producerName === resolvedActiveProducerId
       );
       if (manualSection) {
         return manualSection;
@@ -409,157 +444,117 @@ function ArtifactGallery({
     }
 
     return producerSections[0];
-  }, [producerSections, selectedProducerFromNode, manualActiveProducerName]);
+  }, [producerSections, selectedProducerFromNode, resolvedActiveProducerId]);
 
   return (
     <TooltipProvider>
       <div className='flex h-full min-h-0 gap-4'>
-        <aside
-          className={cn(
-            PRODUCER_LIST_PANEL_WIDTH_CLASS,
-            'shrink-0 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'
-          )}
-        >
-          <div className='px-4 py-3 border-b border-border/40 bg-panel-header-bg'>
-            <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
-              Producers
-            </h3>
-          </div>
+        <ProducerNavigationPane
+          producerIds={producerSections.map((section) => section.producerName)}
+          activeProducerId={activeSection?.producerName ?? null}
+          onSelectProducer={handleActiveProducerChange}
+          renderProducerActions={(producerId) => {
+            const section = producerSections.find(
+              (candidate) => candidate.producerName === producerId
+            );
+            if (!section) {
+              return null;
+            }
 
-          <div className='flex-1 overflow-y-auto p-2'>
-            <div className='space-y-1.5'>
-              {producerSections.map((section) => {
-                const isActive =
-                  section.producerName === activeSection?.producerName;
-
-                return (
-                  <div
-                    key={section.producerName}
-                    className={cn(
-                      'group flex items-center gap-2 rounded-lg border p-2.5 transition-colors',
-                      isActive
-                        ? 'bg-item-active-bg border-item-active-border'
-                        : 'bg-background/30 border-transparent hover:bg-item-hover-bg hover:border-border/50'
-                    )}
-                  >
+            return (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     <button
                       type='button'
-                      onClick={() =>
-                        setManualActiveProducerName(section.producerName)
-                      }
-                      aria-label={`Select producer ${section.producerName}`}
-                      aria-current={isActive ? 'true' : undefined}
-                      className='min-w-0 flex-1 self-stretch text-left'
+                      onClick={() => {
+                        void handleOpenProducerFolder(producerId);
+                      }}
+                      className={cn(
+                        'size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted/70',
+                        openingProducerName === producerId
+                          ? 'text-primary'
+                          : 'text-muted-foreground'
+                      )}
+                      aria-label='Open in Finder'
+                      disabled={openingProducerName === producerId}
                     >
-                      <span className='flex h-full items-center text-sm font-medium text-foreground truncate'>
-                        {formatProducerDisplayName(section.producerName)}
-                      </span>
+                      <FolderOpen className='size-4' />
                     </button>
+                  </TooltipTrigger>
+                  <TooltipContent side='top'>Open in Finder</TooltipContent>
+                </Tooltip>
 
-                    <div className='flex items-center gap-1'>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type='button'
-                            onClick={() => {
-                              void handleOpenProducerFolder(
-                                section.producerName
-                              );
-                            }}
-                            className={cn(
-                              'size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted/70',
-                              openingProducerName === section.producerName
-                                ? 'text-primary'
-                                : 'text-muted-foreground'
-                            )}
-                            aria-label='Open in Finder'
-                            disabled={
-                              openingProducerName === section.producerName
-                            }
-                          >
-                            <FolderOpen className='size-4' />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side='top'>
-                          Open in Finder
-                        </TooltipContent>
-                      </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type='button'
+                      onClick={() => {
+                        if (!section.hasGenerated) {
+                          return;
+                        }
+                        if (section.allPinned) {
+                          unpinProducerArtifacts(section.generatedIds);
+                        } else {
+                          pinProducerArtifacts(section.generatedIds);
+                        }
+                      }}
+                      className={cn(
+                        'size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted/70',
+                        !section.hasGenerated &&
+                          'text-muted-foreground/40 cursor-not-allowed',
+                        section.hasGenerated &&
+                          section.allPinned &&
+                          'text-amber-500',
+                        section.hasGenerated &&
+                          section.somePinned &&
+                          'text-amber-500/70',
+                        section.hasGenerated &&
+                          !section.allPinned &&
+                          !section.somePinned &&
+                          'text-muted-foreground'
+                      )}
+                      aria-label='Keep'
+                      disabled={!section.hasGenerated}
+                    >
+                      <Pin className='size-4' />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side='top'>Keep</TooltipContent>
+                </Tooltip>
 
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type='button'
-                            onClick={() => {
-                              if (!section.hasGenerated) {
-                                return;
-                              }
-                              if (section.allPinned) {
-                                unpinProducerArtifacts(section.generatedIds);
-                              } else {
-                                pinProducerArtifacts(section.generatedIds);
-                              }
-                            }}
-                            className={cn(
-                              'size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted/70',
-                              !section.hasGenerated &&
-                                'text-muted-foreground/40 cursor-not-allowed',
-                              section.hasGenerated &&
-                                section.allPinned &&
-                                'text-amber-500',
-                              section.hasGenerated &&
-                                section.somePinned &&
-                                'text-amber-500/70',
-                              section.hasGenerated &&
-                                !section.allPinned &&
-                                !section.somePinned &&
-                                'text-muted-foreground'
-                            )}
-                            aria-label='Keep'
-                            disabled={!section.hasGenerated}
-                          >
-                            <Pin className='size-4' />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side='top'>Keep</TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type='button'
-                            onClick={() => {
-                              if (section.allSelected) {
-                                deselectProducerArtifacts(section.artifactIds);
-                              } else {
-                                selectProducerArtifacts(section.artifactIds);
-                              }
-                            }}
-                            className={cn(
-                              'size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted/70',
-                              section.allSelected && 'text-primary',
-                              section.someSelected &&
-                                !section.allSelected &&
-                                'text-primary/70',
-                              !section.allSelected &&
-                                !section.someSelected &&
-                                'text-muted-foreground'
-                            )}
-                            aria-label='Generate Again'
-                          >
-                            <RefreshCw className='size-4' />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side='top'>
-                          Generate Again
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </aside>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type='button'
+                      onClick={() => {
+                        if (section.allSelected) {
+                          deselectProducerArtifacts(section.artifactIds);
+                        } else {
+                          selectProducerArtifacts(section.artifactIds);
+                        }
+                      }}
+                      className={cn(
+                        'size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted/70',
+                        section.allSelected && 'text-primary',
+                        section.someSelected &&
+                          !section.allSelected &&
+                          'text-primary/70',
+                        !section.allSelected &&
+                          !section.someSelected &&
+                          'text-muted-foreground'
+                      )}
+                      aria-label='Generate Again'
+                    >
+                      <RefreshCw className='size-4' />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side='top'>Generate Again</TooltipContent>
+                </Tooltip>
+              </>
+            );
+          }}
+        />
 
         <section className='min-w-0 flex-1 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
           {activeSection ? (

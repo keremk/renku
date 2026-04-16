@@ -9,6 +9,7 @@ import {
   type UploadFilesResponse,
 } from '@/data/blueprint-client';
 import type { MediaType } from '@/lib/input-utils';
+import type { BlueprintGraphData } from '@/types/blueprint-graph';
 
 // ============================================================================
 // Type Guards
@@ -271,6 +272,51 @@ export interface ProducerDisplayParts {
   groupKey: string | null;
   groupLabel: string | null;
   leafLabel: string;
+}
+
+export function sortProducerIdsByExecutionFlow(
+  producerIds: string[],
+  graphData?: BlueprintGraphData
+): string[] {
+  if (!graphData) {
+    return producerIds;
+  }
+
+  const nodeOrderMap = new Map<string, number>();
+  const originalOrderMap = new Map<string, number>();
+  producerIds.forEach((producerId, index) => {
+    originalOrderMap.set(producerId, index);
+  });
+  graphData.nodes.forEach((node, index) => {
+    if (node.type === 'producer') {
+      nodeOrderMap.set(node.id, index);
+    }
+  });
+
+  return [...producerIds].sort((leftId, rightId) => {
+    const leftLayer =
+      graphData.layerAssignments?.[leftId] ?? Number.MAX_SAFE_INTEGER;
+    const rightLayer =
+      graphData.layerAssignments?.[rightId] ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftLayer !== rightLayer) {
+      return leftLayer - rightLayer;
+    }
+
+    const leftNodeOrder =
+      nodeOrderMap.get(leftId) ?? Number.MAX_SAFE_INTEGER;
+    const rightNodeOrder =
+      nodeOrderMap.get(rightId) ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftNodeOrder !== rightNodeOrder) {
+      return leftNodeOrder - rightNodeOrder;
+    }
+
+    return (
+      (originalOrderMap.get(leftId) ?? Number.MAX_SAFE_INTEGER) -
+      (originalOrderMap.get(rightId) ?? Number.MAX_SAFE_INTEGER)
+    );
+  });
 }
 
 export function getProducerDisplayParts(

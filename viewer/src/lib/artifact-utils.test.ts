@@ -3,14 +3,12 @@ import {
   extractProducerFromArtifactId,
   shortenArtifactDisplayName,
   groupArtifactsByProducer,
-  sortProducersByTopology,
   classifyAndGroupArtifacts,
   getArtifactLabel,
   getBlobUrl,
   type ArtifactSubGroup,
 } from './artifact-utils';
 import type { ArtifactInfo } from '@/types/builds';
-import type { BlueprintGraphData } from '@/types/blueprint-graph';
 
 describe('extractProducerFromArtifactId', () => {
   it('extracts producer name from simple artifact ID', () => {
@@ -127,91 +125,14 @@ describe('groupArtifactsByProducer', () => {
 
     const groups = groupArtifactsByProducer(artifacts);
 
-    expect(groups.size).toBe(2);
-    expect(groups.get('Producer:ValidProducer')?.length).toBe(1);
-    expect(groups.get('[Unknown]')?.length).toBe(1);
+    expect(groups.size).toBe(1);
+    expect(groups.get('Producer:ValidProducer')).toBeUndefined();
+    expect(groups.get('[Unknown]')?.length).toBe(2);
   });
 
   it('handles empty array', () => {
     const groups = groupArtifactsByProducer([]);
     expect(groups.size).toBe(0);
-  });
-});
-
-describe('sortProducersByTopology', () => {
-  const makeGraphData = (producerNodeIds: string[]): BlueprintGraphData => ({
-    meta: { id: 'test', name: 'Test' },
-    nodes: producerNodeIds.map((producerNodeId, index) => ({
-      id: producerNodeId,
-      type: 'producer' as const,
-      label: `Producer ${index + 1}`,
-    })),
-    edges: [],
-    inputs: [],
-    outputs: [],
-  });
-
-  it('sorts producers by graph node order', () => {
-    const graphData = makeGraphData([
-      'Producer:ProducerA',
-      'Producer:ProducerB',
-      'Producer:ProducerC',
-    ]);
-    const producers = [
-      'Producer:ProducerC',
-      'Producer:ProducerA',
-      'Producer:ProducerB',
-    ];
-
-    const sorted = sortProducersByTopology(producers, graphData);
-
-    expect(sorted).toEqual([
-      'Producer:ProducerA',
-      'Producer:ProducerB',
-      'Producer:ProducerC',
-    ]);
-  });
-
-  it('puts unknown producers at the end', () => {
-    const graphData = makeGraphData([
-      'Producer:ProducerA',
-      'Producer:ProducerB',
-    ]);
-    const producers = [
-      'Producer:UnknownProducer',
-      'Producer:ProducerB',
-      'Producer:ProducerA',
-    ];
-
-    const sorted = sortProducersByTopology(producers, graphData);
-
-    expect(sorted).toEqual([
-      'Producer:ProducerA',
-      'Producer:ProducerB',
-      'Producer:UnknownProducer',
-    ]);
-  });
-
-  it('returns original order when no graph data', () => {
-    const producers = [
-      'Producer:ProducerC',
-      'Producer:ProducerA',
-      'Producer:ProducerB',
-    ];
-
-    const sorted = sortProducersByTopology(producers, undefined);
-
-    expect(sorted).toEqual([
-      'Producer:ProducerC',
-      'Producer:ProducerA',
-      'Producer:ProducerB',
-    ]);
-  });
-
-  it('handles empty producer list', () => {
-    const graphData = makeGraphData(['Producer:ProducerA']);
-    const sorted = sortProducersByTopology([], graphData);
-    expect(sorted).toEqual([]);
   });
 });
 

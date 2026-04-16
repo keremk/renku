@@ -91,7 +91,9 @@ vi.mock('./detail-panel', () => ({
     isInputValuesLoading,
   }: {
     activeTab: string;
-    onTabChange: (tab: 'inputs' | 'models' | 'outputs' | 'preview') => void;
+    onTabChange: (
+      tab: 'inputs' | 'models' | 'outputs' | 'storyboard' | 'preview'
+    ) => void;
     isInputValuesLoading?: boolean;
   }) => (
     <div>

@@ -3,6 +3,7 @@ import {
   parseNodeId,
   getInputNameFromNodeId,
   getOutputNameFromNodeId,
+  sortProducerIdsByExecutionFlow,
   getSelectionStyles,
   getSectionHighlightStyles,
   UploadContextError,
@@ -14,6 +15,7 @@ import {
   extractFilenameFromRef,
 } from "./panel-utils";
 import type { UploadFilesResponse } from "@/data/blueprint-client";
+import type { BlueprintGraphData } from "@/types/blueprint-graph";
 
 describe("parseNodeId", () => {
   it("parses Input node ID correctly", () => {
@@ -139,6 +141,97 @@ describe("getOutputNameFromNodeId", () => {
 
   it("returns null for null input", () => {
     expect(getOutputNameFromNodeId(null)).toBeNull();
+  });
+});
+
+describe("sortProducerIdsByExecutionFlow", () => {
+  it("sorts producers by layer assignment before node order", () => {
+    const graphData: BlueprintGraphData = {
+      meta: { id: "test", name: "Test" },
+      nodes: [
+        {
+          id: "Producer:LayerTwo",
+          type: "producer",
+          label: "LayerTwo",
+        },
+        {
+          id: "Producer:LayerZero",
+          type: "producer",
+          label: "LayerZero",
+        },
+        {
+          id: "Producer:LayerOne",
+          type: "producer",
+          label: "LayerOne",
+        },
+      ],
+      edges: [],
+      inputs: [],
+      outputs: [],
+      layerAssignments: {
+        "Producer:LayerZero": 0,
+        "Producer:LayerOne": 1,
+        "Producer:LayerTwo": 2,
+      },
+      layerCount: 3,
+    };
+
+    expect(
+      sortProducerIdsByExecutionFlow(
+        [
+          "Producer:LayerTwo",
+          "Producer:LayerZero",
+          "Producer:LayerOne",
+        ],
+        graphData
+      )
+    ).toEqual([
+      "Producer:LayerZero",
+      "Producer:LayerOne",
+      "Producer:LayerTwo",
+    ]);
+  });
+
+  it("uses graph node order to break ties inside the same layer", () => {
+    const graphData: BlueprintGraphData = {
+      meta: { id: "test", name: "Test" },
+      nodes: [
+        {
+          id: "Producer:Second",
+          type: "producer",
+          label: "Second",
+        },
+        {
+          id: "Producer:First",
+          type: "producer",
+          label: "First",
+        },
+      ],
+      edges: [],
+      inputs: [],
+      outputs: [],
+      layerAssignments: {
+        "Producer:First": 0,
+        "Producer:Second": 0,
+      },
+      layerCount: 1,
+    };
+
+    expect(
+      sortProducerIdsByExecutionFlow(
+        ["Producer:First", "Producer:Second"],
+        graphData
+      )
+    ).toEqual(["Producer:Second", "Producer:First"]);
+  });
+
+  it("returns the original order when graph data is missing", () => {
+    expect(
+      sortProducerIdsByExecutionFlow(
+        ["Producer:Third", "Producer:First", "Producer:Second"],
+        undefined
+      )
+    ).toEqual(["Producer:Third", "Producer:First", "Producer:Second"]);
   });
 });
 

@@ -21,7 +21,7 @@ import type { ArtifactInfo } from '@/types/builds';
 import type { TimelineDocument } from '@/types/timeline';
 import type { ReactNode } from 'react';
 
-type Tab = 'inputs' | 'models' | 'storyboard' | 'outputs' | 'preview';
+type Tab = 'inputs' | 'models' | 'outputs' | 'storyboard' | 'preview';
 type TimelineStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface DetailPanelProps {
@@ -137,6 +137,7 @@ export function DetailPanel({
   const [internalActiveTab, setInternalActiveTab] = useState<Tab>('inputs');
   const activeTab = controlledActiveTab ?? internalActiveTab;
   const setActiveTab = onTabChange ?? setInternalActiveTab;
+  const [activeProducerId, setActiveProducerId] = useState<string | null>(null);
 
   // Handle enable editing state
   const [isEnabling, setIsEnabling] = useState(false);
@@ -187,14 +188,14 @@ export function DetailPanel({
             onClick={() => setActiveTab('models')}
           />
           <TabButton
-            label='Storyboard'
-            active={activeTab === 'storyboard'}
-            onClick={() => setActiveTab('storyboard')}
-          />
-          <TabButton
             label='Outputs'
             active={activeTab === 'outputs'}
             onClick={() => setActiveTab('outputs')}
+          />
+          <TabButton
+            label='Storyboard'
+            active={activeTab === 'storyboard'}
+            onClick={() => setActiveTab('storyboard')}
           />
           <TabButton
             label='Preview'
@@ -234,6 +235,7 @@ export function DetailPanel({
         {activeTab === 'models' && (
           <ModelsPanel
             producerModels={producerModels}
+            graphData={graphData}
             modelSelections={modelSelections}
             selectedNodeId={selectedNodeId}
             isEditable={isInputsEditable}
@@ -252,6 +254,8 @@ export function DetailPanel({
             onConfigChange={onConfigChange}
             blueprintFolder={blueprintFolder}
             movieId={movieId}
+            activeProducerId={activeProducerId}
+            onActiveProducerChange={setActiveProducerId}
           />
         )}
         {activeTab === 'outputs' && (
@@ -266,6 +270,8 @@ export function DetailPanel({
             modelSelections={modelSelections}
             buildInputs={buildInputs}
             onArtifactUpdated={onArtifactUpdated}
+            activeProducerId={activeProducerId}
+            onActiveProducerChange={setActiveProducerId}
           />
         )}
         {activeTab === 'storyboard' && (

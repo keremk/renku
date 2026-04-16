@@ -31,7 +31,7 @@ import type {
 } from '@/types/blueprint-graph';
 import type { BuildInfo, BuildManifestResponse } from '@/types/builds';
 
-type DetailPanelTab = 'inputs' | 'models' | 'storyboard' | 'outputs' | 'preview';
+type DetailPanelTab = 'inputs' | 'models' | 'outputs' | 'storyboard' | 'preview';
 
 interface WorkspaceLayoutProps {
   graphData: BlueprintGraphData;

@@ -20,6 +20,7 @@ import {
   cancelJob,
   subscribeToJobStream,
 } from '@/data/generation-client';
+import { resolveArtifactProducerNodeId } from '@/lib/artifact-utils';
 import type {
   ProducerStatus,
   ProducerStatusMap,
@@ -483,13 +484,7 @@ function executionReducer(
 // =============================================================================
 
 function resolveProducerNodeId(artifact: ArtifactInfo): string | null {
-  if (artifact.producerNodeId) {
-    return artifact.producerNodeId;
-  }
-  if (artifact.producedBy?.startsWith('Producer:')) {
-    return artifact.producedBy;
-  }
-  return null;
+  return resolveArtifactProducerNodeId(artifact);
 }
 
 function toProducerNodeId(producerName: string): string {

@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ModelsPanel } from './models-panel';
 import type {
+  BlueprintGraphData,
   ModelSelectionValue,
   ProducerModelInfo,
 } from '@/types/blueprint-graph';
@@ -171,6 +172,55 @@ describe('ModelsPanel', () => {
       // Should render producer sections for editable mode
       expect(container.textContent).toContain('Image Producer');
       expect(container.textContent).toContain('Transcription Producer');
+    });
+
+    it('orders producers by graph layer progression', () => {
+      const layeredGraphData: BlueprintGraphData = {
+        meta: { id: 'layered', name: 'Layered' },
+        nodes: [
+          {
+            id: 'Producer:TranscriptionProducer',
+            type: 'producer',
+            label: 'TranscriptionProducer',
+          },
+          {
+            id: 'Producer:ImageProducer',
+            type: 'producer',
+            label: 'ImageProducer',
+          },
+        ],
+        edges: [],
+        inputs: [],
+        outputs: [],
+        layerAssignments: {
+          'Producer:ImageProducer': 0,
+          'Producer:TranscriptionProducer': 1,
+        },
+        layerCount: 2,
+      };
+
+      render(
+        <ModelsPanel
+          producerModels={defaultProducerModels}
+          graphData={layeredGraphData}
+          modelSelections={[createRegularSelection()]}
+          selectedNodeId={null}
+          isEditable={true}
+          onSelectionChange={mockOnSelectionChange}
+        />
+      );
+
+      const producerButtons = screen
+        .getAllByRole('button')
+        .filter((button) =>
+          button.getAttribute('aria-label')?.startsWith('Select producer ')
+        )
+        .map((button) => button.getAttribute('aria-label'));
+
+      expect(producerButtons).toEqual([
+        'Select producer Producer:ImageProducer',
+        'Select producer Producer:TranscriptionProducer',
+      ]);
     });
 
     it('displays nested STT selection value in dropdown', () => {
