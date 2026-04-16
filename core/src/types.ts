@@ -536,6 +536,8 @@ export interface ProducerJobContext {
   indices: Record<string, number>;
   /** The producer alias - the reference name used in blueprint connections */
   producerAlias: string;
+  /** Canonical producer family/node ID for this job's leaf producer. */
+  producerId?: Id;
   inputs: Id[];
   /** Canonical Artifact:... IDs only. Output connectors must never appear here. */
   produces: Id[];
@@ -738,6 +740,8 @@ export interface ManifestArtifactEntry {
   hash: string;
   blob?: BlobRef;
   producedBy: Id;
+  /** Canonical producer family/node ID mirrored from the artifact event. */
+  producerId?: Id;
   status: ArtifactEventStatus;
   diagnostics?: Record<string, unknown>;
   createdAt: IsoDatetime;
@@ -822,6 +826,8 @@ export interface ArtifactEvent {
   output: ArtifactEventOutput;
   status: ArtifactEventStatus;
   producedBy: Id;
+  /** Canonical producer family/node ID written alongside the exact producer job ID. */
+  producerId?: Id;
   diagnostics?: Record<string, unknown>;
   createdAt: IsoDatetime;
   /** Source of this artifact - 'producer' for generated, 'user' for edited */

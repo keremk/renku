@@ -37,8 +37,8 @@ import { useExecution } from '@/contexts/execution-context';
 import { useStoryboardProjection } from '@/hooks';
 import { resolveAudioInputBindingSource } from '@/lib/audio-input-binding-resolver';
 import {
-  extractProducerFromArtifactId,
   getBlobUrl,
+  resolveArtifactProducerNodeId,
 } from '@/lib/artifact-utils';
 import { toMediaInputType, uploadAndValidate } from '@/lib/panel-utils';
 import { cn } from '@/lib/utils';
@@ -790,12 +790,14 @@ function StoryboardArtifactMediaCard({
     : undefined;
   const displayName = item.label;
   const isEdited = artifact.editedBy === 'user';
-  const artifactProducerAlias = extractProducerFromArtifactId(artifact.id);
-  const availableRerunModels = artifactProducerAlias
-    ? (producerModels[artifactProducerAlias]?.availableModels ?? [])
+  const artifactProducerNodeId = resolveArtifactProducerNodeId(artifact);
+  const availableRerunModels = artifactProducerNodeId
+    ? (producerModels[artifactProducerNodeId]?.availableModels ?? [])
     : [];
-  const currentModelSelection = artifactProducerAlias
-    ? modelSelections.find((selection) => selection.producerId === artifactProducerAlias)
+  const currentModelSelection = artifactProducerNodeId
+    ? modelSelections.find(
+        (selection) => selection.producerId === artifactProducerNodeId
+      )
     : undefined;
   const initialModel = currentModelSelection
     ? {
@@ -813,7 +815,7 @@ function StoryboardArtifactMediaCard({
   const voiceSource =
     mediaType === 'audio'
       ? resolveAudioInputBindingSource({
-          audioArtifactId: artifact.id,
+          audioArtifact: artifact,
           inputName: 'VoiceId',
           graphData,
         })
@@ -821,7 +823,7 @@ function StoryboardArtifactMediaCard({
   const emotionSource =
     mediaType === 'audio'
       ? resolveAudioInputBindingSource({
-          audioArtifactId: artifact.id,
+          audioArtifact: artifact,
           inputName: 'Emotion',
           graphData,
         })
@@ -1883,22 +1885,19 @@ function resolveStoryboardAudioMediaType(args: {
     return toStoryboardMediaInputType(args.defaultType);
   }
 
-  const artifactProducerAlias = extractProducerFromArtifactId(args.artifact.id);
-  if (!artifactProducerAlias) {
+  const producerNodeId = resolveArtifactProducerNodeId(args.artifact);
+  if (!producerNodeId) {
     return 'audio';
   }
 
   const producerTypeFromModels =
-    args.producerModels[artifactProducerAlias]?.producerType;
+    args.producerModels[producerNodeId]?.producerType;
   if (producerTypeFromModels === 'audio/text-to-music') {
     return 'music';
   }
 
   const producerTypeFromGraph = args.graphData?.nodes.find(
-    (node) =>
-      node.type === 'producer' &&
-      (node.id === `Producer:${artifactProducerAlias}` ||
-        node.label === artifactProducerAlias)
+    (node) => node.type === 'producer' && node.id === producerNodeId
   )?.producerType;
 
   if (producerTypeFromGraph === 'audio/text-to-music') {

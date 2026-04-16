@@ -68,6 +68,9 @@ interface BlueprintViewerProps {
 
 interface ProducerNodeData {
   label: string;
+  namespacePath?: string[];
+  compositePath?: string[];
+  compositeName?: string;
   loop?: string;
   runnable?: boolean;
   producerType?: string;
@@ -75,21 +78,6 @@ interface ProducerNodeData {
   status: ProducerStatus;
   inputBindings: ProducerBinding[];
   outputBindings: ProducerBinding[];
-}
-
-function deriveProducerFamilyIdFromCanonicalJobId(jobId: string): string {
-  if (!jobId.startsWith('Producer:')) {
-    throw new Error(
-      `Expected canonical producer job ID (Producer:...), received "${jobId}".`
-    );
-  }
-
-  const body = jobId.slice('Producer:'.length);
-  if (body.length === 0) {
-    throw new Error(`Expected canonical producer job ID, received "${jobId}".`);
-  }
-
-  return `Producer:${body.replace(/\[\d+\]/g, '')}`;
 }
 
 function deriveProducerLayerIndexFromGraph(
@@ -102,25 +90,8 @@ function deriveProducerLayerIndexFromGraph(
     );
   }
 
-  let resolvedLayer: number | null = null;
-  for (const [jobId, layerIndex] of Object.entries(graphData.layerAssignments)) {
-    if (deriveProducerFamilyIdFromCanonicalJobId(jobId) !== producerId) {
-      continue;
-    }
-
-    if (resolvedLayer === null) {
-      resolvedLayer = layerIndex;
-      continue;
-    }
-
-    if (resolvedLayer !== layerIndex) {
-      throw new Error(
-        `Producer ${producerId} resolves to multiple layers (${resolvedLayer}, ${layerIndex}).`
-      );
-    }
-  }
-
-  if (resolvedLayer === null) {
+  const resolvedLayer = graphData.layerAssignments[producerId];
+  if (resolvedLayer === undefined) {
     throw new Error(
       `Could not resolve layer for canonical producer ${producerId} from blueprint graph assignments.`
     );
@@ -148,6 +119,18 @@ interface LayerGuide {
   bandHeight: number;
   headerX: number;
   headerY: number;
+  included: boolean;
+}
+
+interface CompositeGuide {
+  key: string;
+  compositeKey: string;
+  compositeName: string;
+  layerIndex: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
   included: boolean;
 }
 
@@ -192,7 +175,7 @@ function buildLayerGuides(
     defaultBlueprintLayoutConfig.nodeWidth +
     layerGuideConfig.nodeWidthAllowance;
   const fallbackNodeHeight =
-    defaultBlueprintLayoutConfig.nodeHeight +
+    defaultBlueprintLayoutConfig.nodeMinHeight +
     layerGuideConfig.nodeHeightAllowance;
 
   for (const node of layoutNodes) {
@@ -344,10 +327,8 @@ function parseProducerNodeData(node: Node): ProducerDetails {
   ) {
     throw new Error(`Producer node ${node.id} has an invalid status`);
   }
-  const producerFamilyId = deriveProducerFamilyIdFromCanonicalJobId(node.id);
-
   return {
-    nodeId: producerFamilyId,
+    nodeId: node.id,
     label: data.label,
     runnable: data.runnable,
     loop: data.loop,
@@ -357,6 +338,110 @@ function parseProducerNodeData(node: Node): ProducerDetails {
     inputBindings: data.inputBindings,
     outputBindings: data.outputBindings,
   };
+}
+
+function buildCompositeGuides(
+  graphData: BlueprintGraphData,
+  layoutNodes: Node[],
+  selectedUpToLayer: number | null
+): CompositeGuide[] {
+  const groups = new Map<
+    string,
+    {
+      compositeKey: string;
+      compositeName: string;
+      layerIndex: number;
+      minX: number;
+      maxX: number;
+      minY: number;
+      maxY: number;
+    }
+  >();
+
+  const fallbackNodeWidth = defaultBlueprintLayoutConfig.nodeWidth;
+  const fallbackNodeHeight = defaultBlueprintLayoutConfig.nodeMinHeight;
+
+  for (const node of layoutNodes) {
+    if (node.type !== 'producerNode') {
+      continue;
+    }
+
+    const data = node.data as Partial<ProducerNodeData>;
+    const compositePath = Array.isArray(data.compositePath)
+      ? data.compositePath
+      : [];
+    const compositeName =
+      typeof data.compositeName === 'string' ? data.compositeName : null;
+    if (compositePath.length === 0 || !compositeName) {
+      continue;
+    }
+
+    const layerIndex = graphData.layerAssignments?.[node.id];
+    if (layerIndex === undefined) {
+      throw new Error(
+        `Missing layer assignment for producer node ${node.id} while building composite guides.`
+      );
+    }
+
+    const compositeKey = compositePath.join('.');
+    const groupKey = `${compositeKey}::${layerIndex}`;
+    const width =
+      typeof node.measured?.width === 'number'
+        ? node.measured.width
+        : fallbackNodeWidth;
+    const height =
+      typeof node.measured?.height === 'number'
+        ? node.measured.height
+        : fallbackNodeHeight;
+    const next = {
+      compositeKey,
+      compositeName,
+      layerIndex,
+      minX: node.position.x,
+      maxX: node.position.x + width,
+      minY: node.position.y,
+      maxY: node.position.y + height,
+    };
+    const existing = groups.get(groupKey);
+    if (!existing) {
+      groups.set(groupKey, next);
+      continue;
+    }
+
+    existing.minX = Math.min(existing.minX, next.minX);
+    existing.maxX = Math.max(existing.maxX, next.maxX);
+    existing.minY = Math.min(existing.minY, next.minY);
+    existing.maxY = Math.max(existing.maxY, next.maxY);
+  }
+
+  return Array.from(groups.entries())
+    .map(([key, group]) => ({
+      key,
+      compositeKey: group.compositeKey,
+      compositeName: group.compositeName,
+      layerIndex: group.layerIndex,
+      left: group.minX - defaultBlueprintLayoutConfig.compositePadding,
+      top: group.minY - defaultBlueprintLayoutConfig.compositePadding,
+      width:
+        group.maxX -
+        group.minX +
+        defaultBlueprintLayoutConfig.compositePadding * 2,
+      height:
+        group.maxY -
+        group.minY +
+        defaultBlueprintLayoutConfig.compositePadding * 2,
+      included:
+        selectedUpToLayer === null || group.layerIndex <= selectedUpToLayer,
+    }))
+    .sort((left, right) => {
+      if (left.layerIndex !== right.layerIndex) {
+        return left.layerIndex - right.layerIndex;
+      }
+      if (left.compositeKey !== right.compositeKey) {
+        return left.compositeKey.localeCompare(right.compositeKey);
+      }
+      return left.top - right.top;
+    });
 }
 
 export function BlueprintViewer({
@@ -409,6 +494,10 @@ export function BlueprintViewer({
 
   const layerGuides = useMemo(
     () => buildLayerGuides(graphData, nodes, selectedUpToLayer ?? null),
+    [graphData, nodes, selectedUpToLayer]
+  );
+  const compositeGuides = useMemo(
+    () => buildCompositeGuides(graphData, nodes, selectedUpToLayer ?? null),
     [graphData, nodes, selectedUpToLayer]
   );
 
@@ -628,6 +717,25 @@ export function BlueprintViewer({
         {layerGuides.length > 0 && (
           <ViewportPortal>
             <>
+              {compositeGuides.map((guide) => (
+                <div
+                  key={`${guide.key}-composite`}
+                  className={`
+                    pointer-events-none absolute rounded-[28px] border transition-colors duration-200
+                    ${
+                      guide.included
+                        ? 'border-amber-500/40 bg-amber-500/6'
+                        : 'border-border/25 bg-transparent'
+                    }
+                  `}
+                  style={{
+                    left: guide.left,
+                    top: guide.top,
+                    width: guide.width,
+                    height: guide.height,
+                  }}
+                />
+              ))}
               {layerGuides.map((guide) => (
                 <div
                   key={`${guide.key}-band`}

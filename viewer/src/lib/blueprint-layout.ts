@@ -4,16 +4,20 @@ import type { ProducerStatusMap } from '@/types/generation';
 
 export interface LayoutConfig {
   nodeWidth: number;
-  nodeHeight: number;
+  nodeMinHeight: number;
   horizontalSpacing: number;
   verticalSpacing: number;
+  compositePadding: number;
+  minimumSiblingClearance: number;
 }
 
 export const defaultBlueprintLayoutConfig: LayoutConfig = {
-  nodeWidth: 180,
-  nodeHeight: 60,
-  horizontalSpacing: 250,
-  verticalSpacing: 100,
+  nodeWidth: 220,
+  nodeMinHeight: 88,
+  horizontalSpacing: 310,
+  verticalSpacing: 132,
+  compositePadding: 12,
+  minimumSiblingClearance: 16,
 };
 
 export interface LayoutResult {
@@ -49,6 +53,9 @@ export function layoutBlueprintGraph(
       position: {
         x: 0,
         y: index * config.verticalSpacing,
+      },
+      style: {
+        width: config.nodeWidth,
       },
       data: {
         label: node.label,
@@ -86,8 +93,14 @@ export function layoutBlueprintGraph(
         x: (layer + 1) * config.horizontalSpacing,
         y: layerIndex * config.verticalSpacing,
       },
+      style: {
+        width: config.nodeWidth,
+      },
       data: {
         label: node.label,
+        namespacePath: node.namespacePath,
+        compositePath: node.compositePath,
+        compositeName: node.compositeName,
         loop: node.loop,
         runnable: node.runnable,
         producerType: node.producerType,
@@ -110,6 +123,9 @@ export function layoutBlueprintGraph(
       position: {
         x: (maxLayer + 2) * config.horizontalSpacing,
         y: index * config.verticalSpacing,
+      },
+      style: {
+        width: config.nodeWidth,
       },
       data: {
         label: node.label,

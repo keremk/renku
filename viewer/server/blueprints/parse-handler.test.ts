@@ -3,14 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   loadYamlBlueprintTreeMock,
   buildBlueprintParseGraphProjectionMock,
+  prepareBlueprintResolutionContextMock,
 } = vi.hoisted(() => ({
   loadYamlBlueprintTreeMock: vi.fn(),
   buildBlueprintParseGraphProjectionMock: vi.fn(),
+  prepareBlueprintResolutionContextMock: vi.fn(),
 }));
 
 vi.mock('@gorenku/core', () => ({
   loadYamlBlueprintTree: loadYamlBlueprintTreeMock,
   buildBlueprintParseGraphProjection: buildBlueprintParseGraphProjectionMock,
+  prepareBlueprintResolutionContext: prepareBlueprintResolutionContextMock,
 }));
 
 import { parseBlueprintToGraph } from './parse-handler.js';
@@ -50,12 +53,17 @@ describe('parseBlueprintToGraph', () => {
     };
 
     loadYamlBlueprintTreeMock.mockResolvedValue({ root });
+    prepareBlueprintResolutionContextMock.mockResolvedValue({ root });
     buildBlueprintParseGraphProjectionMock.mockReturnValue(projection);
 
     const result = await parseBlueprintToGraph('/tmp/fixture.yaml', '/catalog');
 
     expect(loadYamlBlueprintTreeMock).toHaveBeenCalledWith('/tmp/fixture.yaml', {
       catalogRoot: '/catalog',
+    });
+    expect(prepareBlueprintResolutionContextMock).toHaveBeenCalledWith({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
     });
     expect(buildBlueprintParseGraphProjectionMock).toHaveBeenCalledWith(root);
     expect(result).toEqual(projection);

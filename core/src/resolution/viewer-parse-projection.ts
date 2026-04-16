@@ -16,6 +16,12 @@ import type {
   BlueprintTreeNode,
 } from '../types.js';
 import {
+  buildBlueprintGraph,
+  type BlueprintGraphEdge,
+  type BlueprintGraphEdgeEndpoint,
+  type BlueprintGraphNode,
+} from './canonical-graph.js';
+import {
   formatParsedGraphReferenceSegment,
   parseGraphReference,
 } from './reference-parser.js';
@@ -42,6 +48,9 @@ export interface BlueprintParseGraphNode {
   id: string;
   type: 'input' | 'producer' | 'output';
   label: string;
+  namespacePath?: string[];
+  compositePath?: string[];
+  compositeName?: string;
   loop?: string;
   runnable?: boolean;
   producerType?: string;
@@ -108,11 +117,15 @@ export interface BindingEndpointSegment {
 
 export interface ProducerBindingEndpoint {
   kind: Exclude<BindingEndpointType, 'unknown'>;
+  nodeId: string;
   reference: string;
+  producerId?: string;
   producerName?: string;
+  artifactNodeId?: string;
   inputName?: string;
   outputName?: string;
   segments: BindingEndpointSegment[];
+  selectorPath: BindingSelector[];
   loopSelectors: Array<Extract<BindingSelector, { kind: 'loop' }>>;
   constantSelectors: Array<Extract<BindingSelector, { kind: 'const' }>>;
   arraySelectors: Array<{
@@ -155,6 +168,17 @@ interface EdgeEndpoints {
   sourceProducer?: string;
   targetType: BindingEndpointType;
   targetProducer?: string;
+}
+
+function readOptionalStringField(
+  source: Record<string, unknown> | undefined,
+  fieldName: string
+): string | undefined {
+  if (!source) {
+    return undefined;
+  }
+  const value = source[fieldName];
+  return typeof value === 'string' ? value : undefined;
 }
 
 /**
@@ -249,41 +273,60 @@ export function collectNodesAndEdges(
   conditions: BlueprintParseConditionDef[]
 ): void {
   const doc = node.document;
+  const context = createProjectionGraphContext(node);
 
-  const inputNames = new Set(doc.inputs.map((input) => input.name));
+  const rootInputNames = new Set(doc.inputs.map((input) => input.name));
   for (const systemInputName of collectReferencedSystemInputs(node)) {
-    inputNames.add(systemInputName);
+    rootInputNames.add(systemInputName);
   }
-  const producerNames = new Set(doc.imports.map((producer) => producer.name));
-  const outputNames = new Set(doc.outputs.map((output) => output.name));
 
   nodes.push({
     id: 'Inputs',
     type: 'input',
     label: 'Inputs',
-    description: `${inputNames.size} input${inputNames.size !== 1 ? 's' : ''}`,
+    description: `${rootInputNames.size} input${rootInputNames.size !== 1 ? 's' : ''}`,
   });
 
-  for (const producerImport of doc.imports) {
-    const childNode = node.children.get(producerImport.name);
-    nodes.push({
-      id: `Producer:${producerImport.name}`,
+  const producerNodeById = new Map<string, BlueprintParseGraphNode>();
+
+  for (const producerGraphNode of context.producerGraphNodes) {
+    const producerLabel =
+      producerGraphNode.namespacePath[producerGraphNode.namespacePath.length - 1];
+    if (!producerLabel) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Producer "${producerGraphNode.id}" is missing its alias path.`
+      );
+    }
+
+    const producerNode: BlueprintParseGraphNode = {
+      id: producerGraphNode.id,
       type: 'producer',
-      label: producerImport.name,
-      loop: producerImport.loop,
-      runnable: childNode?.document.meta.kind === 'producer',
-      producerType: producerImport.producer,
-      description: producerImport.description,
+      label: producerLabel,
+      namespacePath: [...producerGraphNode.namespacePath],
+      compositePath:
+        producerGraphNode.namespacePath.length > 1
+          ? producerGraphNode.namespacePath.slice(0, -1)
+          : undefined,
+      compositeName:
+        producerGraphNode.namespacePath.length > 1
+          ? producerGraphNode.namespacePath[producerGraphNode.namespacePath.length - 2]
+          : undefined,
+      loop: readOptionalStringField(producerGraphNode.producer, 'loop'),
+      runnable: true,
+      producerType: readOptionalStringField(
+        producerGraphNode.producer,
+        'producer'
+      ),
+      description: readOptionalStringField(
+        producerGraphNode.producer,
+        'description'
+      ),
       inputBindings: [],
       outputBindings: [],
-    });
-  }
-
-  const producerNodeById = new Map<string, BlueprintParseGraphNode>();
-  for (const producerNode of nodes) {
-    if (producerNode.type === 'producer') {
-      producerNodeById.set(producerNode.id, producerNode);
-    }
+    };
+    nodes.push(producerNode);
+    producerNodeById.set(producerGraphNode.id, producerNode);
   }
 
   nodes.push({
@@ -293,150 +336,904 @@ export function collectNodesAndEdges(
     description: `${doc.outputs.length} output${doc.outputs.length !== 1 ? 's' : ''}`,
   });
 
-  const producersWithInputDeps = new Set<string>();
-  const producersWithOutputs = new Set<string>();
-  const addedEdges = new Set<string>();
+  const inputEdgeTargets = new Map<
+    string,
+    Pick<BlueprintParseGraphEdge, 'isConditional' | 'conditionName'>
+  >();
+  const outputEdgeSources = new Map<
+    string,
+    Pick<BlueprintParseGraphEdge, 'isConditional' | 'conditionName'>
+  >();
+  const addedEdges = new Map<string, BlueprintParseGraphEdge>();
 
-  for (const edge of doc.edges) {
-    const isConditional = Boolean(edge.if || edge.conditions);
-    const { sourceType, sourceProducer, targetType, targetProducer } =
-      resolveEdgeEndpoints(
-        edge.from,
-        edge.to,
-        inputNames,
-        producerNames,
-        outputNames
-      );
-
-    if (sourceType === 'unknown' || targetType === 'unknown') {
+  for (const producerGraphNode of context.producerGraphNodes) {
+    const parseProducerNode = producerNodeById.get(producerGraphNode.id);
+    if (!parseProducerNode?.inputBindings || !parseProducerNode.outputBindings) {
       throw createRuntimeError(
         RuntimeErrorCode.GRAPH_BUILD_ERROR,
-        `Unable to resolve edge endpoints for "${edge.from}" -> "${edge.to}".`
+        `Missing binding collections for producer node "${producerGraphNode.id}".`
       );
     }
 
-    const edgeBinding: ProducerBinding = {
-      from: edge.from,
-      to: edge.to,
-      sourceType,
-      targetType,
-      sourceEndpoint: parseBindingEndpoint(edge.from, sourceType, 'source'),
-      targetEndpoint: parseBindingEndpoint(edge.to, targetType, 'target'),
-      conditionName: edge.if,
-      isConditional,
-    };
+    const inputBindings = collectProducerInputBindings({
+      producerGraphNode,
+      context,
+    });
+    const outputBindings = collectProducerOutputBindings({
+      producerGraphNode,
+      context,
+    });
 
-    if (sourceType === 'producer' && sourceProducer) {
-      const normalizedSource = normalizeProducerName(sourceProducer);
-      const sourceNodeId = `Producer:${normalizedSource}`;
-      const sourceNode = producerNodeById.get(sourceNodeId);
-      if (sourceNode) {
-        if (!sourceNode.outputBindings) {
-          throw createRuntimeError(
-            RuntimeErrorCode.GRAPH_BUILD_ERROR,
-            `Missing outputBindings for producer node: ${sourceNodeId}`
-          );
-        }
-        sourceNode.outputBindings.push(edgeBinding);
-      }
-    }
+    parseProducerNode.inputBindings.push(...inputBindings);
+    parseProducerNode.outputBindings.push(...outputBindings);
 
-    if (targetType === 'producer' && targetProducer) {
-      const normalizedTarget = normalizeProducerName(targetProducer);
-      const targetNodeId = `Producer:${normalizedTarget}`;
-      const targetNode = producerNodeById.get(targetNodeId);
-      if (targetNode) {
-        if (!targetNode.inputBindings) {
-          throw createRuntimeError(
-            RuntimeErrorCode.GRAPH_BUILD_ERROR,
-            `Missing inputBindings for producer node: ${targetNodeId}`
-          );
-        }
-        targetNode.inputBindings.push(edgeBinding);
-      }
-    }
-
-    if (sourceType === 'input' && targetType === 'producer' && targetProducer) {
-      producersWithInputDeps.add(targetProducer);
-    }
-
-    if (sourceType === 'producer' && targetType === 'output' && sourceProducer) {
-      producersWithOutputs.add(sourceProducer);
-    }
-
-    if (
-      sourceType === 'producer' &&
-      targetType === 'producer' &&
-      sourceProducer &&
-      targetProducer
-    ) {
-      const normalizedSource = normalizeProducerName(sourceProducer);
-      const normalizedTarget = normalizeProducerName(targetProducer);
-
+    for (const binding of inputBindings) {
       if (
-        !producerNames.has(normalizedSource) ||
-        !producerNames.has(normalizedTarget)
+        binding.sourceType === 'input' &&
+        binding.targetType === 'producer' &&
+        binding.targetEndpoint.producerId
       ) {
-        continue;
-      }
-
-      if (normalizedSource === normalizedTarget) {
-        const producerNode = nodes.find(
-          (candidate) => candidate.id === `Producer:${normalizedSource}`
-        );
-        if (producerNode && !producerNode.loop) {
-          producerNode.loop = 'self';
-        }
-        continue;
-      }
-
-      const edgeId = `Producer:${normalizedSource}->Producer:${normalizedTarget}`;
-      if (!addedEdges.has(edgeId)) {
-        addedEdges.add(edgeId);
-        edges.push({
-          id: edgeId,
-          source: `Producer:${normalizedSource}`,
-          target: `Producer:${normalizedTarget}`,
-          conditionName: edge.if,
-          isConditional,
+        const producerId = binding.targetEndpoint.producerId;
+        const existing = inputEdgeTargets.get(producerId);
+        inputEdgeTargets.set(producerId, {
+          isConditional:
+            Boolean(existing?.isConditional) || binding.isConditional,
+          conditionName: mergeConditionName(
+            existing?.conditionName,
+            binding.conditionName
+          ),
         });
       }
+
+      if (
+        binding.sourceType === 'producer' &&
+        binding.targetType === 'producer' &&
+        binding.sourceEndpoint.producerId &&
+        binding.targetEndpoint.producerId
+      ) {
+        addRenderedEdge(
+          addedEdges,
+          binding.sourceEndpoint.producerId,
+          binding.targetEndpoint.producerId,
+          binding.isConditional,
+          binding.conditionName
+        );
+      }
+    }
+
+    for (const binding of outputBindings) {
+      if (
+        binding.sourceType === 'producer' &&
+        binding.targetType === 'output' &&
+        binding.sourceEndpoint.producerId
+      ) {
+        const producerId = binding.sourceEndpoint.producerId;
+        const existing = outputEdgeSources.get(producerId);
+        outputEdgeSources.set(producerId, {
+          isConditional:
+            Boolean(existing?.isConditional) || binding.isConditional,
+          conditionName: mergeConditionName(
+            existing?.conditionName,
+            binding.conditionName
+          ),
+        });
+      }
+
+      if (
+        binding.sourceType === 'producer' &&
+        binding.targetType === 'producer' &&
+        binding.sourceEndpoint.producerId &&
+        binding.targetEndpoint.producerId
+      ) {
+        addRenderedEdge(
+          addedEdges,
+          binding.sourceEndpoint.producerId,
+          binding.targetEndpoint.producerId,
+          binding.isConditional,
+          binding.conditionName
+        );
+      }
     }
   }
 
-  for (const producer of producersWithInputDeps) {
-    const normalizedProducer = normalizeProducerName(producer);
-    const edgeId = `Inputs->Producer:${normalizedProducer}`;
-    if (!addedEdges.has(edgeId)) {
-      addedEdges.add(edgeId);
-      edges.push({
-        id: edgeId,
-        source: 'Inputs',
-        target: `Producer:${normalizedProducer}`,
-        isConditional: false,
-      });
-    }
+  for (const [producerId, edgeMetadata] of inputEdgeTargets) {
+    addRenderedEdge(
+      addedEdges,
+      'Inputs',
+      producerId,
+      Boolean(edgeMetadata.isConditional),
+      edgeMetadata.conditionName
+    );
   }
 
-  for (const producer of producersWithOutputs) {
-    const normalizedProducer = normalizeProducerName(producer);
-    const edgeId = `Producer:${normalizedProducer}->Outputs`;
-    if (!addedEdges.has(edgeId)) {
-      addedEdges.add(edgeId);
-      edges.push({
-        id: edgeId,
-        source: `Producer:${normalizedProducer}`,
-        target: 'Outputs',
-        isConditional: false,
-      });
-    }
+  for (const [producerId, edgeMetadata] of outputEdgeSources) {
+    addRenderedEdge(
+      addedEdges,
+      producerId,
+      'Outputs',
+      Boolean(edgeMetadata.isConditional),
+      edgeMetadata.conditionName
+    );
   }
+
+  edges.push(...Array.from(addedEdges.values()));
 
   if (doc.conditions) {
     for (const [name, definition] of Object.entries(doc.conditions)) {
       conditions.push({ name, definition });
     }
   }
+}
+
+interface TerminalBinding {
+  endpoint: ProducerBindingEndpoint;
+  type: Exclude<BindingEndpointType, 'unknown'>;
+  isConditional: boolean;
+  conditionName?: string;
+}
+
+interface LeafProducerInputDescriptor {
+  producerId: string;
+  producerNode: BlueprintGraphNode;
+  inputNode: BlueprintGraphNode;
+}
+
+interface LeafProducerOutputDescriptor {
+  producerId: string;
+  producerNode: BlueprintGraphNode;
+  artifactNode: BlueprintGraphNode;
+  outputNode?: BlueprintGraphNode;
+}
+
+interface ProjectionGraphContext {
+  graphNodesById: Map<string, BlueprintGraphNode>;
+  inboundEdgesByNodeId: Map<string, BlueprintGraphEdge[]>;
+  outboundEdgesByNodeId: Map<string, BlueprintGraphEdge[]>;
+  producerGraphNodes: BlueprintGraphNode[];
+  leafInputsByNodeId: Map<string, LeafProducerInputDescriptor>;
+  leafOutputsByArtifactNodeId: Map<string, LeafProducerOutputDescriptor>;
+  leafOutputsByOutputNodeId: Map<string, LeafProducerOutputDescriptor>;
+}
+
+function createProjectionGraphContext(root: BlueprintTreeNode): ProjectionGraphContext {
+  const graph = buildBlueprintGraph(root);
+  const graphNodesById = new Map(
+    graph.nodes.map((graphNode) => [graphNode.id, graphNode])
+  );
+  const inboundEdgesByNodeId = new Map<string, BlueprintGraphEdge[]>();
+  const outboundEdgesByNodeId = new Map<string, BlueprintGraphEdge[]>();
+  const leafInputsByNodeId = new Map<string, LeafProducerInputDescriptor>();
+  const leafOutputsByArtifactNodeId = new Map<string, LeafProducerOutputDescriptor>();
+  const leafOutputsByOutputNodeId = new Map<string, LeafProducerOutputDescriptor>();
+  const producerGraphNodes = graph.nodes
+    .filter((graphNode) => graphNode.type === 'Producer')
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const producerByNamespaceKey = new Map(
+    producerGraphNodes.map((graphNode) => [graphNode.namespacePath.join('.'), graphNode])
+  );
+
+  for (const graphEdge of graph.edges) {
+    const inbound = inboundEdgesByNodeId.get(graphEdge.to.nodeId) ?? [];
+    inbound.push(graphEdge);
+    inboundEdgesByNodeId.set(graphEdge.to.nodeId, inbound);
+
+    const outbound = outboundEdgesByNodeId.get(graphEdge.from.nodeId) ?? [];
+    outbound.push(graphEdge);
+    outboundEdgesByNodeId.set(graphEdge.from.nodeId, outbound);
+
+    const fromNode = graphNodesById.get(graphEdge.from.nodeId);
+    const toNode = graphNodesById.get(graphEdge.to.nodeId);
+    if (!fromNode || !toNode) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Canonical graph edge references missing node(s): ${graphEdge.from.nodeId} -> ${graphEdge.to.nodeId}.`
+      );
+    }
+
+    if (fromNode.type === 'InputSource' && toNode.type === 'Producer') {
+      leafInputsByNodeId.set(fromNode.id, {
+        producerId: toNode.id,
+        producerNode: toNode,
+        inputNode: fromNode,
+      });
+    }
+
+    if (fromNode.type === 'Producer' && toNode.type === 'Artifact') {
+      leafOutputsByArtifactNodeId.set(toNode.id, {
+        producerId: fromNode.id,
+        producerNode: toNode,
+        artifactNode: toNode,
+      });
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
+    if (graphNode.type !== 'InputSource' || leafInputsByNodeId.has(graphNode.id)) {
+      continue;
+    }
+
+    const namespaceKey = graphNode.namespacePath.join('.');
+    const producerNode = producerByNamespaceKey.get(namespaceKey);
+    if (!producerNode || namespaceKey.length === 0) {
+      continue;
+    }
+
+    leafInputsByNodeId.set(graphNode.id, {
+      producerId: producerNode.id,
+      producerNode,
+      inputNode: graphNode,
+    });
+  }
+
+  for (const graphEdge of graph.edges) {
+    const fromNode = graphNodesById.get(graphEdge.from.nodeId);
+    const toNode = graphNodesById.get(graphEdge.to.nodeId);
+    if (!fromNode || !toNode) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Canonical graph edge references missing node(s): ${graphEdge.from.nodeId} -> ${graphEdge.to.nodeId}.`
+      );
+    }
+
+    if (fromNode.type !== 'Artifact' || toNode.type !== 'Output') {
+      continue;
+    }
+
+    const descriptor = leafOutputsByArtifactNodeId.get(fromNode.id);
+    if (!descriptor) {
+      continue;
+    }
+
+    leafOutputsByOutputNodeId.set(toNode.id, {
+      ...descriptor,
+      outputNode: toNode,
+    });
+  }
+
+  return {
+    graphNodesById,
+    inboundEdgesByNodeId,
+    outboundEdgesByNodeId,
+    producerGraphNodes,
+    leafInputsByNodeId,
+    leafOutputsByArtifactNodeId,
+    leafOutputsByOutputNodeId,
+  };
+}
+
+function collectProducerInputBindings(args: {
+  producerGraphNode: BlueprintGraphNode;
+  context: ProjectionGraphContext;
+}): ProducerBinding[] {
+  const bindings: ProducerBinding[] = [];
+  const leafInputDescriptors = Array.from(args.context.leafInputsByNodeId.values())
+    .filter((descriptor) => descriptor.producerId === args.producerGraphNode.id)
+    .sort((left, right) => left.inputNode.id.localeCompare(right.inputNode.id));
+
+  for (const descriptor of leafInputDescriptors) {
+    const inboundEdges = args.context.inboundEdgesByNodeId.get(descriptor.inputNode.id) ?? [];
+    for (const inboundEdge of inboundEdges) {
+      const sourceNode = args.context.graphNodesById.get(inboundEdge.from.nodeId);
+      if (!sourceNode) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
+          `Missing graph node "${inboundEdge.from.nodeId}" while collecting input bindings for "${args.producerGraphNode.id}".`
+        );
+      }
+
+      const targetEndpoint = buildProducerInputEndpoint(descriptor, inboundEdge.to);
+      const sourceBindings = resolveBindingSources({
+        node: sourceNode,
+        endpointHint: inboundEdge.from,
+        isConditional: edgeIsConditional(inboundEdge),
+        conditionName: inboundEdge.conditionName,
+        context: args.context,
+        visitedNodeIds: new Set(),
+      });
+
+      for (const sourceBinding of sourceBindings) {
+        bindings.push({
+          from: sourceBinding.endpoint.reference,
+          to: targetEndpoint.reference,
+          sourceType: sourceBinding.type,
+          targetType: 'producer',
+          sourceEndpoint: sourceBinding.endpoint,
+          targetEndpoint,
+          conditionName: sourceBinding.conditionName,
+          isConditional: sourceBinding.isConditional,
+        });
+      }
+    }
+  }
+
+  return bindings;
+}
+
+function collectProducerOutputBindings(args: {
+  producerGraphNode: BlueprintGraphNode;
+  context: ProjectionGraphContext;
+}): ProducerBinding[] {
+  const bindings: ProducerBinding[] = [];
+  const leafOutputDescriptors = Array.from(args.context.leafOutputsByOutputNodeId.values())
+    .filter((descriptor) => descriptor.producerId === args.producerGraphNode.id)
+    .sort((left, right) =>
+      (left.outputNode?.id ?? left.artifactNode.id).localeCompare(
+        right.outputNode?.id ?? right.artifactNode.id
+      )
+    );
+
+  for (const descriptor of leafOutputDescriptors) {
+    const outputNode = descriptor.outputNode;
+    if (!outputNode) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Leaf producer output "${descriptor.artifactNode.id}" is missing its output connector.`
+      );
+    }
+
+    const outboundEdges = args.context.outboundEdgesByNodeId.get(outputNode.id) ?? [];
+    for (const outboundEdge of outboundEdges) {
+      const targetNode = args.context.graphNodesById.get(outboundEdge.to.nodeId);
+      if (!targetNode) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
+          `Missing graph node "${outboundEdge.to.nodeId}" while collecting output bindings for "${args.producerGraphNode.id}".`
+        );
+      }
+
+      const sourceEndpoint = buildProducerOutputEndpoint(descriptor, outboundEdge.from);
+      const targetBindings = resolveBindingTargets({
+        node: targetNode,
+        endpointHint: outboundEdge.to,
+        isConditional: edgeIsConditional(outboundEdge),
+        conditionName: outboundEdge.conditionName,
+        context: args.context,
+        visitedNodeIds: new Set(),
+      });
+
+      for (const targetBinding of targetBindings) {
+        bindings.push({
+          from: sourceEndpoint.reference,
+          to: targetBinding.endpoint.reference,
+          sourceType: 'producer',
+          targetType: targetBinding.type,
+          sourceEndpoint,
+          targetEndpoint: targetBinding.endpoint,
+          conditionName: targetBinding.conditionName,
+          isConditional: targetBinding.isConditional,
+        });
+      }
+    }
+  }
+
+  return bindings;
+}
+
+function resolveBindingSources(args: {
+  node: BlueprintGraphNode;
+  endpointHint?: BlueprintGraphEdgeEndpoint;
+  isConditional: boolean;
+  conditionName?: string;
+  context: ProjectionGraphContext;
+  visitedNodeIds: Set<string>;
+}): TerminalBinding[] {
+  if (args.visitedNodeIds.has(args.node.id)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_BUILD_ERROR,
+      `Cycle detected while resolving upstream bindings for "${args.node.id}".`
+    );
+  }
+
+  const visitedNodeIds = new Set(args.visitedNodeIds);
+  visitedNodeIds.add(args.node.id);
+
+  if (args.node.type === 'InputSource') {
+    if (args.node.namespacePath.length === 0) {
+      return [
+        {
+          endpoint: buildInputEndpoint(args.node, args.endpointHint),
+          type: 'input',
+          conditionName: args.conditionName,
+          isConditional: args.isConditional,
+        },
+      ];
+    }
+
+    const inboundEdges = args.context.inboundEdgesByNodeId.get(args.node.id) ?? [];
+    if (inboundEdges.length === 0) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Nested input "${args.node.id}" is missing its upstream binding.`
+      );
+    }
+
+    return inboundEdges.flatMap((inboundEdge) => {
+      const sourceNode = args.context.graphNodesById.get(inboundEdge.from.nodeId);
+      if (!sourceNode) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
+          `Missing graph node "${inboundEdge.from.nodeId}" while resolving upstream bindings for "${args.node.id}".`
+        );
+      }
+
+      return resolveBindingSources({
+        ...args,
+        node: sourceNode,
+        endpointHint: inboundEdge.from,
+        isConditional: args.isConditional || edgeIsConditional(inboundEdge),
+        conditionName: mergeConditionName(
+          args.conditionName,
+          inboundEdge.conditionName
+        ),
+        visitedNodeIds,
+      });
+    });
+  }
+
+  if (args.node.type === 'Output') {
+    const descriptor = args.context.leafOutputsByOutputNodeId.get(args.node.id);
+    if (descriptor) {
+      return [
+        {
+          endpoint: buildProducerOutputEndpoint(descriptor, args.endpointHint),
+          type: 'producer',
+          conditionName: args.conditionName,
+          isConditional: args.isConditional,
+        },
+      ];
+    }
+
+    const inboundEdges = args.context.inboundEdgesByNodeId.get(args.node.id) ?? [];
+    if (inboundEdges.length === 0) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Output connector "${args.node.id}" is missing its upstream binding.`
+      );
+    }
+
+    return inboundEdges.flatMap((inboundEdge) => {
+      const sourceNode = args.context.graphNodesById.get(inboundEdge.from.nodeId);
+      if (!sourceNode) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
+          `Missing graph node "${inboundEdge.from.nodeId}" while resolving upstream bindings for "${args.node.id}".`
+        );
+      }
+
+      return resolveBindingSources({
+        ...args,
+        node: sourceNode,
+        endpointHint: inboundEdge.from,
+        isConditional: args.isConditional || edgeIsConditional(inboundEdge),
+        conditionName: mergeConditionName(
+          args.conditionName,
+          inboundEdge.conditionName
+        ),
+        visitedNodeIds,
+      });
+    });
+  }
+
+  if (args.node.type === 'Artifact') {
+    const descriptor = args.context.leafOutputsByArtifactNodeId.get(args.node.id);
+    if (!descriptor) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Artifact node "${args.node.id}" does not map to a leaf producer.`
+      );
+    }
+
+    return [
+      {
+        endpoint: buildProducerOutputEndpoint(descriptor, args.endpointHint),
+        type: 'producer',
+        conditionName: args.conditionName,
+        isConditional: args.isConditional,
+      },
+    ];
+  }
+
+  throw createRuntimeError(
+    RuntimeErrorCode.GRAPH_BUILD_ERROR,
+    `Unsupported upstream node type "${args.node.type}" while resolving bindings for "${args.node.id}".`
+  );
+}
+
+function resolveBindingTargets(args: {
+  node: BlueprintGraphNode;
+  endpointHint?: BlueprintGraphEdgeEndpoint;
+  isConditional: boolean;
+  conditionName?: string;
+  context: ProjectionGraphContext;
+  visitedNodeIds: Set<string>;
+}): TerminalBinding[] {
+  if (args.visitedNodeIds.has(args.node.id)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_BUILD_ERROR,
+      `Cycle detected while resolving downstream bindings for "${args.node.id}".`
+    );
+  }
+
+  const visitedNodeIds = new Set(args.visitedNodeIds);
+  visitedNodeIds.add(args.node.id);
+
+  if (args.node.type === 'Output') {
+    if (args.node.namespacePath.length === 0) {
+      return [
+        {
+          endpoint: buildOutputEndpoint(args.node, args.endpointHint),
+          type: 'output',
+          conditionName: args.conditionName,
+          isConditional: args.isConditional,
+        },
+      ];
+    }
+
+    const outboundEdges = args.context.outboundEdgesByNodeId.get(args.node.id) ?? [];
+    if (outboundEdges.length === 0) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Nested output "${args.node.id}" is missing its downstream binding.`
+      );
+    }
+
+    return outboundEdges.flatMap((outboundEdge) => {
+      const targetNode = args.context.graphNodesById.get(outboundEdge.to.nodeId);
+      if (!targetNode) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
+          `Missing graph node "${outboundEdge.to.nodeId}" while resolving downstream bindings for "${args.node.id}".`
+        );
+      }
+
+      return resolveBindingTargets({
+        ...args,
+        node: targetNode,
+        endpointHint: outboundEdge.to,
+        isConditional: args.isConditional || edgeIsConditional(outboundEdge),
+        conditionName: mergeConditionName(
+          args.conditionName,
+          outboundEdge.conditionName
+        ),
+        visitedNodeIds,
+      });
+    });
+  }
+
+  if (args.node.type === 'InputSource') {
+    const descriptor = args.context.leafInputsByNodeId.get(args.node.id);
+    if (descriptor) {
+      return [
+        {
+          endpoint: buildProducerInputEndpoint(descriptor, args.endpointHint),
+          type: 'producer',
+          conditionName: args.conditionName,
+          isConditional: args.isConditional,
+        },
+      ];
+    }
+
+    const outboundEdges = args.context.outboundEdgesByNodeId.get(args.node.id) ?? [];
+    if (outboundEdges.length === 0) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Input connector "${args.node.id}" is missing its downstream binding.`
+      );
+    }
+
+    return outboundEdges.flatMap((outboundEdge) => {
+      const targetNode = args.context.graphNodesById.get(outboundEdge.to.nodeId);
+      if (!targetNode) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
+          `Missing graph node "${outboundEdge.to.nodeId}" while resolving downstream bindings for "${args.node.id}".`
+        );
+      }
+
+      return resolveBindingTargets({
+        ...args,
+        node: targetNode,
+        endpointHint: outboundEdge.to,
+        isConditional: args.isConditional || edgeIsConditional(outboundEdge),
+        conditionName: mergeConditionName(
+          args.conditionName,
+          outboundEdge.conditionName
+        ),
+        visitedNodeIds,
+      });
+    });
+  }
+
+  if (args.node.type === 'Artifact') {
+    const outboundEdges = args.context.outboundEdgesByNodeId.get(args.node.id) ?? [];
+    if (outboundEdges.length === 0) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Artifact "${args.node.id}" is missing its downstream binding.`
+      );
+    }
+
+    return outboundEdges.flatMap((outboundEdge) => {
+      const targetNode = args.context.graphNodesById.get(outboundEdge.to.nodeId);
+      if (!targetNode) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
+          `Missing graph node "${outboundEdge.to.nodeId}" while resolving downstream bindings for "${args.node.id}".`
+        );
+      }
+
+      return resolveBindingTargets({
+        ...args,
+        node: targetNode,
+        endpointHint: outboundEdge.to,
+        isConditional: args.isConditional || edgeIsConditional(outboundEdge),
+        conditionName: mergeConditionName(
+          args.conditionName,
+          outboundEdge.conditionName
+        ),
+        visitedNodeIds,
+      });
+    });
+  }
+
+  throw createRuntimeError(
+    RuntimeErrorCode.GRAPH_BUILD_ERROR,
+    `Unsupported downstream node type "${args.node.type}" while resolving bindings for "${args.node.id}".`
+  );
+}
+
+function addRenderedEdge(
+  edgesById: Map<string, BlueprintParseGraphEdge>,
+  source: string,
+  target: string,
+  isConditional: boolean,
+  conditionName?: string
+): void {
+  const edgeId = `${source}->${target}`;
+  const existing = edgesById.get(edgeId);
+  if (existing) {
+    existing.isConditional = existing.isConditional || isConditional;
+    existing.conditionName = mergeConditionName(
+      existing.conditionName,
+      conditionName
+    );
+    return;
+  }
+
+  edgesById.set(edgeId, {
+    id: edgeId,
+    source,
+    target,
+    conditionName,
+    isConditional,
+  });
+}
+
+function mergeConditionName(
+  currentName?: string,
+  nextName?: string
+): string | undefined {
+  if (!currentName) {
+    return nextName;
+  }
+  if (!nextName || currentName === nextName) {
+    return currentName;
+  }
+  return undefined;
+}
+
+function edgeIsConditional(edge: BlueprintGraphEdge): boolean {
+  return Boolean(edge.conditions || edge.conditionName);
+}
+
+function buildInputEndpoint(
+  node: BlueprintGraphNode,
+  endpointHint?: BlueprintGraphEdgeEndpoint
+): ProducerBindingEndpoint {
+  const segments = parseEndpointSegments(node.name);
+  return buildBindingEndpoint({
+    kind: 'input',
+    nodeId: node.id,
+    reference: buildReference(segments, 'Input'),
+    segments,
+    selectorPath: selectorPathForNode(node, endpointHint),
+    inputName: node.name,
+  });
+}
+
+function buildOutputEndpoint(
+  node: BlueprintGraphNode,
+  endpointHint?: BlueprintGraphEdgeEndpoint
+): ProducerBindingEndpoint {
+  const segments = parseEndpointSegments(node.name);
+  return buildBindingEndpoint({
+    kind: 'output',
+    nodeId: node.id,
+    reference: buildReference(segments, 'Output'),
+    segments,
+    selectorPath: selectorPathForNode(node, endpointHint),
+    outputName: node.name,
+  });
+}
+
+function buildProducerInputEndpoint(
+  descriptor: LeafProducerInputDescriptor,
+  endpointHint?: BlueprintGraphEdgeEndpoint
+): ProducerBindingEndpoint {
+  const segments = [
+    ...buildProducerAliasSegments(descriptor.producerNode),
+    ...parseEndpointSegments(descriptor.inputNode.name),
+  ];
+
+  return buildBindingEndpoint({
+    kind: 'producer',
+    nodeId: descriptor.inputNode.id,
+    reference: buildReference(segments),
+    producerId: descriptor.producerId,
+    segments,
+    selectorPath: selectorPathForNode(descriptor.inputNode, endpointHint),
+    producerName: descriptor.producerNode.namespacePath.join('.'),
+    inputName: descriptor.inputNode.name,
+  });
+}
+
+function buildProducerOutputEndpoint(
+  descriptor: LeafProducerOutputDescriptor,
+  endpointHint?: BlueprintGraphEdgeEndpoint
+): ProducerBindingEndpoint {
+  const segments = [
+    ...buildProducerAliasSegments(descriptor.producerNode),
+    ...parseEndpointSegments(descriptor.artifactNode.name),
+  ];
+
+  return buildBindingEndpoint({
+    kind: 'producer',
+    nodeId: descriptor.outputNode?.id ?? descriptor.artifactNode.id,
+    reference: buildReference(segments),
+    producerId: descriptor.producerId,
+    artifactNodeId: descriptor.artifactNode.id,
+    segments,
+    selectorPath: selectorPathForNode(
+      descriptor.outputNode ?? descriptor.artifactNode,
+      endpointHint
+    ),
+    producerName: descriptor.producerNode.namespacePath.join('.'),
+    outputName: descriptor.artifactNode.name,
+  });
+}
+
+function buildBindingEndpoint(args: {
+  kind: Exclude<BindingEndpointType, 'unknown'>;
+  nodeId: string;
+  reference: string;
+  producerId?: string;
+  artifactNodeId?: string;
+  segments: BindingEndpointSegment[];
+  selectorPath: BindingSelector[];
+  producerName?: string;
+  inputName?: string;
+  outputName?: string;
+}): ProducerBindingEndpoint {
+  const anchorSegment = args.segments[0];
+  if (!anchorSegment) {
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_BUILD_ERROR,
+      `Unable to build binding endpoint without segments for "${args.reference}".`
+    );
+  }
+
+  const loopSelectors = args.selectorPath.filter(
+    (selector): selector is Extract<BindingSelector, { kind: 'loop' }> =>
+      selector.kind === 'loop'
+  );
+  const constantSelectors = args.selectorPath.filter(
+    (selector): selector is Extract<BindingSelector, { kind: 'const' }> =>
+      selector.kind === 'const'
+  );
+  const arraySelectors = args.segments.flatMap((segment, segmentIndex) =>
+    segmentIndex === 0
+      ? []
+      : segment.selectors.map((selector) => ({
+          segment: segment.name,
+          segmentIndex,
+          selector,
+        }))
+  );
+
+  return {
+    kind: args.kind,
+    nodeId: args.nodeId,
+    reference: args.reference,
+    producerId: args.producerId,
+    producerName: args.producerName,
+    artifactNodeId: args.artifactNodeId,
+    inputName: args.inputName,
+    outputName: args.outputName,
+    segments: args.segments,
+    selectorPath: args.selectorPath,
+    loopSelectors,
+    constantSelectors,
+    arraySelectors,
+  };
+}
+
+function buildProducerAliasSegments(
+  producerNode: BlueprintGraphNode
+): BindingEndpointSegment[] {
+  if (producerNode.namespacePath.length === 0) {
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_BUILD_ERROR,
+      `Producer "${producerNode.id}" is missing its alias namespace path.`
+    );
+  }
+
+  return producerNode.namespacePath.map((segment) => ({
+    name: segment,
+    selectors: [],
+  }));
+}
+
+function parseEndpointSegments(path: string): BindingEndpointSegment[] {
+  const parsed = parseGraphReference(path);
+  return [...parsed.namespaceSegments, parsed.node].map((segment) => ({
+    name: segment.name,
+    selectors: segment.dimensions.map((dimension) =>
+      parseBindingSelector(dimension, path)
+    ),
+  }));
+}
+
+function selectorPathForNode(
+  node: BlueprintGraphNode,
+  endpointHint?: BlueprintGraphEdgeEndpoint
+): BindingSelector[] {
+  if (endpointHint) {
+    return flattenEndpointHintSelectors(endpointHint);
+  }
+
+  return parseEndpointSegments(node.name).flatMap((segment) => segment.selectors);
+}
+
+function flattenEndpointHintSelectors(
+  endpointHint?: BlueprintGraphEdgeEndpoint
+): BindingSelector[] {
+  if (!endpointHint) {
+    return [];
+  }
+
+  const selectors = [
+    ...(endpointHint.selectors ?? []),
+    ...(endpointHint.arraySelectors ?? []),
+  ].filter((selector): selector is DimensionSelector => selector !== undefined);
+  return selectors.map((selector) =>
+    selector.kind === 'const'
+      ? {
+          kind: 'const',
+          raw: String(selector.value),
+          value: selector.value,
+        }
+      : {
+          kind: 'loop',
+          raw:
+            selector.offset === 0
+              ? selector.symbol
+              : `${selector.symbol}${selector.offset > 0 ? '+' : ''}${selector.offset}`,
+          symbol: selector.symbol,
+          offset: selector.offset,
+        }
+  );
+}
+
+function buildReference(
+  segments: BindingEndpointSegment[],
+  prefix?: 'Input' | 'Output'
+): string {
+  const body = segments
+    .map((segment) =>
+      `${segment.name}${segment.selectors.map((selector) => `[${selector.raw}]`).join('')}`
+    )
+    .join('.');
+  return prefix ? `${prefix}.${body}` : body;
 }
 
 /**
@@ -632,113 +1429,6 @@ function createSyntheticSystemInput(
     required: false,
     description: definition.description,
   };
-}
-
-function parseBindingEndpoint(
-  reference: string,
-  endpointType: Exclude<BindingEndpointType, 'unknown'>,
-  role: 'source' | 'target'
-): ProducerBindingEndpoint {
-  const normalizedReference = stripEndpointPrefix(reference, endpointType);
-  const parsed = parseGraphReference(normalizedReference);
-  const parsedSegments = [...parsed.namespaceSegments, parsed.node];
-  const segments = parsedSegments.map((segment) => ({
-    name: segment.name,
-    selectors: segment.dimensions.map((dimension) =>
-      parseBindingSelector(dimension, reference)
-    ),
-  }));
-
-  if (segments.length === 0) {
-    throw createRuntimeError(
-      RuntimeErrorCode.GRAPH_BUILD_ERROR,
-      `Unable to parse binding endpoint metadata for "${reference}".`
-    );
-  }
-
-  const anchorSegmentIndex = 0;
-  const anchorSegment = segments[anchorSegmentIndex];
-  if (!anchorSegment) {
-    throw createRuntimeError(
-      RuntimeErrorCode.GRAPH_BUILD_ERROR,
-      `Missing anchor segment while parsing binding endpoint "${reference}".`
-    );
-  }
-
-  const loopSelectors = anchorSegment.selectors.filter(
-    (selector): selector is Extract<BindingSelector, { kind: 'loop' }> =>
-      selector.kind === 'loop'
-  );
-  const constantSelectors = anchorSegment.selectors.filter(
-    (selector): selector is Extract<BindingSelector, { kind: 'const' }> =>
-      selector.kind === 'const'
-  );
-  const arraySelectors: ProducerBindingEndpoint['arraySelectors'] = [];
-  for (let index = anchorSegmentIndex + 1; index < segments.length; index += 1) {
-    const segment = segments[index];
-    if (!segment) {
-      continue;
-    }
-    for (const selector of segment.selectors) {
-      arraySelectors.push({
-        segment: segment.name,
-        segmentIndex: index,
-        selector,
-      });
-    }
-  }
-
-  if (endpointType === 'input') {
-    return {
-      kind: 'input',
-      reference,
-      inputName: anchorSegment.name,
-      segments,
-      loopSelectors,
-      constantSelectors,
-      arraySelectors,
-    };
-  }
-
-  if (endpointType === 'output') {
-    return {
-      kind: 'output',
-      reference,
-      outputName: anchorSegment.name,
-      segments,
-      loopSelectors,
-      constantSelectors,
-      arraySelectors,
-    };
-  }
-
-  const producerName = normalizeProducerName(anchorSegment.name);
-  const linkedName = segments[1]?.name;
-
-  return {
-    kind: 'producer',
-    reference,
-    producerName,
-    inputName: role === 'target' ? linkedName : undefined,
-    outputName: role === 'source' ? linkedName : undefined,
-    segments,
-    loopSelectors,
-    constantSelectors,
-    arraySelectors,
-  };
-}
-
-function stripEndpointPrefix(
-  reference: string,
-  endpointType: Exclude<BindingEndpointType, 'unknown'>
-): string {
-  if (endpointType === 'input' && reference.startsWith('Input.')) {
-    return reference.slice('Input.'.length);
-  }
-  if (endpointType === 'output' && reference.startsWith('Output.')) {
-    return reference.slice('Output.'.length);
-  }
-  return reference;
 }
 
 function parseBindingSelector(

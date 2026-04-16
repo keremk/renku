@@ -12,22 +12,51 @@ import {
 } from './graph-converter.js';
 import type { BlueprintTreeNode } from '@gorenku/core';
 
-function makeTreeNode(document: Record<string, unknown>): BlueprintTreeNode {
+function makeTreeNode(
+  document: Record<string, unknown>,
+  namespacePath: string[] = []
+): BlueprintTreeNode {
   const meta = document.meta as { id: string };
   const normalizedDocument = {
     inputs: [],
     outputs: [],
+    producers: [],
     imports: [],
     edges: [],
+    loops: [],
     ...document,
   };
   return {
     id: String(meta.id),
-    namespacePath: [],
+    namespacePath,
     document: normalizedDocument,
     children: new Map(),
     sourcePath: '/tmp/test-blueprint.yaml',
   } as unknown as BlueprintTreeNode;
+}
+
+function makeProducerTreeNode(args: {
+  name: string;
+  inputs?: Array<{ name: string; type: string; required?: boolean }>;
+  outputs?: Array<{ name: string; type: string; itemType?: string }>;
+  producerType?: string;
+  namespacePath?: string[];
+}): BlueprintTreeNode {
+  const namespacePath = args.namespacePath ?? [args.name];
+  return makeTreeNode(
+    {
+      meta: { id: `${args.name}-id`, name: args.name, kind: 'producer' },
+      inputs: args.inputs ?? [],
+      outputs: args.outputs ?? [],
+      producers: [
+        {
+          name: args.name,
+          producer: args.producerType ?? 'test/producer',
+        },
+      ],
+    },
+    namespacePath
+  );
 }
 
 describe('normalizeProducerName', () => {
@@ -234,6 +263,7 @@ describe('collectNodesAndEdges', () => {
     const node = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [{ name: 'Title', type: 'string', required: true }],
+      producers: [],
       imports: [
         { name: 'AudioGen', producer: 'asset/text-to-audio' },
         { name: 'VideoGen', producer: 'asset/text-to-video' },
@@ -245,6 +275,26 @@ describe('collectNodesAndEdges', () => {
         { from: 'VideoGen.Output', to: 'FinalVideo' },
       ],
     });
+    node.children.set(
+      'AudioGen',
+      makeProducerTreeNode({
+        name: 'AudioGen',
+        namespacePath: ['AudioGen'],
+        inputs: [{ name: 'Input', type: 'string', required: true }],
+        outputs: [{ name: 'Output', type: 'audio' }],
+        producerType: 'asset/text-to-audio',
+      })
+    );
+    node.children.set(
+      'VideoGen',
+      makeProducerTreeNode({
+        name: 'VideoGen',
+        namespacePath: ['VideoGen'],
+        inputs: [{ name: 'Input', type: 'string', required: true }],
+        outputs: [{ name: 'Output', type: 'video' }],
+        producerType: 'asset/text-to-video',
+      })
+    );
 
     const nodes: import('../types.js').BlueprintGraphNode[] = [];
     const edges: import('../types.js').BlueprintGraphEdge[] = [];
@@ -255,41 +305,51 @@ describe('collectNodesAndEdges', () => {
     const audioNode = nodes.find((n) => n.id === 'Producer:AudioGen');
     const videoNode = nodes.find((n) => n.id === 'Producer:VideoGen');
 
-    expect(audioNode?.inputBindings).toEqual([
-      expect.objectContaining({
-        from: 'Title',
-        to: 'AudioGen.Input',
-        sourceType: 'input',
-        targetType: 'producer',
-      }),
-    ]);
-    expect(audioNode?.outputBindings).toEqual([
-      expect.objectContaining({
-        from: 'AudioGen.Output',
-        to: 'VideoGen.Input',
-        sourceType: 'producer',
-        targetType: 'producer',
-        conditionName: 'HasAudio',
-        isConditional: true,
-      }),
-    ]);
+    expect(audioNode?.inputBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'Input.Title',
+          to: 'AudioGen.Input',
+          sourceType: 'input',
+          targetType: 'producer',
+        }),
+      ])
+    );
+    expect(audioNode?.outputBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'AudioGen.Output',
+          to: 'VideoGen.Input',
+          sourceType: 'producer',
+          targetType: 'producer',
+          isConditional: true,
+          conditionName: 'HasAudio',
+        }),
+      ])
+    );
 
-    expect(videoNode?.inputBindings).toEqual([
-      expect.objectContaining({
-        from: 'AudioGen.Output',
-        to: 'VideoGen.Input',
-        sourceType: 'producer',
-        targetType: 'producer',
-      }),
-    ]);
-    expect(videoNode?.outputBindings).toEqual([
-      expect.objectContaining({
-        from: 'VideoGen.Output',
-        to: 'FinalVideo',
-        sourceType: 'producer',
-        targetType: 'output',
-      }),
-    ]);
+    expect(videoNode?.inputBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'AudioGen.Output',
+          to: 'VideoGen.Input',
+          sourceType: 'producer',
+          targetType: 'producer',
+          isConditional: true,
+          conditionName: 'HasAudio',
+        }),
+      ])
+    );
+    expect(videoNode?.outputBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'VideoGen.Output',
+          to: 'Output.FinalVideo',
+          sourceType: 'producer',
+          targetType: 'output',
+        }),
+      ])
+    );
   });
 
   it('resolves nested loop producer references and wires ImageProducer bindings', () => {
@@ -331,6 +391,39 @@ describe('collectNodesAndEdges', () => {
         },
       ],
     });
+    node.children.set(
+      'ImagePromptProducer',
+      makeProducerTreeNode({
+        name: 'ImagePromptProducer',
+        namespacePath: ['ImagePromptProducer'],
+        outputs: [{ name: 'ImagePrompt', type: 'string' }],
+        producerType: 'prompt/image',
+      })
+    );
+    node.children.set(
+      'ImageProducer',
+      makeProducerTreeNode({
+        name: 'ImageProducer',
+        namespacePath: ['ImageProducer'],
+        inputs: [
+          { name: 'Prompt', type: 'string' },
+          { name: 'Resolution', type: 'string' },
+          { name: 'AspectRatio', type: 'string' },
+        ],
+        outputs: [{ name: 'GeneratedImage', type: 'image' }],
+        producerType: 'asset/text-to-image',
+      })
+    );
+    node.children.set(
+      'TimelineComposer',
+      makeProducerTreeNode({
+        name: 'TimelineComposer',
+        namespacePath: ['TimelineComposer'],
+        inputs: [{ name: 'ImageSegments', type: 'image' }],
+        outputs: [{ name: 'Timeline', type: 'json' }],
+        producerType: 'composition/timeline-composer',
+      })
+    );
 
     const nodes: import('../types.js').BlueprintGraphNode[] = [];
     const edges: import('../types.js').BlueprintGraphEdge[] = [];
@@ -340,41 +433,52 @@ describe('collectNodesAndEdges', () => {
 
     const imageNode = nodes.find((n) => n.id === 'Producer:ImageProducer');
 
-    expect(imageNode?.inputBindings).toEqual([
-      expect.objectContaining({
-        from: 'ImagePromptProducer.ImagePrompt[segment][image]',
-        to: 'ImageProducer[segment][image].Prompt',
-        sourceType: 'producer',
-        targetType: 'producer',
-      }),
-      expect.objectContaining({
-        from: 'Size',
-        to: 'ImageProducer[segment][image].Resolution',
-        sourceType: 'input',
-        targetType: 'producer',
-      }),
-      expect.objectContaining({
-        from: 'AspectRatio',
-        to: 'ImageProducer[segment][image].AspectRatio',
-        sourceType: 'input',
-        targetType: 'producer',
-      }),
-    ]);
+    expect(imageNode?.inputBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'ImagePromptProducer.ImagePrompt',
+          to: 'ImageProducer.Prompt',
+          sourceType: 'producer',
+          targetType: 'producer',
+          targetEndpoint: expect.objectContaining({
+            producerId: 'Producer:ImageProducer',
+            selectorPath: [
+              expect.objectContaining({ kind: 'loop', symbol: 'segment' }),
+              expect.objectContaining({ kind: 'loop', symbol: 'image' }),
+            ],
+          }),
+        }),
+        expect.objectContaining({
+          from: 'Input.Size',
+          to: 'ImageProducer.Resolution',
+          sourceType: 'input',
+          targetType: 'producer',
+        }),
+        expect.objectContaining({
+          from: 'Input.AspectRatio',
+          to: 'ImageProducer.AspectRatio',
+          sourceType: 'input',
+          targetType: 'producer',
+        }),
+      ])
+    );
 
-    expect(imageNode?.outputBindings).toEqual([
-      expect.objectContaining({
-        from: 'ImageProducer[segment][image].GeneratedImage',
-        to: 'SegmentImage[segment][image]',
-        sourceType: 'producer',
-        targetType: 'output',
-      }),
-      expect.objectContaining({
-        from: 'ImageProducer[segment][image].GeneratedImage',
-        to: 'TimelineComposer.ImageSegments',
-        sourceType: 'producer',
-        targetType: 'producer',
-      }),
-    ]);
+    expect(imageNode?.outputBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'ImageProducer.GeneratedImage',
+          to: 'Output.SegmentImage',
+          sourceType: 'producer',
+          targetType: 'output',
+        }),
+        expect.objectContaining({
+          from: 'ImageProducer.GeneratedImage',
+          to: 'TimelineComposer.ImageSegments',
+          sourceType: 'producer',
+          targetType: 'producer',
+        }),
+      ])
+    );
 
     expect(edges).toEqual(
       expect.arrayContaining([
@@ -402,6 +506,7 @@ describe('collectNodesAndEdges', () => {
     const node = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [{ name: 'Title', type: 'string', required: true }],
+      producers: [],
       imports: [{ name: 'AudioGen', producer: 'asset/text-to-audio' }],
       outputs: [{ name: 'FinalAudio', type: 'audio' }],
       edges: [
@@ -409,13 +514,23 @@ describe('collectNodesAndEdges', () => {
         { from: 'UnknownThing', to: 'AudioGen.Input' },
       ],
     });
+    node.children.set(
+      'AudioGen',
+      makeProducerTreeNode({
+        name: 'AudioGen',
+        namespacePath: ['AudioGen'],
+        inputs: [{ name: 'Input', type: 'string', required: true }],
+        outputs: [{ name: 'Output', type: 'audio' }],
+        producerType: 'asset/text-to-audio',
+      })
+    );
 
     const nodes: import('../types.js').BlueprintGraphNode[] = [];
     const edges: import('../types.js').BlueprintGraphEdge[] = [];
     const conditions: import('../types.js').ConditionDef[] = [];
 
     expect(() => collectNodesAndEdges(node, nodes, edges, conditions)).toThrow(
-      'Unable to resolve edge source endpoint: UnknownThing'
+      'Canonical graph edge references missing node(s): Output:UnknownThing -> InputSource:AudioGen.Input.'
     );
   });
 });
@@ -425,6 +540,7 @@ describe('convertTreeToGraph', () => {
     const root = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [],
+      producers: [],
       imports: [{ name: 'AudioGen', producer: 'asset/text-to-audio' }],
       outputs: [{ name: 'FinalAudio', type: 'audio' }],
       edges: [
@@ -432,6 +548,16 @@ describe('convertTreeToGraph', () => {
         { from: 'AudioGen.Output', to: 'FinalAudio' },
       ],
     });
+    root.children.set(
+      'AudioGen',
+      makeProducerTreeNode({
+        name: 'AudioGen',
+        namespacePath: ['AudioGen'],
+        inputs: [{ name: 'Duration', type: 'number', required: true }],
+        outputs: [{ name: 'Output', type: 'audio' }],
+        producerType: 'asset/text-to-audio',
+      })
+    );
 
     const graph = convertTreeToGraph(root);
 
@@ -457,6 +583,7 @@ describe('convertTreeToGraph', () => {
     const root = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [],
+      producers: [],
       imports: [{ name: 'VideoGen', producer: 'asset/text-to-video' }],
       outputs: [{ name: 'FinalVideo', type: 'video' }],
       edges: [
@@ -464,6 +591,16 @@ describe('convertTreeToGraph', () => {
         { from: 'VideoGen.Output', to: 'FinalVideo' },
       ],
     });
+    root.children.set(
+      'VideoGen',
+      makeProducerTreeNode({
+        name: 'VideoGen',
+        namespacePath: ['VideoGen'],
+        inputs: [{ name: 'Duration', type: 'number', required: true }],
+        outputs: [{ name: 'Output', type: 'video' }],
+        producerType: 'asset/text-to-video',
+      })
+    );
 
     const graph = convertTreeToGraph(root);
     const segmentDuration = graph.inputs.find(
@@ -474,7 +611,7 @@ describe('convertTreeToGraph', () => {
     expect(segmentDuration?.system).toEqual({
       kind: 'derived',
       userSupplied: false,
-      source: 'synthetic',
+      source: 'declared',
     });
   });
 
@@ -482,6 +619,7 @@ describe('convertTreeToGraph', () => {
     const root = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      producers: [],
       imports: [
         { name: 'ImageGen', producer: 'asset/text-to-image', loop: 'scene' },
       ],
@@ -499,6 +637,16 @@ describe('convertTreeToGraph', () => {
         { from: 'ImageGen[scene].Output', to: 'SceneImages[scene]' },
       ],
     });
+    root.children.set(
+      'ImageGen',
+      makeProducerTreeNode({
+        name: 'ImageGen',
+        namespacePath: ['ImageGen'],
+        inputs: [{ name: 'Prompt', type: 'string', required: true }],
+        outputs: [{ name: 'Output', type: 'image' }],
+        producerType: 'asset/text-to-image',
+      })
+    );
 
     const graph = convertTreeToGraph(root);
     const numOfSegments = graph.inputs.find(
@@ -509,7 +657,7 @@ describe('convertTreeToGraph', () => {
     expect(numOfSegments?.system).toEqual({
       kind: 'user',
       userSupplied: true,
-      source: 'synthetic',
+      source: 'declared',
     });
   });
 });

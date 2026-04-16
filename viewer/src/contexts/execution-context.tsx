@@ -482,13 +482,14 @@ function executionReducer(
 // Helper Functions
 // =============================================================================
 
-/**
- * Extract producer name from artifact ID.
- * Artifact ID format: "Artifact:ProducerName.OutputName[index]"
- */
-function extractProducerFromArtifactId(artifactId: string): string | null {
-  const match = artifactId.match(/^Artifact:([^.]+)\./);
-  return match ? match[1] : null;
+function resolveProducerNodeId(artifact: ArtifactInfo): string | null {
+  if (artifact.producerNodeId) {
+    return artifact.producerNodeId;
+  }
+  if (artifact.producedBy?.startsWith('Producer:')) {
+    return artifact.producedBy;
+  }
+  return null;
 }
 
 function toProducerNodeId(producerName: string): string {
@@ -531,11 +532,10 @@ function mapArtifactsToProducerStatuses(
   };
 
   for (const artifact of artifacts) {
-    const producer = extractProducerFromArtifactId(artifact.id);
-    if (!producer) continue;
+    const producerNodeId = resolveProducerNodeId(artifact);
+    if (!producerNodeId) continue;
 
     const newStatus = mapArtifactStatusToProducerStatus(artifact.status);
-    const producerNodeId = toProducerNodeId(producer);
     const existingStatus = statuses[producerNodeId];
 
     // Keep the "worst" status (lower priority number)

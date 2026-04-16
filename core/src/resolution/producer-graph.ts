@@ -1,5 +1,10 @@
 import type { CanonicalBlueprint } from './canonical-expander.js';
-import { formatProducerScopedInputIdForCanonicalProducerId, isCanonicalArtifactId, isCanonicalInputId } from '../parsing/canonical-ids.js';
+import {
+  formatCanonicalProducerId,
+  formatProducerScopedInputIdForCanonicalProducerId,
+  isCanonicalArtifactId,
+  isCanonicalInputId,
+} from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { deriveProducerFamilyId } from '../orchestration/producer-overrides.js';
 import type {
@@ -172,6 +177,7 @@ export function createProducerGraph(
       namespacePath: node.namespacePath,
       indices: node.indices,
       producerAlias: producerAlias,
+      producerId: formatCanonicalProducerId(node.namespacePath, node.name),
       inputs: allInputs,
       produces: producedArtifacts,
       inputBindings: inputBindings && Object.keys(inputBindings).length > 0 ? inputBindings : undefined,

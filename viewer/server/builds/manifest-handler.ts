@@ -38,6 +38,8 @@ function stripCanonicalArtifactPrefix(artifactId: string): string {
  */
 interface ArtifactEvent {
   artifactId: string;
+  producedBy?: string;
+  producerId?: string;
   output: {
     blob?: {
       hash: string;
@@ -141,6 +143,12 @@ async function readLatestArtifactEvents(
   return latest;
 }
 
+function resolveProducerNodeId(args: {
+  producerId?: string;
+}): string | undefined {
+  return args.producerId;
+}
+
 /**
  * Gets the manifest data for a specific build.
  */
@@ -178,6 +186,8 @@ export async function getBuildManifest(
         {
           hash?: string;
           blob?: { hash: string; size: number; mimeType?: string };
+          producedBy?: string;
+          producerId?: string;
           status?: string;
           createdAt?: string;
         }
@@ -222,7 +232,8 @@ export async function getBuildManifest(
 
     // Extract model selections from inputs
     const { modelSelections } = extractModelSelectionsFromInputs(parsedInputs);
-    const canonicalModelSelections = blueprintPath
+    const canonicalModelSelections =
+      blueprintPath && modelSelections.length > 0
       ? await canonicalizeManifestModelSelections(
           blueprintPath,
           catalogRoot,
@@ -259,9 +270,16 @@ export async function getBuildManifest(
           ? (latestEvent.output.blob!.mimeType ?? 'application/octet-stream')
           : (entry.blob.mimeType ?? 'application/octet-stream');
 
+        const producedBy = latestEvent?.producedBy ?? entry.producedBy;
+        const producerId = latestEvent?.producerId ?? entry.producerId;
+        const producerNodeId = resolveProducerNodeId({
+          producerId,
+        });
         parsedArtifacts.push({
           id: key,
           name: cleanName,
+          producedBy,
+          ...(producerNodeId ? { producerNodeId } : {}),
           hash: currentHash,
           size: currentSize,
           mimeType: currentMimeType,
@@ -292,9 +310,14 @@ export async function getBuildManifest(
         continue;
       }
 
+      const producerNodeId = resolveProducerNodeId({
+        producerId: event.producerId,
+      });
       parsedArtifacts.push({
         id: artifactId,
         name: cleanName,
+        producedBy: event.producedBy,
+        ...(producerNodeId ? { producerNodeId } : {}),
         hash: event.output?.blob?.hash ?? '',
         size: event.output?.blob?.size ?? 0,
         mimeType: event.output?.blob?.mimeType ?? 'application/octet-stream',

@@ -21,8 +21,6 @@ import type {
   EdgeConditionDefinition,
   EdgeConditionGroup,
   InputMappings,
-  JsonSchemaDefinition,
-  JsonSchemaProperty,
   MappingCondition,
   MappingFieldDefinition,
   MappingValue,
@@ -38,7 +36,6 @@ import {
   isCanonicalInputId,
 } from '../canonical-ids.js';
 import { parseDimensionSelector } from '../dimension-selectors.js';
-import { deriveDimensionName } from '../../resolution/schema-decomposition.js';
 
 export interface BlueprintResourceReader {
   // eslint-disable-next-line no-unused-vars
@@ -174,7 +171,7 @@ export async function parseYamlBlueprintFile(
       { filePath }
     );
   }
-  let edges = Array.isArray(raw.connections)
+  const edges = Array.isArray(raw.connections)
     ? raw.connections.map((entry) =>
         parseEdge(entry, loopSymbols, conditionDefs)
       )

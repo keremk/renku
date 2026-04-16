@@ -3,6 +3,8 @@ import type {
   BlueprintGraphData,
   ProducerBindingEndpoint,
 } from '@/types/blueprint-graph';
+import type { ArtifactInfo } from '@/types/builds';
+import { resolveArtifactProducerNodeId } from './artifact-utils';
 
 interface IndexLookup {
   ordered: number[];
@@ -19,36 +21,38 @@ export type AudioInputBindingSource =
   | { kind: 'artifact'; artifactId: string };
 
 export function resolveAudioInputBindingSource(args: {
-  audioArtifactId: string;
+  audioArtifact: ArtifactInfo;
   inputName: string;
   graphData?: BlueprintGraphData;
 }): AudioInputBindingSource | null {
-  const { audioArtifactId, inputName, graphData } = args;
+  const { audioArtifact, inputName, graphData } = args;
   if (!graphData) {
     return null;
   }
 
-  const parsedAudio = parseArtifactId(audioArtifactId);
-  if (!parsedAudio) {
+  const producerNodeId = resolveArtifactProducerNodeId(audioArtifact);
+  if (!producerNodeId) {
+    return null;
+  }
+
+  const audioOutputPath = parseArtifactOutputPath(audioArtifact.id);
+  if (!audioOutputPath) {
     return null;
   }
 
   const producerNode = graphData.nodes.find(
-    (node) =>
-      node.type === 'producer' &&
-      (node.id === `Producer:${parsedAudio.producer}` ||
-        node.label === parsedAudio.producer)
+    (node) => node.type === 'producer' && node.id === producerNodeId
   );
   if (!producerNode?.inputBindings) {
     return null;
   }
 
-  const audioIndices = parseIndices(parsedAudio.outputPath);
+  const audioIndices = parseIndices(audioOutputPath);
   const candidateBindings = producerNode.inputBindings.filter((binding) => {
     const targetEndpoint = binding.targetEndpoint;
     return (
       targetEndpoint?.kind === 'producer' &&
-      targetEndpoint.producerName === parsedAudio.producer &&
+      targetEndpoint.producerId === producerNodeId &&
       targetEndpoint.inputName === inputName
     );
   });
@@ -91,18 +95,12 @@ export function resolveAudioInputBindingSource(args: {
   return null;
 }
 
-function parseArtifactId(
-  artifactId: string
-): { producer: string; outputPath: string } | null {
-  const match = /^Artifact:([^.]+)\.(.+)$/.exec(artifactId);
+function parseArtifactOutputPath(artifactId: string): string | null {
+  const match = /^Artifact:[^.]+\.(.+)$/.exec(artifactId);
   if (!match) {
     return null;
   }
-
-  return {
-    producer: match[1],
-    outputPath: match[2],
-  };
+  return match[1];
 }
 
 function parseIndices(path: string): IndexLookup {

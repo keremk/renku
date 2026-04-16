@@ -31,13 +31,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
-  extractProducerFromArtifactId,
   shortenArtifactDisplayName,
   groupArtifactsByProducer,
   sortProducersByTopology,
   classifyAndGroupArtifacts,
   getArtifactLabel,
   getBlobUrl,
+  resolveArtifactProducerNodeId,
   type ArtifactSubGroup,
 } from '@/lib/artifact-utils';
 import { resolveAudioInputBindingSource } from '@/lib/audio-input-binding-resolver';
@@ -241,7 +241,7 @@ function ArtifactGallery({
     const graphProducerNames =
       graphData?.nodes
         .filter((node) => node.type === 'producer')
-        .map((node) => node.label) ?? [];
+        .map((node) => node.id) ?? [];
     const producerNames = Array.from(
       new Set([...graphProducerNames, ...Array.from(grouped.keys())])
     );
@@ -250,9 +250,7 @@ function ArtifactGallery({
   }, [artifacts, graphData]);
 
   const selectedProducerFromNode =
-    selectedNodeId?.startsWith('Producer:') === true
-      ? selectedNodeId.replace('Producer:', '')
-      : null;
+    selectedNodeId?.startsWith('Producer:') === true ? selectedNodeId : null;
 
   const producerSections = useMemo(
     () =>
@@ -330,24 +328,42 @@ function ArtifactGallery({
     AvailableModelOption[]
   >([]);
 
+  const graphProducerNodeById = useMemo(
+    () =>
+      new Map(
+        (graphData?.nodes ?? [])
+          .filter((node) => node.type === 'producer')
+          .map((node) => [node.id, node])
+      ),
+    [graphData]
+  );
+
   const handleOpenProducerFolder = useCallback(
-    async (producerName: string) => {
-      setOpeningProducerName(producerName);
+    async (producerNodeId: string) => {
+      setOpeningProducerName(producerNodeId);
       try {
+        const producerNode = graphProducerNodeById.get(producerNodeId);
+        const producerFolderKey =
+          producerNode?.namespacePath?.join('.') ?? producerNode?.label;
+        if (!producerFolderKey) {
+          throw new Error(
+            `Producer ${producerNodeId} is missing namespace metadata for artifact folder resolution.`
+          );
+        }
         await openArtifactsProducerFolder(
           blueprintFolder,
           movieId,
-          producerName
+          producerFolderKey
         );
       } catch (error) {
         console.error('[outputs-panel] Failed to open producer folder', error);
       } finally {
         setOpeningProducerName((current) =>
-          current === producerName ? null : current
+          current === producerNodeId ? null : current
         );
       }
     },
-    [blueprintFolder, movieId]
+    [blueprintFolder, graphProducerNodeById, movieId]
   );
 
   useEffect(() => {
@@ -1149,23 +1165,19 @@ function resolveAudioMediaTypeForArtifact(args: {
   producerModels?: Record<string, ProducerModelInfo>;
 }): 'audio' | 'music' {
   const { artifact, graphData, producerModels } = args;
-  const artifactProducerAlias = extractProducerFromArtifactId(artifact.id);
+  const producerNodeId = resolveArtifactProducerNodeId(artifact);
 
-  if (!artifactProducerAlias) {
+  if (!producerNodeId) {
     return 'audio';
   }
 
-  const producerTypeFromModels =
-    producerModels?.[artifactProducerAlias]?.producerType;
+  const producerTypeFromModels = producerModels?.[producerNodeId]?.producerType;
   if (producerTypeFromModels === 'audio/text-to-music') {
     return 'music';
   }
 
   const producerTypeFromGraph = graphData?.nodes.find(
-    (node) =>
-      node.type === 'producer' &&
-      (node.id === `Producer:${artifactProducerAlias}` ||
-        node.label === artifactProducerAlias)
+    (node) => node.type === 'producer' && node.id === producerNodeId
   )?.producerType;
 
   if (producerTypeFromGraph === 'audio/text-to-music') {
@@ -1220,7 +1232,7 @@ function MediaArtifactCard({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
   const promptArtifact = resolvePromptArtifactForMedia({
-    mediaArtifactId: artifact.id,
+    mediaArtifact: artifact,
     artifacts,
     graphData,
   });
@@ -1232,13 +1244,13 @@ function MediaArtifactCard({
     : undefined;
   const displayName = getArtifactLabel(artifact.id, subGroup);
   const isEdited = artifact.editedBy === 'user';
-  const artifactProducerAlias = extractProducerFromArtifactId(artifact.id);
-  const availableRerunModels = artifactProducerAlias
-    ? (producerModels?.[artifactProducerAlias]?.availableModels ?? [])
+  const artifactProducerNodeId = resolveArtifactProducerNodeId(artifact);
+  const availableRerunModels = artifactProducerNodeId
+    ? (producerModels?.[artifactProducerNodeId]?.availableModels ?? [])
     : [];
-  const currentModelSelection = artifactProducerAlias
+  const currentModelSelection = artifactProducerNodeId
     ? modelSelections?.find(
-        (selection) => selection.producerId === artifactProducerAlias
+        (selection) => selection.producerId === artifactProducerNodeId
       )
     : undefined;
   const initialModel = currentModelSelection
@@ -1251,7 +1263,7 @@ function MediaArtifactCard({
   const voiceSource =
     mediaType === 'audio'
       ? resolveAudioInputBindingSource({
-          audioArtifactId: artifact.id,
+          audioArtifact: artifact,
           inputName: 'VoiceId',
           graphData,
         })
@@ -1259,7 +1271,7 @@ function MediaArtifactCard({
   const emotionSource =
     mediaType === 'audio'
       ? resolveAudioInputBindingSource({
-          audioArtifactId: artifact.id,
+          audioArtifact: artifact,
           inputName: 'Emotion',
           graphData,
         })

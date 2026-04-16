@@ -70,6 +70,8 @@ export interface BlueprintGraphEdge {
   note?: string;
   groupBy?: string;
   orderBy?: string;
+  /** Original named `if:` condition reference when the edge uses one. */
+  conditionName?: string;
   /** Conditions that must be satisfied for this edge to be active */
   conditions?: EdgeConditionDefinition;
 }
@@ -707,6 +709,7 @@ function collectGraphEdges(
       note: edge.note,
       groupBy: edge.groupBy,
       orderBy: edge.orderBy,
+      conditionName: edge.if,
       conditions: edge.conditions,
     });
   }

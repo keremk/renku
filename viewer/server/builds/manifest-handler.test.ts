@@ -123,6 +123,8 @@ describe('getBuildManifest', () => {
         artifacts: {
           'Artifact:TestProducer.Output': {
             blob: { hash: 'abc123', size: 100, mimeType: 'image/png' },
+            producedBy: 'Producer:TestProducer[0]',
+            producerId: 'Producer:TestProducer',
             status: 'succeeded',
             createdAt: '2024-01-01T00:00:00Z',
           },
@@ -138,6 +140,7 @@ describe('getBuildManifest', () => {
     expect(result.artifacts[0].name).toBe('TestProducer.Output');
     expect(result.artifacts[0].hash).toBe('abc123');
     expect(result.artifacts[0].status).toBe('succeeded');
+    expect(result.artifacts[0].producerNodeId).toBe('Producer:TestProducer');
   });
 
   it('includes event-log-only artifacts not in manifest', async () => {
@@ -597,6 +600,67 @@ describe('getBuildManifest', () => {
     expect(audioArtifact).toBeDefined();
     expect(audioArtifact!.hash).toBe('audioHash456');
     expect(audioArtifact!.mimeType).toBe('audio/mpeg');
+  });
+
+  it('returns in-progress looped event-log artifacts when blueprintPath is set and inputs are missing', async () => {
+    const loopedBlueprintPath = path.join(tempDir, 'looped-blueprint.yaml');
+    await fs.writeFile(
+      loopedBlueprintPath,
+      [
+        'meta:',
+        '  id: looped-blueprint',
+        '  name: Looped Blueprint',
+        'inputs:',
+        '  - name: NumOfSegments',
+        '    type: int',
+        '    required: true',
+        'loops:',
+        '  - name: segment',
+        '    countInput: NumOfSegments',
+        'outputs:',
+        '  - name: SegmentImages',
+        '    type: array',
+        '    itemType: image',
+        '    countInput: NumOfSegments',
+        'connections: []',
+      ].join('\n')
+    );
+
+    await fs.writeFile(
+      path.join(movieDir, 'current.json'),
+      JSON.stringify({ revision: 'rev-001', manifestPath: null })
+    );
+
+    const eventLogEntry = {
+      artifactId: 'Artifact:ImageGen.GeneratedImage[0]',
+      producedBy: 'Producer:ImageGen[0]',
+      producerId: 'Producer:ImageGen',
+      output: {
+        blob: { hash: 'loopedHash123', size: 500, mimeType: 'image/png' },
+      },
+      status: 'succeeded',
+      createdAt: '2024-01-01T12:00:00Z',
+    };
+    await fs.writeFile(
+      path.join(movieDir, 'events', 'artifacts.log'),
+      JSON.stringify(eventLogEntry) + '\n'
+    );
+
+    const result = await getBuildManifest(
+      blueprintFolder,
+      movieId,
+      loopedBlueprintPath
+    );
+
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]).toEqual(
+      expect.objectContaining({
+        id: 'Artifact:ImageGen.GeneratedImage[0]',
+        producedBy: 'Producer:ImageGen[0]',
+        producerNodeId: 'Producer:ImageGen',
+        hash: 'loopedHash123',
+      })
+    );
   });
 
   it('returns event log artifacts when no current.json exists', async () => {

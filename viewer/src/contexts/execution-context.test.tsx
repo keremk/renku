@@ -26,12 +26,17 @@ function createWrapper() {
 function createMockArtifact(
   overrides: Partial<ArtifactInfo> = {}
 ): ArtifactInfo {
+  const artifactId = overrides.id ?? 'Artifact:TestProducer.Output[0]';
+  const producerMatch = /^Artifact:([^.]+)\./.exec(artifactId);
   return {
-    id: 'Artifact:TestProducer.Output[0]',
-    name: 'TestProducer.Output[0]',
+    id: artifactId,
+    name: artifactId.replace(/^Artifact:/, ''),
     hash: 'abc123',
     size: 1024,
     mimeType: 'application/json',
+    ...(producerMatch
+      ? { producerNodeId: `Producer:${producerMatch[1]}` }
+      : {}),
     status: 'succeeded',
     createdAt: '2024-01-01T00:00:00Z',
     ...overrides,

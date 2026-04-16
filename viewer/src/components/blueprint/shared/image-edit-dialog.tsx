@@ -3,6 +3,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   type Dispatch,
   type SetStateAction,
 } from 'react';
@@ -386,6 +387,21 @@ export function ImageEditDialog({
   const { promptText } = useMediaPrompt(promptUrl, open);
   const rerunModels = availableModels;
   const editModels = availableEditModels ?? availableModels;
+  const rerunModelsRef = useRef(rerunModels);
+  const editModelsRef = useRef(editModels);
+  const initialModelRef = useRef(initialModel);
+
+  useEffect(() => {
+    rerunModelsRef.current = rerunModels;
+  }, [rerunModels]);
+
+  useEffect(() => {
+    editModelsRef.current = editModels;
+  }, [editModels]);
+
+  useEffect(() => {
+    initialModelRef.current = initialModel;
+  }, [initialModel]);
 
   useEffect(() => {
     if (!promptText) {
@@ -403,8 +419,14 @@ export function ImageEditDialog({
     setActiveTab('rerun');
     setRerunPrompt('');
     setEditPrompt('');
-    const matchingRerunModelIndex = findModelIndex(rerunModels, initialModel);
-    const matchingEditModelIndex = findModelIndex(editModels, initialModel);
+    const matchingRerunModelIndex = findModelIndex(
+      rerunModelsRef.current,
+      initialModelRef.current
+    );
+    const matchingEditModelIndex = findModelIndex(
+      editModelsRef.current,
+      initialModelRef.current
+    );
     setSelectedRerunModelIndex(
       matchingRerunModelIndex >= 0 ? matchingRerunModelIndex : 0
     );

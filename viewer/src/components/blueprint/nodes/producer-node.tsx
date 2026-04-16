@@ -1,9 +1,11 @@
 import { Handle, Position } from "@xyflow/react";
 import type { ProducerStatus } from "@/types/generation";
 import type { ProducerBinding } from "@/types/blueprint-graph";
+import { formatProducerDisplayName } from "@/lib/panel-utils";
 
 interface ProducerNodeData {
   label: string;
+  compositeName?: string;
   loop?: string;
   producerType?: string;
   description?: string;
@@ -90,8 +92,8 @@ export function ProducerNode({ data, selected }: ProducerNodeProps) {
   return (
     <div
       className={`
-        relative flex flex-col items-center justify-center
-        min-w-[140px] px-4 py-3 rounded-xl
+        relative flex w-[220px] flex-col items-center justify-center
+        px-4 py-4 rounded-xl
         bg-card border-2
         ${styles.border}
         ${styles.bg}
@@ -116,16 +118,21 @@ export function ProducerNode({ data, selected }: ProducerNodeProps) {
         position={Position.Left}
         className="!bg-gray-400 !w-2 !h-2"
       />
-      <span className="text-sm font-semibold text-foreground truncate max-w-[160px]">
+      <span className="text-center text-sm font-semibold text-foreground break-words">
         {nodeData.label}
       </span>
+      {nodeData.compositeName && (
+        <span className="mt-1 text-center text-[11px] uppercase tracking-[0.08em] text-muted-foreground/80 break-words">
+          {formatProducerDisplayName(nodeData.compositeName)}
+        </span>
+      )}
       {nodeData.loop && (
-        <span className="text-xs text-muted-foreground mt-0.5">
+        <span className="text-xs text-muted-foreground mt-1">
           [{nodeData.loop}]
         </span>
       )}
       {nodeData.producerType && (
-        <span className="text-[10px] text-muted-foreground/70 mt-0.5 truncate max-w-[140px]">
+        <span className="mt-1 text-center text-[10px] text-muted-foreground/70 break-words">
           {nodeData.producerType}
         </span>
       )}

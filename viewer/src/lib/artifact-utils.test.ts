@@ -83,7 +83,10 @@ describe('shortenArtifactDisplayName', () => {
 });
 
 describe('groupArtifactsByProducer', () => {
-  const makeArtifact = (id: string): ArtifactInfo => ({
+  const makeArtifact = (
+    id: string,
+    overrides: Partial<ArtifactInfo> = {}
+  ): ArtifactInfo => ({
     id,
     name: 'test',
     hash: 'abc123',
@@ -91,32 +94,41 @@ describe('groupArtifactsByProducer', () => {
     mimeType: 'text/plain',
     status: 'succeeded',
     createdAt: null,
+    ...overrides,
   });
 
-  it('groups artifacts by producer name', () => {
+  it('groups artifacts by canonical producer node ID', () => {
     const artifacts: ArtifactInfo[] = [
-      makeArtifact('Artifact:ProducerA.Output1'),
-      makeArtifact('Artifact:ProducerA.Output2'),
-      makeArtifact('Artifact:ProducerB.Output1'),
+      makeArtifact('Artifact:ProducerA.Output1', {
+        producerNodeId: 'Producer:ProducerA',
+      }),
+      makeArtifact('Artifact:ProducerA.Output2', {
+        producerNodeId: 'Producer:ProducerA',
+      }),
+      makeArtifact('Artifact:ProducerB.Output1', {
+        producerNodeId: 'Producer:ProducerB',
+      }),
     ];
 
     const groups = groupArtifactsByProducer(artifacts);
 
     expect(groups.size).toBe(2);
-    expect(groups.get('ProducerA')?.length).toBe(2);
-    expect(groups.get('ProducerB')?.length).toBe(1);
+    expect(groups.get('Producer:ProducerA')?.length).toBe(2);
+    expect(groups.get('Producer:ProducerB')?.length).toBe(1);
   });
 
-  it('groups unrecognized artifacts under [Unknown]', () => {
+  it('groups canonical producedBy artifacts without guessing', () => {
     const artifacts: ArtifactInfo[] = [
-      makeArtifact('Artifact:ValidProducer.Output'),
+      makeArtifact('Artifact:ValidProducer.Output', {
+        producedBy: 'Producer:ValidProducer',
+      }),
       makeArtifact('InvalidFormat'),
     ];
 
     const groups = groupArtifactsByProducer(artifacts);
 
     expect(groups.size).toBe(2);
-    expect(groups.get('ValidProducer')?.length).toBe(1);
+    expect(groups.get('Producer:ValidProducer')?.length).toBe(1);
     expect(groups.get('[Unknown]')?.length).toBe(1);
   });
 
@@ -127,12 +139,12 @@ describe('groupArtifactsByProducer', () => {
 });
 
 describe('sortProducersByTopology', () => {
-  const makeGraphData = (nodeLabels: string[]): BlueprintGraphData => ({
+  const makeGraphData = (producerNodeIds: string[]): BlueprintGraphData => ({
     meta: { id: 'test', name: 'Test' },
-    nodes: nodeLabels.map((label, index) => ({
-      id: `node-${index}`,
+    nodes: producerNodeIds.map((producerNodeId, index) => ({
+      id: producerNodeId,
       type: 'producer' as const,
-      label,
+      label: `Producer ${index + 1}`,
     })),
     edges: [],
     inputs: [],
@@ -140,33 +152,64 @@ describe('sortProducersByTopology', () => {
   });
 
   it('sorts producers by graph node order', () => {
-    const graphData = makeGraphData(['ProducerA', 'ProducerB', 'ProducerC']);
-    const producers = ['ProducerC', 'ProducerA', 'ProducerB'];
+    const graphData = makeGraphData([
+      'Producer:ProducerA',
+      'Producer:ProducerB',
+      'Producer:ProducerC',
+    ]);
+    const producers = [
+      'Producer:ProducerC',
+      'Producer:ProducerA',
+      'Producer:ProducerB',
+    ];
 
     const sorted = sortProducersByTopology(producers, graphData);
 
-    expect(sorted).toEqual(['ProducerA', 'ProducerB', 'ProducerC']);
+    expect(sorted).toEqual([
+      'Producer:ProducerA',
+      'Producer:ProducerB',
+      'Producer:ProducerC',
+    ]);
   });
 
   it('puts unknown producers at the end', () => {
-    const graphData = makeGraphData(['ProducerA', 'ProducerB']);
-    const producers = ['UnknownProducer', 'ProducerB', 'ProducerA'];
+    const graphData = makeGraphData([
+      'Producer:ProducerA',
+      'Producer:ProducerB',
+    ]);
+    const producers = [
+      'Producer:UnknownProducer',
+      'Producer:ProducerB',
+      'Producer:ProducerA',
+    ];
 
     const sorted = sortProducersByTopology(producers, graphData);
 
-    expect(sorted).toEqual(['ProducerA', 'ProducerB', 'UnknownProducer']);
+    expect(sorted).toEqual([
+      'Producer:ProducerA',
+      'Producer:ProducerB',
+      'Producer:UnknownProducer',
+    ]);
   });
 
   it('returns original order when no graph data', () => {
-    const producers = ['ProducerC', 'ProducerA', 'ProducerB'];
+    const producers = [
+      'Producer:ProducerC',
+      'Producer:ProducerA',
+      'Producer:ProducerB',
+    ];
 
     const sorted = sortProducersByTopology(producers, undefined);
 
-    expect(sorted).toEqual(['ProducerC', 'ProducerA', 'ProducerB']);
+    expect(sorted).toEqual([
+      'Producer:ProducerC',
+      'Producer:ProducerA',
+      'Producer:ProducerB',
+    ]);
   });
 
   it('handles empty producer list', () => {
-    const graphData = makeGraphData(['ProducerA']);
+    const graphData = makeGraphData(['Producer:ProducerA']);
     const sorted = sortProducersByTopology([], graphData);
     expect(sorted).toEqual([]);
   });

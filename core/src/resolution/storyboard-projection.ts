@@ -2,7 +2,6 @@ import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { evaluateCondition } from '../condition-evaluator.js';
 import {
   formatCanonicalProducerId,
-  isCanonicalArtifactId,
   parseCanonicalArtifactId,
 } from '../parsing/canonical-ids.js';
 import type { BlueprintOutputDefinition, BlueprintTreeNode } from '../types.js';

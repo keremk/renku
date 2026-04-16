@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   analyzeConditions,
   conditionAnalysisToVaryingHints,
-  type ConditionFieldInfo,
 } from './condition-analyzer.js';
 import type { BlueprintDocument } from '../types.js';
 

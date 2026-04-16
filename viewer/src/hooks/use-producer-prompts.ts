@@ -144,7 +144,7 @@ export function useProducerPrompts(
         },
       }));
     },
-    [blueprintFolder, blueprintPath, movieId]
+    [blueprintFolder, blueprintPath, movieId, catalogRoot]
   );
 
   // Restore prompt to template version

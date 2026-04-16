@@ -8,13 +8,18 @@ import type {
   ProducerBindingEndpoint,
 } from '@/types/blueprint-graph';
 
-function makeArtifact(id: string, mimeType = 'text/plain'): ArtifactInfo {
+function makeArtifact(
+  id: string,
+  mimeType = 'text/plain',
+  producerNodeId?: string
+): ArtifactInfo {
   return {
     id,
     name: id.replace(/^Artifact:/, ''),
     hash: `${id}-hash`,
     size: 128,
     mimeType,
+    producerNodeId,
     status: 'succeeded',
     createdAt: '2026-01-01T00:00:00.000Z',
   };
@@ -77,11 +82,14 @@ function createProducerEndpoint(
 
   return {
     kind: 'producer',
+    nodeId: `${role}:${reference}`,
     reference,
+    producerId: `Producer:${anchor.name}`,
     producerName: anchor.name,
     inputName: role === 'target' ? segments[1]?.name : undefined,
     outputName: role === 'source' ? segments[1]?.name : undefined,
     segments,
+    selectorPath: segments.flatMap((segment) => segment.selectors),
     loopSelectors,
     constantSelectors,
     arraySelectors,
@@ -125,10 +133,15 @@ function parseSelector(raw: string): BindingSelector {
 describe('resolvePromptArtifactForMedia', () => {
   it('resolves prompt artifact with named dimensions', () => {
     const artifacts = [
-      makeArtifact('Artifact:PromptProducer.ImagePrompt[segment=1][image=0]'),
+      makeArtifact(
+        'Artifact:PromptProducer.ImagePrompt[segment=1][image=0]',
+        'text/plain',
+        'Producer:PromptProducer'
+      ),
       makeArtifact(
         'Artifact:MediaProducer.GeneratedImage[segment=1][image=0]',
-        'image/png'
+        'image/png',
+        'Producer:MediaProducer'
       ),
     ];
 
@@ -140,8 +153,7 @@ describe('resolvePromptArtifactForMedia', () => {
     ]);
 
     const resolved = resolvePromptArtifactForMedia({
-      mediaArtifactId:
-        'Artifact:MediaProducer.GeneratedImage[segment=1][image=0]',
+      mediaArtifact: artifacts[1]!,
       artifacts,
       graphData,
     });
@@ -153,8 +165,16 @@ describe('resolvePromptArtifactForMedia', () => {
 
   it('resolves prompt artifact with positional dimensions', () => {
     const artifacts = [
-      makeArtifact('Artifact:PromptProducer.VideoPrompt[2][1]'),
-      makeArtifact('Artifact:MediaProducer.GeneratedVideo[2][1]', 'video/mp4'),
+      makeArtifact(
+        'Artifact:PromptProducer.VideoPrompt[2][1]',
+        'text/plain',
+        'Producer:PromptProducer'
+      ),
+      makeArtifact(
+        'Artifact:MediaProducer.GeneratedVideo[2][1]',
+        'video/mp4',
+        'Producer:MediaProducer'
+      ),
     ];
 
     const graphData = makeGraph([
@@ -165,7 +185,7 @@ describe('resolvePromptArtifactForMedia', () => {
     ]);
 
     const resolved = resolvePromptArtifactForMedia({
-      mediaArtifactId: 'Artifact:MediaProducer.GeneratedVideo[2][1]',
+      mediaArtifact: artifacts[1]!,
       artifacts,
       graphData,
     });
@@ -175,9 +195,21 @@ describe('resolvePromptArtifactForMedia', () => {
 
   it('prefers prompt-like bindings when multiple text inputs exist', () => {
     const artifacts = [
-      makeArtifact('Artifact:StoryProducer.SceneData[0]'),
-      makeArtifact('Artifact:StoryProducer.VideoPrompt[0]'),
-      makeArtifact('Artifact:MediaProducer.GeneratedVideo[0]', 'video/mp4'),
+      makeArtifact(
+        'Artifact:StoryProducer.SceneData[0]',
+        'text/plain',
+        'Producer:StoryProducer'
+      ),
+      makeArtifact(
+        'Artifact:StoryProducer.VideoPrompt[0]',
+        'text/plain',
+        'Producer:StoryProducer'
+      ),
+      makeArtifact(
+        'Artifact:MediaProducer.GeneratedVideo[0]',
+        'video/mp4',
+        'Producer:MediaProducer'
+      ),
     ];
 
     const graphData = makeGraph([
@@ -192,7 +224,7 @@ describe('resolvePromptArtifactForMedia', () => {
     ]);
 
     const resolved = resolvePromptArtifactForMedia({
-      mediaArtifactId: 'Artifact:MediaProducer.GeneratedVideo[0]',
+      mediaArtifact: artifacts[2]!,
       artifacts,
       graphData,
     });
@@ -202,7 +234,11 @@ describe('resolvePromptArtifactForMedia', () => {
 
   it('returns null when no matching upstream prompt artifact exists', () => {
     const artifacts = [
-      makeArtifact('Artifact:MediaProducer.GeneratedAudio[0]', 'audio/mpeg'),
+      makeArtifact(
+        'Artifact:MediaProducer.GeneratedAudio[0]',
+        'audio/mpeg',
+        'Producer:MediaProducer'
+      ),
     ];
 
     const graphData = makeGraph([
@@ -213,7 +249,7 @@ describe('resolvePromptArtifactForMedia', () => {
     ]);
 
     const resolved = resolvePromptArtifactForMedia({
-      mediaArtifactId: 'Artifact:MediaProducer.GeneratedAudio[0]',
+      mediaArtifact: artifacts[0]!,
       artifacts,
       graphData,
     });
@@ -223,8 +259,16 @@ describe('resolvePromptArtifactForMedia', () => {
 
   it('maps positional tokens after fixed dimensions in target binding', () => {
     const artifacts = [
-      makeArtifact('Artifact:PromptProducer.VideoPrompt[3]'),
-      makeArtifact('Artifact:MediaProducer.GeneratedVideo[0][3]', 'video/mp4'),
+      makeArtifact(
+        'Artifact:PromptProducer.VideoPrompt[3]',
+        'text/plain',
+        'Producer:PromptProducer'
+      ),
+      makeArtifact(
+        'Artifact:MediaProducer.GeneratedVideo[0][3]',
+        'video/mp4',
+        'Producer:MediaProducer'
+      ),
     ];
 
     const graphData = makeGraph([
@@ -235,7 +279,7 @@ describe('resolvePromptArtifactForMedia', () => {
     ]);
 
     const resolved = resolvePromptArtifactForMedia({
-      mediaArtifactId: 'Artifact:MediaProducer.GeneratedVideo[0][3]',
+      mediaArtifact: artifacts[1]!,
       artifacts,
       graphData,
     });
@@ -245,8 +289,16 @@ describe('resolvePromptArtifactForMedia', () => {
 
   it('does not double-apply selector offsets while resolving source artifact ids', () => {
     const artifacts = [
-      makeArtifact('Artifact:PromptProducer.ImagePrompt[4]'),
-      makeArtifact('Artifact:MediaProducer.GeneratedImage[3]', 'image/png'),
+      makeArtifact(
+        'Artifact:PromptProducer.ImagePrompt[4]',
+        'text/plain',
+        'Producer:PromptProducer'
+      ),
+      makeArtifact(
+        'Artifact:MediaProducer.GeneratedImage[3]',
+        'image/png',
+        'Producer:MediaProducer'
+      ),
     ];
 
     const graphData = makeGraph([
@@ -257,7 +309,7 @@ describe('resolvePromptArtifactForMedia', () => {
     ]);
 
     const resolved = resolvePromptArtifactForMedia({
-      mediaArtifactId: 'Artifact:MediaProducer.GeneratedImage[3]',
+      mediaArtifact: artifacts[1]!,
       artifacts,
       graphData,
     });

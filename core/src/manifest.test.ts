@@ -128,6 +128,7 @@ describe('ManifestService', () => {
       },
       status: 'succeeded',
       producedBy: 'script_producer',
+      producerId: 'Producer:ScriptProducer',
       createdAt: new Date('2024-12-31T01:00:00Z').toISOString(),
     };
     await eventLog.appendArtifact('demo', artifactEvent);
@@ -221,6 +222,42 @@ describe('ManifestService', () => {
     // Artifact B's latest event is 'succeeded' → still present
     expect(manifest.artifacts.artifact_b).toBeDefined();
     expect(manifest.artifacts.artifact_b.hash).toBe('artifact-b-hash');
+  });
+
+  it('mirrors producerId from succeeded artifact events into the manifest', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const manifestSvc = createManifestService(ctx);
+    const eventLog = createEventLog(ctx);
+
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'artifact_a',
+      revision: 'rev-0001',
+      inputsHash: 'inputs:hash',
+      output: {
+        blob: {
+          hash: 'artifact-a-hash',
+          size: 100,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:AudioProducer[0]',
+      producerId: 'Producer:AudioProducer',
+      createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
+    });
+
+    const manifest = await manifestSvc.buildFromEvents({
+      movieId: 'demo',
+      targetRevision: 'rev-0001',
+      baseRevision: null,
+      eventLog,
+      clock,
+    });
+
+    expect(manifest.artifacts.artifact_a.producerId).toBe(
+      'Producer:AudioProducer'
+    );
   });
 
   it('errors when loading manifest without pointer', async () => {

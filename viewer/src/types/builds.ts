@@ -31,6 +31,8 @@ export interface ArtifactInfo {
   hash: string;
   size: number;
   mimeType: string;
+  producedBy?: string;
+  producerNodeId?: string;
   /** Artifact status: succeeded, failed, or skipped */
   status: 'succeeded' | 'failed' | 'skipped' | string;
   createdAt: string | null;

@@ -5,6 +5,7 @@
 import {
   loadYamlBlueprintTree,
   buildBlueprintParseGraphProjection,
+  prepareBlueprintResolutionContext,
 } from "@gorenku/core";
 import type { BlueprintGraphData } from "../types.js";
 
@@ -16,5 +17,9 @@ export async function parseBlueprintToGraph(
   catalogRoot?: string,
 ): Promise<BlueprintGraphData> {
   const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
-  return buildBlueprintParseGraphProjection(root);
+  const context = await prepareBlueprintResolutionContext({
+    root,
+    schemaSource: { kind: 'producer-metadata' },
+  });
+  return buildBlueprintParseGraphProjection(context.root) as BlueprintGraphData;
 }

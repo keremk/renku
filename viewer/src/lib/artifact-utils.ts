@@ -5,6 +5,18 @@
 import type { ArtifactInfo } from '@/types/builds';
 import type { BlueprintGraphData } from '@/types/blueprint-graph';
 
+export function resolveArtifactProducerNodeId(
+  artifact: ArtifactInfo
+): string | null {
+  if (artifact.producerNodeId) {
+    return artifact.producerNodeId;
+  }
+  if (artifact.producedBy?.startsWith('Producer:')) {
+    return artifact.producedBy;
+  }
+  return null;
+}
+
 /**
  * Extract producer name from canonical artifact ID.
  * Artifact ID format: "Artifact:ProducerName.OutputName[index]"
@@ -55,7 +67,7 @@ export function groupArtifactsByProducer(
   const groups = new Map<string, ArtifactInfo[]>();
 
   for (const artifact of artifacts) {
-    const producer = extractProducerFromArtifactId(artifact.id) ?? '[Unknown]';
+    const producer = resolveArtifactProducerNodeId(artifact) ?? '[Unknown]';
     const existing = groups.get(producer) ?? [];
     existing.push(artifact);
     groups.set(producer, existing);
@@ -368,11 +380,11 @@ export function sortProducersByTopology(
     return producerNames;
   }
 
-  // Build a map of producer name -> index in graph nodes
+  // Build a map of canonical producer node ID -> index in graph nodes.
   const nodeOrderMap = new Map<string, number>();
   graphData.nodes.forEach((node, index) => {
     if (node.type === 'producer') {
-      nodeOrderMap.set(node.label, index);
+      nodeOrderMap.set(node.id, index);
     }
   });
 

@@ -107,7 +107,8 @@ export async function runCommand(args: {
       signal,
     });
   } catch (error) {
-    const commandError = error as NodeJS.ErrnoException & {
+    const commandError = error as Error & {
+      code?: string;
       stdout?: string;
       stderr?: string;
     };

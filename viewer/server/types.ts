@@ -35,6 +35,9 @@ export interface BlueprintGraphNode {
   id: string;
   type: 'input' | 'producer' | 'output';
   label: string;
+  namespacePath?: string[];
+  compositePath?: string[];
+  compositeName?: string;
   loop?: string;
   runnable?: boolean;
   producerType?: string;
@@ -115,11 +118,15 @@ export interface BindingEndpointSegment {
 
 export interface ProducerBindingEndpoint {
   kind: Exclude<BindingEndpointType, 'unknown'>;
+  nodeId: string;
   reference: string;
+  producerId?: string;
   producerName?: string;
+  artifactNodeId?: string;
   inputName?: string;
   outputName?: string;
   segments: BindingEndpointSegment[];
+  selectorPath: BindingSelector[];
   loopSelectors: Array<Extract<BindingSelector, { kind: 'loop' }>>;
   constantSelectors: Array<Extract<BindingSelector, { kind: 'const' }>>;
   arraySelectors: Array<{

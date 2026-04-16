@@ -300,6 +300,7 @@ async function executeJob(
           output: {},
           status: 'failed',
           producedBy: job.jobId,
+          producerId: job.context?.producerId,
           diagnostics: {
             reason: 'upstream_failure',
             failedUpstreamArtifacts: failedUpstream,
@@ -612,6 +613,7 @@ async function materializeArtifacts(
       output,
       status,
       producedBy: context.job.jobId,
+      producerId: context.job.context?.producerId,
       diagnostics: artifact.diagnostics,
       createdAt: context.clock.now(),
     };

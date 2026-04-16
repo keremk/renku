@@ -236,6 +236,7 @@ async function collectLatestArtifacts(
       hash: deriveArtifactHash(event),
       blob: event.output.blob,
       producedBy: event.producedBy,
+      producerId: event.producerId,
       status: event.status,
       diagnostics: event.diagnostics,
       createdAt: event.createdAt,

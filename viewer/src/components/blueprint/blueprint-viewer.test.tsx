@@ -20,7 +20,7 @@ const executionMock = vi.hoisted(() => ({
 const layoutMockState = vi.hoisted(() => ({
   nodes: [
     {
-      id: 'Producer:AudioProducer[0]',
+      id: 'Producer:AudioProducer',
       type: 'producerNode',
       position: { x: 0, y: 0 },
       data: {
@@ -94,8 +94,11 @@ vi.mock('@xyflow/react', () => ({
 vi.mock('@/lib/blueprint-layout', () => ({
   defaultBlueprintLayoutConfig: {
     nodeWidth: 100,
-    nodeHeight: 60,
+    nodeMinHeight: 60,
     horizontalSpacing: 240,
+    verticalSpacing: 100,
+    compositePadding: 12,
+    minimumSiblingClearance: 16,
   },
   layoutBlueprintGraph: () => ({
     nodes: layoutMockState.nodes,
@@ -138,7 +141,7 @@ const graphData: BlueprintGraphData = {
   inputs: [],
   outputs: [],
   layerAssignments: {
-    'Producer:AudioProducer[0]': 0,
+    'Producer:AudioProducer': 0,
   },
   layerCount: 1,
 };
@@ -148,7 +151,7 @@ describe('BlueprintViewer', () => {
     vi.clearAllMocks();
     layoutMockState.nodes = [
       {
-        id: 'Producer:AudioProducer[0]',
+        id: 'Producer:AudioProducer',
         type: 'producerNode',
         position: { x: 0, y: 0 },
         data: {
@@ -195,14 +198,14 @@ describe('BlueprintViewer', () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId('node-Producer:AudioProducer[0]'));
+    fireEvent.click(screen.getByTestId('node-Producer:AudioProducer'));
 
     await waitFor(() => {
       expect(executionMock.requestProducerScheduling).toHaveBeenCalledTimes(1);
     });
 
     fireEvent.click(screen.getByTestId('close-dialog'));
-    fireEvent.click(screen.getByTestId('node-Producer:AudioProducer[0]'));
+    fireEvent.click(screen.getByTestId('node-Producer:AudioProducer'));
 
     await waitFor(() => {
       expect(executionMock.requestProducerScheduling).toHaveBeenCalledTimes(2);

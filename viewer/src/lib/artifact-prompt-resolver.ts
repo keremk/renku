@@ -5,6 +5,7 @@ import type {
   ProducerBinding,
   ProducerBindingEndpoint,
 } from '@/types/blueprint-graph';
+import { resolveArtifactProducerNodeId } from './artifact-utils';
 
 interface IndexLookup {
   ordered: number[];
@@ -30,25 +31,27 @@ const SECONDARY_PROMPT_KEYWORDS = [
  * Resolve the upstream prompt artifact for a media artifact using producer input bindings.
  */
 export function resolvePromptArtifactForMedia(args: {
-  mediaArtifactId: string;
+  mediaArtifact: ArtifactInfo;
   artifacts: ArtifactInfo[];
   graphData?: BlueprintGraphData;
 }): ArtifactInfo | null {
-  const { mediaArtifactId, artifacts, graphData } = args;
+  const { mediaArtifact, artifacts, graphData } = args;
   if (!graphData) {
     return null;
   }
 
-  const parsedMedia = parseArtifactId(mediaArtifactId);
-  if (!parsedMedia) {
+  const producerNodeId = resolveArtifactProducerNodeId(mediaArtifact);
+  if (!producerNodeId) {
+    return null;
+  }
+
+  const mediaOutputPath = parseArtifactOutputPath(mediaArtifact.id);
+  if (!mediaOutputPath) {
     return null;
   }
 
   const producerNode = graphData.nodes.find(
-    (node) =>
-      node.type === 'producer' &&
-      (node.id === `Producer:${parsedMedia.producer}` ||
-        node.label === parsedMedia.producer)
+    (node) => node.type === 'producer' && node.id === producerNodeId
   );
   if (!producerNode?.inputBindings) {
     return null;
@@ -64,7 +67,7 @@ export function resolvePromptArtifactForMedia(args: {
     byNormalizedId.set(normalizeArtifactId(artifact.id), artifact);
   }
 
-  const mediaIndices = parseIndices(parsedMedia.outputPath);
+  const mediaIndices = parseIndices(mediaOutputPath);
   const candidateBindings = producerNode.inputBindings
     .filter((binding) => {
       const sourceEndpoint = binding.sourceEndpoint;
@@ -72,7 +75,7 @@ export function resolvePromptArtifactForMedia(args: {
       return (
         sourceEndpoint?.kind === 'producer' &&
         targetEndpoint?.kind === 'producer' &&
-        targetEndpoint.producerName === parsedMedia.producer
+        targetEndpoint.producerId === producerNodeId
       );
     })
     .sort((a, b) => scorePromptBinding(b) - scorePromptBinding(a));
@@ -106,17 +109,12 @@ export function resolvePromptArtifactForMedia(args: {
   return null;
 }
 
-function parseArtifactId(
-  artifactId: string
-): { producer: string; outputPath: string } | null {
-  const match = /^Artifact:([^.]+)\.(.+)$/.exec(artifactId);
+function parseArtifactOutputPath(artifactId: string): string | null {
+  const match = /^Artifact:[^.]+\.(.+)$/.exec(artifactId);
   if (!match) {
     return null;
   }
-  return {
-    producer: match[1],
-    outputPath: match[2],
-  };
+  return match[1];
 }
 
 function isTextLikeArtifact(artifact: ArtifactInfo): boolean {

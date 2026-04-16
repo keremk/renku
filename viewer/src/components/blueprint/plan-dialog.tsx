@@ -3,7 +3,7 @@
  * Shows an interactive overview of the execution plan with per-producer controls.
  */
 
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef, useReducer } from "react";
 import { CheckCircle2, AlertCircle, Layers, Briefcase, DollarSign, X, Copy, Check, Pin, AlertTriangle } from "lucide-react";
 import {
   Dialog,
@@ -116,6 +116,98 @@ type ProducerOverrides = Record<
   string,
   { enabled?: boolean; count?: number }
 >;
+
+interface DraftPreviewState {
+  draftOverrides: ProducerOverrides;
+  draftPlanInfo: PlanDisplayInfo | null;
+  draftError: string | null;
+  draftErrorSignature: string | null;
+  isPreviewPlanning: boolean;
+}
+
+type DraftPreviewAction =
+  | {
+      type: "seed-session";
+      planInfo: PlanDisplayInfo;
+      overrides: ProducerOverrides;
+    }
+  | {
+      type: "preview-start";
+    }
+  | {
+      type: "preview-success";
+      planInfo: PlanDisplayInfo;
+    }
+  | {
+      type: "preview-error";
+      error: string;
+      signature: string;
+    }
+  | {
+      type: "clear-preview-status";
+    }
+  | {
+      type: "update-overrides";
+      updater: (current: ProducerOverrides) => ProducerOverrides;
+    };
+
+const INITIAL_DRAFT_PREVIEW_STATE: DraftPreviewState = {
+  draftOverrides: {},
+  draftPlanInfo: null,
+  draftError: null,
+  draftErrorSignature: null,
+  isPreviewPlanning: false,
+};
+
+function draftPreviewReducer(
+  state: DraftPreviewState,
+  action: DraftPreviewAction
+): DraftPreviewState {
+  switch (action.type) {
+    case "seed-session":
+      return {
+        draftOverrides: action.overrides,
+        draftPlanInfo: action.planInfo,
+        draftError: null,
+        draftErrorSignature: null,
+        isPreviewPlanning: false,
+      };
+    case "preview-start":
+      return {
+        ...state,
+        isPreviewPlanning: true,
+      };
+    case "preview-success":
+      return {
+        ...state,
+        draftPlanInfo: action.planInfo,
+        draftError: null,
+        draftErrorSignature: null,
+        isPreviewPlanning: false,
+      };
+    case "preview-error":
+      return {
+        ...state,
+        draftError: action.error,
+        draftErrorSignature: action.signature,
+        isPreviewPlanning: false,
+      };
+    case "clear-preview-status":
+      return {
+        ...state,
+        draftError: null,
+        draftErrorSignature: null,
+        isPreviewPlanning: false,
+      };
+    case "update-overrides":
+      return {
+        ...state,
+        draftOverrides: action.updater(state.draftOverrides),
+      };
+    default:
+      return state;
+  }
+}
 
 function stripProducerPrefix(producerId: string): string {
   return producerId.startsWith('Producer:')
@@ -647,10 +739,6 @@ function PreviewStatusRail({
 }) {
   const [showDetails, setShowDetails] = useState(false);
 
-  useEffect(() => {
-    setShowDetails(false);
-  }, [invalidPlanExplanation?.summary]);
-
   const toneClasses = invalidPlanExplanation
     ? 'border-amber-500/25 bg-amber-500/8'
     : hasDraftChanges
@@ -926,6 +1014,7 @@ function PlanContent({
       )}
 
       <PreviewStatusRail
+        key={invalidPlanExplanation?.summary ?? 'preview-status'}
         hasDraftChanges={hasDraftChanges}
         isPreviewPlanning={isPreviewPlanning}
         invalidPlanExplanation={invalidPlanExplanation}
@@ -1014,11 +1103,17 @@ export function PlanDialog() {
   } = useExecution();
 
   const { planInfo: committedPlanInfo, status, error } = state;
-  const [draftOverrides, setDraftOverrides] = useState<ProducerOverrides>({});
-  const [draftPlanInfo, setDraftPlanInfo] = useState<PlanDisplayInfo | null>(null);
-  const [draftError, setDraftError] = useState<string | null>(null);
-  const [draftErrorSignature, setDraftErrorSignature] = useState<string | null>(null);
-  const [isPreviewPlanning, setIsPreviewPlanning] = useState(false);
+  const [draftPreviewState, dispatchDraftPreview] = useReducer(
+    draftPreviewReducer,
+    INITIAL_DRAFT_PREVIEW_STATE
+  );
+  const {
+    draftOverrides,
+    draftPlanInfo,
+    draftError,
+    draftErrorSignature,
+    isPreviewPlanning,
+  } = draftPreviewState;
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewAbortControllerRef = useRef<AbortController | null>(null);
   const previewRequestIdRef = useRef(0);
@@ -1032,6 +1127,31 @@ export function PlanDialog() {
   const draftOverrideSignature = useMemo(
     () => serializeProducerOverrides(draftOverrides),
     [draftOverrides]
+  );
+  const clearPreviewAsyncState = useCallback(() => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    if (previewAbortControllerRef.current) {
+      previewAbortControllerRef.current.abort();
+      previewAbortControllerRef.current = null;
+    }
+  }, []);
+  const seedDraftPreviewSession = useCallback(
+    (nextPlanInfo: PlanDisplayInfo, nextOverrides: ProducerOverrides) => {
+      lastDraftOverrideSignatureRef.current = serializeProducerOverrides(
+        nextOverrides
+      );
+      clearPreviewAsyncState();
+      previewRequestIdRef.current += 1;
+      dispatchDraftPreview({
+        type: "seed-session",
+        planInfo: nextPlanInfo,
+        overrides: nextOverrides,
+      });
+    },
+    [clearPreviewAsyncState]
   );
   const committedProducerRows = useMemo(() => {
     if (!committedPlanInfo) {
@@ -1139,35 +1259,17 @@ export function PlanDialog() {
 
   useEffect(() => {
     return () => {
-      if (previewTimerRef.current) {
-        clearTimeout(previewTimerRef.current);
-        previewTimerRef.current = null;
-      }
-      if (previewAbortControllerRef.current) {
-        previewAbortControllerRef.current.abort();
-        previewAbortControllerRef.current = null;
-      }
+      clearPreviewAsyncState();
       previewRequestIdRef.current += 1;
     };
-  }, []);
+  }, [clearPreviewAsyncState]);
 
   useEffect(() => {
     if (!isOpen || !committedPlanInfo) {
       draftSessionKeyRef.current = null;
       lastDraftOverrideSignatureRef.current = null;
       previewRequestIdRef.current += 1;
-      setDraftPlanInfo(null);
-      setDraftError(null);
-      setDraftErrorSignature(null);
-      setIsPreviewPlanning(false);
-      if (previewTimerRef.current) {
-        clearTimeout(previewTimerRef.current);
-        previewTimerRef.current = null;
-      }
-      if (previewAbortControllerRef.current) {
-        previewAbortControllerRef.current.abort();
-        previewAbortControllerRef.current = null;
-      }
+      clearPreviewAsyncState();
       return;
     }
 
@@ -1177,22 +1279,15 @@ export function PlanDialog() {
     }
 
     draftSessionKeyRef.current = nextSessionKey;
-    lastDraftOverrideSignatureRef.current = committedOverrideSignature;
-    setDraftOverrides(state.producerOverrides);
-    setDraftPlanInfo(committedPlanInfo);
-    setDraftError(null);
-    setDraftErrorSignature(null);
-    setIsPreviewPlanning(false);
-    if (previewTimerRef.current) {
-      clearTimeout(previewTimerRef.current);
-      previewTimerRef.current = null;
-    }
-    if (previewAbortControllerRef.current) {
-      previewAbortControllerRef.current.abort();
-      previewAbortControllerRef.current = null;
-    }
-    previewRequestIdRef.current += 1;
-  }, [committedPlanInfo, committedOverrideSignature, isOpen, state.producerOverrides]);
+    seedDraftPreviewSession(committedPlanInfo, state.producerOverrides);
+  }, [
+    committedPlanInfo,
+    committedOverrideSignature,
+    clearPreviewAsyncState,
+    isOpen,
+    seedDraftPreviewSession,
+    state.producerOverrides,
+  ]);
 
   useEffect(() => {
     if (!isOpen || !committedPlanInfo || !state.blueprintName) {
@@ -1219,7 +1314,7 @@ export function PlanDialog() {
       previewRequestIdRef.current = requestId;
       const abortController = new AbortController();
       previewAbortControllerRef.current = abortController;
-      setIsPreviewPlanning(true);
+      dispatchDraftPreview({ type: "preview-start" });
 
       void previewPlan({
         blueprintName: state.blueprintName!,
@@ -1235,10 +1330,10 @@ export function PlanDialog() {
           if (previewAbortControllerRef.current === abortController) {
             previewAbortControllerRef.current = null;
           }
-          setDraftPlanInfo(nextPlanInfo);
-          setDraftError(null);
-          setDraftErrorSignature(null);
-          setIsPreviewPlanning(false);
+          dispatchDraftPreview({
+            type: "preview-success",
+            planInfo: nextPlanInfo,
+          });
         })
         .catch((previewError) => {
           if (abortController.signal.aborted) {
@@ -1253,13 +1348,14 @@ export function PlanDialog() {
           if (previewAbortControllerRef.current === abortController) {
             previewAbortControllerRef.current = null;
           }
-          setDraftError(
-            previewError instanceof Error
-              ? previewError.message
-              : 'Failed to update plan preview'
-          );
-          setDraftErrorSignature(requestSignature);
-          setIsPreviewPlanning(false);
+          dispatchDraftPreview({
+            type: "preview-error",
+            error:
+              previewError instanceof Error
+                ? previewError.message
+                : 'Failed to update plan preview',
+            signature: requestSignature,
+          });
         });
     }, 200);
   }, [
@@ -1286,25 +1382,26 @@ export function PlanDialog() {
         previewAbortControllerRef.current = null;
       }
       previewRequestIdRef.current += 1;
-      setIsPreviewPlanning(false);
-      setDraftError(null);
-      setDraftErrorSignature(null);
-      setDraftOverrides((currentOverrides) => {
-        const nextOverrides = { ...currentOverrides };
-        if (baselineCount !== undefined && count === baselineCount) {
-          if (committedOverride) {
-            nextOverrides[producerId] = committedOverride;
-          } else {
-            delete nextOverrides[producerId];
+      dispatchDraftPreview({ type: "clear-preview-status" });
+      dispatchDraftPreview({
+        type: "update-overrides",
+        updater: (currentOverrides) => {
+          const nextOverrides = { ...currentOverrides };
+          if (baselineCount !== undefined && count === baselineCount) {
+            if (committedOverride) {
+              nextOverrides[producerId] = committedOverride;
+            } else {
+              delete nextOverrides[producerId];
+            }
+            return nextOverrides;
           }
-          return nextOverrides;
-        }
 
-        nextOverrides[producerId] =
-          count === 0
-            ? { enabled: false, count: 0 }
-            : { enabled: true, count };
-        return nextOverrides;
+          nextOverrides[producerId] =
+            count === 0
+              ? { enabled: false, count: 0 }
+              : { enabled: true, count };
+          return nextOverrides;
+        },
       });
     },
     [baselineCountByProducerId, state.producerOverrides]
@@ -1321,11 +1418,13 @@ export function PlanDialog() {
     }
     previewRequestIdRef.current += 1;
     lastDraftOverrideSignatureRef.current = committedOverrideSignature;
-    setDraftOverrides(state.producerOverrides);
-    setDraftPlanInfo(committedPlanInfo);
-    setDraftError(null);
-    setDraftErrorSignature(null);
-    setIsPreviewPlanning(false);
+    if (committedPlanInfo) {
+      dispatchDraftPreview({
+        type: "seed-session",
+        planInfo: committedPlanInfo,
+        overrides: state.producerOverrides,
+      });
+    }
   }, [committedOverrideSignature, committedPlanInfo, state.producerOverrides]);
 
   const handleDismiss = useCallback(() => {

@@ -7,13 +7,11 @@ import { stringify as stringifyYaml } from 'yaml';
 import { loadInputsFromYaml, parseInputsForDisplay } from './input-loader.js';
 import { loadYamlBlueprintTree } from './blueprint-loader/yaml-parser.js';
 import {
-  CATALOG_BLUEPRINTS_ROOT,
   CATALOG_ROOT,
   TEST_FIXTURES_ROOT,
 } from '../../tests/catalog-paths.js';
 import type { BlueprintTreeNode } from '../types.js';
 
-const BLUEPRINT_ROOT = CATALOG_BLUEPRINTS_ROOT;
 const catalogRoot = CATALOG_ROOT;
 const SHARED_AUDIO_ONLY_INPUT_TEMPLATE = resolve(
   TEST_FIXTURES_ROOT,

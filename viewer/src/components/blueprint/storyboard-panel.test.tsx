@@ -107,7 +107,7 @@ describe('StoryboardPanel', () => {
     expect(screen.getByText('Scene Prompt 1')).toBeTruthy();
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
-    const imageButton = screen.getByAltText('Generated Image 1').closest('button');
+    const imageButton = screen.getAllByAltText('Generated Image 1')[0]?.closest('button');
     expect(imageButton).toBeTruthy();
     fireEvent.click(imageButton!);
 
@@ -193,6 +193,7 @@ describe('StoryboardPanel', () => {
               hash: 'generated-image-hash',
               size: 10,
               mimeType: 'image/png',
+              producerNodeId: 'Producer:ImageProducer',
               status: 'succeeded',
               createdAt: null,
             },
@@ -202,6 +203,7 @@ describe('StoryboardPanel', () => {
               hash: 'prompt-hash',
               size: 12,
               mimeType: 'text/plain',
+              producerNodeId: 'Producer:PromptProducer',
               status: 'succeeded',
               createdAt: null,
             },
@@ -225,7 +227,9 @@ describe('StoryboardPanel', () => {
                     isConditional: false,
                     sourceEndpoint: {
                       kind: 'producer',
+                      nodeId: 'Output:PromptProducer.ScenePrompt',
                       reference: 'PromptProducer.ScenePrompt[segment]',
+                      producerId: 'Producer:PromptProducer',
                       producerName: 'PromptProducer',
                       segments: [
                         { name: 'PromptProducer', selectors: [] },
@@ -241,6 +245,14 @@ describe('StoryboardPanel', () => {
                           ],
                         },
                       ],
+                      selectorPath: [
+                        {
+                          kind: 'loop',
+                          raw: 'segment',
+                          symbol: 'segment',
+                          offset: 0,
+                        },
+                      ],
                       loopSelectors: [
                         {
                           kind: 'loop',
@@ -254,7 +266,9 @@ describe('StoryboardPanel', () => {
                     },
                     targetEndpoint: {
                       kind: 'producer',
+                      nodeId: 'InputSource:ImageProducer.Prompt',
                       reference: 'ImageProducer.Prompt[segment]',
+                      producerId: 'Producer:ImageProducer',
                       producerName: 'ImageProducer',
                       segments: [
                         { name: 'ImageProducer', selectors: [] },
@@ -268,6 +282,14 @@ describe('StoryboardPanel', () => {
                               offset: 0,
                             },
                           ],
+                        },
+                      ],
+                      selectorPath: [
+                        {
+                          kind: 'loop',
+                          raw: 'segment',
+                          symbol: 'segment',
+                          offset: 0,
                         },
                       ],
                       loopSelectors: [
@@ -299,7 +321,7 @@ describe('StoryboardPanel', () => {
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
-    const imageButton = screen.getByAltText('Generated Image 1').closest('button');
+    const imageButton = screen.getAllByAltText('Generated Image 1')[0]?.closest('button');
     expect(imageButton).toBeTruthy();
     fireEvent.click(imageButton!);
 

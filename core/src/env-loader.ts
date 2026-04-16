@@ -12,6 +12,14 @@ export interface EnvLoaderResult {
   loaded: string[];
 }
 
+function logVerbose(message: string, enabled?: boolean): void {
+  if (!enabled) {
+    return;
+  }
+  // eslint-disable-next-line no-console
+  console.log(message);
+}
+
 function findMonorepoRoot(startDir: string): string | null {
   let current = startDir;
   const root = resolve('/');
@@ -47,9 +55,7 @@ export function loadEnv(callerUrl: string, options: EnvLoaderOptions = {}): EnvL
       const result = dotenvConfig({ path: rootEnvPath });
       if (result.parsed) {
         loaded.push(rootEnvPath);
-        if (options.verbose) {
-          console.log(`[env] Loaded: ${rootEnvPath}`);
-        }
+        logVerbose(`[env] Loaded: ${rootEnvPath}`, options.verbose);
       }
     }
   }
@@ -60,9 +66,7 @@ export function loadEnv(callerUrl: string, options: EnvLoaderOptions = {}): EnvL
     const result = dotenvConfig({ path: cwdEnvPath, override: false });
     if (result.parsed) {
       loaded.push(cwdEnvPath);
-      if (options.verbose) {
-        console.log(`[env] Loaded (fallback): ${cwdEnvPath}`);
-      }
+      logVerbose(`[env] Loaded (fallback): ${cwdEnvPath}`, options.verbose);
     }
   }
 
@@ -73,9 +77,10 @@ export function loadEnv(callerUrl: string, options: EnvLoaderOptions = {}): EnvL
     const result = dotenvConfig({ path: userRenkuEnvPath, override: false });
     if (result.parsed) {
       loaded.push(userRenkuEnvPath);
-      if (options.verbose) {
-        console.log(`[env] Loaded (user renku config): ${userRenkuEnvPath}`);
-      }
+      logVerbose(
+        `[env] Loaded (user renku config): ${userRenkuEnvPath}`,
+        options.verbose
+      );
     }
   }
 

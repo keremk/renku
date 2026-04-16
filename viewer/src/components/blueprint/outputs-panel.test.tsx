@@ -65,7 +65,7 @@ describe('OutputsPanel', () => {
 
     expect(screen.getByText('Producers')).toBeTruthy();
     expect(
-      screen.getByLabelText('Select producer ScriptProducer')
+      screen.getByLabelText('Select producer Producer:ScriptProducer')
     ).toBeTruthy();
     expect(
       screen.getByText('No artifacts generated yet for this producer.')
@@ -96,6 +96,7 @@ describe('OutputsPanel', () => {
         hash: 'hash-image-0-0',
         size: 1024,
         mimeType: 'image/png',
+        producerNodeId: 'Producer:ImageProducer',
         status: 'succeeded',
         createdAt: '2026-03-07T00:00:00.000Z',
       },

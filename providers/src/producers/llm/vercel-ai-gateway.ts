@@ -5,7 +5,6 @@ import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import type { ProducerInvokeArgs, ProducerRuntime } from '../../sdk/types.js';
 import {
   createVercelGatewayClientManager,
-  type VercelGatewayClientManager,
   parseOpenAiConfig,
   renderPrompts,
   callVercelGateway,

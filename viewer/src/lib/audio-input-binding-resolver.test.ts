@@ -6,6 +6,7 @@ import type {
   ProducerBindingEndpoint,
   ProducerBinding,
 } from '@/types/blueprint-graph';
+import type { ArtifactInfo } from '@/types/builds';
 import { resolveAudioInputBindingSource } from './audio-input-binding-resolver';
 
 function createGraphData(bindings: ProducerBinding[]): BlueprintGraphData {
@@ -58,13 +59,24 @@ describe('resolveAudioInputBindingSource', () => {
       },
     ]);
 
+    const audioArtifact: ArtifactInfo = {
+      id: 'Artifact:NarrationProducer.GeneratedAudio[3]',
+      name: 'NarrationProducer.GeneratedAudio[3]',
+      hash: 'hash-audio-3',
+      size: 100,
+      mimeType: 'audio/mpeg',
+      producerNodeId: 'Producer:NarrationProducer',
+      status: 'succeeded',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+
     const voiceSource = resolveAudioInputBindingSource({
-      audioArtifactId: 'Artifact:NarrationProducer.GeneratedAudio[3]',
+      audioArtifact,
       inputName: 'VoiceId',
       graphData,
     });
     const emotionSource = resolveAudioInputBindingSource({
-      audioArtifactId: 'Artifact:NarrationProducer.GeneratedAudio[3]',
+      audioArtifact,
       inputName: 'Emotion',
       graphData,
     });
@@ -96,7 +108,16 @@ describe('resolveAudioInputBindingSource', () => {
     ]);
 
     const source = resolveAudioInputBindingSource({
-      audioArtifactId: 'Artifact:NarrationProducer.GeneratedAudio[0]',
+      audioArtifact: {
+        id: 'Artifact:NarrationProducer.GeneratedAudio[0]',
+        name: 'NarrationProducer.GeneratedAudio[0]',
+        hash: 'hash-audio-0',
+        size: 100,
+        mimeType: 'audio/mpeg',
+        producerNodeId: 'Producer:NarrationProducer',
+        status: 'succeeded',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
       inputName: 'Emotion',
       graphData,
     });
@@ -132,9 +153,11 @@ function createInputEndpoint(reference: string): ProducerBindingEndpoint {
 
   return {
     kind: 'input',
+    nodeId: `Input:${reference}`,
     reference,
     inputName: anchor.name,
     segments,
+    selectorPath: segments.flatMap((segment) => segment.selectors),
     loopSelectors,
     constantSelectors,
     arraySelectors,
@@ -171,11 +194,14 @@ function createProducerEndpoint(
 
   return {
     kind: 'producer',
+    nodeId: `${role}:${reference}`,
     reference,
+    producerId: `Producer:${anchor.name}`,
     producerName: anchor.name,
     inputName: role === 'target' ? segments[1]?.name : undefined,
     outputName: role === 'source' ? segments[1]?.name : undefined,
     segments,
+    selectorPath: segments.flatMap((segment) => segment.selectors),
     loopSelectors,
     constantSelectors,
     arraySelectors,
