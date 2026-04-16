@@ -14,7 +14,7 @@ import type { CliConfig } from './cli-config.js';
 import {
 	createStorageContext,
 	createEventLog,
-	type ArtefactEvent,
+	type ArtifactEvent,
 	type RevisionId,
 	type FalRecoveryStatusResult,
 } from '@gorenku/core';
@@ -54,7 +54,7 @@ interface SeedMovie {
 	manifestPath: string;
 }
 
-interface ManifestArtefactEntry {
+interface ManifestArtifactEntry {
 	inputsHash?: string;
 	producedBy?: string;
 }
@@ -79,9 +79,9 @@ afterEach(async () => {
 describe('generatePlan recovery prepass', () => {
 	it('completed recovery removes unnecessary rerun jobs', async () => {
 		const seed = await createSeedMovie('Recovery baseline');
-		const artefactId = 'Artifact:AudioProducer.GeneratedAudio[0]';
+		const artifactId = 'Artifact:AudioProducer.GeneratedAudio[0]';
 
-		await appendFailedArtefactEvent(seed, artefactId, {
+		await appendFailedArtifactEvent(seed, artifactId, {
 			provider: 'fal-ai',
 			model: 'fal-ai/kling-video',
 			providerRequestId: 'req-recover-1',
@@ -109,10 +109,10 @@ describe('generatePlan recovery prepass', () => {
 		});
 
 		expect(planResult.recoverySummary?.checkedArtifactIds).toEqual([
-			artefactId,
+			artifactId,
 		]);
 		expect(planResult.recoverySummary?.recoveredArtifactIds).toEqual([
-			artefactId,
+			artifactId,
 		]);
 		expect(planResult.recoverySummary?.pendingArtifactIds).toEqual([]);
 		expect(planResult.recoverySummary?.failedRecoveries).toEqual([]);
@@ -123,9 +123,9 @@ describe('generatePlan recovery prepass', () => {
 
 	it('pending recovery keeps failed artifacts in plan', async () => {
 		const seed = await createSeedMovie('Recovery pending baseline');
-		const artefactId = 'Artifact:AudioProducer.GeneratedAudio[0]';
+		const artifactId = 'Artifact:AudioProducer.GeneratedAudio[0]';
 
-		await appendFailedArtefactEvent(seed, artefactId, {
+		await appendFailedArtifactEvent(seed, artifactId, {
 			provider: 'fal-ai',
 			model: 'fal-ai/kling-video',
 			providerRequestId: 'req-pending-1',
@@ -148,11 +148,11 @@ describe('generatePlan recovery prepass', () => {
 		});
 
 		expect(planResult.recoverySummary?.checkedArtifactIds).toEqual([
-			artefactId,
+			artifactId,
 		]);
 		expect(planResult.recoverySummary?.recoveredArtifactIds).toEqual([]);
 		expect(planResult.recoverySummary?.pendingArtifactIds).toEqual([
-			artefactId,
+			artifactId,
 		]);
 		expect(planResult.recoverySummary?.failedRecoveries).toEqual([]);
 
@@ -162,9 +162,9 @@ describe('generatePlan recovery prepass', () => {
 
 	it('malformed diagnostics does not silently recover', async () => {
 		const seed = await createSeedMovie('Recovery malformed baseline');
-		const artefactId = 'Artifact:AudioProducer.GeneratedAudio[0]';
+		const artifactId = 'Artifact:AudioProducer.GeneratedAudio[0]';
 
-		await appendFailedArtefactEvent(seed, artefactId, {
+		await appendFailedArtifactEvent(seed, artifactId, {
 			provider: 'fal-ai',
 			model: 'fal-ai/kling-video',
 			recoverable: true,
@@ -188,8 +188,8 @@ describe('generatePlan recovery prepass', () => {
 		expect(checkFalStatus).not.toHaveBeenCalled();
 		expect(planResult.recoverySummary?.recoveredArtifactIds).toEqual([]);
 		expect(planResult.recoverySummary?.failedRecoveries).toHaveLength(1);
-		expect(planResult.recoverySummary?.failedRecoveries[0]?.artefactId).toBe(
-			artefactId
+		expect(planResult.recoverySummary?.failedRecoveries[0]?.artifactId).toBe(
+			artifactId
 		);
 		expect(planResult.recoverySummary?.failedRecoveries[0]?.reason).toContain(
 			'providerRequestId'
@@ -283,26 +283,26 @@ async function createSeedMovie(prompt: string): Promise<SeedMovie> {
 	};
 }
 
-async function appendFailedArtefactEvent(
+async function appendFailedArtifactEvent(
 	seed: SeedMovie,
-	artefactId: string,
+	artifactId: string,
 	diagnostics: Record<string, unknown>
 ): Promise<void> {
 	const manifestRaw = await readFile(seed.manifestPath, 'utf8');
 	const manifest = JSON.parse(manifestRaw) as {
 		revision: RevisionId;
-		artefacts: Record<string, ManifestArtefactEntry>;
+		artifacts: Record<string, ManifestArtifactEntry>;
 	};
 
-	const artefact = manifest.artefacts[artefactId];
-	if (!artefact) {
-		throw new Error(`Artefact ${artefactId} not found in manifest.`);
+	const artifact = manifest.artifacts[artifactId];
+	if (!artifact) {
+		throw new Error(`Artifact ${artifactId} not found in manifest.`);
 	}
-	if (!artefact.inputsHash) {
-		throw new Error(`Artefact ${artefactId} is missing inputsHash.`);
+	if (!artifact.inputsHash) {
+		throw new Error(`Artifact ${artifactId} is missing inputsHash.`);
 	}
-	if (!artefact.producedBy) {
-		throw new Error(`Artefact ${artefactId} is missing producedBy.`);
+	if (!artifact.producedBy) {
+		throw new Error(`Artifact ${artifactId} is missing producedBy.`);
 	}
 
 	const storage = createStorageContext({
@@ -312,16 +312,16 @@ async function appendFailedArtefactEvent(
 	});
 	const eventLog = createEventLog(storage);
 
-	const failedEvent: ArtefactEvent = {
-		artefactId,
+	const failedEvent: ArtifactEvent = {
+		artifactId,
 		revision: manifest.revision,
-		inputsHash: artefact.inputsHash,
+		inputsHash: artifact.inputsHash,
 		output: {},
 		status: 'failed',
-		producedBy: artefact.producedBy,
+		producedBy: artifact.producedBy,
 		diagnostics,
 		createdAt: new Date().toISOString(),
 	};
 
-	await eventLog.appendArtefact(seed.storageMovieId, failedEvent);
+	await eventLog.appendArtifact(seed.storageMovieId, failedEvent);
 }

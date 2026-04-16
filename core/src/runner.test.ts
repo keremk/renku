@@ -7,7 +7,7 @@ import { createManifestService } from './manifest.js';
 import { createStorageContext, initializeMovieStorage } from './storage.js';
 import { formatBlobFileName } from './blob-utils.js';
 import type {
-  ArtefactEvent,
+  ArtifactEvent,
   ExecutionPlan,
   JobDescriptor,
   Manifest,
@@ -20,7 +20,7 @@ const baseManifest: Manifest = {
   baseRevision: null,
   createdAt: '2024-01-01T00:00:00.000Z',
   inputs: {},
-  artefacts: {},
+  artifacts: {},
 };
 
 const plan: ExecutionPlan = {
@@ -55,7 +55,7 @@ const plan: ExecutionPlan = {
 };
 
 describe('createRunner', () => {
-  it('executes layers and persists artefacts', async () => {
+  it('executes layers and persists artifacts', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-123');
     const eventLog = createEventLog(storage);
@@ -67,9 +67,9 @@ describe('createRunner', () => {
           return {
             jobId: request.job.jobId,
             status: 'succeeded',
-            artefacts: [
+            artifacts: [
               {
-                artefactId: 'Artifact:NarrationScript',
+                artifactId: 'Artifact:NarrationScript',
                 blob: {
                   data: 'Once upon a time',
                   mimeType: 'text/plain',
@@ -81,9 +81,9 @@ describe('createRunner', () => {
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
-          artefacts: [
+          artifacts: [
             {
-              artefactId: 'Artifact:SegmentAudio[segment=0]',
+              artifactId: 'Artifact:SegmentAudio[segment=0]',
               blob: {
                 data: new TextEncoder().encode('AUDIO_DATA'),
                 mimeType: 'audio/wav',
@@ -109,8 +109,8 @@ describe('createRunner', () => {
     expect(result.jobs).toHaveLength(2);
 
     const firstJob = result.jobs.find((job) => job.jobId === 'job-1');
-    const firstBlob = firstJob?.artefacts[0].output.blob;
-    expect('inline' in (firstJob?.artefacts[0].output ?? {})).toBe(false);
+    const firstBlob = firstJob?.artifacts[0].output.blob;
+    expect('inline' in (firstJob?.artifacts[0].output ?? {})).toBe(false);
     expect(firstBlob).toBeDefined();
     expect(firstBlob?.mimeType).toBe('text/plain');
     const narrationPath = storage.resolve(
@@ -123,7 +123,7 @@ describe('createRunner', () => {
     expect(narration).toBe('Once upon a time');
 
     const audioJob = result.jobs.find((job) => job.jobId === 'job-2');
-    const audioBlob = audioJob?.artefacts[0].output.blob;
+    const audioBlob = audioJob?.artifacts[0].output.blob;
     expect(audioBlob).toBeDefined();
     expect(audioBlob?.mimeType).toBe('audio/wav');
     const audioPath = storage.resolve(
@@ -139,10 +139,10 @@ describe('createRunner', () => {
 
     const manifest = await result.buildManifest();
     expect(manifest.revision).toBe('rev-0001');
-    expect(Object.keys(manifest.artefacts)).toContain(
+    expect(Object.keys(manifest.artifacts)).toContain(
       'Artifact:NarrationScript'
     );
-    expect(Object.keys(manifest.artefacts)).toContain(
+    expect(Object.keys(manifest.artifacts)).toContain(
       'Artifact:SegmentAudio[segment=0]'
     );
   });
@@ -180,9 +180,9 @@ describe('createRunner', () => {
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
-          artefacts: [
+          artifacts: [
             {
-              artefactId: 'Artifact:NarrationScript',
+              artifactId: 'Artifact:NarrationScript',
               blob: {
                 data: 'Hello world',
                 mimeType: 'text/plain',
@@ -209,7 +209,7 @@ describe('createRunner', () => {
     expect(failedJob?.error?.message).toContain('boom');
   });
 
-  it('persists provider recovery diagnostics for failed artefacts', async () => {
+  it('persists provider recovery diagnostics for failed artifacts', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-recovery');
     const eventLog = createEventLog(storage);
@@ -235,9 +235,9 @@ describe('createRunner', () => {
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
-          artefacts: [
+          artifacts: [
             {
-              artefactId: 'Artifact:NarrationScript',
+              artifactId: 'Artifact:NarrationScript',
               blob: {
                 data: 'Hello world',
                 mimeType: 'text/plain',
@@ -258,14 +258,14 @@ describe('createRunner', () => {
       produce,
     });
 
-    const artefactEvents: ArtefactEvent[] = [];
-    for await (const event of eventLog.streamArtefacts('movie-recovery')) {
-      artefactEvents.push(event);
+    const artifactEvents: ArtifactEvent[] = [];
+    for await (const event of eventLog.streamArtifacts('movie-recovery')) {
+      artifactEvents.push(event);
     }
 
-    const failedEvent = artefactEvents.find(
+    const failedEvent = artifactEvents.find(
       (event) =>
-        event.artefactId === 'Artifact:SegmentAudio[segment=0]' &&
+        event.artifactId === 'Artifact:SegmentAudio[segment=0]' &&
         event.status === 'failed'
     );
     expect(failedEvent).toBeDefined();
@@ -276,14 +276,14 @@ describe('createRunner', () => {
     expect(failedEvent?.diagnostics?.reason).toBe('timeout');
   });
 
-  it('injects alias inputs derived from upstream artefacts', async () => {
+  it('injects alias inputs derived from upstream artifacts', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-alias');
     const eventLog = createEventLog(storage);
     const manifestService = createManifestService(storage);
     const aliasText = 'aliased text';
     const aliasBlobHash = 'aliastext123';
-    const aliasBlobRef: ArtefactEvent['output']['blob'] = {
+    const aliasBlobRef: ArtifactEvent['output']['blob'] = {
       hash: aliasBlobHash,
       size: aliasText.length,
       mimeType: 'text/plain',
@@ -304,8 +304,8 @@ describe('createRunner', () => {
       mimeType: 'text/plain',
     });
 
-    const artefactEvent: ArtefactEvent = {
-      artefactId: 'Artifact:ScriptGeneration.NarrationScript[segment=0]',
+    const artifactEvent: ArtifactEvent = {
+      artifactId: 'Artifact:ScriptGeneration.NarrationScript[segment=0]',
       revision: 'rev-0001',
       inputsHash: 'hash',
       output: { blob: aliasBlobRef },
@@ -314,7 +314,7 @@ describe('createRunner', () => {
       createdAt: new Date().toISOString(),
     };
 
-    await eventLog.appendArtefact('movie-alias', artefactEvent);
+    await eventLog.appendArtifact('movie-alias', artifactEvent);
 
     let observedResolvedInputs: Record<string, unknown> | undefined;
 
@@ -326,7 +326,7 @@ describe('createRunner', () => {
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
-          artefacts: [],
+          artifacts: [],
         };
       },
     });
@@ -362,7 +362,7 @@ describe('createRunner', () => {
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
-      artefacts: {},
+      artifacts: {},
     };
 
     await runner.executeJob(job, {
@@ -383,7 +383,7 @@ describe('createRunner', () => {
     ).toBe('aliased text');
   });
 
-  it('injects fan-in groupings even when no upstream artefacts are resolved', async () => {
+  it('injects fan-in groupings even when no upstream artifacts are resolved', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-fanin');
     const eventLog = createEventLog(storage);
@@ -399,7 +399,7 @@ describe('createRunner', () => {
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
-          artefacts: [],
+          artifacts: [],
         };
       },
     });
@@ -457,7 +457,7 @@ describe('createRunner', () => {
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
-      artefacts: {},
+      artifacts: {},
     };
 
     await runner.executeJob(fanInJob, {
@@ -523,8 +523,8 @@ describe('createRunner', () => {
     });
 
     // Add video artifact to event log (unconditional)
-    await eventLog.appendArtefact('movie-conditional-fanin', {
-      artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+    await eventLog.appendArtifact('movie-conditional-fanin', {
+      artifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
       revision: 'rev-0001',
       inputsHash: 'hash',
       output: { blob: videoBlobRef },
@@ -541,7 +541,7 @@ describe('createRunner', () => {
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
-          artefacts: [],
+          artifacts: [],
         };
       },
     });
@@ -601,7 +601,7 @@ describe('createRunner', () => {
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
-      artefacts: {},
+      artifacts: {},
     };
 
     const result = await runner.executeJob(job, {
@@ -634,7 +634,7 @@ describe('createRunner', () => {
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
-          artefacts: [],
+          artifacts: [],
         };
       },
     });
@@ -688,7 +688,7 @@ describe('createRunner', () => {
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
-      artefacts: {},
+      artifacts: {},
     };
 
     const result = await runner.executeJob(job, {
@@ -714,12 +714,12 @@ describe('createRunner', () => {
     const manifestService = createManifestService(storage);
 
     const appendArtifact = async (
-      artefactId: string,
+      artifactId: string,
       data: string,
       mimeType: string
     ) => {
-      const hash = `${artefactId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 40)}hash`;
-      const blobRef: ArtefactEvent['output']['blob'] = {
+      const hash = `${artifactId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 40)}hash`;
+      const blobRef: ArtifactEvent['output']['blob'] = {
         hash,
         size: data.length,
         mimeType,
@@ -738,8 +738,8 @@ describe('createRunner', () => {
       );
       await storage.storage.write(blobPath, Buffer.from(data), { mimeType });
 
-      await eventLog.appendArtefact('movie-conditional-bindings', {
-        artefactId,
+      await eventLog.appendArtifact('movie-conditional-bindings', {
+        artifactId,
         revision: 'rev-0001',
         inputsHash: 'hash',
         output: { blob: blobRef },
@@ -783,7 +783,7 @@ describe('createRunner', () => {
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
-          artefacts: [],
+          artifacts: [],
         };
       },
     });
@@ -852,7 +852,7 @@ describe('createRunner', () => {
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
-      artefacts: {},
+      artifacts: {},
     };
 
     const result = await runner.executeJob(job, {
@@ -876,7 +876,7 @@ describe('createRunner', () => {
     expect(observedInputBindings?.['ReferenceImages[1]']).toBeUndefined();
   });
 
-  it('provides fan-in artefact blobs to downstream jobs', async () => {
+  it('provides fan-in artifact blobs to downstream jobs', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-fanin-assets');
     const eventLog = createEventLog(storage);
@@ -937,9 +937,9 @@ describe('createRunner', () => {
           return {
             jobId: request.job.jobId,
             status: 'succeeded',
-            artefacts: [
+            artifacts: [
               {
-                artefactId: 'Artifact:AudioGenerator.SegmentAudio[0]',
+                artifactId: 'Artifact:AudioGenerator.SegmentAudio[0]',
                 blob: {
                   data: audioPayload,
                   mimeType: 'audio/mpeg',
@@ -955,7 +955,7 @@ describe('createRunner', () => {
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
-          artefacts: [],
+          artifacts: [],
         } satisfies ProduceResult;
       },
     });

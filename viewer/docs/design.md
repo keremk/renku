@@ -9,7 +9,7 @@
 ### Source of truth & filesystem
 - CLI `init` ensures `${root}/builds`. Each movie run writes under `builds/<movieId>` (see `core/src/storage.ts`).
 - `current.json` → `manifests/<revision>.json` (hash + pointer).
-- Timeline artefact (e.g. `Artifact:TimelineComposer.Timeline`) captures the JSON. Verified via `/home/keremk/tuto/builds/movie-6bc50f83`:
+- Timeline artifact (e.g. `Artifact:TimelineComposer.Timeline`) captures the JSON. Verified via `/home/keremk/tuto/builds/movie-6bc50f83`:
   - Entry stores `inline` JSON **and** a blob reference (`blobs/02/<hash>`). We can parse the inline payload immediately and optionally fall back to blobs for very large files.
 - Workspaces hold user edits but aren’t the source of truth; viewer always reads from `builds/`.
 
@@ -26,9 +26,9 @@ Browser code never touches the filesystem directly; Vite middleware exposes a sc
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /viewer-api/movies/:movieId/manifest` | Reads `current.json`, loads the manifest, returns relevant sections (artefacts, metadata). |
+| `GET /viewer-api/movies/:movieId/manifest` | Reads `current.json`, loads the manifest, returns relevant sections (artifacts, metadata). |
 | `GET /viewer-api/movies/:movieId/timeline` | Convenience endpoint that pulls `Artifact:TimelineComposer.Timeline` (inline or blob) and returns parsed `TimelineDocument`. |
-| `GET /viewer-api/movies/:movieId/assets/:canonicalId` | Resolves canonical artefact IDs to either inline text (for prompts) or a streamed blob. |
+| `GET /viewer-api/movies/:movieId/assets/:canonicalId` | Resolves canonical artifact IDs to either inline text (for prompts) or a streamed blob. |
 | `GET /viewer-api/movies/:movieId/files/:hash` | Direct blob access when we already know the hash (e.g., from manifest entry). |
 
 Guardrails:

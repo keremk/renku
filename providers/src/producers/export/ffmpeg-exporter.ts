@@ -21,8 +21,8 @@ import type { TranscriptionArtifact } from '../transcription/types.js';
 const MAX_FFMPEG_STDIO_BUFFER_BYTES = 100 * 1024 * 1024;
 const FFMPEG_PROGRESS_PERCENT_STEP = 5;
 
-const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
-const TRANSCRIPTION_ARTEFACT_ID =
+const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const TRANSCRIPTION_ARTIFACT_ID =
   'Artifact:TranscriptionProducer.Transcription';
 const ASPECT_RATIO_INPUT_ID = 'Input:AspectRatio';
 const RESOLUTION_INPUT_ID = 'Input:Resolution';
@@ -44,7 +44,7 @@ interface ManifestPointer {
 }
 
 interface ManifestFile {
-  artefacts?: Record<
+  artifacts?: Record<
     string,
     {
       blob: {
@@ -108,7 +108,7 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         if (!produceId) {
           throw createProviderError(
             SdkErrorCode.INVALID_CONFIG,
-            'FFmpeg exporter requires at least one declared artefact output.',
+            'FFmpeg exporter requires at least one declared artifact output.',
             { kind: 'user_input', causedByUser: true }
           );
         }
@@ -126,9 +126,9 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         });
 
         const inlineTimeline =
-          runtime.inputs.getByNodeId<unknown>(TIMELINE_ARTEFACT_ID);
+          runtime.inputs.getByNodeId<unknown>(TIMELINE_ARTIFACT_ID);
         const expectsInlineTimeline =
-          request.inputs.includes(TIMELINE_ARTEFACT_ID);
+          request.inputs.includes(TIMELINE_ARTIFACT_ID);
 
         // Prefer inline runtime timeline. During multi-producer runs,
         // current.json can point to an older revision while VideoExporter runs.
@@ -140,7 +140,7 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         } else if (expectsInlineTimeline) {
           throw createProviderError(
             SdkErrorCode.INVALID_CONFIG,
-            `FFmpeg exporter requires a valid Timeline payload for "${TIMELINE_ARTEFACT_ID}".`,
+            `FFmpeg exporter requires a valid Timeline payload for "${TIMELINE_ARTIFACT_ID}".`,
             {
               kind: 'user_input',
               causedByUser: true,
@@ -158,9 +158,9 @@ export function createFfmpegExporterHandler(): HandlerFactory {
           const buffer = Buffer.from('simulated-ffmpeg-output');
           return {
             status: 'succeeded',
-            artefacts: [
+            artifacts: [
               {
-                artefactId: runtime.artefacts.expectBlob(produceId),
+                artifactId: runtime.artifacts.expectBlob(produceId),
                 status: 'succeeded',
                 blob: {
                   data: buffer,
@@ -198,7 +198,7 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         // First try to get it from runtime inputs (during execution), then fall back to manifest
         let transcription: TranscriptionArtifact | undefined;
         const inlineTranscription = runtime.inputs.getByNodeId<unknown>(
-          TRANSCRIPTION_ARTEFACT_ID
+          TRANSCRIPTION_ARTIFACT_ID
         );
         if (
           inlineTranscription &&
@@ -323,9 +323,9 @@ export function createFfmpegExporterHandler(): HandlerFactory {
 
         const result = {
           status: 'succeeded' as const,
-          artefacts: [
+          artifacts: [
             {
-              artefactId: runtime.artefacts.expectBlob(produceId),
+              artifactId: runtime.artifacts.expectBlob(produceId),
               status: 'succeeded' as const,
               blob: {
                 data: buffer,
@@ -584,11 +584,11 @@ async function loadTimeline(
   const manifestRaw = await storage.storage.readToString(manifestPath);
   const manifest = JSON.parse(manifestRaw) as ManifestFile;
 
-  const timelineArtefact = manifest.artefacts?.[TIMELINE_ARTEFACT_ID];
-  if (!timelineArtefact) {
+  const timelineArtifact = manifest.artifacts?.[TIMELINE_ARTIFACT_ID];
+  if (!timelineArtifact) {
     throw createProviderError(
       SdkErrorCode.MISSING_TIMELINE,
-      `Timeline artefact not found for movie ${movieId}.`,
+      `Timeline artifact not found for movie ${movieId}.`,
       { kind: 'user_input', causedByUser: true }
     );
   }
@@ -597,7 +597,7 @@ async function loadTimeline(
   const blobPath = buildBlobPath(
     storage,
     movieId,
-    timelineArtefact.blob.hash,
+    timelineArtifact.blob.hash,
     'json'
   );
   const timelineRaw = await storage.storage.readToString(blobPath);
@@ -625,9 +625,9 @@ async function loadTranscription(
     const manifestRaw = await storage.storage.readToString(manifestPath);
     const manifest = JSON.parse(manifestRaw) as ManifestFile;
 
-    const transcriptionArtefact =
-      manifest.artefacts?.[TRANSCRIPTION_ARTEFACT_ID];
-    if (!transcriptionArtefact?.blob?.hash) {
+    const transcriptionArtifact =
+      manifest.artifacts?.[TRANSCRIPTION_ARTIFACT_ID];
+    if (!transcriptionArtifact?.blob?.hash) {
       return undefined;
     }
 
@@ -635,7 +635,7 @@ async function loadTranscription(
     const blobPath = buildBlobPath(
       storage,
       movieId,
-      transcriptionArtefact.blob.hash,
+      transcriptionArtifact.blob.hash,
       'json'
     );
     const transcriptionRaw = await storage.storage.readToString(blobPath);
@@ -698,19 +698,19 @@ async function buildAssetPaths(
     const manifestRaw = await storage.storage.readToString(manifestPath);
     const manifest = JSON.parse(manifestRaw) as ManifestFile;
 
-    if (!manifest.artefacts) {
+    if (!manifest.artifacts) {
       return assetPaths;
     }
 
     // Build paths for missing assets from manifest
     for (const assetId of missingAssets) {
-      const artefact = manifest.artefacts[assetId];
-      if (artefact?.blob) {
-        const ext = mimeToExtension(artefact.blob.mimeType);
+      const artifact = manifest.artifacts[assetId];
+      if (artifact?.blob) {
+        const ext = mimeToExtension(artifact.blob.mimeType);
         const blobPath = buildBlobPath(
           storage,
           movieId,
-          artefact.blob.hash,
+          artifact.blob.hash,
           ext
         );
         assetPaths[assetId] = blobPath;

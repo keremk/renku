@@ -23,7 +23,7 @@ const MINIMAL_BLUEPRINT_YAML = `meta:
   kind: producer
   version: 0.1.0
 
-artifacts:
+outputs:
   - name: OutputImage
     type: image
 `;

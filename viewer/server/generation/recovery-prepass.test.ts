@@ -4,17 +4,17 @@ import {
   createStorageContext,
   initializeMovieStorage,
   readBlobFromStorage,
-  type ArtefactEvent,
+  type ArtifactEvent,
 } from '@gorenku/core';
 import { recoverFailedArtifactsBeforePlanning } from './recovery-prepass.js';
 
 const MOVIE_ID = 'movie-test';
 
 function createFailedEvent(
-  overrides: Partial<ArtefactEvent> = {}
-): ArtefactEvent {
+  overrides: Partial<ArtifactEvent> = {}
+): ArtifactEvent {
   return {
-    artefactId: 'Artifact:MeetingVideoProducer.GeneratedVideo[0]',
+    artifactId: 'Artifact:MeetingVideoProducer.GeneratedVideo[0]',
     revision: 'rev-0001',
     inputsHash: 'inputs-hash',
     output: {},
@@ -33,11 +33,11 @@ function createFailedEvent(
 
 async function readLatestEvent(
   eventLog: ReturnType<typeof createEventLog>,
-  artefactId: string
+  artifactId: string
 ) {
-  let latest: ArtefactEvent | undefined;
-  for await (const event of eventLog.streamArtefacts(MOVIE_ID)) {
-    if (event.artefactId === artefactId) {
+  let latest: ArtifactEvent | undefined;
+  for await (const event of eventLog.streamArtifacts(MOVIE_ID)) {
+    if (event.artifactId === artifactId) {
       latest = event;
     }
   }
@@ -54,7 +54,7 @@ describe('recoverFailedArtifactsBeforePlanning', () => {
     const eventLog = createEventLog(storage);
 
     const failedEvent = createFailedEvent();
-    await eventLog.appendArtefact(MOVIE_ID, failedEvent);
+    await eventLog.appendArtifact(MOVIE_ID, failedEvent);
 
     const summary = await recoverFailedArtifactsBeforePlanning({
       storage,
@@ -110,7 +110,7 @@ describe('recoverFailedArtifactsBeforePlanning', () => {
     const eventLog = createEventLog(storage);
 
     const failedEvent = createFailedEvent();
-    await eventLog.appendArtefact(MOVIE_ID, failedEvent);
+    await eventLog.appendArtifact(MOVIE_ID, failedEvent);
 
     const downloadBinary = vi.fn(async () => ({
       data: Buffer.from('unexpected'),
@@ -151,10 +151,10 @@ describe('recoverFailedArtifactsBeforePlanning', () => {
     await initializeMovieStorage(storage, MOVIE_ID);
     const eventLog = createEventLog(storage);
 
-    await eventLog.appendArtefact(
+    await eventLog.appendArtifact(
       MOVIE_ID,
       createFailedEvent({
-        artefactId: 'Artifact:ReplicateProducer.GeneratedImage[0]',
+        artifactId: 'Artifact:ReplicateProducer.GeneratedImage[0]',
         diagnostics: {
           provider: 'replicate',
           model: 'some/model',
@@ -192,10 +192,10 @@ describe('recoverFailedArtifactsBeforePlanning', () => {
     await initializeMovieStorage(storage, MOVIE_ID);
     const eventLog = createEventLog(storage);
 
-    await eventLog.appendArtefact(
+    await eventLog.appendArtifact(
       MOVIE_ID,
       createFailedEvent({
-        artefactId: 'Artifact:MeetingVideoProducer.GeneratedVideo[1]',
+        artifactId: 'Artifact:MeetingVideoProducer.GeneratedVideo[1]',
       })
     );
 

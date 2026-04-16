@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ProducedArtefact } from '@gorenku/core';
+import type { ProducedArtifact } from '@gorenku/core';
 import type { ProviderMode } from '../../types.js';
 import { generateMockPng } from './png-generator.js';
 import { generateWavWithDuration } from './wav-generator.js';
@@ -41,9 +41,9 @@ export interface RequiredExtractions {
 }
 
 export interface ExtractionResult {
-  firstFrame?: ProducedArtefact;
-  lastFrame?: ProducedArtefact;
-  audioTrack?: ProducedArtefact;
+  firstFrame?: ProducedArtifact;
+  lastFrame?: ProducedArtifact;
+  audioTrack?: ProducedArtifact;
 }
 
 // Cache for ffmpeg availability check
@@ -142,7 +142,7 @@ export function needsExtraction(extractions: RequiredExtractions): boolean {
  * Extract derived artifacts from a video buffer.
  * In simulated mode, generates mock data instead of calling ffmpeg.
  */
-export async function extractDerivedArtefacts(options: FfmpegExtractionOptions): Promise<ExtractionResult> {
+export async function extractDerivedArtifacts(options: FfmpegExtractionOptions): Promise<ExtractionResult> {
   const { videoBuffer, produces, mode, mockDurationSeconds = 5 } = options;
   const extractions = detectRequiredExtractions(produces);
   const result: ExtractionResult = {};
@@ -199,7 +199,7 @@ function generateMockExtractionResult(extractions: RequiredExtractions, duration
 
   if (extractions.firstFrameId) {
     result.firstFrame = {
-      artefactId: extractions.firstFrameId,
+      artifactId: extractions.firstFrameId,
       status: 'succeeded',
       blob: {
         data: generateMockPng(),
@@ -214,7 +214,7 @@ function generateMockExtractionResult(extractions: RequiredExtractions, duration
 
   if (extractions.lastFrameId) {
     result.lastFrame = {
-      artefactId: extractions.lastFrameId,
+      artifactId: extractions.lastFrameId,
       status: 'succeeded',
       blob: {
         data: generateMockPng(),
@@ -229,7 +229,7 @@ function generateMockExtractionResult(extractions: RequiredExtractions, duration
 
   if (extractions.audioTrackId) {
     result.audioTrack = {
-      artefactId: extractions.audioTrackId,
+      artifactId: extractions.audioTrackId,
       status: 'succeeded',
       blob: {
         data: generateWavWithDuration(durationSeconds),
@@ -254,7 +254,7 @@ function generateSkippedExtractionResult(extractions: RequiredExtractions, reaso
 
   if (extractions.firstFrameId) {
     result.firstFrame = {
-      artefactId: extractions.firstFrameId,
+      artifactId: extractions.firstFrameId,
       status: 'skipped',
       diagnostics: {
         reason,
@@ -265,7 +265,7 @@ function generateSkippedExtractionResult(extractions: RequiredExtractions, reaso
 
   if (extractions.lastFrameId) {
     result.lastFrame = {
-      artefactId: extractions.lastFrameId,
+      artifactId: extractions.lastFrameId,
       status: 'skipped',
       diagnostics: {
         reason,
@@ -276,7 +276,7 @@ function generateSkippedExtractionResult(extractions: RequiredExtractions, reaso
 
   if (extractions.audioTrackId) {
     result.audioTrack = {
-      artefactId: extractions.audioTrackId,
+      artifactId: extractions.audioTrackId,
       status: 'skipped',
       diagnostics: {
         reason,
@@ -291,7 +291,7 @@ function generateSkippedExtractionResult(extractions: RequiredExtractions, reaso
 /**
  * Extract the first frame from a video file.
  */
-async function extractFirstFrame(videoPath: string, artifactId: string): Promise<ProducedArtefact> {
+async function extractFirstFrame(videoPath: string, artifactId: string): Promise<ProducedArtifact> {
   try {
     const buffer = await runFfmpegCommand([
       '-i',
@@ -306,7 +306,7 @@ async function extractFirstFrame(videoPath: string, artifactId: string): Promise
     ]);
 
     return {
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'succeeded',
       blob: {
         data: buffer,
@@ -319,7 +319,7 @@ async function extractFirstFrame(videoPath: string, artifactId: string): Promise
     };
   } catch (error) {
     return {
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'failed',
       diagnostics: {
         extraction: 'first_frame',
@@ -334,7 +334,7 @@ async function extractFirstFrame(videoPath: string, artifactId: string): Promise
  * Extract the last frame from a video file.
  * Uses -sseof to seek from the end of the file.
  */
-async function extractLastFrame(videoPath: string, artifactId: string): Promise<ProducedArtefact> {
+async function extractLastFrame(videoPath: string, artifactId: string): Promise<ProducedArtifact> {
   try {
     const buffer = await runFfmpegCommand([
       '-sseof',
@@ -351,7 +351,7 @@ async function extractLastFrame(videoPath: string, artifactId: string): Promise<
     ]);
 
     return {
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'succeeded',
       blob: {
         data: buffer,
@@ -364,7 +364,7 @@ async function extractLastFrame(videoPath: string, artifactId: string): Promise<
     };
   } catch (error) {
     return {
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'failed',
       diagnostics: {
         extraction: 'last_frame',
@@ -378,7 +378,7 @@ async function extractLastFrame(videoPath: string, artifactId: string): Promise<
 /**
  * Extract the audio track from a video file.
  */
-async function extractAudioTrack(videoPath: string, artifactId: string): Promise<ProducedArtefact> {
+async function extractAudioTrack(videoPath: string, artifactId: string): Promise<ProducedArtifact> {
   try {
     const buffer = await runFfmpegCommand([
       '-i',
@@ -392,7 +392,7 @@ async function extractAudioTrack(videoPath: string, artifactId: string): Promise
     ]);
 
     return {
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'succeeded',
       blob: {
         data: buffer,
@@ -409,7 +409,7 @@ async function extractAudioTrack(videoPath: string, artifactId: string): Promise
     // Check if the error is due to missing audio stream
     if (errorMessage.includes('does not contain any audio')) {
       return {
-        artefactId: artifactId,
+        artifactId: artifactId,
         status: 'skipped',
         diagnostics: {
           extraction: 'audio_track',
@@ -419,7 +419,7 @@ async function extractAudioTrack(videoPath: string, artifactId: string): Promise
     }
 
     return {
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'failed',
       diagnostics: {
         extraction: 'audio_track',

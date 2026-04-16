@@ -12,13 +12,20 @@ import { buildStoryboardProjection } from './storyboard-projection.js';
 const catalogRoot = path.resolve(process.cwd(), '../catalog');
 
 function makeTreeNode(document: Record<string, unknown>): BlueprintTreeNode {
+  const normalizedDocument: BlueprintDocument = {
+    producers: [],
+    imports: [],
+    outputs: [],
+    edges: [],
+    ...(document as BlueprintDocument),
+  };
   return {
-    id: String((document.meta as { id: string }).id),
+    id: String((normalizedDocument.meta as { id: string }).id),
     namespacePath: [],
-    document,
+    document: normalizedDocument,
     children: new Map(),
     sourcePath: '/tmp/storyboard-blueprint.yaml',
-  } as unknown as BlueprintTreeNode;
+  };
 }
 
 function makeChildTreeNode(
@@ -34,16 +41,32 @@ function makeChildTreeNode(
   };
 }
 
+function makeProducerDocument(args: {
+  id: string;
+  inputs: BlueprintDocument['inputs'];
+  outputs: BlueprintDocument['outputs'];
+}): BlueprintDocument {
+  return {
+    meta: { id: args.id, name: args.id, kind: 'producer' },
+    inputs: args.inputs,
+    outputs: args.outputs,
+    producers: [{ name: args.id }],
+    imports: [],
+    edges: [],
+  };
+}
+
 describe('buildStoryboardProjection', () => {
   it('derives a scene storyboard with prompt inputs and real media outputs', () => {
-    const root = makeTreeNode({
+    const root: BlueprintTreeNode = {
+      ...makeTreeNode({
       meta: { id: 'StoryboardFixture', name: 'Storyboard Fixture' },
       inputs: [
         { name: 'SharedStyleImage', type: 'image', required: true },
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      producers: [
+      imports: [
         {
           name: 'StoryboardProducer',
           producer: 'image/text-to-image',
@@ -55,10 +78,9 @@ describe('buildStoryboardProjection', () => {
           loop: 'scene',
         },
       ],
-      artefacts: [
+      outputs: [
         { name: 'StoryboardImage', type: 'array', itemType: 'image', countInput: 'NumOfSegments' },
         { name: 'SceneVideo', type: 'array', itemType: 'video', countInput: 'NumOfSegments' },
-        { name: 'Timeline', type: 'json' },
       ],
       loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
       edges: [
@@ -69,7 +91,38 @@ describe('buildStoryboardProjection', () => {
         { from: 'ScenePrompt[scene]', to: 'VideoProducer[scene].Prompt' },
         { from: 'VideoProducer[scene].GeneratedVideo', to: 'SceneVideo[scene]' },
       ],
-    });
+      }),
+      children: new Map([
+        [
+          'StoryboardProducer',
+          makeChildTreeNode(
+            makeProducerDocument({
+              id: 'StoryboardProducer',
+              inputs: [
+                { name: 'StyleImage', type: 'image', required: true },
+                { name: 'Prompt', type: 'text', required: true },
+              ],
+              outputs: [{ name: 'GeneratedImage', type: 'image' }],
+            }),
+            ['StoryboardProducer']
+          ),
+        ],
+        [
+          'VideoProducer',
+          makeChildTreeNode(
+            makeProducerDocument({
+              id: 'VideoProducer',
+              inputs: [
+                { name: 'StartImage', type: 'image', required: true },
+                { name: 'Prompt', type: 'text', required: true },
+              ],
+              outputs: [{ name: 'GeneratedVideo', type: 'video' }],
+            }),
+            ['VideoProducer']
+          ),
+        ],
+      ]),
+    };
 
     const projection = buildStoryboardProjection({
       root,
@@ -79,14 +132,14 @@ describe('buildStoryboardProjection', () => {
         NumOfSegments: 2,
       },
       artifactStates: {
-        'Artifact:StoryboardImage[0]': {
-          canonicalArtifactId: 'Artifact:StoryboardImage[0]',
+        'Artifact:StoryboardProducer.GeneratedImage[0]': {
+          canonicalArtifactId: 'Artifact:StoryboardProducer.GeneratedImage[0]',
           status: 'succeeded',
           hash: 'image-0-hash',
           mimeType: 'image/png',
         },
-        'Artifact:SceneVideo[0]': {
-          canonicalArtifactId: 'Artifact:SceneVideo[0]',
+        'Artifact:VideoProducer.GeneratedVideo[0]': {
+          canonicalArtifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
           status: 'succeeded',
           hash: 'video-0-hash',
           mimeType: 'video/mp4',
@@ -107,28 +160,29 @@ describe('buildStoryboardProjection', () => {
         .flatMap((group) => group.items)
         .some(
           (item) =>
-            item.id === 'Artifact:SceneVideo[1]' &&
+            item.id === 'Artifact:VideoProducer.GeneratedVideo[1]' &&
             item.state === 'pending'
         )
     ).toBe(true);
   });
 
   it('projects continuity-style columns without rendering the shared seed input column', () => {
-    const root = makeTreeNode({
+    const root: BlueprintTreeNode = {
+      ...makeTreeNode({
       meta: { id: 'CarryOverFixture', name: 'Carry Over Fixture' },
       inputs: [
         { name: 'InitialImage', type: 'image', required: true },
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      producers: [
+      imports: [
         {
           name: 'ImageProducer',
           producer: 'image/image-compose',
           loop: 'scene',
         },
       ],
-      artefacts: [
+      outputs: [
         { name: 'SceneImage', type: 'array', itemType: 'image', countInput: 'NumOfSegments' },
       ],
       loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
@@ -137,7 +191,24 @@ describe('buildStoryboardProjection', () => {
         { from: 'ScenePrompt[scene]', to: 'ImageProducer[scene].Prompt' },
         { from: 'ImageProducer[scene].GeneratedImage', to: 'SceneImage[scene]' },
       ],
-    });
+      }),
+      children: new Map([
+        [
+          'ImageProducer',
+          makeChildTreeNode(
+            makeProducerDocument({
+              id: 'ImageProducer',
+              inputs: [
+                { name: 'StartImage', type: 'image', required: false },
+                { name: 'Prompt', type: 'text', required: true },
+              ],
+              outputs: [{ name: 'GeneratedImage', type: 'image' }],
+            }),
+            ['ImageProducer']
+          ),
+        ],
+      ]),
+    };
 
     const projection = buildStoryboardProjection({
       root,
@@ -147,8 +218,8 @@ describe('buildStoryboardProjection', () => {
         NumOfSegments: 2,
       },
       artifactStates: {
-        'Artifact:SceneImage[0]': {
-          canonicalArtifactId: 'Artifact:SceneImage[0]',
+        'Artifact:ImageProducer.GeneratedImage[0]': {
+          canonicalArtifactId: 'Artifact:ImageProducer.GeneratedImage[0]',
           status: 'succeeded',
           hash: 'scene-0',
           mimeType: 'image/png',
@@ -159,7 +230,7 @@ describe('buildStoryboardProjection', () => {
     const secondColumnItems =
       projection.columns[1]?.groups.flatMap((group) => group.items) ?? [];
     const pendingSecondSceneImage = secondColumnItems.find(
-      (item) => item.id === 'Artifact:SceneImage[1]'
+      (item) => item.id === 'Artifact:ImageProducer.GeneratedImage[1]'
     );
 
     expect(secondColumnItems.map((item) => item.id)).not.toContain('Input:InitialImage');
@@ -170,7 +241,7 @@ describe('buildStoryboardProjection', () => {
     const imageProducerDoc: BlueprintDocument = {
       meta: { id: 'MainImageProducer', name: 'Main Image Producer', kind: 'producer' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      outputs: [{ name: 'GeneratedImage', type: 'image' }],
       producers: [
         {
           name: 'ImageGenerator',
@@ -178,7 +249,7 @@ describe('buildStoryboardProjection', () => {
           model: 'image',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'ImageGenerator' },
         { from: 'ImageGenerator', to: 'GeneratedImage' },
@@ -188,7 +259,7 @@ describe('buildStoryboardProjection', () => {
     const gateProducerDoc: BlueprintDocument = {
       meta: { id: 'GateProducer', name: 'Gate Producer', kind: 'producer' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'ShouldPublish', type: 'json' }],
+      outputs: [{ name: 'ShouldPublish', type: 'json' }],
       producers: [
         {
           name: 'GateGenerator',
@@ -196,7 +267,7 @@ describe('buildStoryboardProjection', () => {
           model: 'gpt-5-mini',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'GateGenerator' },
         { from: 'GateGenerator', to: 'ShouldPublish' },
@@ -210,7 +281,7 @@ describe('buildStoryboardProjection', () => {
         kind: 'producer',
       },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      outputs: [{ name: 'GeneratedImage', type: 'image' }],
       producers: [
         {
           name: 'ImageGenerator',
@@ -218,7 +289,7 @@ describe('buildStoryboardProjection', () => {
           model: 'image',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'ImageGenerator' },
         { from: 'ImageGenerator', to: 'GeneratedImage' },
@@ -234,7 +305,7 @@ describe('buildStoryboardProjection', () => {
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      artefacts: [
+      outputs: [
         {
           name: 'SceneImage',
           type: 'array',
@@ -249,7 +320,7 @@ describe('buildStoryboardProjection', () => {
         },
       ],
       producers: [],
-      producerImports: [],
+      imports: [],
       loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
       edges: [
         { from: 'ScenePrompt[scene]', to: 'MainImageProducer[scene].Prompt' },
@@ -323,7 +394,7 @@ describe('buildStoryboardProjection', () => {
     const mainImageProducerDoc: BlueprintDocument = {
       meta: { id: 'MainImageProducer', name: 'Main Image Producer', kind: 'producer' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      outputs: [{ name: 'GeneratedImage', type: 'image' }],
       producers: [
         {
           name: 'ImageGenerator',
@@ -331,7 +402,7 @@ describe('buildStoryboardProjection', () => {
           model: 'image',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'ImageGenerator' },
         { from: 'ImageGenerator', to: 'GeneratedImage' },
@@ -345,7 +416,7 @@ describe('buildStoryboardProjection', () => {
         kind: 'producer',
       },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      outputs: [{ name: 'GeneratedImage', type: 'image' }],
       producers: [
         {
           name: 'ImageGenerator',
@@ -353,7 +424,7 @@ describe('buildStoryboardProjection', () => {
           model: 'image',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'ImageGenerator' },
         { from: 'ImageGenerator', to: 'GeneratedImage' },
@@ -370,7 +441,7 @@ describe('buildStoryboardProjection', () => {
         { name: 'PublishOptionalImage', type: 'array', itemType: 'boolean', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      artefacts: [
+      outputs: [
         {
           name: 'SceneImage',
           type: 'array',
@@ -385,7 +456,7 @@ describe('buildStoryboardProjection', () => {
         },
       ],
       producers: [],
-      producerImports: [],
+      imports: [],
       loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
       edges: [
         { from: 'ScenePrompt[scene]', to: 'MainImageProducer[scene].Prompt' },
@@ -449,28 +520,23 @@ describe('buildStoryboardProjection', () => {
   });
 
   it('prefers the NumOfSegments-driven segment axis when multiple axes are present', () => {
-    const root = makeTreeNode({
+    const root: BlueprintTreeNode = {
+      ...makeTreeNode({
       meta: { id: 'AxisFixture', name: 'Axis Fixture' },
       inputs: [
         { name: 'NumOfSegments', type: 'int', required: true },
         { name: 'NumOfImages', type: 'int', required: true },
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
       ],
-      producers: [
+      imports: [
         {
           name: 'ImageProducer',
           producer: 'image/text-to-image',
           loop: 'segment',
         },
       ],
-      artefacts: [
+      outputs: [
         { name: 'GeneratedImage', type: 'array', itemType: 'image', countInput: 'NumOfSegments' },
-        {
-          name: 'ReferencePanel',
-          type: 'multidimArray',
-          itemType: 'image',
-          dimensions: ['segment', 'image'],
-        },
       ],
       loops: [
         { name: 'segment', countInput: 'NumOfSegments' },
@@ -480,7 +546,21 @@ describe('buildStoryboardProjection', () => {
         { from: 'ScenePrompt[segment]', to: 'ImageProducer[segment].Prompt' },
         { from: 'ImageProducer[segment].GeneratedImage', to: 'GeneratedImage[segment]' },
       ],
-    });
+      }),
+      children: new Map([
+        [
+          'ImageProducer',
+          makeChildTreeNode(
+            makeProducerDocument({
+              id: 'ImageProducer',
+              inputs: [{ name: 'Prompt', type: 'text', required: true }],
+              outputs: [{ name: 'GeneratedImage', type: 'image' }],
+            }),
+            ['ImageProducer']
+          ),
+        ],
+      ]),
+    };
 
     const projection = buildStoryboardProjection({
       root,
@@ -525,7 +605,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfImagesPerSegment',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: SegmentImage',
           '    type: multiDimArray',
           '    itemType: image',
@@ -541,7 +621,7 @@ describe('buildStoryboardProjection', () => {
           '    parent: segment',
           '    countInput: NumOfImagesPerSegment',
           '',
-          'producers:',
+          'imports:',
           '  - name: ImageProducer',
           '    producer: image/text-to-image',
           '    loop: segment.image',
@@ -589,13 +669,14 @@ describe('buildStoryboardProjection', () => {
   });
 
   it('preserves expected story lanes before any build has been run', () => {
-    const root = makeTreeNode({
+    const root: BlueprintTreeNode = {
+      ...makeTreeNode({
       meta: { id: 'PendingFixture', name: 'Pending Fixture' },
       inputs: [
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      producers: [
+      imports: [
         {
           name: 'ImageProducer',
           producer: 'image/text-to-image',
@@ -607,7 +688,7 @@ describe('buildStoryboardProjection', () => {
           loop: 'scene',
         },
       ],
-      artefacts: [
+      outputs: [
         { name: 'SceneImage', type: 'array', itemType: 'image', countInput: 'NumOfSegments' },
         { name: 'SceneVideo', type: 'array', itemType: 'video', countInput: 'NumOfSegments' },
       ],
@@ -619,7 +700,35 @@ describe('buildStoryboardProjection', () => {
         { from: 'ScenePrompt[scene]', to: 'VideoProducer[scene].Prompt' },
         { from: 'VideoProducer[scene].GeneratedVideo', to: 'SceneVideo[scene]' },
       ],
-    });
+      }),
+      children: new Map([
+        [
+          'ImageProducer',
+          makeChildTreeNode(
+            makeProducerDocument({
+              id: 'ImageProducer',
+              inputs: [{ name: 'Prompt', type: 'text', required: true }],
+              outputs: [{ name: 'GeneratedImage', type: 'image' }],
+            }),
+            ['ImageProducer']
+          ),
+        ],
+        [
+          'VideoProducer',
+          makeChildTreeNode(
+            makeProducerDocument({
+              id: 'VideoProducer',
+              inputs: [
+                { name: 'StartImage', type: 'image', required: true },
+                { name: 'Prompt', type: 'text', required: true },
+              ],
+              outputs: [{ name: 'GeneratedVideo', type: 'video' }],
+            }),
+            ['VideoProducer']
+          ),
+        ],
+      ]),
+    };
 
     const projection = buildStoryboardProjection({
       root,
@@ -632,10 +741,10 @@ describe('buildStoryboardProjection', () => {
     const firstColumnItems =
       projection.columns[0]?.groups.flatMap((group) => group.items) ?? [];
     const imageItem = firstColumnItems.find(
-      (item) => item.id === 'Artifact:SceneImage[0]'
+      (item) => item.id === 'Artifact:ImageProducer.GeneratedImage[0]'
     );
     const videoItem = firstColumnItems.find(
-      (item) => item.id === 'Artifact:SceneVideo[0]'
+      (item) => item.id === 'Artifact:VideoProducer.GeneratedVideo[0]'
     );
 
     expect(projection.meta.hasProducedStoryState).toBe(false);
@@ -669,7 +778,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfSegments',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: StoryboardImages',
           '    type: array',
           '    itemType: image',
@@ -683,7 +792,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: scene',
           '    countInput: NumOfSegments',
           '',
-          'producers:',
+          'imports:',
           '  - name: StoryboardImageProducer',
           '    producer: image/image-compose',
           '    loop: scene',
@@ -759,7 +868,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfSegments',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: SceneVideo',
           '    type: array',
           '    itemType: video',
@@ -769,7 +878,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: scene',
           '    countInput: NumOfSegments',
           '',
-          'producers:',
+          'imports:',
           '  - name: SceneVideoProducer',
           '    producer: video/image-to-video',
           '    loop: scene',
@@ -836,7 +945,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfSegments',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: SegmentVideo',
           '    type: array',
           '    itemType: video',
@@ -846,7 +955,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: segment',
           '    countInput: NumOfSegments',
           '',
-          'producers:',
+          'imports:',
           '  - name: SegmentVideoProducer',
           '    producer: video/kling-multishot',
           '    loop: segment',
@@ -931,7 +1040,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfSegments',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: VideoScript',
           '    type: json',
           '    arrays:',
@@ -956,7 +1065,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfSegments',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: SegmentAudio',
           '    type: array',
           '    itemType: audio',
@@ -966,7 +1075,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: segment',
           '    countInput: NumOfSegments',
           '',
-          'producers:',
+          'imports:',
           '  - name: ScriptProducer',
           `    path: ${scriptProducerPath}`,
           '  - name: AudioProducer',
@@ -1020,7 +1129,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfSegments',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: VideoPrompts',
           '    type: array',
           '    itemType: string',
@@ -1044,7 +1153,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfSegments',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: SegmentVideo',
           '    type: array',
           '    itemType: video',
@@ -1058,7 +1167,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: segment',
           '    countInput: NumOfSegments',
           '',
-          'producers:',
+          'imports:',
           '  - name: ScriptProducer',
           `    path: ${scriptProducerPath}`,
           '  - name: VideoProducer',
@@ -1124,7 +1233,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfSegments',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: SegmentVideo',
           '    type: array',
           '    itemType: video',
@@ -1134,7 +1243,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: segment',
           '    countInput: NumOfSegments',
           '',
-          'producers:',
+          'imports:',
           '  - name: MotionTransfer',
           '    producer: video/motion-transfer',
           '    loop: segment',
@@ -1187,7 +1296,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: Description',
           '    type: string',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: GeneratedImage',
           '    type: image',
           '',
@@ -1209,7 +1318,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: NumOfSegments',
           '    type: int',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: SegmentImage',
           '    type: array',
           '    itemType: image',
@@ -1219,7 +1328,7 @@ describe('buildStoryboardProjection', () => {
           '  - name: segment',
           '    countInput: NumOfSegments',
           '',
-          'producers:',
+          'imports:',
           '  - name: CustomImage',
           `    path: ${producerPath}`,
           '    loop: segment',
@@ -1251,18 +1360,42 @@ describe('buildStoryboardProjection', () => {
   });
 
   it('fails fast for visible story axes that are not driven by NumOfSegments', () => {
-    const root = makeTreeNode({
+    const root: BlueprintTreeNode = {
+      ...makeTreeNode({
       meta: { id: 'UnsupportedAxisFixture', name: 'Unsupported Axis Fixture' },
       inputs: [
         { name: 'NumOfPairs', type: 'int', required: true },
       ],
-      artefacts: [
+      imports: [
+        {
+          name: 'PairProducer',
+          producer: 'image/text-to-image',
+          loop: 'pair',
+        },
+      ],
+      outputs: [
         { name: 'PairImage', type: 'array', itemType: 'image', countInput: 'NumOfPairs' },
       ],
       loops: [{ name: 'pair', countInput: 'NumOfPairs' }],
-      edges: [],
-      producers: [{ name: 'UnsupportedAxisFixture' }],
-    });
+      edges: [
+        { from: 'PairProducer[pair].GeneratedImage', to: 'PairImage[pair]' },
+      ],
+      producers: [],
+      }),
+      children: new Map([
+        [
+          'PairProducer',
+          makeChildTreeNode(
+            makeProducerDocument({
+              id: 'PairProducer',
+              inputs: [],
+              outputs: [{ name: 'GeneratedImage', type: 'image' }],
+            }),
+            ['PairProducer']
+          ),
+        ],
+      ]),
+    };
 
     expect(() =>
       buildStoryboardProjection({

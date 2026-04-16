@@ -34,7 +34,7 @@ const describeIfStructured =
 
 describeIfCredentials('Vercel AI Gateway structured integration', () => {
   describeIfStructured('structured output', () => {
-    it('returns artefacts for structured JSON schema outputs using anthropic/claude-haiku-4.5', async () => {
+    it('returns artifacts for structured JSON schema outputs using anthropic/claude-haiku-4.5', async () => {
       const handler = createVercelAiGatewayHandler()({
         descriptor: {
           provider: 'vercel',
@@ -98,14 +98,14 @@ describeIfCredentials('Vercel AI Gateway structured integration', () => {
       console.log('Vercel Gateway structured output test result:', JSON.stringify(result));
 
       expect(result.status).toBe('succeeded');
-      const ids = result.artefacts.map((a) => a.artefactId).sort();
+      const ids = result.artifacts.map((a) => a.artifactId).sort();
       expect(ids).toEqual(['Artifact:MovieSummary', 'Artifact:MovieTitle']);
 
-      const summary = result.artefacts.find(
-        (a) => a.artefactId === 'Artifact:MovieSummary'
+      const summary = result.artifacts.find(
+        (a) => a.artifactId === 'Artifact:MovieSummary'
       );
-      const title = result.artefacts.find(
-        (a) => a.artefactId === 'Artifact:MovieTitle'
+      const title = result.artifacts.find(
+        (a) => a.artifactId === 'Artifact:MovieTitle'
       );
       expect(typeof summary?.blob?.data === 'string' && summary.blob.data.length > 0).toBeTruthy();
       expect(typeof title?.blob?.data === 'string' && title.blob.data.length > 0).toBeTruthy();

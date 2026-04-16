@@ -8,6 +8,8 @@
 
 Remotion-based video rendering components and timeline document format for Renku. Supports both browser and Node.js environments for video playback and export.
 
+In Renku terms, this package sits on the runtime side of the system: blueprints author `outputs:`, while compositions consume the resolved runtime artifacts those outputs point to.
+
 ## Overview
 
 `@gorenku/compositions` provides the video rendering layer for Renku using [Remotion](https://www.remotion.dev/). It defines:

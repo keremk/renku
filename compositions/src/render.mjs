@@ -108,26 +108,26 @@ async function main() {
     }
     const manifest = await loadManifest(path.join(storageRoot, basePath, movieId, pointer.manifestPath));
 
-    const timelineArtefact = manifest.artefacts?.["Artifact:TimelineComposer.Timeline"];
-    if (!timelineArtefact || !timelineArtefact.blob?.hash) {
-      throw new Error("Timeline artefact missing blob payload in manifest");
+    const timelineArtifact = manifest.artifacts?.["Artifact:TimelineComposer.Timeline"];
+    if (!timelineArtifact || !timelineArtifact.blob?.hash) {
+      throw new Error("Timeline artifact missing blob payload in manifest");
     }
     const timelineBlobPath = resolveBlobPath(
       storageRoot,
       basePath,
       movieId,
-      timelineArtefact.blob.hash,
-      timelineArtefact.blob.mimeType
+      timelineArtifact.blob.hash,
+      timelineArtifact.blob.mimeType
     );
     const timeline = JSON.parse(await readFile(timelineBlobPath, "utf8"));
 
     const assets = {};
-    for (const [artefactId, entry] of Object.entries(manifest.artefacts ?? {})) {
+    for (const [artifactId, entry] of Object.entries(manifest.artifacts ?? {})) {
       if (!entry.blob?.hash) continue;
       const filePath = resolveBlobPath(storageRoot, basePath, movieId, entry.blob.hash, entry.blob.mimeType);
       // Convert absolute path to HTTP URL served by our static server
       const relativePath = path.relative(storageRoot, filePath);
-      assets[artefactId] = `http://localhost:8080/${relativePath}`;
+      assets[artifactId] = `http://localhost:8080/${relativePath}`;
     }
 
     const outputFile = path.join(storageRoot, basePath, movieId, outputName);

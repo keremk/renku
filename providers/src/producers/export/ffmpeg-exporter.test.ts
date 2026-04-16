@@ -425,7 +425,7 @@ describe('ffmpeg-exporter', () => {
       };
 
       const manifest = {
-        artefacts: {
+        artifacts: {
           'Artifact:TimelineComposer.Timeline': {
             blob: {
               hash: 'ab123',
@@ -526,8 +526,8 @@ describe('ffmpeg-exporter', () => {
       });
 
       expect(response.status).toBe('succeeded');
-      expect(response.artefacts[0]?.status).toBe('succeeded');
-      expect(response.artefacts[0]?.blob?.mimeType).toBe('video/mp4');
+      expect(response.artifacts[0]?.status).toBe('succeeded');
+      expect(response.artifacts[0]?.blob?.mimeType).toBe('video/mp4');
     });
 
     it('should accept valid config with subtitles', async () => {
@@ -907,7 +907,7 @@ describe('ffmpeg-exporter', () => {
 
       expect(response.status).toBe('succeeded');
       expect(ffmpegOutputPath.endsWith('FinalVideo.mp4')).toBe(true);
-      expect(response.artefacts[0]?.blob?.mimeType).toBe('video/mp4');
+      expect(response.artifacts[0]?.blob?.mimeType).toBe('video/mp4');
     });
 
     it('fails fast when declared timeline input is invalid', async () => {

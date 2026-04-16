@@ -40,9 +40,9 @@ import {
   resolvePlanningControls,
 } from './planning-controls.js';
 import type {
-  ArtefactEvent,
-  ArtefactEventOutput,
-  ArtefactEventStatus,
+  ArtifactEvent,
+  ArtifactEventOutput,
+  ArtifactEventStatus,
   BlueprintTreeNode,
   BlueprintProducerOutputDefinition,
   ExecutionPlan,
@@ -71,12 +71,12 @@ export type ProviderOptionEntry = {
   configInputPaths?: string[];
 };
 
-export interface PendingArtefactDraft {
-  artefactId: string;
+export interface PendingArtifactDraft {
+  artifactId: string;
   producedBy: string;
-  output: ArtefactEventOutput;
+  output: ArtifactEventOutput;
   inputsHash?: string;
-  status?: ArtefactEventStatus;
+  status?: ArtifactEventStatus;
   diagnostics?: Record<string, unknown>;
 }
 
@@ -90,7 +90,7 @@ export interface GeneratePlanArgs {
   storage: StorageContext;
   manifestService: ManifestService;
   eventLog: EventLog;
-  pendingArtefacts?: PendingArtefactDraft[];
+  pendingArtifacts?: PendingArtifactDraft[];
   inputSource?: InputEventSource;
   /** Canonical planning controls from client adapters (CLI/viewer). */
   userControls?: PlanningUserControls;
@@ -193,11 +193,11 @@ export function createPlanningService(
       const resolvedInputs = buildResolvedInputMap(inputEvents);
       // Note: Blueprint defaults are no longer applied - model JSON schemas are the source of truth
 
-      const artefactEvents = (args.pendingArtefacts ?? []).map((draft) =>
-        makeArtefactEvent(draft, targetRevision, now())
+      const artifactEvents = (args.pendingArtifacts ?? []).map((draft) =>
+        makeArtifactEvent(draft, targetRevision, now())
       );
-      for (const artefactEvent of artefactEvents) {
-        await args.eventLog.appendArtefact(args.movieId, artefactEvent);
+      for (const artifactEvent of artifactEvents) {
+        await args.eventLog.appendArtifact(args.movieId, artifactEvent);
       }
 
       const expanded = expandBlueprintResolutionContext(
@@ -214,7 +214,7 @@ export function createPlanningService(
         producerGraph
       );
 
-      const latestArtefactSnapshot = await readLatestArtefactSnapshot(
+      const latestArtifactSnapshot = await readLatestArtifactSnapshot(
         args.eventLog,
         args.movieId
       );
@@ -223,7 +223,7 @@ export function createPlanningService(
         producerGraph,
         baselineInputs: {},
         userControls: args.userControls,
-        latestSnapshot: latestArtefactSnapshot,
+        latestSnapshot: latestArtifactSnapshot,
         manifest,
       });
 
@@ -272,7 +272,7 @@ export function createPlanningService(
           producerGraph,
           scheduledJobIds,
           manifest,
-          latestSuccessfulArtifactIds: latestArtefactSnapshot.latestSuccessfulIds,
+          latestSuccessfulArtifactIds: latestArtifactSnapshot.latestSuccessfulIds,
           resolvedConditionArtifacts,
           prunedUnrunnableJobs,
           upToLayer: resolvedControls.effectiveUpToLayer,
@@ -384,7 +384,7 @@ async function loadOrCreateManifest(
           baseRevision: null,
           createdAt: now(),
           inputs: {},
-          artefacts: {},
+          artifacts: {},
           timeline: {},
         },
         hash: null,
@@ -443,13 +443,13 @@ function makeInputEvent(
   };
 }
 
-function makeArtefactEvent(
-  draft: PendingArtefactDraft,
+function makeArtifactEvent(
+  draft: PendingArtifactDraft,
   revision: RevisionId,
   createdAt: string
-): ArtefactEvent {
+): ArtifactEvent {
   return {
-    artefactId: draft.artefactId,
+    artifactId: draft.artifactId,
     revision,
     inputsHash: draft.inputsHash ?? 'manual-edit',
     output: draft.output,
@@ -636,7 +636,7 @@ function validateProducerOverrideDependencies(args: {
   }
 
   const reusableArtifacts = new Set<string>(args.latestSuccessfulArtifactIds);
-  for (const [artifactId, entry] of Object.entries(args.manifest.artefacts)) {
+  for (const [artifactId, entry] of Object.entries(args.manifest.artifacts)) {
     if (entry.status === 'succeeded') {
       reusableArtifacts.add(artifactId);
     }
@@ -757,28 +757,28 @@ function isScheduledArtifactInputActive(
   );
 }
 
-async function readLatestArtefactSnapshot(
+async function readLatestArtifactSnapshot(
   eventLog: EventLog,
   movieId: string
 ): Promise<{
-  latestById: Map<string, ArtefactEvent>;
+  latestById: Map<string, ArtifactEvent>;
   latestSuccessfulIds: Set<string>;
   latestFailedIds: Set<string>;
 }> {
-  const latestById = new Map<string, ArtefactEvent>();
-  for await (const event of eventLog.streamArtefacts(movieId)) {
-    latestById.set(event.artefactId, event);
+  const latestById = new Map<string, ArtifactEvent>();
+  for await (const event of eventLog.streamArtifacts(movieId)) {
+    latestById.set(event.artifactId, event);
   }
 
   const latestSuccessfulIds = new Set<string>();
   const latestFailedIds = new Set<string>();
-  for (const [artefactId, event] of latestById) {
+  for (const [artifactId, event] of latestById) {
     if (event.status === 'succeeded') {
-      latestSuccessfulIds.add(artefactId);
+      latestSuccessfulIds.add(artifactId);
       continue;
     }
     if (event.status === 'failed') {
-      latestFailedIds.add(artefactId);
+      latestFailedIds.add(artifactId);
     }
   }
 
@@ -807,15 +807,15 @@ async function resolveConditionArtifactsForPlanning(args: {
   }
 
   const requested = new Set(args.artifactIds);
-  const latestEvents = new Map<string, ArtefactEvent>();
-  for await (const event of args.eventLog.streamArtefacts(args.movieId)) {
+  const latestEvents = new Map<string, ArtifactEvent>();
+  for await (const event of args.eventLog.streamArtifacts(args.movieId)) {
     if (event.status !== 'succeeded') {
       continue;
     }
-    if (!requested.has(event.artefactId)) {
+    if (!requested.has(event.artifactId)) {
       continue;
     }
-    latestEvents.set(event.artefactId, event);
+    latestEvents.set(event.artifactId, event);
   }
 
   const resolved: Record<string, unknown> = {};

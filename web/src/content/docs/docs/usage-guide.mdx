@@ -425,10 +425,10 @@ Pinning rules:
 
 ```bash
 # List all artifact IDs in a movie
-cat builds/movie-{id}/manifests/rev-XXXX.json | jq '.artefacts | keys'
+cat builds/movie-{id}/manifests/rev-XXXX.json | jq '.artifacts | keys'
 ```
 
-The keys in `.artefacts` are canonical artifact IDs. Use those values directly with `--regen` and `--pin`.
+The keys in `.artifacts` are canonical artifact IDs. Use those values directly with `--regen` and `--pin`.
 
 **Note:** Quote the artifact ID when using zsh to prevent bracket expansion:
 

@@ -58,7 +58,7 @@ describe('createProviderProduce', () => {
 			mode: 'simulated',
 			async invoke(request) {
 				capturedContext = request;
-				return { status: 'succeeded', artefacts: [] };
+				return { status: 'succeeded', artifacts: [] };
 			},
 		};
 
@@ -182,7 +182,7 @@ describe('createProviderProduce', () => {
 			mode: 'simulated',
 			async invoke(request) {
 				capturedContext = request;
-				return { status: 'succeeded', artefacts: [] };
+				return { status: 'succeeded', artifacts: [] };
 			},
 		};
 

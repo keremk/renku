@@ -36,7 +36,7 @@ inputs:
     type: resolution
     required: true
 
-artifacts:
+outputs:
   - name: InitialImage
     description: The generated opening frame image
     type: image
@@ -68,7 +68,7 @@ loops:
     description: Iterates over narrative segments
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: HistoryScriptwriter
     path: ./history-scriptwriter/history-scriptwriter.yaml
   - name: InitialImageProducer

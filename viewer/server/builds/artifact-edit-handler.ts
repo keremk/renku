@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 import busboy from 'busboy';
 import {
   detectRequiredExtractions,
-  extractDerivedArtefacts,
+  extractDerivedArtifacts,
 } from '@gorenku/providers';
 
 /** Maximum file size for artifact uploads (100MB) */
@@ -82,10 +82,10 @@ export interface ArtifactRestoreRequest {
 }
 
 /**
- * ArtefactEvent structure matching core types.
+ * ArtifactEvent structure matching core types.
  */
-export interface ArtefactEvent {
-  artefactId: string;
+export interface ArtifactEvent {
+  artifactId: string;
   revision: string;
   inputsHash: string;
   output: {
@@ -146,15 +146,15 @@ function isPathWithinDirectory(filePath: string, directory: string): boolean {
 }
 
 /**
- * Read the latest artefact event for a specific artifact ID from the event log.
+ * Read the latest artifact event for a specific artifact ID from the event log.
  */
 export async function readLatestArtifactEvent(
   blueprintFolder: string,
   movieId: string,
   artifactId: string
-): Promise<ArtefactEvent | null> {
+): Promise<ArtifactEvent | null> {
   const eventsDir = getEventsDir(blueprintFolder, movieId);
-  const logPath = path.join(eventsDir, 'artefacts.log');
+  const logPath = path.join(eventsDir, 'artifacts.log');
 
   if (!existsSync(logPath)) {
     return null;
@@ -163,11 +163,11 @@ export async function readLatestArtifactEvent(
   const content = await fs.readFile(logPath, 'utf8');
   const lines = content.split(/\r?\n/).filter((line) => line.trim());
 
-  let latest: ArtefactEvent | null = null;
+  let latest: ArtifactEvent | null = null;
   for (const line of lines) {
     try {
-      const event = JSON.parse(line) as ArtefactEvent;
-      if (event.artefactId === artifactId && event.status === 'succeeded') {
+      const event = JSON.parse(line) as ArtifactEvent;
+      if (event.artifactId === artifactId && event.status === 'succeeded') {
         latest = event;
       }
     } catch {
@@ -181,11 +181,11 @@ export async function readLatestArtifactEvent(
 async function readLatestSucceededArtifactEvents(
   blueprintFolder: string,
   movieId: string
-): Promise<Map<string, ArtefactEvent>> {
+): Promise<Map<string, ArtifactEvent>> {
   const eventsDir = getEventsDir(blueprintFolder, movieId);
-  const logPath = path.join(eventsDir, 'artefacts.log');
+  const logPath = path.join(eventsDir, 'artifacts.log');
 
-  const latest = new Map<string, ArtefactEvent>();
+  const latest = new Map<string, ArtifactEvent>();
   if (!existsSync(logPath)) {
     return latest;
   }
@@ -195,9 +195,9 @@ async function readLatestSucceededArtifactEvents(
 
   for (const line of lines) {
     try {
-      const event = JSON.parse(line) as ArtefactEvent;
+      const event = JSON.parse(line) as ArtifactEvent;
       if (event.status === 'succeeded') {
-        latest.set(event.artefactId, event);
+        latest.set(event.artifactId, event);
       }
     } catch {
       // Skip malformed lines
@@ -222,7 +222,7 @@ function extractArtifactBaseName(artifactId: string): string {
 function collectDerivedVideoArtifactIdsForFamily(
   artifactId: string,
   sourceProducedBy: string,
-  latestEvents: Map<string, ArtefactEvent>
+  latestEvents: Map<string, ArtifactEvent>
 ): string[] {
   const derivedIds: string[] = [];
 
@@ -265,7 +265,7 @@ async function extractDerivedVideoBuffers(args: {
   const produces = [primaryArtifactId, ...derivedArtifactIds];
   const requiredExtractions = detectRequiredExtractions(produces);
 
-  const extracted = await extractDerivedArtefacts({
+  const extracted = await extractDerivedArtifacts({
     videoBuffer,
     primaryArtifactId,
     produces,
@@ -323,15 +323,15 @@ async function extractDerivedVideoBuffers(args: {
 }
 
 /**
- * Append an artefact event to the event log.
+ * Append an artifact event to the event log.
  */
-async function appendArtefactEvent(
+async function appendArtifactEvent(
   blueprintFolder: string,
   movieId: string,
-  event: ArtefactEvent
+  event: ArtifactEvent
 ): Promise<void> {
   const eventsDir = getEventsDir(blueprintFolder, movieId);
-  const logPath = path.join(eventsDir, 'artefacts.log');
+  const logPath = path.join(eventsDir, 'artifacts.log');
 
   await fs.mkdir(eventsDir, { recursive: true });
 
@@ -599,8 +599,8 @@ export async function applyArtifactEditFromBuffer(
   );
 
   // Create new artifact event
-  const event: ArtefactEvent = {
-    artefactId: artifactId,
+  const event: ArtifactEvent = {
+    artifactId: artifactId,
     revision: generateRevisionId(),
     inputsHash: latestEvent?.inputsHash ?? 'user-edit',
     output: {
@@ -618,7 +618,7 @@ export async function applyArtifactEditFromBuffer(
   };
 
   // Append to event log
-  await appendArtefactEvent(blueprintFolder, movieId, event);
+  await appendArtifactEvent(blueprintFolder, movieId, event);
 
   return {
     success: true,
@@ -750,7 +750,7 @@ async function restoreArtifactToOriginalHash(args: {
   }
 
   const eventsDir = getEventsDir(blueprintFolder, movieId);
-  const logPath = path.join(eventsDir, 'artefacts.log');
+  const logPath = path.join(eventsDir, 'artifacts.log');
   const content = await fs.readFile(logPath, 'utf8');
   const lines = content.split(/\r?\n/).filter((line) => line.trim());
 
@@ -760,9 +760,9 @@ async function restoreArtifactToOriginalHash(args: {
 
   for (const line of lines) {
     try {
-      const event = JSON.parse(line) as ArtefactEvent;
+      const event = JSON.parse(line) as ArtifactEvent;
       if (
-        event.artefactId === artifactId &&
+        event.artifactId === artifactId &&
         event.output.blob?.hash === latestEvent.originalHash
       ) {
         originalMimeType = event.output.blob.mimeType;
@@ -774,8 +774,8 @@ async function restoreArtifactToOriginalHash(args: {
     }
   }
 
-  const event: ArtefactEvent = {
-    artefactId: artifactId,
+  const event: ArtifactEvent = {
+    artifactId: artifactId,
     revision: generateRevisionId(),
     inputsHash: latestEvent.inputsHash,
     output: {
@@ -790,7 +790,7 @@ async function restoreArtifactToOriginalHash(args: {
     createdAt: new Date().toISOString(),
   };
 
-  await appendArtefactEvent(blueprintFolder, movieId, event);
+  await appendArtifactEvent(blueprintFolder, movieId, event);
 
   return {
     restoredHash: latestEvent.originalHash,

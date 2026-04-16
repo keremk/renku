@@ -18,7 +18,7 @@ describe('planner blueprint validation', () => {
 		const blueprintDir = resolve(tempRoot, 'blueprints');
 		await mkdir(blueprintDir, { recursive: true });
 
-		// Create an invalid blueprint that references a non-existent artifact
+		// Create an invalid blueprint that references a non-existent output connector
 		const invalidBlueprint = `
 meta:
   name: Invalid Blueprint
@@ -29,19 +29,19 @@ inputs:
   - name: TestInput
     type: string
 
-artifacts:
+outputs:
   - name: Output
-    type: string
+    type: image
 
-producers:
+imports:
   - name: TestProducer
-    producer: audio/text-to-speech
+    producer: image/text-to-image
 
 connections:
   - from: TestInput
-    to: TestProducer.InquiryPrompt
-  - from: TestProducer.MovieTitle
-    to: NonExistentArtifact
+    to: TestProducer.Prompt
+  - from: TestProducer.GeneratedImage
+    to: MissingOutput
 `;
 
 		const blueprintPath = resolve(blueprintDir, 'invalid.yaml');
@@ -88,18 +88,18 @@ inputs:
   - name: TestInput
     type: string
 
-artifacts:
+outputs:
   - name: Output
-    type: string
+    type: image
 
-producers:
+imports:
   - name: TestProducer
-    producer: audio/text-to-speech
+    producer: image/text-to-image
 
 connections:
   - from: TestInput
     to: TestProducer.NonExistentInput
-  - from: TestProducer.MovieTitle
+  - from: TestProducer.GeneratedImage
     to: Output
 `;
 
@@ -147,18 +147,18 @@ inputs:
   - name: TestInput
     type: string
 
-artifacts:
+outputs:
   - name: Output
-    type: string
+    type: image
 
-producers:
+imports:
   - name: TestProducer
-    producer: audio/text-to-speech
+    producer: image/text-to-image
 
 connections:
   - from: TestInput
-    to: TestProducer.InquiryPrompt
-  - from: TestProducer.MovieTitle
+    to: TestProducer.Prompt
+  - from: TestProducer.GeneratedImage
     to: MissingArtifact
 `;
 

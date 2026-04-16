@@ -38,7 +38,7 @@ export {
   applyArtifactEditFromBuffer,
   applyArtifactEditWithDerivedArtifactsFromBuffer,
   readLatestArtifactEvent,
-  type ArtefactEvent,
+  type ArtifactEvent,
   type ArtifactEditResponse,
   type ArtifactRestoreResponse,
   type TextArtifactEditRequest,

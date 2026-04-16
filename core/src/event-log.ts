@@ -1,6 +1,6 @@
 import type { StorageContext } from './storage.js';
-import type { ArtefactEvent, InputEvent, RevisionId } from './types.js';
-import { hashArtefactOutput, hashInputPayload } from './hashing.js';
+import type { ArtifactEvent, InputEvent, RevisionId } from './types.js';
+import { hashArtifactOutput, hashInputPayload } from './hashing.js';
 
 /* eslint-disable no-unused-vars */
 export interface EventLog {
@@ -8,12 +8,12 @@ export interface EventLog {
     movieId: string,
     sinceRevision?: RevisionId
   ): AsyncIterable<InputEvent>;
-  streamArtefacts(
+  streamArtifacts(
     movieId: string,
     sinceRevision?: RevisionId
-  ): AsyncIterable<ArtefactEvent>;
+  ): AsyncIterable<ArtifactEvent>;
   appendInput(movieId: string, event: InputEvent): Promise<void>;
-  appendArtefact(movieId: string, event: ArtefactEvent): Promise<void>;
+  appendArtifact(movieId: string, event: ArtifactEvent): Promise<void>;
 }
 
 const JSONL_MIME = 'application/jsonl';
@@ -28,22 +28,22 @@ export function createEventLog(storage: StorageContext): EventLog {
       const path = storage.resolve(movieId, 'events', 'inputs.log');
       return iterateEvents<InputEvent>(storage, path, sinceRevision);
     },
-    streamArtefacts(movieId, sinceRevision) {
-      const path = storage.resolve(movieId, 'events', 'artefacts.log');
-      return iterateEvents<ArtefactEvent>(storage, path, sinceRevision);
+    streamArtifacts(movieId, sinceRevision) {
+      const path = storage.resolve(movieId, 'events', 'artifacts.log');
+      return iterateEvents<ArtifactEvent>(storage, path, sinceRevision);
     },
     async appendInput(movieId, event) {
       const path = storage.resolve(movieId, 'events', 'inputs.log');
       await appendEvent(storage, path, event);
     },
-    async appendArtefact(movieId, event) {
-      const path = storage.resolve(movieId, 'events', 'artefacts.log');
+    async appendArtifact(movieId, event) {
+      const path = storage.resolve(movieId, 'events', 'artifacts.log');
       await appendEvent(storage, path, event);
     },
   };
 }
 
-export { hashInputPayload, hashArtefactOutput };
+export { hashInputPayload, hashArtifactOutput };
 
 async function* iterateEvents<T extends { revision: RevisionId }>(
   storage: StorageContext,

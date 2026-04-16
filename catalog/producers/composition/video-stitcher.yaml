@@ -18,7 +18,7 @@ inputs:
     type: int
     required: true
 
-artifacts:
+outputs:
   - name: StitchedVideo
     description: The stitched video output.
     type: video

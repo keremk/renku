@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { formatBlobFileName } from '../blob-utils.js';
 import { createEventLog } from '../event-log.js';
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
-import type { ArtefactEvent } from '../types.js';
+import type { ArtifactEvent } from '../types.js';
 import {
   copyLatestSucceededArtifactBlobsToMemory,
   resolveMovieInputsPath,
@@ -119,8 +119,8 @@ describe('copyLatestSucceededArtifactBlobsToMemory', () => {
     await localStorageContext.storage.write(sourcePath, payload, { mimeType });
 
     const eventLog = createEventLog(localStorageContext);
-    const event: ArtefactEvent = {
-      artefactId: 'Artifact:Image.Output',
+    const event: ArtifactEvent = {
+      artifactId: 'Artifact:Image.Output',
       revision: 'rev-0001',
       inputsHash: 'inputs',
       output: {
@@ -134,7 +134,7 @@ describe('copyLatestSucceededArtifactBlobsToMemory', () => {
       producedBy: 'Producer:ImageProducer',
       createdAt: new Date().toISOString(),
     };
-    await eventLog.appendArtefact(movieId, event);
+    await eventLog.appendArtifact(movieId, event);
 
     await copyLatestSucceededArtifactBlobsToMemory(
       localStorageContext,
@@ -183,8 +183,8 @@ describe('copyLatestSucceededArtifactBlobsToMemory', () => {
     });
 
     const eventLog = createEventLog(localStorageContext);
-    const event: ArtefactEvent = {
-      artefactId: 'Artifact:Image.Output',
+    const event: ArtifactEvent = {
+      artifactId: 'Artifact:Image.Output',
       revision: 'rev-0001',
       inputsHash: 'inputs',
       output: {
@@ -198,7 +198,7 @@ describe('copyLatestSucceededArtifactBlobsToMemory', () => {
       producedBy: 'Producer:ImageProducer',
       createdAt: new Date().toISOString(),
     };
-    await eventLog.appendArtefact(movieId, event);
+    await eventLog.appendArtifact(movieId, event);
 
     await copyLatestSucceededArtifactBlobsToMemory(
       localStorageContext,

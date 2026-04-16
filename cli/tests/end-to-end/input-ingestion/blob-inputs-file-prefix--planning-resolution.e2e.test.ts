@@ -79,7 +79,7 @@ describe('end-to-end: blob inputs via file: prefix', () => {
 					{ name: 'Duration', type: 'int', required: true },
 					{ name: 'InputImage', type: 'image', required: true },
 				],
-				artifacts: [{ name: 'OutputVideo', type: 'video' }],
+				outputs: [{ name: 'OutputVideo', type: 'video' }],
 			}),
 			'utf8'
 		);
@@ -201,7 +201,7 @@ describe('end-to-end: blob inputs via file: prefix', () => {
 						required: true,
 					},
 				],
-				artifacts: [{ name: 'OutputImage', type: 'image' }],
+				outputs: [{ name: 'OutputImage', type: 'image' }],
 			}),
 			'utf8'
 		);

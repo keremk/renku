@@ -13,7 +13,7 @@ import {
 import type { ArtifactInfo, BuildManifestResponse } from './types.js';
 import { normalizeNestedModelSelections } from './model-selection-normalizer.js';
 
-const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
 function stripCanonicalInputPrefix(inputId: string): string {
   if (!inputId.startsWith('Input:')) {
@@ -34,10 +34,10 @@ function stripCanonicalArtifactPrefix(artifactId: string): string {
 }
 
 /**
- * ArtefactEvent structure for reading from event log.
+ * ArtifactEvent structure for reading from event log.
  */
-interface ArtefactEvent {
-  artefactId: string;
+interface ArtifactEvent {
+  artifactId: string;
   output: {
     blob?: {
       hash: string;
@@ -66,7 +66,7 @@ interface ArtefactEvent {
 /**
  * Extract recovery info from an artifact event for the ArtifactInfo response.
  */
-function extractRecoveryInfo(event?: ArtefactEvent): Partial<ArtifactInfo> {
+function extractRecoveryInfo(event?: ArtifactEvent): Partial<ArtifactInfo> {
   if (!event) return {};
 
   const result: Partial<ArtifactInfo> = {};
@@ -112,9 +112,9 @@ function extractRecoveryInfo(event?: ArtefactEvent): Partial<ArtifactInfo> {
  */
 async function readLatestArtifactEvents(
   movieDir: string
-): Promise<Map<string, ArtefactEvent>> {
-  const logPath = path.join(movieDir, 'events', 'artefacts.log');
-  const latest = new Map<string, ArtefactEvent>();
+): Promise<Map<string, ArtifactEvent>> {
+  const logPath = path.join(movieDir, 'events', 'artifacts.log');
+  const latest = new Map<string, ArtifactEvent>();
 
   if (!existsSync(logPath)) {
     return latest;
@@ -126,10 +126,10 @@ async function readLatestArtifactEvents(
 
     for (const line of lines) {
       try {
-        const event = JSON.parse(line) as ArtefactEvent;
+        const event = JSON.parse(line) as ArtifactEvent;
         // Keep all statuses - the latest event for each artifact wins
         // This allows us to track failed/skipped artifacts for recovery
-        latest.set(event.artefactId, event);
+        latest.set(event.artifactId, event);
       } catch {
         // Skip malformed lines
       }
@@ -173,7 +173,7 @@ export async function getBuildManifest(
     // Step 2: Try to read manifest file if path exists (may not exist yet)
     type ManifestData = {
       inputs?: Record<string, { payloadDigest?: unknown }>;
-      artefacts?: Record<
+      artifacts?: Record<
         string,
         {
           hash?: string;
@@ -236,8 +236,8 @@ export async function getBuildManifest(
     const manifestArtifactIds = new Set<string>();
 
     // First pass: manifest artifacts (merged with event log for latest state)
-    if (manifest?.artefacts) {
-      for (const [key, entry] of Object.entries(manifest.artefacts)) {
+    if (manifest?.artifacts) {
+      for (const [key, entry] of Object.entries(manifest.artifacts)) {
         if (!entry || !entry.blob) continue;
         manifestArtifactIds.add(key);
 
@@ -277,7 +277,7 @@ export async function getBuildManifest(
     }
 
     // Second pass: Include artifacts from event log that are NOT in the manifest.
-    // This handles mid-execution artifacts that exist in artefacts.log but not yet
+    // This handles mid-execution artifacts that exist in artifacts.log but not yet
     // in the manifest file (which is only written after execution completes).
     for (const [artifactId, event] of latestEvents) {
       if (manifestArtifactIds.has(artifactId)) {
@@ -315,7 +315,7 @@ export async function getBuildManifest(
         canonicalModelSelections.length > 0
           ? canonicalModelSelections
           : undefined,
-      artefacts: parsedArtifacts,
+      artifacts: parsedArtifacts,
       createdAt: manifest?.createdAt ?? manifestMtime ?? null,
     };
   } catch (error) {
@@ -388,7 +388,7 @@ export async function getBuildTimeline(
 
   const manifestContent = await fs.readFile(manifestPath, 'utf8');
   const manifest = JSON.parse(manifestContent) as {
-    artefacts?: Record<
+    artifacts?: Record<
       string,
       {
         blob?: { hash: string; mimeType?: string };
@@ -396,13 +396,13 @@ export async function getBuildTimeline(
     >;
   };
 
-  const artefact = manifest.artefacts?.[TIMELINE_ARTEFACT_ID];
-  if (!artefact?.blob?.hash) {
+  const artifact = manifest.artifacts?.[TIMELINE_ARTIFACT_ID];
+  if (!artifact?.blob?.hash) {
     return null;
   }
 
   // Resolve the blob path
-  const hash = artefact.blob.hash;
+  const hash = artifact.blob.hash;
   const prefix = hash.slice(0, 2);
   const blobsDir = path.join(movieDir, 'blobs');
 

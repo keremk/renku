@@ -33,7 +33,7 @@ inputs:
     type: resolution
     required: true
 
-artifacts:
+outputs:
   - name: SegmentVideo
     description: Generated video segments with frame continuity.
     type: array
@@ -62,7 +62,7 @@ loops:
     description: Iterates over video segments.
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: ScenarioPromptProducer
     path: ./scenario-prompt/scenario-prompt.yaml
   - name: InitialImageProducer

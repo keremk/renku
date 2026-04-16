@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { extractArtifactKind, resolveArtifactsFromEventLog, resolveArtifactBlobPaths, findFailedArtifacts } from './artifact-resolver.js';
 import type { EventLog } from './event-log.js';
 import type { StorageContext } from './storage.js';
-import type { ArtefactEvent, BlobRef, RevisionId } from './types.js';
+import type { ArtifactEvent, BlobRef, RevisionId } from './types.js';
 
 describe('extractArtifactKind', () => {
   it('extracts kind from artifact ID with dimensions', () => {
@@ -49,8 +49,8 @@ describe('resolveArtifactsFromEventLog', () => {
       mimeType: 'image/png',
     };
 
-    const event: ArtefactEvent = {
-      artefactId: 'Artifact:SegmentImage[segment=0]',
+    const event: ArtifactEvent = {
+      artifactId: 'Artifact:SegmentImage[segment=0]',
       revision: 'rev-1' as RevisionId,
       inputsHash: 'hash-1',
       output: { blob: blobRef },
@@ -84,8 +84,8 @@ describe('resolveArtifactsFromEventLog', () => {
       mimeType: 'text/plain',
     };
 
-    const event: ArtefactEvent = {
-      artefactId: 'Artifact:NarrationScript',
+    const event: ArtifactEvent = {
+      artifactId: 'Artifact:NarrationScript',
       revision: 'rev-1' as RevisionId,
       inputsHash: 'hash-1',
       output: { blob: blobRef },
@@ -125,9 +125,9 @@ describe('resolveArtifactsFromEventLog', () => {
       mimeType: 'text/plain',
     };
 
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:SegmentAudio[segment=0]',
+        artifactId: 'Artifact:SegmentAudio[segment=0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: { blob: audioBlobRef },
@@ -136,7 +136,7 @@ describe('resolveArtifactsFromEventLog', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-        artefactId: 'Artifact:MovieTitle',
+        artifactId: 'Artifact:MovieTitle',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-2',
         output: { blob: titleBlobRef },
@@ -169,9 +169,9 @@ describe('resolveArtifactsFromEventLog', () => {
     const oldBlobData = Buffer.from([1, 2]);
     const newBlobData = Buffer.from([3, 4]);
 
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-1' as any,
         inputsHash: 'hash-1',
         output: {
@@ -182,7 +182,7 @@ describe('resolveArtifactsFromEventLog', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-2' as any,
         inputsHash: 'hash-2',
         output: {
@@ -214,9 +214,9 @@ describe('resolveArtifactsFromEventLog', () => {
   });
 
   it('ignores failed artifacts', async () => {
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-      artefactId: 'Artifact:SegmentImage[segment=0]',
+      artifactId: 'Artifact:SegmentImage[segment=0]',
       revision: 'rev-1' as RevisionId,
       inputsHash: 'hash-1',
       output: {},
@@ -251,9 +251,9 @@ describe('resolveArtifactsFromEventLog', () => {
       mimeType: 'text/plain',
     };
 
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-      artefactId: 'Artifact:SegmentImage[segment=0]',
+      artifactId: 'Artifact:SegmentImage[segment=0]',
       revision: 'rev-1' as RevisionId,
       inputsHash: 'hash-1',
       output: { blob: imageBlobRef },
@@ -262,7 +262,7 @@ describe('resolveArtifactsFromEventLog', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-      artefactId: 'Artifact:SegmentAudio[segment=0]',
+      artifactId: 'Artifact:SegmentAudio[segment=0]',
       revision: 'rev-1' as RevisionId,
       inputsHash: 'hash-2',
       output: { blob: audioBlobRef },
@@ -294,18 +294,18 @@ describe('resolveArtifactsFromEventLog', () => {
 });
 
 // Helper to create mock event log
-function createMockEventLog(events: ArtefactEvent[]): EventLog {
+function createMockEventLog(events: ArtifactEvent[]): EventLog {
   return {
     async *streamInputs() {
       // Not needed for these tests
     },
-    async *streamArtefacts() {
+    async *streamArtifacts() {
       for (const event of events) {
         yield event;
       }
     },
     async appendInput() {},
-    async appendArtefact() {},
+    async appendArtifact() {},
   };
 }
 
@@ -351,8 +351,8 @@ describe('resolveArtifactBlobPaths', () => {
       mimeType: 'video/mp4',
     };
 
-    const event: ArtefactEvent = {
-      artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+    const event: ArtifactEvent = {
+      artifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
       revision: 'rev-1' as RevisionId,
       inputsHash: 'hash-1',
       output: { blob: blobRef },
@@ -388,9 +388,9 @@ describe('resolveArtifactBlobPaths', () => {
       mimeType: 'audio/mpeg',
     };
 
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+        artifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: { blob: videoBlobRef },
@@ -399,7 +399,7 @@ describe('resolveArtifactBlobPaths', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-        artefactId: 'Artifact:AudioProducer.GeneratedAudio[0]',
+        artifactId: 'Artifact:AudioProducer.GeneratedAudio[0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-2',
         output: { blob: audioBlobRef },
@@ -440,9 +440,9 @@ describe('resolveArtifactBlobPaths', () => {
       mimeType: 'video/mp4',
     };
 
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+        artifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: { blob: oldBlobRef },
@@ -451,7 +451,7 @@ describe('resolveArtifactBlobPaths', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-        artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+        artifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
         revision: 'rev-2' as RevisionId,
         inputsHash: 'hash-2',
         output: { blob: newBlobRef },
@@ -478,9 +478,9 @@ describe('resolveArtifactBlobPaths', () => {
   });
 
   it('ignores failed artifacts', async () => {
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+        artifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: {},
@@ -515,9 +515,9 @@ describe('resolveArtifactBlobPaths', () => {
       mimeType: 'audio/mpeg',
     };
 
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+        artifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: { blob: videoBlobRef },
@@ -526,7 +526,7 @@ describe('resolveArtifactBlobPaths', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-        artefactId: 'Artifact:AudioProducer.GeneratedAudio[0]',
+        artifactId: 'Artifact:AudioProducer.GeneratedAudio[0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-2',
         output: { blob: audioBlobRef },
@@ -554,8 +554,8 @@ describe('resolveArtifactBlobPaths', () => {
   });
 
   it('handles artifacts without blobs', async () => {
-    const event: ArtefactEvent = {
-      artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+    const event: ArtifactEvent = {
+      artifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
       revision: 'rev-1' as RevisionId,
       inputsHash: 'hash-1',
       output: {}, // No blob
@@ -589,8 +589,8 @@ describe('resolveArtifactBlobPaths', () => {
       const mimeType = ext === 'mp4' ? 'video/mp4' : ext === 'mp3' ? 'audio/mpeg' : 'image/png';
       const blobRef: BlobRef = { hash, size: 100, mimeType };
 
-      const event: ArtefactEvent = {
-        artefactId: `Artifact:Test.Asset`,
+      const event: ArtifactEvent = {
+        artifactId: `Artifact:Test.Asset`,
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: { blob: blobRef },
@@ -628,9 +628,9 @@ describe('findFailedArtifacts', () => {
   });
 
   it('returns empty array when all artifacts succeeded', async () => {
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
@@ -652,9 +652,9 @@ describe('findFailedArtifacts', () => {
   });
 
   it('returns failed artifact IDs', async () => {
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: {},
@@ -676,9 +676,9 @@ describe('findFailedArtifacts', () => {
   });
 
   it('returns only failed artifacts from mixed results', async () => {
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
@@ -687,7 +687,7 @@ describe('findFailedArtifacts', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-        artefactId: 'Artifact:SegmentImage[segment=1]',
+        artifactId: 'Artifact:SegmentImage[segment=1]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-2',
         output: {},
@@ -696,7 +696,7 @@ describe('findFailedArtifacts', () => {
         createdAt: '2025-01-01T00:00:01Z',
       },
       {
-        artefactId: 'Artifact:SegmentImage[segment=2]',
+        artifactId: 'Artifact:SegmentImage[segment=2]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-3',
         output: { blob: { hash: 'def456', size: 200, mimeType: 'image/png' } },
@@ -722,9 +722,9 @@ describe('findFailedArtifacts', () => {
   });
 
   it('uses latest event status when multiple events exist', async () => {
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: {},
@@ -733,7 +733,7 @@ describe('findFailedArtifacts', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-2' as RevisionId,
         inputsHash: 'hash-2',
         output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
@@ -756,9 +756,9 @@ describe('findFailedArtifacts', () => {
   });
 
   it('returns failed when latest event is failure after success', async () => {
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
@@ -767,7 +767,7 @@ describe('findFailedArtifacts', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-2' as RevisionId,
         inputsHash: 'hash-2',
         output: {},
@@ -790,9 +790,9 @@ describe('findFailedArtifacts', () => {
   });
 
   it('only checks requested artifacts', async () => {
-    const events: ArtefactEvent[] = [
+    const events: ArtifactEvent[] = [
       {
-        artefactId: 'Artifact:SegmentImage[segment=0]',
+        artifactId: 'Artifact:SegmentImage[segment=0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-1',
         output: {},
@@ -801,7 +801,7 @@ describe('findFailedArtifacts', () => {
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
-        artefactId: 'Artifact:SegmentAudio[segment=0]',
+        artifactId: 'Artifact:SegmentAudio[segment=0]',
         revision: 'rev-1' as RevisionId,
         inputsHash: 'hash-2',
         output: {},
@@ -825,7 +825,7 @@ describe('findFailedArtifacts', () => {
   });
 
   it('returns empty array for artifacts not in event log', async () => {
-    const events: ArtefactEvent[] = []; // No events
+    const events: ArtifactEvent[] = []; // No events
 
     const mockEventLog = createMockEventLog(events);
 

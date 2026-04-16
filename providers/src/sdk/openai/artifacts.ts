@@ -1,9 +1,9 @@
 import { Buffer } from 'node:buffer';
-import { isCanonicalArtifactId, readJsonPath, type ProducedArtefact } from '@gorenku/core';
+import { isCanonicalArtifactId, readJsonPath, type ProducedArtifact } from '@gorenku/core';
 
 type JsonObject = Record<string, unknown>;
 
-export interface ParsedArtefactIdentifier {
+export interface ParsedArtifactIdentifier {
   /** Full artifact kind path (e.g., "Producer.Image") */
   kind: string;
   /** Base name without namespace path (e.g., "Image") */
@@ -16,7 +16,7 @@ export interface ParsedArtefactIdentifier {
 
 /**
  * Builds artifacts from OpenAI response using canonical mapping.
- * Convention: JSON field names **must** match the canonical artefact kind
+ * Convention: JSON field names **must** match the canonical artifact kind
  * (PascalCase, without namespace). No heuristics or fallbacks.
  *
  * @example
@@ -27,34 +27,34 @@ export interface ParsedArtefactIdentifier {
  *   - "Artifact:NarrationScript[segment=1]" → NarrationScript[1]
  *   - "Artifact:NarrationScript[segment=2]" → NarrationScript[2]
  */
-export interface BuildArtefactOptions {
+export interface BuildArtifactOptions {
   producerId?: string;
   namespaceOrdinalDepth?: number;
 }
 
-interface ArtefactExtractionContext {
+interface ArtifactExtractionContext {
   skipNamespaceOrdinals: number;
   parentArtifactName?: string;
 }
 
-export function buildArtefactsFromResponse(
+export function buildArtifactsFromResponse(
   response: JsonObject | string,
   produces: string[],
-  options: BuildArtefactOptions = {},
-): ProducedArtefact[] {
-  const artefacts: ProducedArtefact[] = [];
+  options: BuildArtifactOptions = {},
+): ProducedArtifact[] {
+  const artifacts: ProducedArtifact[] = [];
   const jsonResponse = typeof response === 'string' ? response : response;
-  const context: ArtefactExtractionContext = {
+  const context: ArtifactExtractionContext = {
     skipNamespaceOrdinals: resolveNamespaceOrdinalDepth(options),
     parentArtifactName: detectParentArtifactName(produces),
   };
 
-  for (const artefactId of produces) {
-    const artefact = buildSingleArtefact(jsonResponse, artefactId, context);
-    artefacts.push(artefact);
+  for (const artifactId of produces) {
+    const artifact = buildSingleArtifact(jsonResponse, artifactId, context);
+    artifacts.push(artifact);
   }
 
-  return artefacts;
+  return artifacts;
 }
 
 /**
@@ -124,17 +124,17 @@ function detectParentArtifactName(produces: string[]): string | undefined {
   return undefined;
 }
 
-function buildSingleArtefact(
+function buildSingleArtifact(
   response: JsonObject | string,
-  artefactId: string,
-  context: ArtefactExtractionContext,
-): ProducedArtefact {
+  artifactId: string,
+  context: ArtifactExtractionContext,
+): ProducedArtifact {
   const diagnostics: Record<string, unknown> = {};
 
   // For text responses, return the whole text
   if (typeof response === 'string') {
     return {
-      artefactId,
+      artifactId,
       status: 'succeeded',
       blob: {
         data: response,
@@ -145,12 +145,12 @@ function buildSingleArtefact(
   }
 
   // For JSON responses, use implicit mapping
-  const parsed = parseArtefactIdentifier(artefactId, context.parentArtifactName);
+  const parsed = parseArtifactIdentifier(artifactId, context.parentArtifactName);
   if (!parsed) {
     return {
-      artefactId,
+      artifactId,
       status: 'failed',
-      diagnostics: { reason: 'invalid_artefact_id', artefactId },
+      diagnostics: { reason: 'invalid_artifact_id', artifactId },
     };
   }
 
@@ -162,7 +162,7 @@ function buildSingleArtefact(
     const result = readJsonPath(response, parsed.jsonPath);
     if (!result.exists) {
       return {
-        artefactId,
+        artifactId,
         status: 'failed',
         diagnostics: { ...diagnostics, reason: 'json_path_not_found', jsonPath: parsed.jsonPath },
       };
@@ -171,14 +171,14 @@ function buildSingleArtefact(
     const materialized = materializeValue(result.value);
     if (!materialized.success) {
       return {
-        artefactId,
+        artifactId,
         status: 'failed',
         diagnostics: { ...diagnostics, reason: 'materialization_failed', error: materialized.error },
       };
     }
 
     return {
-      artefactId,
+      artifactId,
       status: 'succeeded',
       blob: {
         data: materialized.text ?? '',
@@ -196,7 +196,7 @@ function buildSingleArtefact(
   const fieldValue = response[fieldName];
   if (fieldValue === undefined) {
     return {
-      artefactId,
+      artifactId,
       status: 'failed',
       diagnostics: { ...diagnostics, reason: 'missing_field', field: fieldName },
     };
@@ -210,7 +210,7 @@ function buildSingleArtefact(
     value = selectByOrdinal(fieldValue, effectiveOrdinal, diagnostics);
     if (value === undefined) {
       return {
-        artefactId,
+        artifactId,
         status: 'failed',
         diagnostics,
       };
@@ -219,7 +219,7 @@ function buildSingleArtefact(
     value = selectArrayElement(fieldValue, parsed.index.segment, diagnostics);
     if (value === undefined) {
       return {
-        artefactId,
+        artifactId,
         status: 'failed',
         diagnostics,
       };
@@ -230,14 +230,14 @@ function buildSingleArtefact(
   const materialized = materializeValue(value);
   if (!materialized.success) {
     return {
-      artefactId,
+      artifactId,
       status: 'failed',
       diagnostics: { ...diagnostics, reason: 'materialization_failed', error: materialized.error },
     };
   }
 
   return {
-    artefactId,
+    artifactId,
     status: 'succeeded',
     blob: {
       data: materialized.text ?? '',
@@ -259,10 +259,10 @@ function buildSingleArtefact(
  * @param parentArtifactName - Optional parent artifact name for decomposed artifacts.
  *                             When provided, the JSON path is extracted after this name.
  */
-export function parseArtefactIdentifier(
+export function parseArtifactIdentifier(
   identifier: string,
   parentArtifactName?: string,
-): ParsedArtefactIdentifier | null {
+): ParsedArtifactIdentifier | null {
   if (!isCanonicalArtifactId(identifier)) {
     return null;
   }
@@ -327,7 +327,7 @@ function escapeRegex(str: string): string {
 
 function trimNamespaceOrdinals(
   ordinal: number[] | undefined,
-  context: ArtefactExtractionContext,
+  context: ArtifactExtractionContext,
 ): number[] | undefined {
   if (!ordinal || ordinal.length === 0) {
     return ordinal;
@@ -342,7 +342,7 @@ function trimNamespaceOrdinals(
   return ordinal.slice(skip);
 }
 
-function resolveNamespaceOrdinalDepth(options: BuildArtefactOptions): number {
+function resolveNamespaceOrdinalDepth(options: BuildArtifactOptions): number {
   if (typeof options.namespaceOrdinalDepth === 'number' && options.namespaceOrdinalDepth >= 0) {
     return options.namespaceOrdinalDepth;
   }

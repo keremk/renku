@@ -20,7 +20,7 @@ inputs:
     type: integer
     default: 4
 
-artifacts:
+outputs:
   - name: FirstVideo
     description: The first generated video.
     type: video
@@ -37,7 +37,7 @@ artifacts:
     description: Audio track extracted from the first video.
     type: audio
 
-producers:
+imports:
   - name: FirstVideoProducer
     producer: video/text-to-video
   - name: SecondVideoProducer

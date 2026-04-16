@@ -452,10 +452,10 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
       const shortResult = await handler.invoke(shortRequest);
 
       expect(shortResult.status).toBe('succeeded');
-      expect(shortResult.artefacts).toHaveLength(1);
-      expect(shortResult.artefacts[0]?.blob).toBeDefined();
+      expect(shortResult.artifacts).toHaveLength(1);
+      expect(shortResult.artifacts[0]?.blob).toBeDefined();
       // Should be a small buffer (short WAV)
-      const shortBuffer = shortResult.artefacts[0]?.blob?.data as Buffer;
+      const shortBuffer = shortResult.artifacts[0]?.blob?.data as Buffer;
       expect(shortBuffer.length).toBeGreaterThan(44); // WAV header is 44 bytes
 
       // Long text should have longer duration
@@ -488,7 +488,7 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
       const longResult = await handler.invoke(longRequest);
 
       expect(longResult.status).toBe('succeeded');
-      const longBuffer = longResult.artefacts[0]?.blob?.data as Buffer;
+      const longBuffer = longResult.artifacts[0]?.blob?.data as Buffer;
       // Long text should produce larger WAV file
       expect(longBuffer.length).toBeGreaterThan(shortBuffer.length);
     });
@@ -502,27 +502,27 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
       const result = await handler.invoke(request);
 
       expect(result.status).toBe('succeeded');
-      expect(result.artefacts).toHaveLength(2);
+      expect(result.artifacts).toHaveLength(2);
 
       // First artifact
-      expect(result.artefacts[0]).toMatchObject({
-        artefactId: 'Artifact:Narration',
+      expect(result.artifacts[0]).toMatchObject({
+        artifactId: 'Artifact:Narration',
         status: 'succeeded',
         blob: {
           mimeType: 'audio/mpeg',
         },
       });
-      expect(result.artefacts[0]?.blob?.data).toBeInstanceOf(Buffer);
+      expect(result.artifacts[0]?.blob?.data).toBeInstanceOf(Buffer);
 
       // Second artifact (shares same buffer)
-      expect(result.artefacts[1]).toMatchObject({
-        artefactId: 'Artifact:Backup',
+      expect(result.artifacts[1]).toMatchObject({
+        artifactId: 'Artifact:Backup',
         status: 'succeeded',
         blob: {
           mimeType: 'audio/mpeg',
         },
       });
-      expect(result.artefacts[1]?.blob?.data).toBeInstanceOf(Buffer);
+      expect(result.artifacts[1]?.blob?.data).toBeInstanceOf(Buffer);
     });
 
     it('includes simulated flag in diagnostics', async () => {
@@ -581,9 +581,9 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
       const result = await handler.invoke(request);
 
       expect(result.status).toBe('succeeded');
-      expect(result.artefacts).toHaveLength(1);
+      expect(result.artifacts).toHaveLength(1);
 
-      const buffer = result.artefacts[0]?.blob?.data as Buffer;
+      const buffer = result.artifacts[0]?.blob?.data as Buffer;
       // WAV generator uses 8kHz mono 8-bit (~8KB/second)
       // 60 seconds = ~480044 bytes (60 * 8000 + 44 header)
       expect(buffer.length).toBeGreaterThan(400_000); // At least 400KB for 60s
@@ -619,7 +619,7 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
       const result = await handler.invoke(request);
 
       expect(result.status).toBe('succeeded');
-      const buffer = result.artefacts[0]?.blob?.data as Buffer;
+      const buffer = result.artifacts[0]?.blob?.data as Buffer;
       // WAV generator uses 8kHz mono 8-bit (~8KB/second)
       // 30 seconds = ~240044 bytes (30 * 8000 + 44 header)
       expect(buffer.length).toBeGreaterThan(200_000); // At least 200KB for 30s
@@ -690,15 +690,15 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
       const result = await handler.invoke(request);
 
       // All artifacts should be produced with correct IDs
-      expect(result.artefacts).toHaveLength(3);
-      expect(result.artefacts.map((a) => a.artefactId)).toEqual([
+      expect(result.artifacts).toHaveLength(3);
+      expect(result.artifacts.map((a) => a.artifactId)).toEqual([
         'Artifact:Audio1',
         'Artifact:Audio2',
         'Artifact:Audio3',
       ]);
 
       // All should have the same blob (they share the audio buffer)
-      const sizes = result.artefacts.map((a) => (a.blob?.data as Buffer)?.length);
+      const sizes = result.artifacts.map((a) => (a.blob?.data as Buffer)?.length);
       expect(sizes[0]).toBe(sizes[1]);
       expect(sizes[1]).toBe(sizes[2]);
     });

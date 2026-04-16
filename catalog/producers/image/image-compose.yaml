@@ -27,7 +27,7 @@ inputs:
     description: Output resolution as width/height pixel dimensions.
     type: resolution
 
-artifacts:
+outputs:
   - name: ComposedImage
     description: The composed image combining elements from all source images.
     type: image

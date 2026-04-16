@@ -12,7 +12,7 @@ import type {
   AttachmentReader,
   ResolvedInputsAccessor,
   RuntimeSdkHelpers,
-  ArtefactRegistry,
+  ArtifactRegistry,
 } from './types.js';
 import {
   type BlueprintProducerSdkMappingField,
@@ -55,7 +55,7 @@ export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
   const jobContext = extractJobContext(request.context.extras);
   const inputs = createInputsAccessor(resolvedInputs);
   const sdk = createSdkHelper(inputs, jobContext, logger);
-  const artefacts = createArtefactRegistry(request.produces);
+  const artifacts = createArtifactRegistry(request.produces);
 
   return {
     descriptor,
@@ -65,7 +65,7 @@ export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
     attachments,
     inputs,
     sdk,
-    artefacts,
+    artifacts,
     logger,
     notifications: init.notifications,
   };
@@ -170,21 +170,21 @@ function createSdkHelper(
   };
 }
 
-function createArtefactRegistry(produces: string[]): ArtefactRegistry {
+function createArtifactRegistry(produces: string[]): ArtifactRegistry {
   const set = new Set(produces);
   function ensure(id: string): string {
     if (!set.has(id)) {
       throw createProviderError(
-        SdkErrorCode.UNKNOWN_ARTEFACT,
-        `Unknown artefact "${id}" for producer invoke.`,
+        SdkErrorCode.UNKNOWN_ARTIFACT,
+        `Unknown artifact "${id}" for producer invoke.`,
         { kind: 'user_input', causedByUser: true }
       );
     }
     return id;
   }
   return {
-    expectBlob(artefactId: string) {
-      return ensure(artefactId);
+    expectBlob(artifactId: string) {
+      return ensure(artifactId);
     },
   };
 }

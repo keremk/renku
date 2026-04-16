@@ -12,7 +12,7 @@ inputs:
     description: Source image input.
     type: image
 
-artifacts:
+outputs:
   - name: OutputImage
     description: Output image artifact.
     type: image

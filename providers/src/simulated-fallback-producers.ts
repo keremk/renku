@@ -1,4 +1,4 @@
-import { createSimulatedFallbackArtefacts } from './simulated-fallback-output.js';
+import { createSimulatedFallbackArtifacts } from './simulated-fallback-output.js';
 import type {
   HandlerFactory,
   HandlerFactoryInit,
@@ -14,10 +14,10 @@ export function createSimulatedFallbackProducerHandler(): HandlerFactory {
     environment: descriptor.environment,
     mode,
     async invoke(request: ProviderJobContext): Promise<ProviderResult> {
-      const artefacts = await createSimulatedFallbackArtefacts(request);
+      const artifacts = await createSimulatedFallbackArtifacts(request);
       return {
         status: 'succeeded',
-        artefacts,
+        artifacts,
       };
     },
   });

@@ -26,7 +26,7 @@ inputs:
     description: Text describing the image style to be used.
     type: string
 
-artifacts:
+outputs:
   - name: VideoScript
     description: The generated video script for the documentary.
     type: json

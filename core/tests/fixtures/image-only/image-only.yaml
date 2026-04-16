@@ -32,7 +32,7 @@ inputs:
     type: string
     required: false
 
-artifacts:
+outputs:
   - name: SegmentImage
     description: Generated images grouped by segment and image index.
     type: multiDimArray
@@ -48,7 +48,7 @@ loops:
     parent: segment
     countInput: NumOfImagesPerNarrative
 
-producers:
+imports:
   - name: ScriptProducer
     path: ../_shared/script/script.yaml
   - name: ImagePromptProducer

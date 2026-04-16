@@ -68,7 +68,7 @@ describe('createBlueprintBuild', () => {
       await storage.storage.fileExists(storage.resolve(result.movieId, 'events', 'inputs.log'))
     ).toBe(true);
     expect(
-      await storage.storage.fileExists(storage.resolve(result.movieId, 'events', 'artefacts.log'))
+      await storage.storage.fileExists(storage.resolve(result.movieId, 'events', 'artifacts.log'))
     ).toBe(true);
 
     const metadataService = createMovieMetadataService(storage);

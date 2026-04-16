@@ -16,7 +16,7 @@ inputs:
     itemType: image
     required: true
 
-artifacts:
+outputs:
   - name: ComposedImage
     description: Composed output image.
     type: image

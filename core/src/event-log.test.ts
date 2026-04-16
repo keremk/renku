@@ -4,11 +4,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   createEventLog,
-  hashArtefactOutput,
+  hashArtifactOutput,
   hashInputPayload,
 } from './event-log.js';
 import { createStorageContext, initializeMovieStorage } from './storage.js';
-import type { ArtefactEvent, InputEvent } from './types.js';
+import type { ArtifactEvent, InputEvent } from './types.js';
 
 function memoryContext() {
   return createStorageContext({ kind: 'memory', basePath: 'builds' });
@@ -72,18 +72,18 @@ describe('EventLog', () => {
     expect(collected[0].revision).toBe('rev-0003');
   });
 
-  it('appends artefact events and streams them back', async () => {
+  it('appends artifact events and streams them back', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
     const eventLog = createEventLog(ctx);
 
-    const artefactEvent: ArtefactEvent = {
-      artefactId: 'segment_script_0',
+    const artifactEvent: ArtifactEvent = {
+      artifactId: 'segment_script_0',
       revision: 'rev-0002',
       inputsHash: 'inputs-hash-script-prompt-audience',
       output: {
         blob: {
-          hash: hashArtefactOutput({
+          hash: hashArtifactOutput({
             blob: { hash: 'narration-hash', size: 48, mimeType: 'text/plain' },
           }),
           size: 48,
@@ -96,15 +96,15 @@ describe('EventLog', () => {
       createdAt: new Date().toISOString(),
     };
 
-    await eventLog.appendArtefact('demo', artefactEvent);
+    await eventLog.appendArtifact('demo', artifactEvent);
 
-    const collected: ArtefactEvent[] = [];
-    for await (const evt of eventLog.streamArtefacts('demo')) {
+    const collected: ArtifactEvent[] = [];
+    for await (const evt of eventLog.streamArtifacts('demo')) {
       collected.push(evt);
     }
 
     expect(collected).toHaveLength(1);
-    expect(collected[0]).toEqual(artefactEvent);
+    expect(collected[0]).toEqual(artifactEvent);
   });
 
   it('produces stable hashes for equivalent payloads', () => {
@@ -112,10 +112,10 @@ describe('EventLog', () => {
     const second = hashInputPayload({ b: { c: 2 }, a: 1 });
     expect(first).toBe(second);
 
-    const outputHash = hashArtefactOutput({
+    const outputHash = hashArtifactOutput({
       blob: { hash: 'sha', size: 1, mimeType: 'text/plain' },
     });
-    const outputHashPermuted = hashArtefactOutput({
+    const outputHashPermuted = hashArtifactOutput({
       blob: { mimeType: 'text/plain', size: 1, hash: 'sha' },
     });
     expect(outputHash).toBe(outputHashPermuted);
@@ -132,10 +132,10 @@ describe('EventLog', () => {
       await initializeMovieStorage(ctx, 'demo');
       const eventLog = createEventLog(ctx);
 
-      const artefacts: ArtefactEvent[] = Array.from(
+      const artifacts: ArtifactEvent[] = Array.from(
         { length: 20 },
         (_, index) => ({
-          artefactId: `segment_script_${index}`,
+          artifactId: `segment_script_${index}`,
           revision: `rev-${String(index + 1).padStart(4, '0')}`,
           inputsHash: `inputs-hash-${index}`,
           output: {
@@ -152,20 +152,20 @@ describe('EventLog', () => {
       );
 
       await Promise.all(
-        artefacts.map((event) => eventLog.appendArtefact('demo', event))
+        artifacts.map((event) => eventLog.appendArtifact('demo', event))
       );
 
-      const logPath = join(root, 'builds/demo/events/artefacts.log');
+      const logPath = join(root, 'builds/demo/events/artifacts.log');
       const raw = await readFile(logPath, 'utf8');
       const lines = raw
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean);
 
-      expect(lines).toHaveLength(artefacts.length);
-      const parsed = lines.map((line) => JSON.parse(line) as ArtefactEvent);
-      const seenIds = new Set(parsed.map((evt) => evt.artefactId));
-      expect(seenIds.size).toBe(artefacts.length);
+      expect(lines).toHaveLength(artifacts.length);
+      const parsed = lines.map((line) => JSON.parse(line) as ArtifactEvent);
+      const seenIds = new Set(parsed.map((evt) => evt.artifactId));
+      expect(seenIds.size).toBe(artifacts.length);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

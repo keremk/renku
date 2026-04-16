@@ -13,11 +13,11 @@ inputs:
     type: image
     required: true
 
-artifacts:
+outputs:
   - name: FinalVideo
     type: video
 
-producers:
+imports:
   - name: NestedVideoUnit
     producer: video/nested-composite
 

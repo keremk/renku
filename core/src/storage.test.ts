@@ -43,7 +43,7 @@ describe('initializeMovieStorage', () => {
     expect(await storage.fileExists('builds/demo/events/inputs.log')).toBe(
       true
     );
-    expect(await storage.fileExists('builds/demo/events/artefacts.log')).toBe(
+    expect(await storage.fileExists('builds/demo/events/artifacts.log')).toBe(
       true
     );
     expect(await storage.fileExists('builds/demo/current.json')).toBe(true);

@@ -302,14 +302,14 @@ describe('createVercelAiGatewayHandler', () => {
     expect(callArgs.system).toBe('Write for children');
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(2);
-    expect(result.artefacts[0]).toMatchObject({
-      artefactId: 'Artifact:MovieTitle',
+    expect(result.artifacts).toHaveLength(2);
+    expect(result.artifacts[0]).toMatchObject({
+      artifactId: 'Artifact:MovieTitle',
       blob: { data: 'Journey to Mars', mimeType: 'text/plain' },
       status: 'succeeded',
     });
-    expect(result.artefacts[1]).toMatchObject({
-      artefactId: 'Artifact:MovieSummary',
+    expect(result.artifacts[1]).toMatchObject({
+      artifactId: 'Artifact:MovieSummary',
       blob: { data: 'A thrilling space adventure', mimeType: 'text/plain' },
       status: 'succeeded',
     });
@@ -354,7 +354,7 @@ describe('createVercelAiGatewayHandler', () => {
 
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts[0]?.blob?.data).toBe('Plain response text');
+    expect(result.artifacts[0]?.blob?.data).toBe('Plain response text');
 
     const args = mocks.generateText.mock.calls[0]?.[0] as Record<
       string,
@@ -477,9 +477,9 @@ describe('createVercelAiGatewayHandler', () => {
     expect(mocks.generateText).not.toHaveBeenCalled();
     expect(result.status).toBe('succeeded');
 
-    const title = result.artefacts.find(
-      (artefact) =>
-        artefact.artefactId === 'Artifact:ScriptGenerator.MovieTitle'
+    const title = result.artifacts.find(
+      (artifact) =>
+        artifact.artifactId === 'Artifact:ScriptGenerator.MovieTitle'
     );
     expect(title?.blob?.data).toContain('Simulated MovieTitle');
   });
@@ -704,7 +704,7 @@ describe('createVercelAiGatewayHandler', () => {
     );
   });
 
-  it('marks artefacts as failed when field is missing from JSON response', async () => {
+  it('marks artifacts as failed when field is missing from JSON response', async () => {
     mocks.generateText.mockResolvedValueOnce({
       output: { MovieTitle: 'Title only' },
       usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
@@ -735,9 +735,9 @@ describe('createVercelAiGatewayHandler', () => {
 
     const result = await handler.invoke(request);
     expect(result.status).toBe('failed');
-    expect(result.artefacts[0]?.status).toBe('succeeded');
-    expect(result.artefacts[1]?.status).toBe('failed');
-    expect(result.artefacts[1]?.diagnostics?.reason).toBe('missing_field');
+    expect(result.artifacts[0]?.status).toBe('succeeded');
+    expect(result.artifacts[1]?.status).toBe('failed');
+    expect(result.artifacts[1]?.diagnostics?.reason).toBe('missing_field');
   });
 
   it('propagates errors when generateText (structured output) fails', async () => {
@@ -889,8 +889,8 @@ describe('createVercelAiGatewayHandler', () => {
 
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts[0]?.status).toBe('succeeded');
-    expect(result.artefacts[0]?.blob?.data).toBe('Recovered from fallback');
+    expect(result.artifacts[0]?.status).toBe('succeeded');
+    expect(result.artifacts[0]?.blob?.data).toBe('Recovered from fallback');
     expect(mocks.generateText).toHaveBeenCalledTimes(2);
     expect(result.diagnostics?.warnings).toContain(
       'Structured output fallback used (JSON text + local schema validation).'
@@ -1061,7 +1061,7 @@ describe('createVercelAiGatewayHandler', () => {
       // Should use structured output (generateText is called once)
       expect(mocks.generateText).toHaveBeenCalledTimes(1);
       expect(result.status).toBe('succeeded');
-      expect(result.artefacts).toHaveLength(2);
+      expect(result.artifacts).toHaveLength(2);
 
       // Verify the call includes the output option for structured output
       const args = mocks.generateText.mock.calls[0]?.[0] as Record<

@@ -38,7 +38,7 @@ inputs:
     description: ISO 639-1 language code or language name.
     type: string
 
-artifacts:
+outputs:
   - name: GeneratedAudio
     description: The generated speech audio.
     type: audio

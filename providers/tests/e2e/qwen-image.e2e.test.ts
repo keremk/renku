@@ -87,11 +87,11 @@ describeIf('Qwen Image provider integration (native uploads)', () => {
     const result = await handler.invoke(request);
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
-    expect(result.artefacts[0]?.blob?.mimeType).toMatch(
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.blob?.mimeType).toMatch(
       /^image\/(png|jpeg|jpg|webp)$/
     );
-    expect(result.artefacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
+    expect(result.artifacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
 
     // Verify diagnostics contain the uploaded URLs (not blobs)
     const diagnostics = result.diagnostics as Record<string, unknown>;
@@ -107,10 +107,10 @@ describeIf('Qwen Image provider integration (native uploads)', () => {
       }
     }
 
-    if (result.artefacts[0]?.blob?.data) {
+    if (result.artifacts[0]?.blob?.data) {
       saveTestArtifact(
         'qwen-image-pirate-output.png',
-        result.artefacts[0].blob.data
+        result.artifacts[0].blob.data
       );
     }
   }, 300000); // 5 minute timeout for image generation with upload

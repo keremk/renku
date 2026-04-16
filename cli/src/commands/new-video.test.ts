@@ -33,9 +33,9 @@ async function createBlueprintFixture(root: string): Promise<string> {
 	const templatePath = resolve(root, 'input-template.yaml');
 	await writeFile(
 		blueprintPath,
-		`meta:
+`meta:
   name: Test Blueprint
-producers:
+imports:
   - uses: ScriptProducer
 `,
 		'utf8'

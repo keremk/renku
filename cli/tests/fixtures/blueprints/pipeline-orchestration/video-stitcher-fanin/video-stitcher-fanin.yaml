@@ -23,7 +23,7 @@ inputs:
     type: resolution
     required: true
 
-artifacts:
+outputs:
   - name: ClipVideos
     type: array
     itemType: video
@@ -35,7 +35,7 @@ loops:
   - name: clip
     countInput: NumOfClips
 
-producers:
+imports:
   - name: VideoProducer
     producer: video/text-to-video
     loop: clip

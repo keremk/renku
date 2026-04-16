@@ -28,9 +28,9 @@ function createDocument(
   return {
     meta: { id: 'test', name: 'Test Blueprint' },
     inputs: [],
-    artefacts: [],
+    outputs: [],
     producers: [],
-    producerImports: [],
+    imports: [],
     edges: [],
     ...overrides,
   };
@@ -60,7 +60,7 @@ describe('validateBlueprintTree', () => {
   it('returns valid result for valid blueprint', () => {
     const doc = createDocument({
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
       edges: [{ from: 'Prompt', to: 'Output' }],
     });
     const tree = createTreeNode(doc);
@@ -74,7 +74,7 @@ describe('validateBlueprintTree', () => {
   it('collects multiple errors without failing early', () => {
     const doc = createDocument({
       inputs: [{ name: 'Prompt', type: 'invalid-type', required: true }],
-      artefacts: [{ name: 'Output', type: 'invalid-type', required: true }],
+      outputs: [{ name: 'Output', type: 'invalid-type', required: true }],
       edges: [{ from: 'NonExistent', to: 'AlsoNonExistent' }],
     });
     const tree = createTreeNode(doc);
@@ -92,7 +92,7 @@ describe('validateBlueprintTree', () => {
         { name: 'UsedInput', type: 'string', required: true },
         { name: 'UnusedInput', type: 'string', required: false },
       ],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
       edges: [{ from: 'UsedInput', to: 'Output' }],
     });
     const tree = createTreeNode(doc);
@@ -110,7 +110,7 @@ describe('validateBlueprintTree', () => {
 describe('validateConnectionEndpoints', () => {
   it('validates producer names exist', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ValidProducer' }],
+      producers: [{ name: 'ValidProducer' }],
       edges: [{ from: 'InvalidProducer.Output', to: 'SomeInput' }],
     });
     const tree = createTreeNode(doc);
@@ -128,7 +128,7 @@ describe('validateConnectionEndpoints', () => {
   it('validates input references exist', () => {
     const doc = createDocument({
       inputs: [{ name: 'ValidInput', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
       edges: [{ from: 'InvalidInput', to: 'Output' }],
     });
     const tree = createTreeNode(doc);
@@ -146,7 +146,7 @@ describe('validateConnectionEndpoints', () => {
   it('validates artifact references exist', () => {
     const doc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [{ name: 'ValidArtifact', type: 'string', required: true }],
+      outputs: [{ name: 'ValidArtifact', type: 'string', required: true }],
       edges: [{ from: 'Input', to: 'InvalidArtifact' }],
     });
     const tree = createTreeNode(doc);
@@ -163,7 +163,7 @@ describe('validateConnectionEndpoints', () => {
 
   it('accepts system inputs without declaration', () => {
     const doc = createDocument({
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
       edges: [
         { from: 'Duration', to: 'Output' },
         { from: 'NumOfSegments', to: 'Output' },
@@ -180,8 +180,8 @@ describe('validateConnectionEndpoints', () => {
   it('validates dimension references against declared loops', () => {
     const doc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
-      producerImports: [{ name: 'Producer' }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
+      producers: [{ name: 'Producer' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [{ from: 'Input', to: 'Producer[undeclaredLoop].Input' }],
     });
@@ -202,7 +202,7 @@ describe('validateProducerInputOutput', () => {
   it('validates producer input exists', () => {
     const producerDoc = createDocument({
       inputs: [{ name: 'ValidInput', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
     });
     const producerNode = createTreeNode(producerDoc, {
       namespacePath: ['Producer'],
@@ -210,8 +210,8 @@ describe('validateProducerInputOutput', () => {
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
-      producerImports: [{ name: 'Producer' }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
+      imports: [{ name: 'Producer', producer: 'test/producer' }],
       edges: [{ from: 'Input', to: 'Producer.InvalidInput' }],
     });
     const rootNode = createTreeNode(rootDoc, {
@@ -231,7 +231,7 @@ describe('validateProducerInputOutput', () => {
   it('validates producer output exists', () => {
     const producerDoc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [{ name: 'ValidOutput', type: 'string', required: true }],
+      outputs: [{ name: 'ValidOutput', type: 'string', required: true }],
     });
     const producerNode = createTreeNode(producerDoc, {
       namespacePath: ['Producer'],
@@ -239,8 +239,8 @@ describe('validateProducerInputOutput', () => {
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
-      producerImports: [{ name: 'Producer' }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
+      imports: [{ name: 'Producer', producer: 'test/producer' }],
       edges: [{ from: 'Producer.InvalidOutput', to: 'Output' }],
     });
     const rootNode = createTreeNode(rootDoc, {
@@ -260,7 +260,7 @@ describe('validateProducerInputOutput', () => {
   it('accepts valid producer input/output references', () => {
     const producerDoc = createDocument({
       inputs: [{ name: 'ProducerInput', type: 'string', required: true }],
-      artefacts: [{ name: 'ProducerOutput', type: 'string', required: true }],
+      outputs: [{ name: 'ProducerOutput', type: 'string', required: true }],
     });
     const producerNode = createTreeNode(producerDoc, {
       namespacePath: ['Producer'],
@@ -268,8 +268,8 @@ describe('validateProducerInputOutput', () => {
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
-      producerImports: [{ name: 'Producer' }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
+      imports: [{ name: 'Producer', producer: 'test/producer' }],
       edges: [
         { from: 'Input', to: 'Producer.ProducerInput' },
         { from: 'Producer.ProducerOutput', to: 'Output' },
@@ -287,7 +287,7 @@ describe('validateProducerInputOutput', () => {
   it('rejects parent access to a composite producer private internal input', () => {
     const prepDoc = createDocument({
       inputs: [{ name: 'SourceImage', type: 'image', required: true }],
-      artefacts: [{ name: 'EditedImage', type: 'image', required: true }],
+      outputs: [{ name: 'EditedImage', type: 'image', required: true }],
     });
     const mainVideoDoc = createDocument({
       inputs: [
@@ -295,7 +295,7 @@ describe('validateProducerInputOutput', () => {
         { name: 'Duration', type: 'number', required: true },
         { name: 'StartImage', type: 'image', required: true },
       ],
-      artefacts: [{ name: 'GeneratedVideo', type: 'video', required: true }],
+      outputs: [{ name: 'GeneratedVideo', type: 'video', required: true }],
     });
     const compositeDoc = createDocument({
       inputs: [
@@ -303,8 +303,8 @@ describe('validateProducerInputOutput', () => {
         { name: 'Duration', type: 'number', required: true },
         { name: 'SourceImage', type: 'image', required: true },
       ],
-      artefacts: [{ name: 'FinalVideo', type: 'video', required: true }],
-      producerImports: [
+      outputs: [{ name: 'FinalVideo', type: 'video', required: true }],
+      imports: [
         { name: 'PrepImage', path: './prep-image.yaml' },
         { name: 'MainVideo', path: './main-video.yaml' },
       ],
@@ -339,8 +339,8 @@ describe('validateProducerInputOutput', () => {
         { name: 'Duration', type: 'number', required: true },
         { name: 'SourceImage', type: 'image', required: true },
       ],
-      artefacts: [{ name: 'Output', type: 'video', required: true }],
-      producerImports: [{ name: 'SegmentUnit', path: './segment-unit.yaml' }],
+      outputs: [{ name: 'Output', type: 'video', required: true }],
+      imports: [{ name: 'SegmentUnit', path: './segment-unit.yaml' }],
       edges: [
         { from: 'Prompt', to: 'SegmentUnit.MainVideo.Prompt' },
         { from: 'Duration', to: 'SegmentUnit.Duration' },
@@ -369,8 +369,8 @@ describe('validateProducerInputOutput', () => {
         { name: 'Duration', type: 'number', required: true },
         { name: 'SourceImage', type: 'image', required: true },
       ],
-      artefacts: [{ name: 'FinalVideo', type: 'video', required: true }],
-      producerImports: [{ name: 'MainVideo', path: './main-video.yaml' }],
+      outputs: [{ name: 'FinalVideo', type: 'video', required: true }],
+      imports: [{ name: 'MainVideo', path: './main-video.yaml' }],
       edges: [
         { from: 'Prompt', to: 'MainVideo.Prompt' },
         { from: 'Duration', to: 'MainVideo.Duration' },
@@ -391,7 +391,7 @@ describe('validateProducerInputOutput', () => {
                 { name: 'Duration', type: 'number', required: true },
                 { name: 'StartImage', type: 'image', required: true },
               ],
-              artefacts: [
+              outputs: [
                 { name: 'GeneratedVideo', type: 'video', required: true },
               ],
             }),
@@ -409,8 +409,8 @@ describe('validateProducerInputOutput', () => {
         { name: 'Duration', type: 'number', required: true },
         { name: 'SourceImage', type: 'image', required: true },
       ],
-      artefacts: [{ name: 'Output', type: 'video', required: true }],
-      producerImports: [{ name: 'SegmentUnit', path: './segment-unit.yaml' }],
+      outputs: [{ name: 'Output', type: 'video', required: true }],
+      imports: [{ name: 'SegmentUnit', path: './segment-unit.yaml' }],
       edges: [
         { from: 'Prompt', to: 'SegmentUnit.Prompt' },
         { from: 'Duration', to: 'SegmentUnit.Duration' },
@@ -428,7 +428,7 @@ describe('validateProducerInputOutput', () => {
       expect.objectContaining({
         code: ValidationErrorCode.PRODUCER_OUTPUT_MISMATCH,
         message: expect.stringContaining(
-          'does not expose artifact "MainVideo"'
+          'does not expose output "MainVideo"'
         ),
       })
     );
@@ -439,7 +439,7 @@ describe('validateMediaProducerDurationContract', () => {
   it('validates standalone media producer definitions too', () => {
     const producerDoc = createDocument({
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'Video', type: 'video', required: true }],
+      outputs: [{ name: 'Video', type: 'video', required: true }],
     });
     const producerNode = createTreeNode(producerDoc, {
       sourcePath: '/test/producer.yaml',
@@ -457,7 +457,7 @@ describe('validateMediaProducerDurationContract', () => {
   it('requires media producers to declare a required Duration input', () => {
     const producerDoc = createDocument({
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'Video', type: 'video', required: true }],
+      outputs: [{ name: 'Video', type: 'video', required: true }],
     });
     const producerNode = createTreeNode(producerDoc, {
       namespacePath: ['VideoProducer'],
@@ -465,8 +465,8 @@ describe('validateMediaProducerDurationContract', () => {
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'video', required: true }],
-      producerImports: [{ name: 'VideoProducer' }],
+      outputs: [{ name: 'Output', type: 'video', required: true }],
+      imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
       edges: [
         { from: 'Prompt', to: 'VideoProducer.Prompt' },
         { from: 'VideoProducer.Video', to: 'Output' },
@@ -491,7 +491,7 @@ describe('validateMediaProducerDurationContract', () => {
         { name: 'Prompt', type: 'string', required: true },
         { name: 'Duration', type: 'number', required: true },
       ],
-      artefacts: [{ name: 'Video', type: 'video', required: true }],
+      outputs: [{ name: 'Video', type: 'video', required: true }],
     });
     const producerNode = createTreeNode(producerDoc, {
       namespacePath: ['VideoProducer'],
@@ -499,8 +499,8 @@ describe('validateMediaProducerDurationContract', () => {
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'video', required: true }],
-      producerImports: [{ name: 'VideoProducer' }],
+      outputs: [{ name: 'Output', type: 'video', required: true }],
+      imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
       edges: [
         { from: 'Prompt', to: 'VideoProducer.Prompt' },
         { from: 'VideoProducer.Video', to: 'Output' },
@@ -525,7 +525,7 @@ describe('validateMediaProducerDurationContract', () => {
         { name: 'Prompt', type: 'string', required: true },
         { name: 'Duration', type: 'number', required: true },
       ],
-      artefacts: [{ name: 'Audio', type: 'audio', required: true }],
+      outputs: [{ name: 'Audio', type: 'audio', required: true }],
     });
     const producerNode = createTreeNode(producerDoc, {
       namespacePath: ['AudioProducer'],
@@ -533,8 +533,8 @@ describe('validateMediaProducerDurationContract', () => {
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'audio', required: true }],
-      producerImports: [{ name: 'AudioProducer' }],
+      outputs: [{ name: 'Output', type: 'audio', required: true }],
+      imports: [{ name: 'AudioProducer', producer: 'test/audio-producer' }],
       edges: [
         { from: 'Prompt', to: 'AudioProducer.Prompt' },
         { from: 'SegmentDuration', to: 'AudioProducer.Duration' },
@@ -559,7 +559,7 @@ describe('validateSegmentDurationContract', () => {
         { name: 'NumOfSegments', type: 'int', required: true },
         { name: 'SegmentDuration', type: 'int', required: false },
       ],
-      producerImports: [{ name: 'VideoProducer' }],
+      imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
       edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
     });
     const tree = createTreeNode(doc);
@@ -576,7 +576,7 @@ describe('validateSegmentDurationContract', () => {
   it('requires Duration when SegmentDuration is used', () => {
     const doc = createDocument({
       inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
-      producerImports: [{ name: 'VideoProducer' }],
+      imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
       edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
     });
     const tree = createTreeNode(doc);
@@ -593,7 +593,7 @@ describe('validateSegmentDurationContract', () => {
   it('requires NumOfSegments when SegmentDuration is used', () => {
     const doc = createDocument({
       inputs: [{ name: 'Duration', type: 'int', required: true }],
-      producerImports: [{ name: 'VideoProducer' }],
+      imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
       edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
     });
     const tree = createTreeNode(doc);
@@ -613,7 +613,7 @@ describe('validateSegmentDurationContract', () => {
         { name: 'Duration', type: 'int', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      producerImports: [{ name: 'VideoProducer' }],
+      imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
       edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
     });
     const tree = createTreeNode(doc);
@@ -626,7 +626,7 @@ describe('validateSegmentDurationContract', () => {
   it('does not apply the SegmentDuration input rule to leaf prompt blueprints', () => {
     const doc = createDocument({
       inputs: [{ name: 'SegmentDuration', type: 'int', required: true }],
-      artefacts: [{ name: 'Prompt', type: 'string', required: true }],
+      outputs: [{ name: 'Prompt', type: 'string', required: true }],
     });
     const tree = createTreeNode(doc);
 
@@ -715,7 +715,7 @@ describe('validateArtifactCountInputs', () => {
   it('validates artifact countInput references exist', () => {
     const doc = createDocument({
       inputs: [{ name: 'ValidInput', type: 'number', required: true }],
-      artefacts: [
+      outputs: [
         {
           name: 'ArrayArtifact',
           type: 'array',
@@ -740,7 +740,7 @@ describe('validateArtifactCountInputs', () => {
   it('accepts valid countInput references', () => {
     const doc = createDocument({
       inputs: [{ name: 'Count', type: 'number', required: true }],
-      artefacts: [
+      outputs: [
         {
           name: 'ArrayArtifact',
           type: 'array',
@@ -761,7 +761,7 @@ describe('validateArtifactCountInputs', () => {
 describe('validateConditionPaths', () => {
   it('validates condition when path producer exists', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ValidProducer' }],
+      imports: [{ name: 'ValidProducer', producer: 'test/valid-producer' }],
       conditions: {
         testCondition: {
           when: 'InvalidProducer.Output.Field',
@@ -783,7 +783,7 @@ describe('validateConditionPaths', () => {
 
   it('accepts valid condition paths', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'Producer' }],
+      imports: [{ name: 'Producer', producer: 'test/producer' }],
       conditions: {
         testCondition: {
           when: 'Producer.Output.Field',
@@ -800,7 +800,7 @@ describe('validateConditionPaths', () => {
 
   it('validates nested condition groups', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ValidProducer' }],
+      imports: [{ name: 'ValidProducer', producer: 'test/valid-producer' }],
       conditions: {
         testCondition: {
           any: [
@@ -843,7 +843,7 @@ describe('validateTypes', () => {
 
   it('validates invalid artifact types', () => {
     const doc = createDocument({
-      artefacts: [{ name: 'Artifact', type: 'invalid-type', required: true }],
+      outputs: [{ name: 'Artifact', type: 'invalid-type', required: true }],
     });
     const tree = createTreeNode(doc);
 
@@ -859,7 +859,7 @@ describe('validateTypes', () => {
 
   it('validates invalid itemTypes', () => {
     const doc = createDocument({
-      artefacts: [
+      outputs: [
         {
           name: 'ArrayArtifact',
           type: 'array',
@@ -888,7 +888,7 @@ describe('validateTypes', () => {
         { name: 'IntInput', type: 'int', required: true },
         { name: 'BoolInput', type: 'boolean', required: true },
       ],
-      artefacts: [
+      outputs: [
         { name: 'StringArtifact', type: 'string', required: true },
         { name: 'ImageArtifact', type: 'image', required: true },
         { name: 'VideoArtifact', type: 'video', required: true },
@@ -923,7 +923,7 @@ describe('findUnusedInputs', () => {
         { name: 'UsedInput', type: 'string', required: true },
         { name: 'UnusedInput', type: 'string', required: false },
       ],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
       edges: [{ from: 'UsedInput', to: 'Output' }],
     });
     const tree = createTreeNode(doc);
@@ -953,7 +953,7 @@ describe('findUnusedInputs', () => {
   it('does not report inputs used in artifact countInput', () => {
     const doc = createDocument({
       inputs: [{ name: 'Count', type: 'number', required: true }],
-      artefacts: [
+      outputs: [
         {
           name: 'Array',
           type: 'array',
@@ -982,7 +982,7 @@ describe('findUnusedInputs', () => {
         },
         { name: 'NumOfCharacters', type: 'number', required: true },
       ],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
     });
     const tree = createTreeNode(doc);
 
@@ -1026,7 +1026,7 @@ describe('findUnusedArtifacts', () => {
   it('finds unused artifacts', () => {
     const doc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [
+      outputs: [
         { name: 'UsedArtifact', type: 'string', required: true },
         { name: 'UnusedArtifact', type: 'string', required: false },
       ],
@@ -1048,9 +1048,9 @@ describe('findUnusedArtifacts', () => {
 describe('findUnreachableProducers', () => {
   it('finds producers with no incoming connections', () => {
     const doc = createDocument({
-      producerImports: [
-        { name: 'ReachableProducer' },
-        { name: 'UnreachableProducer' },
+      imports: [
+        { name: 'ReachableProducer', producer: 'test/reachable-producer' },
+        { name: 'UnreachableProducer', producer: 'test/unreachable-producer' },
       ],
       inputs: [{ name: 'Input', type: 'string', required: true }],
       edges: [{ from: 'Input', to: 'ReachableProducer.Input' }],
@@ -1077,7 +1077,7 @@ describe('recursive validation', () => {
   it('validates nested producer blueprints', () => {
     const childDoc = createDocument({
       inputs: [{ name: 'ChildInput', type: 'invalid-type', required: true }],
-      artefacts: [{ name: 'ChildOutput', type: 'string', required: true }],
+      outputs: [{ name: 'ChildOutput', type: 'string', required: true }],
     });
     const childNode = createTreeNode(childDoc, {
       namespacePath: ['Producer'],
@@ -1086,8 +1086,8 @@ describe('recursive validation', () => {
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
-      producerImports: [{ name: 'Producer' }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
+      producers: [{ name: 'Producer' }],
       edges: [
         { from: 'Input', to: 'Producer.ChildInput' },
         { from: 'Producer.ChildOutput', to: 'Output' },
@@ -1114,7 +1114,7 @@ describe('recursive validation', () => {
 describe('validateProducerCycles', () => {
   it('detects simple two-node cycle', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       edges: [
         { from: 'ProducerA.Output', to: 'ProducerB.Input' },
         { from: 'ProducerB.Output', to: 'ProducerA.Input' },
@@ -1136,7 +1136,7 @@ describe('validateProducerCycles', () => {
 
   it('detects multi-node cycle', () => {
     const doc = createDocument({
-      producerImports: [
+      producers: [
         { name: 'ProducerA' },
         { name: 'ProducerB' },
         { name: 'ProducerC' },
@@ -1159,7 +1159,7 @@ describe('validateProducerCycles', () => {
 
   it('does not report false positives for valid DAG', () => {
     const doc = createDocument({
-      producerImports: [
+      producers: [
         { name: 'ProducerA' },
         { name: 'ProducerB' },
         { name: 'ProducerC' },
@@ -1181,7 +1181,7 @@ describe('validateProducerCycles', () => {
     // Self-reference (A -> A) is not a cycle in traditional graph sense
     // since we filter fromProducer !== toProducer
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }],
+      producers: [{ name: 'ProducerA' }],
       edges: [{ from: 'ProducerA.Output', to: 'ProducerA.Input' }],
     });
     const tree = createTreeNode(doc);
@@ -1195,8 +1195,8 @@ describe('validateProducerCycles', () => {
   it('ignores edges from/to inputs and artifacts', () => {
     const doc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
-      producerImports: [{ name: 'Producer' }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
+      producers: [{ name: 'Producer' }],
       edges: [
         { from: 'Input', to: 'Producer.Input' },
         { from: 'Producer.Output', to: 'Output' },
@@ -1213,7 +1213,7 @@ describe('validateProducerCycles', () => {
 describe('validateDimensionConsistency', () => {
   it('detects dimension loss when target input is not fanIn', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [{ from: 'ProducerA[segment].Output', to: 'ProducerB.Input' }],
     });
@@ -1233,7 +1233,7 @@ describe('validateDimensionConsistency', () => {
     // Cross-dimension patterns like [image] -> [segment] are valid
     // for sliding window and other intentional patterns
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [
         { name: 'segment', countInput: 'NumOfSegments' },
         { name: 'image', countInput: 'NumOfImages' },
@@ -1252,7 +1252,7 @@ describe('validateDimensionConsistency', () => {
 
   it('allows matching dimensions', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [
         { from: 'ProducerA[segment].Output', to: 'ProducerB[segment].Input' },
@@ -1267,7 +1267,7 @@ describe('validateDimensionConsistency', () => {
 
   it('allows dimension loss when target input is fanIn', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [{ from: 'ProducerA[segment].Output', to: 'ProducerB.Input' }],
     });
@@ -1294,7 +1294,7 @@ describe('validateDimensionConsistency', () => {
 
   it('reports error when edge has dimension loss and target input is not fanIn', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [{ from: 'ProducerA[segment].Output', to: 'ProducerB.Input' }],
     });
@@ -1311,7 +1311,7 @@ describe('validateDimensionConsistency', () => {
 
   it('rejects groupBy/orderBy on non-fanIn targets', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [
         {
@@ -1335,7 +1335,7 @@ describe('validateDimensionConsistency', () => {
 
   it('requires explicit metadata when fanIn source has more than two dimensions', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [
         { name: 'segment', countInput: 'NumOfSegments' },
         { name: 'image', countInput: 'NumOfImages' },
@@ -1376,7 +1376,7 @@ describe('validateDimensionConsistency', () => {
 
   it('allows high-dimensional fanIn when groupBy is provided', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [
         { name: 'segment', countInput: 'NumOfSegments' },
         { name: 'image', countInput: 'NumOfImages' },
@@ -1414,7 +1414,7 @@ describe('validateDimensionConsistency', () => {
 
   it('ignores numeric indices in dimensions', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       edges: [{ from: 'ProducerA[0].Output', to: 'ProducerB.Input' }],
     });
     const tree = createTreeNode(doc);
@@ -1427,7 +1427,7 @@ describe('validateDimensionConsistency', () => {
 
   it('ignores offset expressions in dimensions', () => {
     const doc = createDocument({
-      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [
         { from: 'ProducerA[segment+1].Output', to: 'ProducerB[segment].Input' },
@@ -1445,8 +1445,8 @@ describe('validateDimensionConsistency', () => {
   it('does not check input-to-producer or producer-to-artifact edges', () => {
     const doc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      artefacts: [{ name: 'Output', type: 'string', required: true }],
-      producerImports: [{ name: 'Producer' }],
+      outputs: [{ name: 'Output', type: 'string', required: true }],
+      producers: [{ name: 'Producer' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [
         { from: 'Input', to: 'Producer[segment].Input' },

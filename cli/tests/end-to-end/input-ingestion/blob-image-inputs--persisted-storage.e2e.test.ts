@@ -81,7 +81,7 @@ describe('end-to-end: image-to-video with blob input', () => {
 					{ name: 'AspectRatio', type: 'string', default: '16:9' },
 					{ name: 'Duration', type: 'string', default: '4s' },
 				],
-				artifacts: [{ name: 'OutputVideo', type: 'video' }],
+				outputs: [{ name: 'OutputVideo', type: 'video' }],
 			}),
 			'utf8'
 		);
@@ -220,7 +220,7 @@ describe('end-to-end: image-to-video with blob input', () => {
 					{ name: 'InputImage1', type: 'image', required: true },
 					{ name: 'InputImage2', type: 'image', required: true },
 				],
-				artifacts: [{ name: 'OutputVideo', type: 'video' }],
+				outputs: [{ name: 'OutputVideo', type: 'video' }],
 			}),
 			'utf8'
 		);

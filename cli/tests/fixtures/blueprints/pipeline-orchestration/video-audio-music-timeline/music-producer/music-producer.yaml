@@ -31,7 +31,7 @@ inputs:
     description: Intended audience for tailoring details. Model default varies.
     type: string
 
-artifacts:
+outputs:
   - name: MusicPrompt
     description: Generated music prompts for downstream music synthesis.
     type: string

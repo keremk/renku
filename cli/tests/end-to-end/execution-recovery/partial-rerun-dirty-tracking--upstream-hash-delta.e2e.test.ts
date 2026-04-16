@@ -78,12 +78,12 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 			return {
 				jobId: request.job.jobId,
 				status: 'succeeded',
-				artefacts: request.job.produces
+				artifacts: request.job.produces
 					.filter((id: string) => id.startsWith('Artifact:'))
-					.map((artefactId: string) => ({
-						artefactId,
+					.map((artifactId: string) => ({
+						artifactId,
 						blob: {
-							data: `data-invocation-${globalInvocationCounter}-${artefactId}`,
+							data: `data-invocation-${globalInvocationCounter}-${artifactId}`,
 							mimeType: 'text/plain',
 						},
 					})),
@@ -179,7 +179,7 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		});
 
 		// Verify manifest has artifacts from all layers
-		const layer1ArtifactKeys = Object.keys(manifest1.artefacts).filter(
+		const layer1ArtifactKeys = Object.keys(manifest1.artifacts).filter(
 			(id) => id.includes('ImagePromptProducer') || id.includes('AudioProducer')
 		);
 		expect(layer1ArtifactKeys.length).toBeGreaterThan(0);
@@ -187,7 +187,7 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		// Record inputsHash values for layer-1 artifacts (before re-run)
 		const inputsHashBefore: Record<string, string | undefined> = {};
 		for (const key of layer1ArtifactKeys) {
-			inputsHashBefore[key] = manifest1.artefacts[key]?.inputsHash;
+			inputsHashBefore[key] = manifest1.artifacts[key]?.inputsHash;
 		}
 
 		// ============================================================
@@ -262,26 +262,26 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		});
 
 		// Verify layer 0 artifacts have CHANGED hashes
-		const scriptArtifactKeys = Object.keys(manifest2.artefacts).filter((id) =>
+		const scriptArtifactKeys = Object.keys(manifest2.artifacts).filter((id) =>
 			id.includes('ScriptProducer')
 		);
 		for (const key of scriptArtifactKeys) {
-			const oldHash = manifest1.artefacts[key]?.hash;
-			const newHash = manifest2.artefacts[key]?.hash;
+			const oldHash = manifest1.artifacts[key]?.hash;
+			const newHash = manifest2.artifacts[key]?.hash;
 			expect(newHash).toBeDefined();
 			expect(newHash).not.toBe(oldHash); // Phase 2 produced different data
 		}
 
 		// Verify layer 1 artifacts still have OLD hashes
 		for (const key of layer1ArtifactKeys) {
-			const oldHash = manifest1.artefacts[key]?.hash;
-			const newHash = manifest2.artefacts[key]?.hash;
+			const oldHash = manifest1.artifacts[key]?.hash;
+			const newHash = manifest2.artifacts[key]?.hash;
 			expect(newHash).toBe(oldHash); // Layer 1 was not re-run
 		}
 
 		// Verify inputsHash on layer-1 artifacts is still the OLD value
 		for (const key of layer1ArtifactKeys) {
-			expect(manifest2.artefacts[key]?.inputsHash).toBe(inputsHashBefore[key]);
+			expect(manifest2.artifacts[key]?.inputsHash).toBe(inputsHashBefore[key]);
 		}
 
 		// ============================================================

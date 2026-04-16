@@ -41,7 +41,7 @@ inputs:
     type: string
     required: false
 
-artifacts:
+outputs:
   - name: SegmentImage
     description: Ken Burns style images per segment.
     type: multiDimArray
@@ -74,7 +74,7 @@ conditions:
     when: HistoricalScriptProducer.VideoScript.Segments[segment].HasTextOverlay
     is: true
 
-producers:
+imports:
   - name: HistoricalScriptProducer
     path: ./historical-script/historical-script.yaml
   - name: ImageProducer

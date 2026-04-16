@@ -47,14 +47,14 @@ System inputs are special inputs that Renku automatically recognizes by name. Re
 
 **Blueprints** are workflow definitions that:
 
-- Define user-facing inputs and final artifacts
-- Import and connect multiple producers
+- Define user-facing inputs and public output connectors
+- Import and connect multiple child blueprints
 - Define loops for parallel execution
 - Use connection-driven fan-in for array inputs
 
-**Producers** are execution units that:
+**Leaf producer blueprints** are execution units that:
 
-- Accept inputs and produce artifacts
+- Accept inputs and produce runtime artifacts
 - Map inputs to specific AI model parameters
 - Support multiple model variants
 - Can be reused across multiple blueprints
@@ -66,7 +66,7 @@ Data flows through the system via connections:
 ```
 Blueprint Input → Producer Input → Producer → Artifact → Next Producer Input
                                                    │
-                                                   └→ Blueprint Artifact
+                                                   └→ Blueprint Output
 ```
 
 For looped producers:
@@ -100,8 +100,8 @@ inputs:
     itemType: <string> # Element type for array inputs
     countInput: <string> # Required for grouped array inputs in Viewer Input Panel
 
-artifacts:
-  - name: <string> # Artifact identifier in PascalCase (required)
+outputs:
+  - name: <string> # Output identifier in PascalCase (required)
     description: <string> # Purpose and content
     type: <string> # Output type (required)
     itemType: <string> # Element type for arrays
@@ -114,10 +114,10 @@ loops:
     countInputOffset: <int> # Offset added to count
     parent: <string> # Parent loop for nesting
 
-producers:
-  - name: <string> # Producer instance name in PascalCase (required)
+imports:
+  - name: <string> # Imported child blueprint alias in PascalCase (required)
     producer: <string> # Qualified name: "category/name" (preferred)
-    path: <string> # Relative path to producer YAML (for custom producers)
+    path: <string> # Relative path to child blueprint YAML (for custom blueprints)
     loop: <string> # Loop dimension(s) (e.g., "segment")
 
 connections:
@@ -129,7 +129,7 @@ connections:
 
 conditions:
   <conditionName>:
-    when: <string> # Path to artifact field (e.g., Producer.Artifact.Field[dim])
+    when: <string> # Path to an upstream artifact field (e.g., Producer.Output.Field[dim])
     is: <any> # Equals this value
     isNot: <any> # Does not equal this value
     contains: <string> # String contains value
@@ -167,7 +167,7 @@ inputs:
     countInput: NumOfSegments
 ```
 
-### Artifact Types
+### Output Types
 
 | Type            | Description                                                                             |
 | --------------- | --------------------------------------------------------------------------------------- |
@@ -208,7 +208,7 @@ inputs:
     type: string
     required: true
 
-artifacts:
+outputs:
   - name: SegmentVideo
     description: Generated video for each segment.
     type: array
@@ -220,7 +220,7 @@ loops:
     description: Iterates over narration segments.
     countInput: NumOfSegments # References system input
 
-producers:
+imports:
   - name: ScriptProducer
     producer: prompt/script
   - name: VideoPromptProducer
@@ -252,7 +252,7 @@ connections:
   - from: SegmentDuration
     to: VideoProducer[segment].Duration # Auto-computed
 
-  # Wire output to blueprint artifact
+  # Wire output to blueprint output
   - from: VideoProducer[segment].SegmentVideo
     to: SegmentVideo[segment]
 ```
@@ -281,8 +281,8 @@ inputs:
     fanIn: <boolean>       # Is this a fan-in array input
     dimensions: <string>   # Dimension labels (e.g., "segment")
 
-artifacts:
-  - name: <string>         # Artifact identifier (required)
+outputs:
+  - name: <string>         # Output identifier (required)
     description: <string>  # Purpose and content
     type: <string>         # Output type (required)
     itemType: <string>     # Element type for arrays
@@ -331,7 +331,7 @@ inputs:
   - name: Audience
     type: string
 
-artifacts:
+outputs:
   - name: MovieTitle
     type: string
   - name: MovieSummary
@@ -358,7 +358,7 @@ inputs:
   - name: Resolution
     type: resolution
 
-artifacts:
+outputs:
   - name: SegmentVideo
     type: video
 
@@ -419,7 +419,7 @@ loops:
   - name: segment
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: TextToVideoProducer
     producer: asset/text-to-video
   - name: ImageToVideoProducer
@@ -477,7 +477,7 @@ inputs:
     description: ISO 639-3 language code (e.g., eng, spa, fra).
     type: string
 
-artifacts:
+outputs:
   - name: Transcription
     description: Word-level transcription aligned to video timeline.
     type: json
@@ -488,7 +488,7 @@ artifacts:
 Add transcription to an existing video + audio blueprint:
 
 ```yaml
-producers:
+imports:
   # ... existing producers ...
   - name: TranscriptionProducer
     producer: asset/transcription
@@ -585,7 +585,7 @@ inputs:
   - name: Duration
     type: int
 
-artifacts:
+outputs:
   - name: Timeline
     type: json
 # Timeline composer uses renku provider - no field mappings needed
@@ -634,7 +634,7 @@ loops:
     countInput: NumOfImagesPerNarrative
 
 # Producer runs for each segment × image combination
-producers:
+imports:
   - name: ImageProducer
     producer: asset/text-to-image
     loop: segment.image # Dot notation for nested loops
@@ -857,7 +857,7 @@ inputs:
     type: int
     default: 1
 
-artifacts:
+outputs:
   - name: VideoScript
     type: json
     description: The generated video script
@@ -984,7 +984,7 @@ Creates two-dimensional iteration. If `NumOfSegments = 3` and `NumOfImagesPerSeg
 ### Assigning Producers to Loops
 
 ```yaml
-producers:
+imports:
   - name: ScriptProducer
     producer: prompt/script
     # No loop - runs once
@@ -1007,7 +1007,7 @@ producers:
 Fan-in is connection-driven. The top-level `collectors:` section is no longer supported.
 
 :::caution[Critical: Use Connections Only]
-To feed a fan-in input, connect upstream artifacts directly to the target input and ensure the target input is declared with `fanIn: true`.
+To feed a fan-in input, connect upstream runtime artifacts directly to the target input and ensure the target input is declared with `fanIn: true`.
 
 ```yaml
 # ✅ Connection-driven fan-in (inferred)
@@ -1072,7 +1072,7 @@ Type:path.to.name[index0][index1]...
 
 ### Planner Process
 
-1. **Load blueprint tree** - Blueprint + all producer imports
+1. **Load blueprint tree** - Blueprint + all child blueprint imports
 2. **Build graph** - Nodes for inputs, artifacts, producers
 3. **Resolve dimensions** - Calculate loop sizes
 4. **Expand instances** - Create concrete instances per dimension
@@ -1174,8 +1174,8 @@ models:
 | ------------------------------- | ------------------------------------------------ |
 | Meta section required           | `Blueprint must have a meta section`             |
 | Meta.id required                | `Blueprint meta must have an id`                 |
-| At least one artifact           | `Blueprint must declare at least one artifact`   |
-| Cannot mix models and producers | `Cannot define both models and producer imports` |
+| At least one output             | `Blueprint must declare at least one output`     |
+| Cannot mix models and imports   | `Cannot define both models and imports`          |
 
 ### Input Validation
 
@@ -1204,7 +1204,7 @@ loops:
   - name: segment
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: ScriptProducer
     producer: prompt/script
   - name: AudioProducer
@@ -1228,7 +1228,7 @@ loops:
     countInput: NumOfSegments
     countInputOffset: 1 # N+1 images
 
-producers:
+imports:
   - name: ImageProducer
     producer: asset/text-to-image
     loop: image
@@ -1246,7 +1246,7 @@ connections:
 ### Full Timeline
 
 ```yaml
-producers:
+imports:
   - name: VideoProducer
     producer: asset/text-to-video
     loop: segment
@@ -1349,18 +1349,18 @@ catalog/
 
 ```yaml
 # Works from any location - resolves from catalog
-producers:
+imports:
   - name: ScriptProducer
     producer: prompt/script # → catalog/producers/prompt/script/script.yaml
   - name: VideoProducer
     producer: asset/text-to-video # → catalog/producers/asset/text-to-video.yaml
 ```
 
-**Legacy: Relative paths** for custom local producers:
+Relative paths also work for custom local blueprints:
 
 ```yaml
-# For custom producers not in the catalog
-producers:
+# For custom child blueprints not in the catalog
+imports:
   - name: MyCustomProducer
     path: ./my-producers/custom.yaml # Relative to blueprint file
 ```

@@ -8,14 +8,14 @@ export type {
   RetryWrapperOptions,
 } from './provider-adapter.js';
 export {
-  buildArtefactsFromUrls,
-  buildArtefactsFromJsonResponse,
+  buildArtifactsFromUrls,
+  buildArtifactsFromJsonResponse,
   downloadBinary,
-  parseArtefactIdentifier,
-  type BuildArtefactsOptions,
-  type BuildArtefactFromJsonOptions,
-  type ParsedArtefactIdentifier,
-} from './artefacts.js';
+  parseArtifactIdentifier,
+  type BuildArtifactsOptions,
+  type BuildArtifactFromJsonOptions,
+  type ParsedArtifactIdentifier,
+} from './artifacts.js';
 export { extractPlannerContext, type PlannerContext } from './utils.js';
 export {
   parseSchemaFile,

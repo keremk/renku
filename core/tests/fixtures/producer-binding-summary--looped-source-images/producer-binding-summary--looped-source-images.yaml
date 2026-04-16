@@ -24,7 +24,7 @@ inputs:
     type: image
     required: true
 
-artifacts:
+outputs:
   - name: ConsistentThenImages
     description: Composed images for each character.
     type: array
@@ -36,7 +36,7 @@ loops:
     description: Iterates over each character.
     countInput: NumOfCharacters
 
-producers:
+imports:
   - name: ThenImageProducer
     path: ./then-image-producer.yaml
     loop: character

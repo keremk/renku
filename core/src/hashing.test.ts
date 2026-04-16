@@ -31,7 +31,7 @@ describe('hashing utilities', () => {
         'Input:a': { hash: 'hash-a' },
         'Input:b': { hash: 'hash-b' },
       },
-      artefacts: {
+      artifacts: {
         'Artifact:c': { hash: 'hash-c' },
       },
     };

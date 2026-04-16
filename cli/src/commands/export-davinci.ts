@@ -24,7 +24,7 @@ import { loadCurrentManifest } from '../lib/artifacts-view.js';
 
 const DEFAULT_FPS = 30;
 const OUTPUT_FILENAME = 'DaVinciProject.otio';
-const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
 export interface ExportDavinciOptions {
   movieId?: string;
@@ -90,11 +90,11 @@ export async function runExportDavinci(options: ExportDavinciOptions): Promise<E
   const eventLog = createEventLog(storage);
 
   // Validate timeline artifact exists
-  const timelineArtifact = manifest.artefacts[TIMELINE_ARTEFACT_ID];
+  const timelineArtifact = manifest.artifacts[TIMELINE_ARTIFACT_ID];
   if (!timelineArtifact) {
     throw createRuntimeError(
       RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
-      `No timeline found (${TIMELINE_ARTEFACT_ID}). Please run the generation first to create a timeline.`,
+      `No timeline found (${TIMELINE_ARTIFACT_ID}). Please run the generation first to create a timeline.`,
     );
   }
 

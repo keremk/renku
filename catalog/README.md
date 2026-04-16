@@ -68,7 +68,12 @@ models:
 
 ## Producers
 
-Producers are reusable execution units that accept inputs and produce artifacts. They abstract AI models by mapping user-facing inputs to model-specific API parameters.
+Producers are reusable execution units that accept inputs and produce runtime artifacts. They abstract AI models by mapping user-facing inputs to model-specific API parameters.
+
+Blueprints that use catalog entries should author:
+
+- `outputs:` for their public output connectors
+- `imports:` for child blueprint references, including leaf producer blueprints
 
 ### Asset Producers
 

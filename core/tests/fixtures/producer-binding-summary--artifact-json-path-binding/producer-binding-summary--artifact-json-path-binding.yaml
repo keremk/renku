@@ -15,12 +15,12 @@ inputs:
     type: resolution
     required: true
 
-artifacts:
+outputs:
   - name: CharacterImage
     description: Generated character image output.
     type: image
 
-producers:
+imports:
   - name: AdScriptProducer
     path: ./ad-script-producer.yaml
   - name: CharacterImageProducer

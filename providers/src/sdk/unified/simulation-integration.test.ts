@@ -136,13 +136,13 @@ describe('Simulation Integration Tests', () => {
 
       expect(result.status).toBe('succeeded');
       expect(result.diagnostics?.simulated).toBe(true);
-      expect(result.artefacts).toHaveLength(2);
+      expect(result.artifacts).toHaveLength(2);
 
-      // Verify artefacts have URLs from schema-based generation
-      for (const artefact of result.artefacts) {
-        expect(artefact.status).toBe('succeeded');
-        expect(artefact.diagnostics?.sourceUrl).toMatch(/^https:\/\/mock\.fal-ai\.media\//);
-        expect(artefact.blob?.mimeType).toBe('image/png');
+      // Verify artifacts have URLs from schema-based generation
+      for (const artifact of result.artifacts) {
+        expect(artifact.status).toBe('succeeded');
+        expect(artifact.diagnostics?.sourceUrl).toMatch(/^https:\/\/mock\.fal-ai\.media\//);
+        expect(artifact.blob?.mimeType).toBe('image/png');
       }
     });
 
@@ -245,12 +245,12 @@ describe('Simulation Integration Tests', () => {
 
       expect(result.status).toBe('succeeded');
       expect(result.diagnostics?.simulated).toBe(true);
-      expect(result.artefacts).toHaveLength(1);
+      expect(result.artifacts).toHaveLength(1);
 
       // Replicate fallback generates URL array
-      const artefact = result.artefacts[0];
-      expect(artefact?.status).toBe('succeeded');
-      expect(artefact?.diagnostics?.sourceUrl).toMatch(/^https:\/\/mock\.replicate\.media\//);
+      const artifact = result.artifacts[0];
+      expect(artifact?.status).toBe('succeeded');
+      expect(artifact?.diagnostics?.sourceUrl).toMatch(/^https:\/\/mock\.replicate\.media\//);
     });
 
     it('handles multiple outputs in simulation', async () => {
@@ -278,10 +278,10 @@ describe('Simulation Integration Tests', () => {
       const result = await handler.invoke(request);
 
       expect(result.status).toBe('succeeded');
-      expect(result.artefacts).toHaveLength(4);
+      expect(result.artifacts).toHaveLength(4);
 
-      // All artefacts should have unique indices
-      const indices = result.artefacts.map(a => a.artefactId);
+      // All artifacts should have unique indices
+      const indices = result.artifacts.map(a => a.artifactId);
       expect(new Set(indices).size).toBe(4);
     });
   });
@@ -326,11 +326,11 @@ describe('Simulation Integration Tests', () => {
 
       expect(result.status).toBe('succeeded');
       expect(result.diagnostics?.simulated).toBe(true);
-      expect(result.artefacts).toHaveLength(1);
+      expect(result.artifacts).toHaveLength(1);
 
-      const artefact = result.artefacts[0];
-      expect(artefact?.status).toBe('succeeded');
-      expect(artefact?.blob?.mimeType).toBe('video/mp4');
+      const artifact = result.artifacts[0];
+      expect(artifact?.status).toBe('succeeded');
+      expect(artifact?.blob?.mimeType).toBe('video/mp4');
     });
   });
 
@@ -496,8 +496,8 @@ describe('Simulation Integration Tests', () => {
       const result = await handler.invoke(request);
 
       expect(result.status).toBe('succeeded');
-      expect(result.artefacts.length).toBeGreaterThan(0);
-      expect(result.artefacts.every((artefact) => artefact.status === 'succeeded')).toBe(true);
+      expect(result.artifacts.length).toBeGreaterThan(0);
+      expect(result.artifacts.every((artifact) => artifact.status === 'succeeded')).toBe(true);
     });
 
     it.each(adapters)('$name: validates required inputs even in simulated mode', async ({ adapter, name, mimeType }) => {
@@ -582,13 +582,13 @@ describe('Simulation Integration Tests', () => {
       const result = await handler.invoke(request);
 
       expect(result.status).toBe('succeeded');
-      expect(result.artefacts).toHaveLength(1);
+      expect(result.artifacts).toHaveLength(1);
 
-      const artefact = result.artefacts[0];
+      const artifact = result.artifacts[0];
       // mimeType comes from handler's outputMimeType parameter
-      expect(artefact?.blob?.mimeType).toBe('video/mp4');
+      expect(artifact?.blob?.mimeType).toBe('video/mp4');
       // URL is generated from schema - contains provider and model
-      expect(artefact?.diagnostics?.sourceUrl).toMatch(/^https:\/\/mock\.fal-ai\.media\//);
+      expect(artifact?.diagnostics?.sourceUrl).toMatch(/^https:\/\/mock\.fal-ai\.media\//);
     });
   });
 
@@ -657,13 +657,13 @@ describe('Simulation Integration Tests', () => {
       const result = await handler.invoke(request);
 
       expect(result.status).toBe('succeeded');
-      expect(result.artefacts).toHaveLength(2);
+      expect(result.artifacts).toHaveLength(2);
 
       // Verify the generated output includes the nested metadata
       expect(result.diagnostics?.simulated).toBe(true);
-      for (const artefact of result.artefacts) {
-        expect(artefact.status).toBe('succeeded');
-        expect(artefact.diagnostics?.sourceUrl).toBeDefined();
+      for (const artifact of result.artifacts) {
+        expect(artifact.status).toBe('succeeded');
+        expect(artifact.diagnostics?.sourceUrl).toBeDefined();
       }
     });
   });

@@ -26,8 +26,8 @@ const DEFAULT_WIDTH = 1920;
 const DEFAULT_HEIGHT = 1080;
 const DEFAULT_FPS = 30;
 const OUTPUT_FILENAME = 'FinalVideo.mp4';
-const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
-const TRANSCRIPTION_ARTEFACT_ID =
+const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const TRANSCRIPTION_ARTIFACT_ID =
 	'Artifact:TranscriptionProducer.Transcription';
 
 export type ExporterType = 'remotion' | 'ffmpeg';
@@ -811,10 +811,10 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 	});
 
 	// Get the timeline artifact entry for the job context
-	const timelineEntry = manifest.artefacts[TIMELINE_ARTEFACT_ID];
+	const timelineEntry = manifest.artifacts[TIMELINE_ARTIFACT_ID];
 
 	// Get the transcription artifact entry if it exists (optional, for subtitles)
-	const transcriptionEntry = manifest.artefacts[TRANSCRIPTION_ARTEFACT_ID];
+	const transcriptionEntry = manifest.artifacts[TRANSCRIPTION_ARTIFACT_ID];
 
 	// Extract subtitle configuration from manifest inputs (if present in blueprint)
 	const manifestSubtitleConfig = extractSubtitleConfig(manifest);
@@ -855,12 +855,12 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 		'Input:MovieId': storageMovieId,
 		'Input:StorageRoot': projectStorage.root,
 		'Input:StorageBasePath': projectStorage.basePath,
-		[TIMELINE_ARTEFACT_ID]: timelineEntry,
+		[TIMELINE_ARTIFACT_ID]: timelineEntry,
 	};
 
 	// Add transcription artifact if it exists (enables subtitles)
 	if (transcriptionEntry) {
-		resolvedInputs[TRANSCRIPTION_ARTEFACT_ID] = transcriptionEntry;
+		resolvedInputs[TRANSCRIPTION_ARTIFACT_ID] = transcriptionEntry;
 	}
 
 	// Invoke the handler through the proper interface
@@ -936,8 +936,8 @@ async function validateBlueprintHasTimelineComposer(
 		);
 	}
 
-	const hasTimelineComposer = bundle.root.document.producerImports.some(
-		(producer) => producer.name === 'TimelineComposer'
+	const hasTimelineComposer = bundle.root.document.imports.some(
+		(blueprintImport) => blueprintImport.name === 'TimelineComposer'
 	);
 	if (!hasTimelineComposer) {
 		throw createRuntimeError(
@@ -952,9 +952,9 @@ async function validateBlueprintHasTimelineComposer(
 }
 
 function validateTimelineArtifactExists(manifest: {
-	artefacts: Record<string, unknown>;
+	artifacts: Record<string, unknown>;
 }): void {
-	const hasTimeline = TIMELINE_ARTEFACT_ID in manifest.artefacts;
+	const hasTimeline = TIMELINE_ARTIFACT_ID in manifest.artifacts;
 	if (!hasTimeline) {
 		throw createRuntimeError(
 			RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,

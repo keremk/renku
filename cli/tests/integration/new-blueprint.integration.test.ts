@@ -52,9 +52,9 @@ describe('new:blueprint command', () => {
 
 			// Check main sections exist
 			expect(blueprintContent).toContain('inputs:');
-			expect(blueprintContent).toContain('artifacts:');
+			expect(blueprintContent).toContain('outputs:');
 			expect(blueprintContent).toContain('loops:');
-			expect(blueprintContent).toContain('producers:');
+			expect(blueprintContent).toContain('imports:');
 			expect(blueprintContent).toContain('connections:');
 			expect(blueprintContent).not.toContain('collectors:');
 		});

@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import type { EventLog } from './event-log.js';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import type { StorageContext } from './storage.js';
-import type { BlobRef, ArtefactEvent, Manifest } from './types.js';
+import type { BlobRef, ArtifactEvent, Manifest } from './types.js';
 import { formatBlobFileName } from './blob-utils.js';
 
 /**
@@ -36,12 +36,12 @@ export async function resolveArtifactsFromEventLog(args: {
 
   // Map to store latest event for each artifact ID
   // We keep the latest in case there are multiple events for the same artifact
-  const latestEvents = new Map<string, ArtefactEvent>();
+  const latestEvents = new Map<string, ArtifactEvent>();
 
   // Stream events and collect latest succeeded events for requested artifacts
-  for await (const event of args.eventLog.streamArtefacts(args.movieId)) {
-    if (event.status === 'succeeded' && args.artifactIds.includes(event.artefactId)) {
-      latestEvents.set(event.artefactId, event);
+  for await (const event of args.eventLog.streamArtifacts(args.movieId)) {
+    if (event.status === 'succeeded' && args.artifactIds.includes(event.artifactId)) {
+      latestEvents.set(event.artifactId, event);
     }
   }
 
@@ -70,7 +70,7 @@ export async function resolveManifestArtifactValues(args: {
   const resolvedByCanonicalId = new Map<string, unknown>();
 
   for (const artifactId of args.artifactIds) {
-    const entry = args.manifest.artefacts[artifactId];
+    const entry = args.manifest.artifacts[artifactId];
     if (!entry?.blob || entry.status !== 'succeeded') {
       continue;
     }
@@ -216,12 +216,12 @@ export async function findFailedArtifacts(args: {
   }
 
   // Map to store latest event for each artifact ID
-  const latestEvents = new Map<string, ArtefactEvent>();
+  const latestEvents = new Map<string, ArtifactEvent>();
 
   // Stream events and collect latest events for requested artifacts
-  for await (const event of args.eventLog.streamArtefacts(args.movieId)) {
-    if (args.artifactIds.includes(event.artefactId)) {
-      latestEvents.set(event.artefactId, event);
+  for await (const event of args.eventLog.streamArtifacts(args.movieId)) {
+    if (args.artifactIds.includes(event.artifactId)) {
+      latestEvents.set(event.artifactId, event);
     }
   }
 
@@ -248,12 +248,12 @@ export async function resolveArtifactBlobPaths(args: {
 
   // Map to store latest event for each artifact ID
   // We keep the latest in case there are multiple events for the same artifact
-  const latestEvents = new Map<string, ArtefactEvent>();
+  const latestEvents = new Map<string, ArtifactEvent>();
 
   // Stream events and collect latest succeeded events for requested artifacts
-  for await (const event of args.eventLog.streamArtefacts(args.movieId)) {
-    if (event.status === 'succeeded' && args.artifactIds.includes(event.artefactId)) {
-      latestEvents.set(event.artefactId, event);
+  for await (const event of args.eventLog.streamArtifacts(args.movieId)) {
+    if (event.status === 'succeeded' && args.artifactIds.includes(event.artifactId)) {
+      latestEvents.set(event.artifactId, event);
     }
   }
 

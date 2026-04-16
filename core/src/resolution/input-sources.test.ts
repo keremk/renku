@@ -10,11 +10,11 @@ function makeChildBlueprint(): BlueprintDocument {
     inputs: [
       { name: 'ImagesPer', type: 'int', required: false },
     ],
-    artefacts: [
+    outputs: [
       { name: 'Prompt', type: 'array', countInput: 'ImagesPer' },
     ],
-    producers: [],
-    producerImports: [],
+    producers: [{ name: 'Child' }],
+    imports: [],
     edges: [],
   };
 }
@@ -27,9 +27,9 @@ function makeRootBlueprint(extraEdges: Array<{ from: string; to: string }>): Blu
       { name: 'ImagesPer', type: 'int', required: true },
       { name: 'FallbackImagesPer', type: 'int', required: false },
     ],
-    artefacts: [],
+    outputs: [],
     producers: [],
-    producerImports: [],
+    imports: [],
     edges: [
       ...extraEdges,
     ],
@@ -86,11 +86,11 @@ describe('input source mapping', () => {
     const rootDoc: BlueprintDocument = {
       meta: { id: 'Root', name: 'Root', kind: 'producer' },
       inputs: [],
-      artefacts: [
+      outputs: [
         { name: 'SceneVideos', type: 'array', countInput: 'NumOfSegments' },
       ],
-      producers: [],
-      producerImports: [],
+      producers: [{ name: 'Root' }],
+      imports: [],
       loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
       edges: [],
     };

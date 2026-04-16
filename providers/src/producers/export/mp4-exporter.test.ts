@@ -86,7 +86,7 @@ describe('mp4-exporter', () => {
     };
 
     const manifest = {
-      artefacts: {
+      artifacts: {
         'Artifact:TimelineComposer.Timeline': {
           blob: {
             hash: 'cd999',
@@ -130,10 +130,10 @@ describe('mp4-exporter', () => {
     }));
 
     expect(response.status).toBe('succeeded');
-    const artefact = response.artefacts[0];
-    expect(artefact?.artefactId).toBe('Artifact:FinalVideo');
-    expect(artefact?.blob?.mimeType).toBe('video/mp4');
-    expect(Buffer.isBuffer(artefact?.blob?.data)).toBe(true);
+    const artifact = response.artifacts[0];
+    expect(artifact?.artifactId).toBe('Artifact:FinalVideo');
+    expect(artifact?.blob?.mimeType).toBe('video/mp4');
+    expect(Buffer.isBuffer(artifact?.blob?.data)).toBe(true);
   });
 });
 

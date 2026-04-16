@@ -4,7 +4,7 @@ import type {
   BlueprintGraphEdge,
 } from './canonical-graph.js';
 import type {
-  BlueprintArtefactDefinition,
+  BlueprintOutputDefinition,
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
   EdgeConditionClause,
@@ -33,8 +33,8 @@ export interface CanonicalNodeInstance {
   name: string;
   indices: Record<string, number>;
   dimensions: string[];
-  artefact?: BlueprintArtefactDefinition;
-  output?: BlueprintArtefactDefinition;
+  artifact?: BlueprintOutputDefinition;
+  output?: BlueprintOutputDefinition;
   input?: BlueprintInputDefinition;
   producer?: ProducerConfig;
 }
@@ -167,14 +167,14 @@ function resolveDimensionSizes(
     if (node.type !== 'Artifact' && node.type !== 'Output') {
       continue;
     }
-    const definition = node.artefact ?? node.output;
+    const definition = node.artifact ?? node.output;
     if (!definition?.countInput) {
       continue;
     }
     if (node.dimensions.length === 0) {
       throw createRuntimeError(
         RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-        `Artefact "${[...node.namespacePath, node.name].join('.')}" declares countInput but has no dimensions.`
+        `Artifact "${[...node.namespacePath, node.name].join('.')}" declares countInput but has no dimensions.`
       );
     }
     const symbol = node.dimensions[node.dimensions.length - 1];
@@ -191,7 +191,7 @@ function resolveDimensionSizes(
     if (!Number.isInteger(offset) || offset < 0) {
       throw createRuntimeError(
         RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-        `Artefact "${[...node.namespacePath, node.name].join('.')}" declares an invalid countInputOffset (${offset}).`
+        `Artifact "${[...node.namespacePath, node.name].join('.')}" declares an invalid countInputOffset (${offset}).`
       );
     }
     const size = baseSize + offset;
@@ -287,7 +287,7 @@ function resolveDimensionSizes(
         throw createRuntimeError(
           RuntimeErrorCode.MISSING_DIMENSION_SIZE,
           `Missing size for dimension "${label}" on node "${nodeId}". ` +
-            `Ensure the upstream artefact declares countInput or can derive this dimension from a loop.`
+            `Ensure the upstream artifact declares countInput or can derive this dimension from a loop.`
         );
       }
     }
@@ -423,7 +423,7 @@ function expandNodeInstances(
     name: node.name,
     indices,
     dimensions: node.dimensions,
-    artefact: node.artefact,
+    artifact: node.artifact,
     input: node.input,
     producer: node.producer,
   }));

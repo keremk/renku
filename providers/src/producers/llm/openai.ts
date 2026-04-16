@@ -1,4 +1,4 @@
-import { isCanonicalId, type ArtefactEventStatus } from '@gorenku/core';
+import { isCanonicalId, type ArtifactEventStatus } from '@gorenku/core';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import type { HandlerFactory, ProviderJobContext, ConditionHints } from '../../types.js';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
@@ -9,7 +9,7 @@ import {
   parseOpenAiConfig,
   renderPrompts,
   callOpenAi,
-  buildArtefactsFromResponse,
+  buildArtifactsFromResponse,
   sanitizeResponseMetadata,
   type OpenAiLlmConfig,
   type OpenAiResponseFormat,
@@ -109,12 +109,12 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         });
 
         // 5. Build artifacts using implicit mapping
-        const artefacts = buildArtefactsFromResponse(generation.data, request.produces, {
+        const artifacts = buildArtifactsFromResponse(generation.data, request.produces, {
           producerId: request.jobId,
         });
 
         // 6. Determine overall status
-        const status: ArtefactEventStatus = artefacts.some((artefact) => artefact.status === 'failed')
+        const status: ArtifactEventStatus = artifacts.some((artifact) => artifact.status === 'failed')
           ? 'failed'
           : 'succeeded';
 
@@ -140,7 +140,7 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         });
         return {
           status,
-          artefacts,
+          artifacts,
           diagnostics,
         };
         } catch (error) {

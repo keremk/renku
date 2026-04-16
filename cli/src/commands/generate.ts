@@ -213,14 +213,14 @@ export async function runGenerate(
 					manifest,
 					allowShardedBlobs: true,
 				})
-			: { pendingArtefacts: [] };
+			: { pendingArtifacts: [] };
 
 		const editResult = await runExecute({
 			storageMovieId,
 			isNew: false,
 			inputsPath: options.inputsPath,
 			blueprintSpecifier: options.blueprint, // Ignored for edits - uses metadata
-			pendingArtefacts: preflight.pendingArtefacts,
+			pendingArtifacts: preflight.pendingArtifacts,
 			dryRun: options.dryRun,
 			nonInteractive: options.nonInteractive,
 			costsOnly: options.costsOnly,
@@ -255,7 +255,7 @@ export async function runGenerate(
 				});
 			const materializedRootOutputs = resolveMaterializedRootOutputs({
 				rootOutputBindings: editResult.rootOutputBindings ?? [],
-				artefacts: artifacts.artefacts,
+				artifacts: artifacts.artifacts,
 				resolvedArtifacts: resolvedConditionArtifacts,
 				resolvedInputs: editResult.resolvedInputs,
 			});
@@ -353,7 +353,7 @@ export async function runGenerate(
 				});
 			const materializedRootOutputs = resolveMaterializedRootOutputs({
 				rootOutputBindings: queryResult.rootOutputBindings ?? [],
-				artefacts: artifacts.artefacts,
+				artifacts: artifacts.artifacts,
 				resolvedArtifacts: resolvedConditionArtifacts,
 				resolvedInputs: queryResult.resolvedInputs,
 			});

@@ -64,8 +64,8 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     await writeFile(resolve(tempRoot, blobDir2, `${videoHash2}.mp4`), 'mock-video-2');
 
     // Write artifact events to event log (simulating fresh artifacts)
-    await eventLog.appendArtefact(movieId, {
-      artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+    await eventLog.appendArtifact(movieId, {
+      artifactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
       revision: 'rev-0001' as RevisionId,
       inputsHash: 'input-hash-1',
       output: {
@@ -80,8 +80,8 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
       createdAt: new Date().toISOString(),
     });
 
-    await eventLog.appendArtefact(movieId, {
-      artefactId: 'Artifact:VideoProducer.GeneratedVideo[1]',
+    await eventLog.appendArtifact(movieId, {
+      artifactId: 'Artifact:VideoProducer.GeneratedVideo[1]',
       revision: 'rev-0001' as RevisionId,
       inputsHash: 'input-hash-2',
       output: {
@@ -139,8 +139,8 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     await writeFile(resolve(tempRoot, timelineBlobDir, `${timelineHash}.json`), timelineContent);
 
     // Write timeline artifact event
-    await eventLog.appendArtefact(movieId, {
-      artefactId: 'Artifact:TimelineComposer.Timeline',
+    await eventLog.appendArtifact(movieId, {
+      artifactId: 'Artifact:TimelineComposer.Timeline',
       revision: 'rev-0001' as RevisionId,
       inputsHash: 'timeline-input-hash',
       output: {
@@ -165,7 +165,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
-      artefacts: {
+      artifacts: {
         'Artifact:VideoProducer.GeneratedVideo[0]': {
           hash: staleVideoHash1, // STALE - different from event log
           blob: {
@@ -220,10 +220,10 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
       return {
         jobId: request.job.jobId,
         status: 'succeeded',
-        artefacts: request.job.produces
+        artifacts: request.job.produces
           .filter((id: string) => id.startsWith('Artifact:'))
-          .map((artefactId: string) => ({
-            artefactId,
+          .map((artifactId: string) => ({
+            artifactId,
             blob: {
               data: 'mock-output',
               mimeType: 'video/mp4',
@@ -319,7 +319,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     const musicHash = 'c0c10123456789abcdef1234567890abcdef1234567890abcdef1234567890ab';
 
     // Write artifact events for all assets
-    for (const [artefactId, hash, mimeType] of [
+    for (const [artifactId, hash, mimeType] of [
       ['Artifact:VideoProducer.GeneratedVideo[0]', videoHash, 'video/mp4'],
       ['Artifact:AudioProducer.GeneratedAudio[0]', audioHash, 'audio/mpeg'],
       ['Artifact:MusicProducer.GeneratedMusic', musicHash, 'audio/mpeg'],
@@ -328,15 +328,15 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
       await mkdir(resolve(tempRoot, blobDir), { recursive: true });
       await writeFile(resolve(tempRoot, blobDir, `${hash}.${mimeType.split('/')[1] === 'mpeg' ? 'mp3' : 'mp4'}`), 'mock');
 
-      await eventLog.appendArtefact(movieId, {
-        artefactId,
+      await eventLog.appendArtifact(movieId, {
+        artifactId,
         revision: 'rev-0001' as RevisionId,
         inputsHash: `hash-${hash.slice(0, 8)}`,
         output: {
           blob: { hash, size: 100, mimeType },
         },
         status: 'succeeded',
-        producedBy: `job-${artefactId}`,
+        producedBy: `job-${artifactId}`,
         createdAt: new Date().toISOString(),
       });
     }
@@ -370,8 +370,8 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     await mkdir(resolve(tempRoot, timelineBlobDir), { recursive: true });
     await writeFile(resolve(tempRoot, timelineBlobDir, `${timelineHash}.json`), timelineContent);
 
-    await eventLog.appendArtefact(movieId, {
-      artefactId: 'Artifact:TimelineComposer.Timeline',
+    await eventLog.appendArtifact(movieId, {
+      artifactId: 'Artifact:TimelineComposer.Timeline',
       revision: 'rev-0001' as RevisionId,
       inputsHash: 'timeline-hash',
       output: { blob: { hash: timelineHash, size: timelineContent.length, mimeType: 'application/json' } },
@@ -386,7 +386,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
-      artefacts: {},
+      artifacts: {},
     };
 
     await manifestService.saveManifest(manifest, {
@@ -402,10 +402,10 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
       return {
         jobId: request.job.jobId,
         status: 'succeeded',
-        artefacts: request.job.produces
+        artifacts: request.job.produces
           .filter((id: string) => id.startsWith('Artifact:'))
-          .map((artefactId: string) => ({
-            artefactId,
+          .map((artifactId: string) => ({
+            artifactId,
             blob: { data: 'mock', mimeType: 'video/mp4' },
           })),
       };

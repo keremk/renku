@@ -29,7 +29,7 @@ const describeIfStructured =
 
 describeIfHasKey('OpenAI structured integration', () => {
   describeIfStructured('structured output', () => {
-    it('returns artefacts for structured JSON schema outputs', async () => {
+    it('returns artifacts for structured JSON schema outputs', async () => {
     const handler = createOpenAiLlmHandler()({
       descriptor: {
         provider: 'openai',
@@ -77,15 +77,15 @@ describeIfHasKey('OpenAI structured integration', () => {
               required: ['summary', 'title'],
             },
           },
-          artefactMapping: [
+          artifactMapping: [
             {
               field: 'summary',
-              artefactId: 'Artifact:MovieSummary',
+              artifactId: 'Artifact:MovieSummary',
               output: 'blob',
             },
             {
               field: 'title',
-              artefactId: 'Artifact:MovieTitle',
+              artifactId: 'Artifact:MovieTitle',
               output: 'blob',
             },
           ],
@@ -105,14 +105,14 @@ describeIfHasKey('OpenAI structured integration', () => {
     console.log('OpenAI integration test result:', JSON.stringify(result));
 
     expect(result.status).toBe('succeeded');
-    const ids = result.artefacts.map((a) => a.artefactId).sort();
+    const ids = result.artifacts.map((a) => a.artifactId).sort();
     expect(ids).toEqual(['Artifact:MovieSummary', 'Artifact:MovieTitle']);
 
-    const summary = result.artefacts.find(
-      (a) => a.artefactId === 'Artifact:MovieSummary'
+    const summary = result.artifacts.find(
+      (a) => a.artifactId === 'Artifact:MovieSummary'
     );
-    const title = result.artefacts.find(
-      (a) => a.artefactId === 'Artifact:MovieTitle'
+    const title = result.artifacts.find(
+      (a) => a.artifactId === 'Artifact:MovieTitle'
     );
     expect(typeof summary?.blob?.data === 'string' && summary.blob.data.length > 0).toBeTruthy();
     expect(typeof title?.blob?.data === 'string' && title.blob.data.length > 0).toBeTruthy();

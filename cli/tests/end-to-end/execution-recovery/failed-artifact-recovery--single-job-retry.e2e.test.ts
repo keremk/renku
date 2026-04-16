@@ -109,12 +109,12 @@ describe('end-to-end: failed artifact recovery', () => {
       return {
         jobId: request.job.jobId,
         status: 'succeeded',
-        artefacts: request.job.produces
+        artifacts: request.job.produces
           .filter((id: string) => id.startsWith('Artifact:'))
-          .map((artefactId: string) => ({
-            artefactId,
+          .map((artifactId: string) => ({
+            artifactId,
             blob: {
-              data: `stub-data-for-${artefactId}`,
+              data: `stub-data-for-${artifactId}`,
               mimeType: 'text/plain',
             },
           })),
@@ -147,8 +147,8 @@ describe('end-to-end: failed artifact recovery', () => {
 
     // Verify event log contains failed artifact
     let foundFailedEvent = false;
-    for await (const event of eventLog.streamArtefacts(storageMovieId)) {
-      if (event.artefactId === failedArtifactId) {
+    for await (const event of eventLog.streamArtifacts(storageMovieId)) {
+      if (event.artifactId === failedArtifactId) {
         expect(event.status).toBe('failed');
         expect(event.diagnostics?.error).toBeDefined();
         foundFailedEvent = true;
@@ -165,13 +165,13 @@ describe('end-to-end: failed artifact recovery', () => {
     });
 
     // Verify failed artifact is excluded from manifest
-    expect(manifest1.artefacts[failedArtifactId!]).toBeUndefined();
+    expect(manifest1.artifacts[failedArtifactId!]).toBeUndefined();
 
     // Verify successful artifacts are in manifest
     const successfulAudioJobs = audioJobs.filter((j: any) => j.jobId !== audioJob1!.jobId);
     for (const job of successfulAudioJobs) {
       const artifactId = job.produces.find((id: string) => id.startsWith('Artifact:'));
-      expect(manifest1.artefacts[artifactId!]).toBeDefined();
+      expect(manifest1.artifacts[artifactId!]).toBeDefined();
     }
 
     // ============================================================
@@ -214,12 +214,12 @@ describe('end-to-end: failed artifact recovery', () => {
       return {
         jobId: request.job.jobId,
         status: 'succeeded',
-        artefacts: request.job.produces
+        artifacts: request.job.produces
           .filter((id: string) => id.startsWith('Artifact:'))
-          .map((artefactId: string) => ({
-            artefactId,
+          .map((artifactId: string) => ({
+            artifactId,
             blob: {
-              data: `recovered-${artefactId}`,
+              data: `recovered-${artifactId}`,
               mimeType: 'text/plain',
             },
           })),
@@ -250,13 +250,13 @@ describe('end-to-end: failed artifact recovery', () => {
     const finalManifest = await recoveryResult.buildManifest();
 
     // Verify recovered artifact is now in manifest
-    expect(finalManifest.artefacts[failedArtifactId!]).toBeDefined();
-    expect(finalManifest.artefacts[failedArtifactId!].status).toBe('succeeded');
+    expect(finalManifest.artifacts[failedArtifactId!]).toBeDefined();
+    expect(finalManifest.artifacts[failedArtifactId!].status).toBe('succeeded');
 
     // Verify all 3 audio artifacts are present (2 from first run + 1 recovered)
     for (const job of audioJobs) {
       const artifactId = job.produces.find((id: string) => id.startsWith('Artifact:'));
-      expect(finalManifest.artefacts[artifactId!]).toBeDefined();
+      expect(finalManifest.artifacts[artifactId!]).toBeDefined();
     }
 
     // ============================================================

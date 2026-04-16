@@ -34,7 +34,7 @@ describe('blueprint resolution context', () => {
   it('prepares a cloned metadata-backed tree without mutating the raw blueprint', async () => {
     const { root } = await loadYamlBlueprintTree(DOCUMENTARY_BLUEPRINT_PATH);
 
-    expect(root.document.artefacts[0]?.schema).toBeUndefined();
+    expect(root.document.outputs[0]?.schema).toBeUndefined();
     expect(
       root.document.edges.some(
         (edge) =>
@@ -48,14 +48,14 @@ describe('blueprint resolution context', () => {
     });
 
     expect(context.root).not.toBe(root);
-    expect(context.root.document.artefacts[0]?.schema).toBeDefined();
+    expect(context.root.document.outputs[0]?.schema).toBeDefined();
     expect(
-      context.root.document.edges.some(
-        (edge) =>
-          edge.to === 'VideoScript.Segments[segment].NarrationType'
+      context.graph.nodes.some(
+        (node) =>
+          node.id === 'Output:VideoScript.Segments[segment].NarrationType'
       )
     ).toBe(true);
-    expect(root.document.artefacts[0]?.schema).toBeUndefined();
+    expect(root.document.outputs[0]?.schema).toBeUndefined();
     expect(
       root.document.edges.some(
         (edge) =>

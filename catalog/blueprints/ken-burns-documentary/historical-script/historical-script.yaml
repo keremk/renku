@@ -35,7 +35,7 @@ inputs:
     description: Narration language.
     type: string
 
-artifacts:
+outputs:
   - name: VideoScript
     description: The generated documentary script with narration, image prompts, text overlays, and music direction.
     type: json

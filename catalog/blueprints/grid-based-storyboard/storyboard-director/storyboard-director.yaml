@@ -36,7 +36,7 @@ inputs:
     description: Duration of each video clip in seconds.
     type: int
 
-artifacts:
+outputs:
   - name: GridImagePrompt
     description: Detailed prompt for generating the storyboard grid image.
     type: string

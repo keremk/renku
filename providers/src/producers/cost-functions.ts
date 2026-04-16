@@ -8,7 +8,7 @@ import type { ExecutionPlan, JobDescriptor, BlueprintProducerSdkMappingField } f
 // ============================================================================
 
 /**
- * Cost range for when exact cost cannot be determined (e.g., artefact-sourced inputs).
+ * Cost range for when exact cost cannot be determined (e.g., artifact-sourced inputs).
  */
 export interface CostRange {
 	min: number;
@@ -36,8 +36,8 @@ export interface CostEstimate {
 export interface ExtractedCostInputs {
 	/** Values keyed by provider field name (from pricing config's inputs array) */
 	values: Record<string, unknown>;
-	/** Provider field names where value comes from an artefact (not available at planning time) */
-	artefactSourcedFields: string[];
+	/** Provider field names where value comes from an artifact (not available at planning time) */
+	artifactSourcedFields: string[];
 	/** Provider field names where value is missing */
 	missingFields: string[];
 }
@@ -291,8 +291,8 @@ function costByInputTokens(
 		};
 	}
 
-	// Check if any required field comes from artefact
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check if any required field comes from artifact
+	if (extracted.artifactSourcedFields.length > 0) {
 		const samples = [
 			{ label: '100 chars', cost: 25 * pricePerToken },
 			{ label: '500 chars', cost: 125 * pricePerToken },
@@ -301,7 +301,7 @@ function costByInputTokens(
 		return {
 			cost: samples[1].cost,
 			isPlaceholder: true,
-			note: `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Input from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: samples[0].cost,
 				max: samples[2].cost,
@@ -335,14 +335,14 @@ function costByImageAndResolution(
 		return { cost: 0, isPlaceholder: true, note: 'Missing resolution prices' };
 	}
 
-	// Check for artefact-sourced resolution
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check for artifact-sourced resolution
+	if (extracted.artifactSourcedFields.length > 0) {
 		const minPrice = Math.min(...prices.map(p => p.pricePerImage ?? 0));
 		const maxPrice = Math.max(...prices.map(p => p.pricePerImage ?? 0));
 		return {
 			cost: (minPrice + maxPrice) / 2,
 			isPlaceholder: true,
-			note: `Resolution from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Resolution from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: minPrice,
 				max: maxPrice,
@@ -377,14 +377,14 @@ function costByResolution(
 		return { cost: 0, isPlaceholder: true, note: 'Missing resolution prices' };
 	}
 
-	// Check for artefact-sourced dimensions
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check for artifact-sourced dimensions
+	if (extracted.artifactSourcedFields.length > 0) {
 		const minPrice = Math.min(...prices.map(p => p.pricePerImage ?? 0));
 		const maxPrice = Math.max(...prices.map(p => p.pricePerImage ?? 0));
 		return {
 			cost: (minPrice + maxPrice) / 2,
 			isPlaceholder: true,
-			note: `Dimensions from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Dimensions from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: minPrice,
 				max: maxPrice,
@@ -430,8 +430,8 @@ function costByVideoDuration(
 	const durationValue = durationField ? extracted.values[durationField] : undefined;
 	const duration = parseDurationValue(durationValue);
 
-	// Check for artefact-sourced duration
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check for artifact-sourced duration
+	if (extracted.artifactSourcedFields.length > 0) {
 		if (duration === undefined) {
 			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
 		}
@@ -443,7 +443,7 @@ function costByVideoDuration(
 		return {
 			cost: duration * pricePerSecond,
 			isPlaceholder: true,
-			note: `Duration from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Duration from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: samples[0].cost,
 				max: samples[2].cost,
@@ -475,8 +475,8 @@ function costByVideoDurationAndResolution(
 	const durationValue = durationField ? extracted.values[durationField] : undefined;
 	const duration = parseDurationValue(durationValue);
 
-	// Check for artefact-sourced inputs
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check for artifact-sourced inputs
+	if (extracted.artifactSourcedFields.length > 0) {
 		if (duration === undefined) {
 			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
 		}
@@ -485,7 +485,7 @@ function costByVideoDurationAndResolution(
 		return {
 			cost: duration * (minRate + maxRate) / 2,
 			isPlaceholder: true,
-			note: `Some inputs from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Some inputs from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: duration * minRate,
 				max: duration * maxRate,
@@ -540,8 +540,8 @@ function costByVideoDurationAndWithAudio(
 	const durationField = inputs[0];
 	const audioField = inputs[1];
 
-	// Check for artefact-sourced inputs
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check for artifact-sourced inputs
+	if (extracted.artifactSourcedFields.length > 0) {
 		const durationValue = durationField ? extracted.values[durationField] : undefined;
 		const duration = parseDurationValue(durationValue);
 		if (duration === undefined) {
@@ -552,7 +552,7 @@ function costByVideoDurationAndWithAudio(
 		return {
 			cost: duration * (minRate + maxRate) / 2,
 			isPlaceholder: true,
-			note: `Some inputs from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Some inputs from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: duration * minRate,
 				max: duration * maxRate,
@@ -601,7 +601,7 @@ function costByVideoDurationResolutionAndAudio(
 	const durationValue = durationField ? extracted.values[durationField] : undefined;
 	const duration = parseDurationValue(durationValue);
 
-	if (extracted.artefactSourcedFields.length > 0) {
+	if (extracted.artifactSourcedFields.length > 0) {
 		if (duration === undefined) {
 			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
 		}
@@ -610,7 +610,7 @@ function costByVideoDurationResolutionAndAudio(
 		return {
 			cost: duration * (minRate + maxRate) / 2,
 			isPlaceholder: true,
-			note: `Some inputs from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Some inputs from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: duration * minRate,
 				max: duration * maxRate,
@@ -660,7 +660,7 @@ function costByVideoDurationAndMode(
 	const durationValue = durationField ? extracted.values[durationField] : undefined;
 	const duration = parseDurationValue(durationValue);
 
-	if (extracted.artefactSourcedFields.length > 0) {
+	if (extracted.artifactSourcedFields.length > 0) {
 		if (duration === undefined) {
 			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
 		}
@@ -669,7 +669,7 @@ function costByVideoDurationAndMode(
 		return {
 			cost: duration * (minRate + maxRate) / 2,
 			isPlaceholder: true,
-			note: `Some inputs from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Some inputs from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: duration * minRate,
 				max: duration * maxRate,
@@ -714,7 +714,7 @@ function costByVideoDurationModeAndAudio(
 	const durationValue = durationField ? extracted.values[durationField] : undefined;
 	const duration = parseDurationValue(durationValue);
 
-	if (extracted.artefactSourcedFields.length > 0) {
+	if (extracted.artifactSourcedFields.length > 0) {
 		if (duration === undefined) {
 			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
 		}
@@ -723,7 +723,7 @@ function costByVideoDurationModeAndAudio(
 		return {
 			cost: duration * (minRate + maxRate) / 2,
 			isPlaceholder: true,
-			note: `Some inputs from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Some inputs from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: duration * minRate,
 				max: duration * maxRate,
@@ -786,8 +786,8 @@ function costByCharacters(
 		};
 	}
 
-	// Check if any required field comes from artefact
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check if any required field comes from artifact
+	if (extracted.artifactSourcedFields.length > 0) {
 		const samples = [
 			{ label: '100 chars', cost: 100 * pricePerCharacter },
 			{ label: '500 chars', cost: 500 * pricePerCharacter },
@@ -796,7 +796,7 @@ function costByCharacters(
 		return {
 			cost: samples[1].cost,
 			isPlaceholder: true,
-			note: `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Input from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: samples[0].cost,
 				max: samples[2].cost,
@@ -849,8 +849,8 @@ function costByCharactersAndPlan(
 		};
 	}
 
-	// Check if text comes from artefact
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check if text comes from artifact
+	if (extracted.artifactSourcedFields.length > 0) {
 		const samples = [
 			{ label: '100 chars', cost: 100 * pricePerCharacter },
 			{ label: '500 chars', cost: 500 * pricePerCharacter },
@@ -859,7 +859,7 @@ function costByCharactersAndPlan(
 		return {
 			cost: samples[1].cost,
 			isPlaceholder: true,
-			note: `Input from artefact: ${extracted.artefactSourcedFields.join(', ')} (Plan: ${plan ?? 'default'})`,
+			note: `Input from artifact: ${extracted.artifactSourcedFields.join(', ')} (Plan: ${plan ?? 'default'})`,
 			range: {
 				min: samples[0].cost,
 				max: samples[2].cost,
@@ -901,8 +901,8 @@ function costByAudioSeconds(
 	const durationValue = durationField ? extracted.values[durationField] : undefined;
 	const duration = parseDurationValue(durationValue);
 
-	// Check for artefact-sourced duration
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check for artifact-sourced duration
+	if (extracted.artifactSourcedFields.length > 0) {
 		const samples = [
 			{ label: '10s', cost: 10 * pricePerSecond },
 			{ label: '30s', cost: 30 * pricePerSecond },
@@ -911,7 +911,7 @@ function costByAudioSeconds(
 		return {
 			cost: samples[1].cost,
 			isPlaceholder: true,
-			note: `Duration from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Duration from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: samples[0].cost,
 				max: samples[2].cost,
@@ -940,8 +940,8 @@ function costByAudioMinutes(
 	const durationField = config.inputs?.[0];
 	const durationValue = durationField ? extracted.values[durationField] : undefined;
 
-	// Check for artefact-sourced duration
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check for artifact-sourced duration
+	if (extracted.artifactSourcedFields.length > 0) {
 		const samples = [
 			{ label: '1 min', cost: 1 * pricePerMinute },
 			{ label: '3 min', cost: 3 * pricePerMinute },
@@ -950,7 +950,7 @@ function costByAudioMinutes(
 		return {
 			cost: samples[1].cost,
 			isPlaceholder: true,
-			note: `Duration from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Duration from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: samples[0].cost,
 				max: samples[2].cost,
@@ -977,15 +977,15 @@ function costByImageSizeAndQuality(
 		return { cost: 0, isPlaceholder: true, note: 'Missing size/quality prices' };
 	}
 
-	// Check for artefact-sourced inputs
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check for artifact-sourced inputs
+	if (extracted.artifactSourcedFields.length > 0) {
 		const allPrices = prices.map(p => p.pricePerImage);
 		const minPrice = Math.min(...allPrices);
 		const maxPrice = Math.max(...allPrices);
 		return {
 			cost: (minPrice + maxPrice) / 2,
 			isPlaceholder: true,
-			note: `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Input from artifact: ${extracted.artifactSourcedFields.join(', ')}`,
 			range: {
 				min: minPrice,
 				max: maxPrice,
@@ -1083,8 +1083,8 @@ function costByVideoPerMillionTokens(
 		// Audio-based pricing
 		const audioEntries = prices as VideoTokenAudioPriceEntry[];
 
-		// Check if generate_audio is artefact-sourced - return range
-		if (extracted.artefactSourcedFields.includes('generate_audio')) {
+		// Check if generate_audio is artifact-sourced - return range
+		if (extracted.artifactSourcedFields.includes('generate_audio')) {
 			// Get duration to calculate token cost range
 			const inputs = config.inputs ?? [];
 			const durationField = inputs[0];
@@ -1113,7 +1113,7 @@ function costByVideoPerMillionTokens(
 			return {
 				cost: (minCost + maxCost) / 2,
 				isPlaceholder: true,
-				note: `generate_audio from artefact`,
+				note: `generate_audio from artifact`,
 				range: {
 					min: minCost,
 					max: maxCost,
@@ -1148,9 +1148,9 @@ function costByVideoPerMillionTokens(
 		return { cost: 0, isPlaceholder: true, note: 'Missing pricePerMillionTokens' };
 	}
 
-	// Check for artefact-sourced inputs (other than generate_audio which is handled above)
-	const nonAudioArtefactFields = extracted.artefactSourcedFields.filter(f => f !== 'generate_audio');
-	if (nonAudioArtefactFields.length > 0) {
+	// Check for artifact-sourced inputs (other than generate_audio which is handled above)
+	const nonAudioArtifactFields = extracted.artifactSourcedFields.filter(f => f !== 'generate_audio');
+	if (nonAudioArtifactFields.length > 0) {
 		// Use default 1080p 5s video for estimate
 		const defaultWidth = 1920;
 		const defaultHeight = 1080;
@@ -1166,7 +1166,7 @@ function costByVideoPerMillionTokens(
 		return {
 			cost: defaultCost,
 			isPlaceholder: true,
-			note: `Input from artefact: ${nonAudioArtefactFields.join(', ')}`,
+			note: `Input from artifact: ${nonAudioArtifactFields.join(', ')}`,
 			range: {
 				min: samples[0].cost,
 				max: samples[2].cost,
@@ -1266,10 +1266,10 @@ function costByImageMegapixels(
 	const numImages = typeof numImagesValue === 'number' ? numImagesValue : 1;
 	const dimensions = parseImageSize(imageSizeValue);
 
-	// Handle artefact-sourced or missing dimensions
-	const hasArtefactSources = extracted.artefactSourcedFields.length > 0;
+	// Handle artifact-sourced or missing dimensions
+	const hasArtifactSources = extracted.artifactSourcedFields.length > 0;
 
-	if (hasArtefactSources || !dimensions) {
+	if (hasArtifactSources || !dimensions) {
 		const defaultDims = IMAGE_SIZE_PRESETS.square_hd;
 		const samples = [
 			{ label: '1024x1024', cost: (1024 * 1024 / 1_000_000) * numImages * pricePerMegapixel },
@@ -1280,8 +1280,8 @@ function costByImageMegapixels(
 		return {
 			cost: (defaultDims.width * defaultDims.height / 1_000_000) * numImages * pricePerMegapixel,
 			isPlaceholder: true,
-			note: hasArtefactSources
-				? `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`
+			note: hasArtifactSources
+				? `Input from artifact: ${extracted.artifactSourcedFields.join(', ')}`
 				: 'image_size missing or auto',
 			range: { min: samples[0].cost, max: samples[2].cost, samples },
 		};
@@ -1322,7 +1322,7 @@ function parseVideoSize(
 		if (preset) {
 			return preset;
 		}
-		// "auto" means dimensions come from artefact
+		// "auto" means dimensions come from artifact
 		if (videoSize === 'auto') {
 			return null;
 		}
@@ -1362,11 +1362,11 @@ function costByVideoMegapixels(
 	const numFrames = typeof numFramesValue === 'number' ? numFramesValue : undefined;
 	const dimensions = parseVideoSize(videoSizeValue);
 
-	// Check for artefact-sourced or missing inputs
-	const hasArtefactSources = extracted.artefactSourcedFields.length > 0;
+	// Check for artifact-sourced or missing inputs
+	const hasArtifactSources = extracted.artifactSourcedFields.length > 0;
 	const hasMissingDimensions = !dimensions || videoSizeValue === 'auto';
 
-	if (hasArtefactSources || hasMissingDimensions) {
+	if (hasArtifactSources || hasMissingDimensions) {
 		// Return range for common video sizes
 		const commonSamples = [
 			{ label: '720p 81f', dims: { width: 1280, height: 720 }, frames: 81 },
@@ -1387,8 +1387,8 @@ function costByVideoMegapixels(
 		return {
 			cost: defaultCost,
 			isPlaceholder: true,
-			note: hasArtefactSources
-				? `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`
+			note: hasArtifactSources
+				? `Input from artifact: ${extracted.artifactSourcedFields.join(', ')}`
 				: 'video_size is auto or missing',
 			range: {
 				min: samples[0].cost,
@@ -1411,7 +1411,7 @@ function costByVideoMegapixels(
 
 /**
  * Video upscaling: cost by output duration, target resolution, and target fps.
- * Duration is always artefact-sourced (from input video), so always returns a range.
+ * Duration is always artifact-sourced (from input video), so always returns a range.
  * Looks up pricePerSecond from a resolution+fps price table, choosing the closest
  * documented fps tier when an exact match is not found.
  */
@@ -1451,7 +1451,7 @@ function costByVideoDurationResolutionAndFps(
 
 	const pricePerSecond = match.pricePerSecond;
 
-	// Duration is always from the input video (artefact-sourced), so always return a range
+	// Duration is always from the input video (artifact-sourced), so always return a range
 	const samples = [
 		{ label: '5s', cost: 5 * pricePerSecond },
 		{ label: '10s', cost: 10 * pricePerSecond },
@@ -1626,7 +1626,7 @@ export function extractCostInputs(
 	requiredFields: string[]
 ): ExtractedCostInputs {
 	const values: Record<string, unknown> = {};
-	const artefactSourcedFields: string[] = [];
+	const artifactSourcedFields: string[] = [];
 	const missingFields: string[] = [];
 
 	const sdkMapping = job.context?.sdkMapping ?? {};
@@ -1661,9 +1661,9 @@ export function extractCostInputs(
 			continue;
 		}
 
-		// Check if this comes from an artefact (not available at planning time)
+		// Check if this comes from an artifact (not available at planning time)
 		if (canonicalId.startsWith('Artifact:')) {
-			artefactSourcedFields.push(providerField);
+			artifactSourcedFields.push(providerField);
 			continue;
 		}
 
@@ -1676,7 +1676,7 @@ export function extractCostInputs(
 		}
 	}
 
-	return { values, artefactSourcedFields, missingFields };
+	return { values, artifactSourcedFields, missingFields };
 }
 
 /**

@@ -14,9 +14,9 @@ describe('resolveMaterializedRootOutputs', () => {
 					},
 				},
 			],
-			artefacts: [
+			artifacts: [
 				{
-					artefactId: 'Artifact:PreviewProducer.GeneratedVideo',
+					artifactId: 'Artifact:PreviewProducer.GeneratedVideo',
 					artifactPath: '/tmp/preview.mp4',
 					sourcePath: '/tmp/blob.mp4',
 					hash: 'hash-1',
@@ -45,9 +45,9 @@ describe('resolveMaterializedRootOutputs', () => {
 					},
 				},
 			],
-			artefacts: [
+			artifacts: [
 				{
-					artefactId: 'Artifact:PreviewProducer.GeneratedVideo',
+					artifactId: 'Artifact:PreviewProducer.GeneratedVideo',
 					artifactPath: '/tmp/preview.mp4',
 					sourcePath: '/tmp/blob.mp4',
 					hash: 'hash-1',

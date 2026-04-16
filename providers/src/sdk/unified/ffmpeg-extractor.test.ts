@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   detectRequiredExtractions,
   needsExtraction,
-  extractDerivedArtefacts,
+  extractDerivedArtifacts,
   resetFfmpegCache,
 } from './ffmpeg-extractor.js';
 
@@ -166,7 +166,7 @@ describe('needsExtraction', () => {
   });
 });
 
-describe('extractDerivedArtefacts', () => {
+describe('extractDerivedArtifacts', () => {
   beforeEach(() => {
     resetFfmpegCache();
   });
@@ -176,7 +176,7 @@ describe('extractDerivedArtefacts', () => {
       const produces = ['Artifact:GeneratedVideo', 'Artifact:FirstFrame'];
       const videoBuffer = Buffer.from('mock video data');
 
-      const result = await extractDerivedArtefacts({
+      const result = await extractDerivedArtifacts({
         videoBuffer,
         primaryArtifactId: 'Artifact:GeneratedVideo',
         produces,
@@ -185,7 +185,7 @@ describe('extractDerivedArtefacts', () => {
 
       expect(result.firstFrame).toBeDefined();
       expect(result.firstFrame?.status).toBe('succeeded');
-      expect(result.firstFrame?.artefactId).toBe('Artifact:FirstFrame');
+      expect(result.firstFrame?.artifactId).toBe('Artifact:FirstFrame');
       expect(result.firstFrame?.blob?.mimeType).toBe('image/png');
       expect(result.firstFrame?.diagnostics?.source).toBe('simulated');
     });
@@ -194,7 +194,7 @@ describe('extractDerivedArtefacts', () => {
       const produces = ['Artifact:GeneratedVideo', 'Artifact:LastFrame'];
       const videoBuffer = Buffer.from('mock video data');
 
-      const result = await extractDerivedArtefacts({
+      const result = await extractDerivedArtifacts({
         videoBuffer,
         primaryArtifactId: 'Artifact:GeneratedVideo',
         produces,
@@ -203,7 +203,7 @@ describe('extractDerivedArtefacts', () => {
 
       expect(result.lastFrame).toBeDefined();
       expect(result.lastFrame?.status).toBe('succeeded');
-      expect(result.lastFrame?.artefactId).toBe('Artifact:LastFrame');
+      expect(result.lastFrame?.artifactId).toBe('Artifact:LastFrame');
       expect(result.lastFrame?.blob?.mimeType).toBe('image/png');
     });
 
@@ -212,7 +212,7 @@ describe('extractDerivedArtefacts', () => {
       const videoBuffer = Buffer.from('mock video data');
       const mockDurationSeconds = 10;
 
-      const result = await extractDerivedArtefacts({
+      const result = await extractDerivedArtifacts({
         videoBuffer,
         primaryArtifactId: 'Artifact:GeneratedVideo',
         produces,
@@ -222,7 +222,7 @@ describe('extractDerivedArtefacts', () => {
 
       expect(result.audioTrack).toBeDefined();
       expect(result.audioTrack?.status).toBe('succeeded');
-      expect(result.audioTrack?.artefactId).toBe('Artifact:AudioTrack');
+      expect(result.audioTrack?.artifactId).toBe('Artifact:AudioTrack');
       expect(result.audioTrack?.blob?.mimeType).toBe('audio/wav');
       expect(result.audioTrack?.diagnostics?.durationSeconds).toBe(mockDurationSeconds);
     });
@@ -236,7 +236,7 @@ describe('extractDerivedArtefacts', () => {
       ];
       const videoBuffer = Buffer.from('mock video data');
 
-      const result = await extractDerivedArtefacts({
+      const result = await extractDerivedArtifacts({
         videoBuffer,
         primaryArtifactId: 'Artifact:GeneratedVideo',
         produces,
@@ -252,7 +252,7 @@ describe('extractDerivedArtefacts', () => {
       const produces = ['Artifact:GeneratedVideo'];
       const videoBuffer = Buffer.from('mock video data');
 
-      const result = await extractDerivedArtefacts({
+      const result = await extractDerivedArtifacts({
         videoBuffer,
         primaryArtifactId: 'Artifact:GeneratedVideo',
         produces,
@@ -276,7 +276,7 @@ describe('extractDerivedArtefacts', () => {
       const produces = ['Artifact:GeneratedVideo'];
       const videoBuffer = Buffer.from('mock video data');
 
-      const result = await extractDerivedArtefacts({
+      const result = await extractDerivedArtifacts({
         videoBuffer,
         primaryArtifactId: 'Artifact:GeneratedVideo',
         produces,

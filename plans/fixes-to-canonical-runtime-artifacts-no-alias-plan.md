@@ -189,7 +189,7 @@ Suggested helper:
 
 export function resolveMaterializedRootOutputs(args: {
   rootOutputBindings: RootOutputBinding[];
-  artefacts: ArtifactInfo[];
+  artifacts: ArtifactInfo[];
 }): MaterializedRootOutput[]
 
 Rules:
@@ -210,7 +210,7 @@ cli/src/commands/generate.ts:228
 - Remove finalOutputPath from GenerateResult.
 - After building the artifacts view, call resolveMaterializedRootOutputs(...) using:
     - queryResult.plan.rootOutputBindings or equivalent plan metadata
-    - artifacts.artefacts
+    - artifacts.artifacts
 - Return rootOutputs instead.
 
 This gives the CLI an explicit contract like:

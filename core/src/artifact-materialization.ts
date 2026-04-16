@@ -13,7 +13,7 @@ import type { Manifest } from './types.js';
 import type { ArtifactMaterializationMode } from './workspace.js';
 
 export interface MaterializedArtifactInfo {
-  artefactId: string;
+  artifactId: string;
   artifactPath: string;
   sourcePath: string;
   hash: string;
@@ -23,7 +23,7 @@ export interface MaterializedArtifactInfo {
 
 export interface MaterializeManifestArtifactsResult {
   artifactsRoot: string;
-  artefacts: MaterializedArtifactInfo[];
+  artifacts: MaterializedArtifactInfo[];
 }
 
 export interface MaterializeManifestArtifactsOptions {
@@ -48,15 +48,15 @@ export async function materializeManifestArtifacts(
   await rm(artifactsRoot, { recursive: true, force: true });
   await mkdir(artifactsRoot, { recursive: true });
 
-  const artefacts: MaterializedArtifactInfo[] = [];
-  for (const [artefactId, entry] of Object.entries(
-    options.manifest.artefacts
+  const artifacts: MaterializedArtifactInfo[] = [];
+  for (const [artifactId, entry] of Object.entries(
+    options.manifest.artifacts
   )) {
     if (!entry.blob) {
       continue;
     }
 
-    const artifactName = toArtifactFileName(artefactId, entry.blob.mimeType);
+    const artifactName = toArtifactFileName(artifactId, entry.blob.mimeType);
     const producerFolder = producerFolderNameFromCanonicalProducerId(
       entry.producedBy
     );
@@ -73,7 +73,7 @@ export async function materializeManifestArtifacts(
 
     if (!(await pathExists(sourcePath))) {
       options.logger?.warn?.(
-        `Warning: blob missing for ${artefactId} at ${sourcePath}. Artifact output not materialized.`
+        `Warning: blob missing for ${artifactId} at ${sourcePath}. Artifact output not materialized.`
       );
       continue;
     }
@@ -84,8 +84,8 @@ export async function materializeManifestArtifacts(
       mode: options.mode,
     });
 
-    artefacts.push({
-      artefactId,
+    artifacts.push({
+      artifactId,
       artifactPath,
       sourcePath,
       hash: entry.hash,
@@ -94,7 +94,7 @@ export async function materializeManifestArtifacts(
     });
   }
 
-  return { artifactsRoot, artefacts };
+  return { artifactsRoot, artifacts };
 }
 
 export async function materializeArtifactFile(args: {
@@ -222,18 +222,18 @@ function producerFolderNameFromCanonicalProducerId(producedBy: string): string {
   return normalized;
 }
 
-function toArtifactFileName(artefactId: string, mimeType?: string): string {
-  if (!isCanonicalArtifactId(artefactId)) {
+function toArtifactFileName(artifactId: string, mimeType?: string): string {
+  if (!isCanonicalArtifactId(artifactId)) {
     throw new Error(
-      `Expected canonical Artifact ID (Artifact:...), got "${artefactId}".`
+      `Expected canonical Artifact ID (Artifact:...), got "${artifactId}".`
     );
   }
 
-  const parsed = parseCanonicalArtifactId(artefactId);
+  const parsed = parseCanonicalArtifactId(artifactId);
   const baseName = toKebabCase(parsed.name);
   if (!baseName) {
     throw new Error(
-      `Unable to derive artifact name from artifact id "${artefactId}".`
+      `Unable to derive artifact name from artifact id "${artifactId}".`
     );
   }
 

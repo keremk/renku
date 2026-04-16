@@ -1,4 +1,4 @@
-import type { ProducedArtefact } from '@gorenku/core';
+import type { ProducedArtifact } from '@gorenku/core';
 import { createProducerHandlerFactory } from '../handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../errors.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
@@ -164,20 +164,20 @@ export function createElevenlabsHandler(options: ElevenlabsHandlerOptions): Hand
         }
 
         // Build artifacts directly from the buffer
-        const artefacts = buildArtefactsFromBuffer({
+        const artifacts = buildArtifactsFromBuffer({
           produces: request.produces,
           buffer: audioBuffer,
           mimeType: outputMimeType,
         });
 
-        const status = artefacts.some((a) => a.status === 'failed') ? 'failed' : 'succeeded';
+        const status = artifacts.some((a) => a.status === 'failed') ? 'failed' : 'succeeded';
 
         logger?.debug?.(`providers.elevenlabs.${logKey}.invoke.end`, {
           provider: descriptor.provider,
           model: request.model,
           jobId: request.jobId,
           status,
-          artefactCount: artefacts.length,
+          artifactCount: artifacts.length,
           simulated: isSimulated,
           bufferSize: audioBuffer.length,
         });
@@ -189,7 +189,7 @@ export function createElevenlabsHandler(options: ElevenlabsHandlerOptions): Hand
 
         return {
           status,
-          artefacts,
+          artifacts,
           diagnostics: {
             provider: 'elevenlabs',
             model: request.model,
@@ -208,19 +208,19 @@ export function createElevenlabsHandler(options: ElevenlabsHandlerOptions): Hand
 /**
  * Build artifacts from a binary buffer.
  */
-function buildArtefactsFromBuffer(options: {
+function buildArtifactsFromBuffer(options: {
   produces: string[];
   buffer: Buffer;
   mimeType: string;
-}): ProducedArtefact[] {
+}): ProducedArtifact[] {
   const { produces, buffer, mimeType } = options;
 
   // All produces share the same buffer data
   return produces.map((providedId, index) => {
-    const artefactId = providedId && providedId.length > 0 ? providedId : `Artifact:Output#${index}`;
+    const artifactId = providedId && providedId.length > 0 ? providedId : `Artifact:Output#${index}`;
 
     return {
-      artefactId,
+      artifactId,
       status: 'succeeded' as const,
       blob: {
         data: buffer,

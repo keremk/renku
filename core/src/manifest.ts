@@ -4,11 +4,11 @@ import { createEventLog } from './event-log.js';
 import type { EventLog } from './event-log.js';
 import type { StorageContext } from './storage.js';
 import type {
-  ArtefactEvent,
+  ArtifactEvent,
   Clock,
   Manifest,
   ManifestPointer,
-  ManifestArtefactEntry,
+  ManifestArtifactEntry,
   ManifestInputEntry,
   RevisionId,
 } from './types.js';
@@ -118,14 +118,14 @@ export function createManifestService(storage: StorageContext): ManifestService 
       clock,
     }) {
       const inputs = await collectLatestInputs(eventLog, movieId);
-      const artefacts = await collectLatestArtefacts(eventLog, movieId);
+      const artifacts = await collectLatestArtifacts(eventLog, movieId);
       const createdAt = clock?.now() ?? new Date().toISOString();
       return {
         revision: targetRevision,
         baseRevision,
         createdAt,
         inputs,
-        artefacts,
+        artifacts,
         timeline: {},
       };
     },
@@ -216,24 +216,24 @@ async function collectLatestInputs(eventLog: EventLog, movieId: string): Promise
   return Object.fromEntries(latest.entries());
 }
 
-async function collectLatestArtefacts(
+async function collectLatestArtifacts(
   eventLog: EventLog,
   movieId: string,
-): Promise<Record<string, ManifestArtefactEntry>> {
+): Promise<Record<string, ManifestArtifactEntry>> {
   // Track the LATEST event per artifact (regardless of status)
-  const allLatest = new Map<string, ArtefactEvent>();
-  for await (const event of eventLog.streamArtefacts(movieId)) {
-    allLatest.set(event.artefactId, event);
+  const allLatest = new Map<string, ArtifactEvent>();
+  for await (const event of eventLog.streamArtifacts(movieId)) {
+    allLatest.set(event.artifactId, event);
   }
 
   // Only include artifacts whose LATEST event is succeeded
-  const latest = new Map<string, ManifestArtefactEntry>();
-  for (const [artefactId, event] of allLatest) {
+  const latest = new Map<string, ManifestArtifactEntry>();
+  for (const [artifactId, event] of allLatest) {
     if (event.status !== 'succeeded') {
       continue;
     }
-    latest.set(artefactId, {
-      hash: deriveArtefactHash(event),
+    latest.set(artifactId, {
+      hash: deriveArtifactHash(event),
       blob: event.output.blob,
       producedBy: event.producedBy,
       status: event.status,
@@ -247,12 +247,12 @@ async function collectLatestArtefacts(
   return Object.fromEntries(latest.entries());
 }
 
-export function deriveArtefactHash(event: ArtefactEvent): string {
+export function deriveArtifactHash(event: ArtifactEvent): string {
   if (event.output.blob?.hash) {
     return event.output.blob.hash;
   }
   return hashPayload({
-    artefactId: event.artefactId,
+    artifactId: event.artifactId,
     revision: event.revision,
   }).hash;
 }

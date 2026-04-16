@@ -19,13 +19,13 @@ import {
 	type Manifest,
 	type RootOutputBinding,
 } from '@gorenku/core';
-import type { PendingArtefactDraft } from './planner.js';
+import type { PendingArtifactDraft } from './planner.js';
 import type { CliConfig } from './cli-config.js';
 
 const log = globalThis.console;
 
 export interface ArtifactInfo {
-	artefactId: string;
+	artifactId: string;
 	artifactPath: string;
 	sourcePath: string;
 	hash: string;
@@ -44,46 +44,46 @@ export interface MaterializedRootOutput {
 
 export interface ArtifactsViewContext {
 	artifactsRoot: string;
-	artefacts: ArtifactInfo[];
+	artifacts: ArtifactInfo[];
 	inputsPath: string;
 }
 
 export interface ArtifactsPreflightResult {
-	pendingArtefacts: PendingArtefactDraft[];
+	pendingArtifacts: PendingArtifactDraft[];
 	changed: boolean;
 	artifacts: ArtifactsViewContext;
 }
 
 export function resolveMaterializedRootOutputs(args: {
 	rootOutputBindings: RootOutputBinding[];
-	artefacts: ArtifactInfo[];
+	artifacts: ArtifactInfo[];
 	resolvedArtifacts?: Record<string, unknown>;
 	resolvedInputs?: Record<string, unknown>;
 }): MaterializedRootOutput[] {
-	const artefactsById = new Map(
-		args.artefacts.map((artefact) => [artefact.artefactId, artefact])
+	const artifactsById = new Map(
+		args.artifacts.map((artifact) => [artifact.artifactId, artifact])
 	);
 	const outputs: MaterializedRootOutput[] = [];
 	const activeBindings = filterActiveOutputBindings(args.rootOutputBindings, {
 		resolvedArtifacts: args.resolvedArtifacts ?? {},
 		resolvedInputs: args.resolvedInputs,
-		hasProducedStoryState: args.artefacts.length > 0,
+		hasProducedStoryState: args.artifacts.length > 0,
 	});
 
 	for (const binding of activeBindings) {
 		if (!isCanonicalArtifactId(binding.sourceId)) {
 			continue;
 		}
-		const artefact = artefactsById.get(binding.sourceId);
-		if (!artefact) {
+		const artifact = artifactsById.get(binding.sourceId);
+		if (!artifact) {
 			continue;
 		}
 		outputs.push({
 			outputId: binding.outputId,
-			artifactId: artefact.artefactId,
-			artifactPath: artefact.artifactPath,
-			producedBy: artefact.producedBy,
-			mimeType: artefact.mimeType,
+			artifactId: artifact.artifactId,
+			artifactPath: artifact.artifactPath,
+			producedBy: artifact.producedBy,
+			mimeType: artifact.mimeType,
 		});
 	}
 
@@ -151,14 +151,14 @@ export async function buildArtifactsView(args: {
 		'inputs.yaml'
 	);
 
-	const artefacts: ArtifactInfo[] = materialized.artefacts.map((entry) => ({
+	const artifacts: ArtifactInfo[] = materialized.artifacts.map((entry) => ({
 		...entry,
 		kind: 'blob',
 	}));
 
 	return {
 		artifactsRoot: materialized.artifactsRoot,
-		artefacts,
+		artifacts,
 		inputsPath,
 	};
 }
@@ -174,10 +174,10 @@ export async function prepareArtifactsPreflight(args: {
 		...args,
 		mode: artifactsConfig.mode,
 	});
-	const pending: PendingArtefactDraft[] = [];
+	const pending: PendingArtifactDraft[] = [];
 	let changed = false;
 
-	for (const entry of artifacts.artefacts) {
+	for (const entry of artifacts.artifacts) {
 		const nextHash = await hashFile(entry.artifactPath);
 		if (nextHash === entry.hash) {
 			continue;
@@ -205,14 +205,14 @@ export async function prepareArtifactsPreflight(args: {
 		});
 
 		pending.push({
-			artefactId: entry.artefactId,
+			artifactId: entry.artifactId,
 			producedBy: entry.producedBy,
 			output: { blob: blobRef },
 			diagnostics: { source: 'artifact-edit' },
 		});
 	}
 
-	return { pendingArtefacts: pending, changed, artifacts };
+	return { pendingArtifacts: pending, changed, artifacts };
 }
 
 async function collectArtifactsContext(args: {
@@ -249,8 +249,8 @@ async function collectArtifactsContext(args: {
 		'inputs.yaml'
 	);
 
-	const artefacts: ArtifactInfo[] = [];
-	for (const [artefactId, entry] of Object.entries(manifest.artefacts)) {
+	const artifacts: ArtifactInfo[] = [];
+	for (const [artifactId, entry] of Object.entries(manifest.artifacts)) {
 		if (!entry.blob) {
 			continue;
 		}
@@ -259,7 +259,7 @@ async function collectArtifactsContext(args: {
 			storageRoot: cliConfig.storage.root,
 			storageBasePath: cliConfig.storage.basePath,
 			artifactsMovieFolderName,
-			artifactId: artefactId,
+			artifactId: artifactId,
 			producedBy: entry.producedBy,
 			mimeType: entry.blob.mimeType,
 		});
@@ -273,7 +273,7 @@ async function collectArtifactsContext(args: {
 		);
 		if (!(await pathExists(shardedPath))) {
 			log.warn(
-				`Warning: blob missing for ${artefactId} at ${shardedPath}. Artifact output not materialized.`
+				`Warning: blob missing for ${artifactId} at ${shardedPath}. Artifact output not materialized.`
 			);
 			continue;
 		}
@@ -286,8 +286,8 @@ async function collectArtifactsContext(args: {
 			});
 		}
 
-		artefacts.push({
-			artefactId,
+		artifacts.push({
+			artifactId,
 			artifactPath,
 			sourcePath: shardedPath,
 			hash: entry.hash,
@@ -297,7 +297,7 @@ async function collectArtifactsContext(args: {
 		});
 	}
 
-	return { artifactsRoot, artefacts, inputsPath };
+	return { artifactsRoot, artifacts, inputsPath };
 }
 
 async function hashFile(filePath: string): Promise<string> {

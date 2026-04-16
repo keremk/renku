@@ -61,7 +61,7 @@ function createMockCachedPlan(
   };
 
   const mockManifest: Manifest = {
-    artefacts: {},
+    artifacts: {},
     revision: 'rev-test1',
     baseRevision: null,
     createdAt: new Date().toISOString(),

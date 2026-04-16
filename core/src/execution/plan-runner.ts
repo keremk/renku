@@ -125,7 +125,7 @@ export async function executePlanWithConcurrency(
               jobId: job.jobId,
               producer: job.producer,
               status: 'skipped' as const,
-              artefacts: [],
+              artifacts: [],
               diagnostics: { reason: 'cancelled' },
               layerIndex,
               attempt: 0,
@@ -174,7 +174,7 @@ export async function executePlanWithConcurrency(
 
     // Update running manifest with produced artifacts so later layers see correct hashes
     for (const result of layerResults) {
-      runningManifest = accumulateArtifacts(runningManifest, result.artefacts);
+      runningManifest = accumulateArtifacts(runningManifest, result.artifacts);
     }
 
     const layerCompleteMessage = `Layer ${layerIndex} finished running`;

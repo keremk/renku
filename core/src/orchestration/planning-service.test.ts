@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import type {
-  BlueprintArtefactDefinition,
+  BlueprintOutputDefinition,
   BlueprintDocument,
   BlueprintEdgeDefinition,
   BlueprintInputDefinition,
@@ -14,8 +14,9 @@ import {
   createPlanningService,
   injectDerivedInputs,
   type ProviderOptionEntry,
-  type PendingArtefactDraft,
+  type PendingArtifactDraft,
 } from './planning-service.js';
+import { buildBlueprintGraph } from '../resolution/canonical-graph.js';
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
 import { createManifestService } from '../manifest.js';
 import { createEventLog } from '../event-log.js';
@@ -58,7 +59,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
 
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
-    const artifact = tree.document.artefacts[0];
+    const artifact = tree.document.outputs[0];
     expect(artifact.schema).toBeDefined();
     expect(artifact.schema?.name).toBe('VideoScript');
     expect(artifact.schema?.schema).toEqual({
@@ -105,7 +106,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
     // Original schema should be preserved
-    expect(tree.document.artefacts[0].schema).toBe(existingSchema);
+    expect(tree.document.outputs[0].schema).toBe(existingSchema);
   });
 
   it('applies schema to nested child blueprints', () => {
@@ -148,8 +149,8 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
     const childTree = tree.children.get('ChildBlueprint');
-    expect(childTree?.document.artefacts[0].schema).toBeDefined();
-    expect(childTree?.document.artefacts[0].schema?.name).toBe('Items');
+    expect(childTree?.document.outputs[0].schema).toBeDefined();
+    expect(childTree?.document.outputs[0].schema?.name).toBe('Items');
   });
 
   it('ignores artifacts without arrays', () => {
@@ -185,7 +186,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
     // Schema should NOT be applied (no arrays)
-    expect(tree.document.artefacts[0].schema).toBeUndefined();
+    expect(tree.document.outputs[0].schema).toBeUndefined();
   });
 
   it('ignores non-json artifacts', () => {
@@ -220,7 +221,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
     // Schema should NOT be applied (not json type)
-    expect(tree.document.artefacts[0].schema).toBeUndefined();
+    expect(tree.document.outputs[0].schema).toBeUndefined();
   });
 
   it('applies schema when arrays metadata is explicitly empty', () => {
@@ -256,7 +257,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
     // Empty arrays metadata is valid and should still hydrate scalar JSON fields.
-    expect(tree.document.artefacts[0].schema).toBeDefined();
+    expect(tree.document.outputs[0].schema).toBeDefined();
   });
 
   it('handles provider options without outputSchema', () => {
@@ -290,7 +291,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
     // Schema should not be applied (no outputSchema in options)
-    expect(tree.document.artefacts[0].schema).toBeUndefined();
+    expect(tree.document.outputs[0].schema).toBeUndefined();
   });
 
   it('parses outputSchema without name property using default name', () => {
@@ -326,18 +327,15 @@ describe('applyOutputSchemasToBlueprintTree', () => {
 
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
-    expect(tree.document.artefacts[0].schema?.name).toBe('Schema');
+    expect(tree.document.outputs[0].schema?.name).toBe('Schema');
     // When no 'schema' property, the whole object becomes the schema
-    expect(tree.document.artefacts[0].schema?.schema).toEqual({
+    expect(tree.document.outputs[0].schema?.schema).toEqual({
       type: 'object',
       properties: { Items: { type: 'array' } },
     });
   });
 
-  it('adds edges for both top-level scalar properties and array items', () => {
-    // This test ensures we don't regress on the fix for top-level scalar properties.
-    // Previously, only array items (with dimensions) got edges, causing top-level
-    // scalars like CharacterImagePrompt to not be connected to their producer.
+  it('hydrates schema-decomposed output nodes without mutating authored connections', () => {
     const tree = makeTreeNode(
       makeBlueprintDocument(
         'AdVideoBlueprint',
@@ -384,37 +382,39 @@ describe('applyOutputSchemasToBlueprintTree', () => {
 
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
-    // Verify edges were added for top-level scalar properties (dimensions: [])
-    const edgePaths = tree.document.edges.map((e) => e.to);
-    expect(edgePaths).toContain('AdScript.AdTitle');
-    expect(edgePaths).toContain('AdScript.CharacterImagePrompt');
-    expect(edgePaths).toContain('AdScript.ProductImagePrompt');
+    expect(tree.document.edges).toEqual([]);
 
-    // Verify edges were also added for array item properties (dimensions: ['clip'])
-    expect(edgePaths).toContain('AdScript.Scenes[clip].SceneNumber');
-    expect(edgePaths).toContain('AdScript.Scenes[clip].VideoPrompt');
+    const graph = buildBlueprintGraph(tree);
+    const outputIds = graph.nodes
+      .filter((node) => node.type === 'Output')
+      .map((node) => node.id);
 
-    // Verify all edges come from the producer
-    for (const edge of tree.document.edges) {
-      expect(edge.from).toBe('ScriptProducer');
-    }
+    expect(outputIds).toContain('Output:AdScript.AdTitle');
+    expect(outputIds).toContain('Output:AdScript.CharacterImagePrompt');
+    expect(outputIds).toContain('Output:AdScript.ProductImagePrompt');
+    expect(outputIds).toContain('Output:AdScript.Scenes[clip].SceneNumber');
+    expect(outputIds).toContain('Output:AdScript.Scenes[clip].VideoPrompt');
   });
 });
 
 function makeBlueprintDocument(
   id: string,
   inputs: BlueprintInputDefinition[],
-  artefacts: BlueprintArtefactDefinition[],
+  outputs: BlueprintOutputDefinition[],
   producers: ProducerConfig[],
   edges: BlueprintEdgeDefinition[],
-  loops?: BlueprintLoopDefinition[]
+  loops?: BlueprintLoopDefinition[],
+  options?: {
+    kind?: BlueprintDocument['meta']['kind'];
+    imports?: BlueprintDocument['imports'];
+  }
 ): BlueprintDocument {
   return {
-    meta: { id, name: id },
+    meta: { id, name: id, ...(options?.kind ? { kind: options.kind } : {}) },
     inputs,
-    artefacts,
+    outputs,
     producers,
-    producerImports: [],
+    imports: options?.imports ?? [],
     edges,
     loops,
   };
@@ -478,65 +478,132 @@ describe('createPlanningService', () => {
 
   function createSimpleBlueprint(): BlueprintTreeNode {
     const doc = makeBlueprintDocument(
-      'SimpleBlueprint',
+      'TestProducer',
       [{ name: 'Prompt', type: 'string', required: true }],
       [{ name: 'Output', type: 'string' }],
       [{ name: 'TestProducer' }],
-      [
-        { from: 'Prompt', to: 'TestProducer' },
-        { from: 'TestProducer', to: 'Output' },
-      ]
+      [],
+      undefined,
+      { kind: 'producer' }
     );
     return makeTreeNode(doc, []);
   }
 
   function createDependencyBlueprint(): BlueprintTreeNode {
-    const doc = makeBlueprintDocument(
+    const upstreamDoc = makeBlueprintDocument(
+      'UpstreamProducer',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'Intermediate', type: 'string' }],
+      [{ name: 'UpstreamProducer' }],
+      [],
+      undefined,
+      { kind: 'producer' }
+    );
+
+    const downstreamDoc = makeBlueprintDocument(
+      'DownstreamProducer',
+      [{ name: 'Intermediate', type: 'string', required: true }],
+      [{ name: 'FinalOutput', type: 'string' }],
+      [{ name: 'DownstreamProducer' }],
+      [],
+      undefined,
+      { kind: 'producer' }
+    );
+
+    const rootDoc = makeBlueprintDocument(
       'DependencyBlueprint',
       [{ name: 'Prompt', type: 'string', required: true }],
       [
         { name: 'Intermediate', type: 'string' },
         { name: 'FinalOutput', type: 'string' },
       ],
-      [{ name: 'UpstreamProducer' }, { name: 'DownstreamProducer' }],
+      [],
       [
-        { from: 'Prompt', to: 'UpstreamProducer' },
-        { from: 'UpstreamProducer', to: 'Intermediate' },
-        { from: 'Intermediate', to: 'DownstreamProducer' },
-        { from: 'DownstreamProducer', to: 'FinalOutput' },
-      ]
+        { from: 'Prompt', to: 'UpstreamProducer.Prompt' },
+        { from: 'UpstreamProducer.Intermediate', to: 'Intermediate' },
+        { from: 'Intermediate', to: 'DownstreamProducer.Intermediate' },
+        { from: 'DownstreamProducer.FinalOutput', to: 'FinalOutput' },
+      ],
+      undefined,
+      {
+        imports: [
+          { name: 'UpstreamProducer', producer: 'test/upstream-producer' },
+          { name: 'DownstreamProducer', producer: 'test/downstream-producer' },
+        ],
+      }
     );
-    return makeTreeNode(doc, []);
+    return makeTreeNode(
+      rootDoc,
+      [],
+      new Map([
+        ['UpstreamProducer', makeTreeNode(upstreamDoc, ['UpstreamProducer'])],
+        ['DownstreamProducer', makeTreeNode(downstreamDoc, ['DownstreamProducer'])],
+      ])
+    );
   }
 
   function createLoopCountSystemInputBlueprint(): BlueprintTreeNode {
-    const doc = makeBlueprintDocument(
+    const childDoc = makeBlueprintDocument(
+      'LoopedProducer',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'Output', type: 'string' }],
+      [{ name: 'LoopedProducer' }],
+      [],
+      undefined,
+      { kind: 'producer' }
+    );
+
+    const rootDoc = makeBlueprintDocument(
       'LoopCountSystemInputBlueprint',
       [{ name: 'Prompt', type: 'string', required: true }],
       [{ name: 'Output', type: 'array', countInput: 'NumOfSegments' }],
-      [{ name: 'TestProducer' }],
+      [],
       [
-        { from: 'Prompt', to: 'TestProducer[scene]' },
-        { from: 'TestProducer[scene]', to: 'Output[scene]' },
+        { from: 'Prompt', to: 'TestProducer[scene].Prompt' },
+        { from: 'TestProducer[scene].Output', to: 'Output[scene]' },
       ],
-      [{ name: 'scene', countInput: 'NumOfSegments' }]
+      [{ name: 'scene', countInput: 'NumOfSegments' }],
+      {
+        imports: [{ name: 'TestProducer', producer: 'test/looped-producer' }],
+      }
     );
-    return makeTreeNode(doc, []);
+    return makeTreeNode(
+      rootDoc,
+      [],
+      new Map([['TestProducer', makeTreeNode(childDoc, ['TestProducer'])]])
+    );
   }
 
   function createDerivedLoopCountBlueprint(): BlueprintTreeNode {
-    const doc = makeBlueprintDocument(
+    const childDoc = makeBlueprintDocument(
+      'LoopedProducer',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'Output', type: 'string' }],
+      [{ name: 'LoopedProducer' }],
+      [],
+      undefined,
+      { kind: 'producer' }
+    );
+
+    const rootDoc = makeBlueprintDocument(
       'DerivedLoopCountBlueprint',
       [{ name: 'Prompt', type: 'string', required: true }],
       [{ name: 'Output', type: 'array', countInput: 'SegmentDuration' }],
-      [{ name: 'TestProducer' }],
+      [],
       [
-        { from: 'Prompt', to: 'TestProducer[scene]' },
-        { from: 'TestProducer[scene]', to: 'Output[scene]' },
+        { from: 'Prompt', to: 'TestProducer[scene].Prompt' },
+        { from: 'TestProducer[scene].Output', to: 'Output[scene]' },
       ],
-      [{ name: 'scene', countInput: 'SegmentDuration' }]
+      [{ name: 'scene', countInput: 'SegmentDuration' }],
+      {
+        imports: [{ name: 'TestProducer', producer: 'test/looped-producer' }],
+      }
     );
-    return makeTreeNode(doc, []);
+    return makeTreeNode(
+      rootDoc,
+      [],
+      new Map([['TestProducer', makeTreeNode(childDoc, ['TestProducer'])]])
+    );
   }
 
   function createNestedLeafBlueprint(): BlueprintTreeNode {
@@ -545,10 +612,9 @@ describe('createPlanningService', () => {
       [{ name: 'Duration', type: 'int', required: true }],
       [{ name: 'GeneratedVideo', type: 'video' }],
       [{ name: 'InternalVideoProducer' }],
-      [
-        { from: 'Duration', to: 'InternalVideoProducer.Duration' },
-        { from: 'InternalVideoProducer.GeneratedVideo', to: 'GeneratedVideo' },
-      ]
+      [],
+      undefined,
+      { kind: 'producer' }
     );
 
     const compositeDoc = makeBlueprintDocument(
@@ -559,7 +625,11 @@ describe('createPlanningService', () => {
       [
         { from: 'Duration', to: 'MainVideo.Duration' },
         { from: 'MainVideo.GeneratedVideo', to: 'Video' },
-      ]
+      ],
+      undefined,
+      {
+        imports: [{ name: 'MainVideo', producer: 'test/internal-video-producer' }],
+      }
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -570,7 +640,11 @@ describe('createPlanningService', () => {
       [
         { from: 'Duration', to: 'SegmentUnit.Duration' },
         { from: 'SegmentUnit.Video', to: 'Movie' },
-      ]
+      ],
+      undefined,
+      {
+        imports: [{ name: 'SegmentUnit', path: './segment-unit.yaml' }],
+      }
     );
 
     const leafNode = makeTreeNode(leafDoc, ['SegmentUnit', 'MainVideo']);
@@ -593,10 +667,9 @@ describe('createPlanningService', () => {
       [{ name: 'Duration', type: 'int', required: true }],
       [{ name: 'GeneratedVideo', type: 'video' }],
       [{ name: 'PreviewProducer' }],
-      [
-        { from: 'Duration', to: 'PreviewProducer.Duration' },
-        { from: 'PreviewProducer.GeneratedVideo', to: 'GeneratedVideo' },
-      ]
+      [],
+      undefined,
+      { kind: 'producer' }
     );
 
     const gateDoc = makeBlueprintDocument(
@@ -604,10 +677,9 @@ describe('createPlanningService', () => {
       [{ name: 'Prompt', type: 'string', required: true }],
       [{ name: 'ShouldPublish', type: 'json' }],
       [{ name: 'GateProducer' }],
-      [
-        { from: 'Prompt', to: 'GateProducer.Prompt' },
-        { from: 'GateProducer.ShouldPublish', to: 'ShouldPublish' },
-      ]
+      [],
+      undefined,
+      { kind: 'producer' }
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -630,7 +702,14 @@ describe('createPlanningService', () => {
           to: 'PreviewVideo',
           conditions: { when: 'Artifact:GateProducer.ShouldPublish', is: true },
         },
-      ]
+      ],
+      undefined,
+      {
+        imports: [
+          { name: 'PreviewProducer', producer: 'test/preview-producer' },
+          { name: 'GateProducer', producer: 'test/gate-producer' },
+        ],
+      }
     );
 
     const previewNode = makeTreeNode(previewDoc, ['PreviewProducer']);
@@ -894,9 +973,9 @@ describe('createPlanningService', () => {
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
 
-      const pendingArtefacts: PendingArtefactDraft[] = [
+      const pendingArtifacts: PendingArtifactDraft[] = [
         {
-          artefactId: 'Artifact:Output',
+          artifactId: 'Artifact:Output',
           producedBy: 'Producer:TestProducer',
           output: {
             blob: { hash: 'abc123', size: 100, mimeType: 'text/plain' },
@@ -913,16 +992,16 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        pendingArtefacts,
+        pendingArtifacts,
       });
 
-      const artefactEvents: unknown[] = [];
-      for await (const event of eventLog.streamArtefacts(movieId)) {
-        artefactEvents.push(event);
+      const artifactEvents: unknown[] = [];
+      for await (const event of eventLog.streamArtifacts(movieId)) {
+        artifactEvents.push(event);
       }
 
-      expect(artefactEvents).toHaveLength(1);
-      expect((artefactEvents[0] as { artefactId: string }).artefactId).toBe(
+      expect(artifactEvents).toHaveLength(1);
+      expect((artifactEvents[0] as { artifactId: string }).artifactId).toBe(
         'Artifact:Output'
       );
     });
@@ -1038,8 +1117,8 @@ describe('createPlanningService', () => {
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
 
-      await eventLog.appendArtefact(movieId, {
-        artefactId: 'Artifact:Output',
+      await eventLog.appendArtifact(movieId, {
+        artifactId: 'Artifact:Output',
         revision: 'rev-0001',
         inputsHash: 'inputs-hash',
         output: {},
@@ -1151,8 +1230,8 @@ describe('createPlanningService', () => {
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
 
-      await eventLog.appendArtefact(movieId, {
-        artefactId: 'Artifact:PreviouslySucceeded',
+      await eventLog.appendArtifact(movieId, {
+        artifactId: 'Artifact:PreviouslySucceeded',
         revision: 'rev-0001',
         inputsHash: 'inputs-hash',
         output: {
@@ -1189,8 +1268,8 @@ describe('createPlanningService', () => {
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
 
-      await eventLog.appendArtefact(movieId, {
-        artefactId: 'Artifact:Output',
+      await eventLog.appendArtifact(movieId, {
+        artifactId: 'Artifact:Output',
         revision: 'rev-0001',
         inputsHash: 'inputs-hash',
         output: {
@@ -1229,8 +1308,8 @@ describe('createPlanningService', () => {
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
 
-      await eventLog.appendArtefact(movieId, {
-        artefactId: 'Artifact:Output',
+      await eventLog.appendArtifact(movieId, {
+        artifactId: 'Artifact:Output',
         revision: 'rev-0001',
         inputsHash: 'inputs-hash',
         output: {
@@ -1268,8 +1347,8 @@ describe('createPlanningService', () => {
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
 
-      await eventLog.appendArtefact(movieId, {
-        artefactId: 'Artifact:Output',
+      await eventLog.appendArtifact(movieId, {
+        artifactId: 'Artifact:Output',
         revision: 'rev-0001',
         inputsHash: 'inputs-hash',
         output: {
@@ -1431,8 +1510,8 @@ describe('createPlanningService', () => {
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
 
-      await eventLog.appendArtefact(movieId, {
-        artefactId: 'Artifact:Intermediate',
+      await eventLog.appendArtifact(movieId, {
+        artifactId: 'Artifact:UpstreamProducer.Intermediate',
         revision: 'rev-0001',
         inputsHash: 'inputs-hash',
         output: {
@@ -1527,21 +1606,21 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        pendingArtefacts: [
+        pendingArtifacts: [
           {
-            artefactId: 'Artifact:Output',
+            artifactId: 'Artifact:Output',
             producedBy: 'Producer:TestProducer',
             output: {},
           },
         ],
       });
 
-      const artefactEvents: unknown[] = [];
-      for await (const event of eventLog.streamArtefacts(movieId)) {
-        artefactEvents.push(event);
+      const artifactEvents: unknown[] = [];
+      for await (const event of eventLog.streamArtifacts(movieId)) {
+        artifactEvents.push(event);
       }
 
-      expect((artefactEvents[0] as { status: string }).status).toBe(
+      expect((artifactEvents[0] as { status: string }).status).toBe(
         'succeeded'
       );
     });
@@ -1560,9 +1639,9 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        pendingArtefacts: [
+        pendingArtifacts: [
           {
-            artefactId: 'Artifact:Output',
+            artifactId: 'Artifact:Output',
             producedBy: 'Producer:TestProducer',
             output: {},
             status: 'skipped',
@@ -1570,12 +1649,12 @@ describe('createPlanningService', () => {
         ],
       });
 
-      const artefactEvents: unknown[] = [];
-      for await (const event of eventLog.streamArtefacts(movieId)) {
-        artefactEvents.push(event);
+      const artifactEvents: unknown[] = [];
+      for await (const event of eventLog.streamArtifacts(movieId)) {
+        artifactEvents.push(event);
       }
 
-      expect((artefactEvents[0] as { status: string }).status).toBe('skipped');
+      expect((artifactEvents[0] as { status: string }).status).toBe('skipped');
     });
 
     it('uses manual-edit as default inputsHash for artifact drafts', async () => {
@@ -1592,21 +1671,21 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        pendingArtefacts: [
+        pendingArtifacts: [
           {
-            artefactId: 'Artifact:Output',
+            artifactId: 'Artifact:Output',
             producedBy: 'Producer:TestProducer',
             output: {},
           },
         ],
       });
 
-      const artefactEvents: unknown[] = [];
-      for await (const event of eventLog.streamArtefacts(movieId)) {
-        artefactEvents.push(event);
+      const artifactEvents: unknown[] = [];
+      for await (const event of eventLog.streamArtifacts(movieId)) {
+        artifactEvents.push(event);
       }
 
-      expect((artefactEvents[0] as { inputsHash: string }).inputsHash).toBe(
+      expect((artifactEvents[0] as { inputsHash: string }).inputsHash).toBe(
         'manual-edit'
       );
     });

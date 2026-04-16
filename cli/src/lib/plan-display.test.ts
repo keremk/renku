@@ -22,7 +22,7 @@ describe('displayPlanExplanation recovery section', () => {
 			movieId: 'movie-test',
 			revision: 'rev-0002',
 			dirtyInputs: [],
-			dirtyArtefacts: ['Artifact:AudioProducer.GeneratedAudio[0]'],
+			dirtyArtifacts: ['Artifact:AudioProducer.GeneratedAudio[0]'],
 			jobReasons: [
 				{
 					jobId: 'Producer:AudioProducer[0]',

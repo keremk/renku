@@ -8,7 +8,7 @@ import {
   loadYamlBlueprintTree,
   getProducerMappings,
   type BlueprintTreeNode,
-  type ProducerImportDefinition,
+  type BlueprintImportDefinition,
   type ProducerMappings,
 } from "@gorenku/core";
 import { loadModelCatalog, type LoadedModelCatalog } from "@gorenku/providers";
@@ -23,13 +23,13 @@ import type {
  * Detects the producer category for a resolved leaf producer import.
  */
 export function detectProducerCategory(
-  producerImport: ProducerImportDefinition,
+  blueprintImport: BlueprintImportDefinition,
   childNode: BlueprintTreeNode | undefined,
 ): ProducerCategory {
-  if (producerImport.producer?.startsWith("composition/")) {
+  if (blueprintImport.producer?.startsWith("composition/")) {
     return "composition";
   }
-  if (producerImport.producer?.startsWith("asset/")) {
+  if (blueprintImport.producer?.startsWith("asset/")) {
     return "asset";
   }
   if (childNode?.document.meta.promptFile) {
@@ -51,15 +51,15 @@ export function collectLeafProducerImports(
   const entries: LeafProducerImportEntry[] = [];
 
   const visit = (node: BlueprintTreeNode): void => {
-    for (const producerImport of node.document.producerImports) {
-      const childNode = node.children.get(producerImport.name);
+    for (const blueprintImport of node.document.imports) {
+      const childNode = node.children.get(blueprintImport.name);
       if (!childNode) {
         throw new Error(
-          `Missing child blueprint node for producer import "${producerImport.name}".`
+          `Missing child blueprint node for import "${blueprintImport.name}".`
         );
       }
 
-      if (childNode.document.producerImports.length > 0) {
+      if (childNode.document.imports.length > 0) {
         visit(childNode);
         continue;
       }
@@ -67,7 +67,7 @@ export function collectLeafProducerImports(
       const leafProducer = childNode.document.producers[0];
       if (!leafProducer) {
         throw new Error(
-          `Resolved producer import "${producerImport.name}" does not declare a leaf producer entry.`
+          `Resolved import "${blueprintImport.name}" does not declare a leaf producer entry.`
         );
       }
 
@@ -76,9 +76,9 @@ export function collectLeafProducerImports(
           childNode.namespacePath,
           leafProducer.name
         ),
-        description: producerImport.description,
-        producerType: producerImport.producer,
-        category: detectProducerCategory(producerImport, childNode),
+        description: blueprintImport.description,
+        producerType: blueprintImport.producer,
+        category: detectProducerCategory(blueprintImport, childNode),
       });
     }
   };

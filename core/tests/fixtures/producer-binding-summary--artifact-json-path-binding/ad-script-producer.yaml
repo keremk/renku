@@ -12,7 +12,7 @@ inputs:
     type: string
     required: true
 
-artifacts:
+outputs:
   - name: AdScript
     description: Structured ad script output.
     type: json

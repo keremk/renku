@@ -4,8 +4,8 @@
 The Tutopanda CLI already orchestrates blueprint-driven movie generation (`tutopanda generate`, `inspect`, `viewer:*`). We now need to expose a Model Context Protocol (MCP) server so external LLM clients (e.g., Claude Desktop/Code) can:
 
 - Invoke a **single tool** (`generate_story`) that mirrors the CLI workflow while accepting structured inputs.
-- Browse **resources** (blueprints, movie inputs, timelines, artefacts) produced in the local CLI workspace.
-- Keep using canonical node IDs (`Input:…`, `Artifact:…`) so downstream tooling can reason about plans/artefacts consistently.
+- Browse **resources** (blueprints, movie inputs, timelines, artifacts) produced in the local CLI workspace.
+- Keep using canonical node IDs (`Input:…`, `Artifact:…`) so downstream tooling can reason about plans/artifacts consistently.
 
 The initial milestone must keep scope tight: one tool, a small set of resources, and stdio transport. Future iterations can add more tools (inspect/edit) or transports, but not now.
 
@@ -13,13 +13,13 @@ The initial milestone must keep scope tight: one tool, a small set of resources,
 
 ### CLI & Storage
 - `tutopanda init`/`install` (alias) creates a root folder (default `~/.tutopanda`) with `builds/`, bundled `config/blueprints`, and `cli-config.json` (`cli/src/commands/init.ts`, `cli/src/lib/config-assets.ts`, `cli/src/lib/cli-config.ts`).
-- Every `generate` run writes `builds/<movieId>/inputs.yaml`, a prompt copy, plan logs under `runs/`, artefacts catalogued via manifests, and `movie-metadata.json` capturing the blueprint path (`cli/src/lib/planner.ts`, `core/src/storage.ts`, `cli/src/lib/movie-metadata.ts`).
+- Every `generate` run writes `builds/<movieId>/inputs.yaml`, a prompt copy, plan logs under `runs/`, artifacts catalogued via manifests, and `movie-metadata.json` capturing the blueprint path (`cli/src/lib/planner.ts`, `core/src/storage.ts`, `cli/src/lib/movie-metadata.ts`).
 - Viewer helper commands (`viewer:start`, `viewer:view`) spin up the Vite-based viewer that already reads manifests and exposes `/viewer-api/...` endpoints (`cli/src/commands/viewer.ts`, `viewer/server/viewer-api.ts`).
 
 ### Blueprint/Planner Pipeline
 - `runGenerate` validates `--inputs`/`--blueprint`, builds a plan via `generatePlan` (which calls `loadBlueprintBundle`, validates inputs from YAML, persists them, and builds a provider catalog) (`cli/src/commands/generate.ts`, `cli/src/lib/planner.ts`).
 - `executeBuild` then executes the plan, writes manifests (`cli/src/lib/build.ts`, `core/src/manifest.ts`).
-- Canonical IDs are baked into the blueprint graph (`core/src/types.ts`, `core/src/planner.ts`); artefact IDs include producer namespaces (e.g., `Artifact:TimelineComposer.Timeline`).
+- Canonical IDs are baked into the blueprint graph (`core/src/types.ts`, `core/src/planner.ts`); artifact IDs include producer namespaces (e.g., `Artifact:TimelineComposer.Timeline`).
 
 ### MCP SDK
 - Tutopanda already depends on `@modelcontextprotocol/sdk@^1.22.0` (via `cli/package.json`). The SDK offers `McpServer`, `StdioServerTransport`, and an `InMemoryTransport` for tests.
@@ -30,7 +30,7 @@ Given the existing filesystem layout:
 1. **Blueprints** – `.yaml` files under `<root>/config/blueprints/…`.
 2. **Movie inputs** – `builds/<movieId>/inputs.yaml`.
 3. **Timeline** – `Artifact:TimelineComposer.Timeline` entry stored inline or as a blob in the manifest.
-4. **Artefacts** – All manifest artefacts, accessible by canonical ID for follow-up fetches or asset streaming.
+4. **Artifacts** – All manifest artifacts, accessible by canonical ID for follow-up fetches or asset streaming.
 
 These align with the viewer API logic, so we can reuse similar helpers.
 
@@ -40,13 +40,13 @@ These align with the viewer API logic, so we can reuse similar helpers.
    - Supports an optional `blueprint` override; otherwise uses a **configurable default** supplied via the MCP command flags when launching the server.
    - Optional `openViewer` flag (defaults to `true`) to keep the current UX of launching the viewer.
    - Produces a movie via the same pipeline as `tutopanda generate` (non-interactive, not a dry run).
-   - Returns metadata (movieId, storage paths, timeline/artefact resource URIs, viewer URL if launched).
+   - Returns metadata (movieId, storage paths, timeline/artifact resource URIs, viewer URL if launched).
 
 2. **Resources**:
    - Blueprint directory listing + file reads.
    - Per-movie inputs file.
    - Timeline JSON.
-   - Artefact entries (inline or blob metadata with canonical IDs).
+   - Artifact entries (inline or blob metadata with canonical IDs).
 
 3. **Canonical IDs** must always propagate; no heuristic aliases.
 
@@ -90,8 +90,8 @@ Builds and configures `McpServer`:
    - `tutopanda://movies/{movieId}/timeline`  
      - Loads manifest pointer (`current.json`), then manifest JSON.  
      - Extracts `Artifact:TimelineComposer.Timeline` (inline → JSON parse; blob → read file, parse JSON).
-   - `tutopanda://movies/{movieId}/artefacts/{canonicalId}`  
-     - Enumerates manifest artefacts.  
+   - `tutopanda://movies/{movieId}/artifacts/{canonicalId}`  
+     - Enumerates manifest artifacts.  
      - `read` returns inline text or base64 for blob (with MIME + size metadata).  
      - Keeps canonical IDs as URIs.
    - After a successful tool invocation, call `server.sendResourceListChanged()` to notify clients.
@@ -106,7 +106,7 @@ Builds and configures `McpServer`:
      5. Return:
         - `movieId` (public), `storageMovieId`.
         - Plan path, manifest path, viewer URL (if launched).
-        - Resource URIs for timeline (`tutopanda://movies/{id}/timeline`) and artefacts produced.
+        - Resource URIs for timeline (`tutopanda://movies/{id}/timeline`) and artifacts produced.
    - **Error handling**: Fail fast (missing blueprint, missing required input, CLI not initialized), log via `sendLoggingMessage`, and propagate structured MCP tool errors.
 
 4. **Shared Helpers**:

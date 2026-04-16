@@ -90,7 +90,7 @@ This is good and should be preserved.
 
 This is a strong improvement for timeline correctness.
 
-`buildArtefactsFromUrls(...)` now generates:
+`buildArtifactsFromUrls(...)` now generates:
 
 - PNGs for images
 - WAVs for audio
@@ -98,7 +98,7 @@ This is a strong improvement for timeline correctness.
 
 Reference:
 
-- `providers/src/sdk/unified/artefacts.ts:105-178`
+- `providers/src/sdk/unified/artifacts.ts:105-178`
 
 This means the timeline composer sees real duration-bearing media instead of placeholder text blobs.
 

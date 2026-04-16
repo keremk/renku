@@ -27,7 +27,7 @@ inputs:
     description: Voice identifier for text-to-speech synthesis.
     type: string
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The lip-synced video.
     type: video

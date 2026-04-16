@@ -83,7 +83,7 @@ function validatePreparedGraphReferences(
 
   function validateTree(node: BlueprintTreeNode): void {
     const producerNames = new Set(
-      node.document.producerImports.map((producer) => producer.name)
+      node.document.imports.map((producer) => producer.name)
     );
 
     for (const [conditionName, condition] of Object.entries(
@@ -239,14 +239,26 @@ function referenceResolvesToPreparedNode(
   reference: string,
   validNodeIds: Set<string>
 ): boolean {
-  if (validNodeIds.has(reference)) {
+  const canonicalReference = toPreparedOutputNodeId(reference);
+  if (validNodeIds.has(canonicalReference)) {
     return true;
   }
 
-  const normalizedReference = stripLoopDimensionsFromFinalSegment(reference);
-  return (
-    normalizedReference !== reference && validNodeIds.has(normalizedReference)
+  const normalizedReference = stripLoopDimensionsFromFinalSegment(
+    canonicalReference
   );
+  return (
+    normalizedReference !== canonicalReference &&
+    validNodeIds.has(normalizedReference)
+  );
+}
+
+function toPreparedOutputNodeId(reference: string): string {
+  if (reference.startsWith('Output:')) {
+    return reference;
+  }
+
+  return `Output:${reference}`;
 }
 
 function stripLoopDimensionsFromFinalSegment(reference: string): string {

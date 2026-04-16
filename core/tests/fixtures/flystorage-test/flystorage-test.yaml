@@ -10,12 +10,12 @@ inputs:
     type: string
     required: true
 
-artifacts:
+outputs:
   - name: TestOutput
     description: A test output.
     type: string
 
-producers:
+imports:
   - name: ChildA
     path: ./child-a/child-a.yaml
   - name: ChildB

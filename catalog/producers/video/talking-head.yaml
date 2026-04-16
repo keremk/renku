@@ -34,7 +34,7 @@ inputs:
     description: Output resolution as pixel dimensions.
     type: resolution
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The generated lip-synced video.
     type: video

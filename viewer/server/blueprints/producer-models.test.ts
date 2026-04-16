@@ -12,7 +12,7 @@ import {
 } from "./producer-models.js";
 import {
   loadYamlBlueprintTree,
-  type ProducerImportDefinition,
+  type BlueprintImportDefinition,
   type BlueprintTreeNode,
 } from "@gorenku/core";
 import type { LoadedModelCatalog } from "@gorenku/providers";
@@ -23,7 +23,7 @@ const CATALOG_ROOT = path.join(REPO_ROOT, 'catalog');
 
 describe("detectProducerCategory", () => {
   it("detects composition producers", () => {
-    const producerImport: ProducerImportDefinition = {
+    const producerImport: BlueprintImportDefinition = {
       name: "Timeline",
       producer: "composition/timeline",
     };
@@ -31,7 +31,7 @@ describe("detectProducerCategory", () => {
   });
 
   it("detects asset producers", () => {
-    const producerImport: ProducerImportDefinition = {
+    const producerImport: BlueprintImportDefinition = {
       name: "ImageGen",
       producer: "asset/text-to-image",
     };
@@ -39,7 +39,7 @@ describe("detectProducerCategory", () => {
   });
 
   it("does not guess prompt producers from path alone", () => {
-    const producerImport: ProducerImportDefinition = {
+    const producerImport: BlueprintImportDefinition = {
       name: "ScriptWriter",
       path: "./script-writer.yaml",
     };
@@ -47,7 +47,7 @@ describe("detectProducerCategory", () => {
   });
 
   it("detects prompt producers with promptFile in child node", () => {
-    const producerImport: ProducerImportDefinition = {
+    const producerImport: BlueprintImportDefinition = {
       name: "ScriptWriter",
     };
     const childNode = {
@@ -63,7 +63,7 @@ describe("detectProducerCategory", () => {
   });
 
   it("defaults to asset for unknown producers", () => {
-    const producerImport: ProducerImportDefinition = {
+    const producerImport: BlueprintImportDefinition = {
       name: "Unknown",
     };
     expect(detectProducerCategory(producerImport, undefined)).toBe("asset");

@@ -27,14 +27,14 @@ import {
 	type InputEvent,
 	type Manifest,
 	type ExecutionPlan,
-	type PendingArtefactDraft,
+	type PendingArtifactDraft,
 	type Logger,
 	type PlanExplanation,
 	type ProducerOptionsMap,
 	type SurgicalInfo,
 	type ConditionAnalysis,
 } from '@gorenku/core';
-export type { PendingArtefactDraft } from '@gorenku/core';
+export type { PendingArtifactDraft } from '@gorenku/core';
 export type { PlanExplanation } from '@gorenku/core';
 import {
 	loadPricingCatalog,
@@ -59,7 +59,7 @@ export interface GeneratePlanOptions {
 	/** Path to inputs YAML file. Required for model selections. */
 	inputsPath: string;
 	usingBlueprint: string; // Path to blueprint YAML file
-	pendingArtefacts?: PendingArtefactDraft[];
+	pendingArtifacts?: PendingArtifactDraft[];
 	logger?: Logger;
 	notifications?: import('@gorenku/core').NotificationBus;
 	/** Canonical planning controls from the CLI adapter. */
@@ -230,10 +230,10 @@ export async function generatePlan(
 		movieId
 	);
 
-	// Convert artifact overrides to PendingArtefactDraft objects
+	// Convert artifact overrides to PendingArtifactDraft objects
 	const overrideDrafts = convertArtifactOverridesToDrafts(persistedOverrides);
-	const allPendingArtefacts = [
-		...(options.pendingArtefacts ?? []),
+	const allPendingArtifacts = [
+		...(options.pendingArtifacts ?? []),
 		...overrideDrafts,
 	];
 
@@ -280,8 +280,8 @@ export async function generatePlan(
 		storage: memoryStorageContext,
 		manifestService,
 		eventLog,
-		pendingArtefacts:
-			allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
+		pendingArtifacts:
+			allPendingArtifacts.length > 0 ? allPendingArtifacts : undefined,
 		userControls: planningControls,
 		collectExplanation: options.collectExplanation,
 	});

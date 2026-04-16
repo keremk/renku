@@ -60,8 +60,8 @@ export interface RuntimeSdkHelpers {
   ): Promise<Record<string, unknown>>;
 }
 
-export interface ArtefactRegistry {
-  expectBlob(artefactId: string): string;
+export interface ArtifactRegistry {
+  expectBlob(artifactId: string): string;
 }
 
 export interface ProducerRuntime {
@@ -72,7 +72,7 @@ export interface ProducerRuntime {
   attachments: AttachmentReader;
   inputs: ResolvedInputsAccessor;
   sdk: RuntimeSdkHelpers;
-  artefacts: ArtefactRegistry;
+  artifacts: ArtifactRegistry;
   logger?: ProviderLogger;
   notifications?: import('@gorenku/core').NotificationBus;
 }

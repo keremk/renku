@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createPlanningService,
-  type PendingArtefactDraft,
+  type PendingArtifactDraft,
   type ProviderOptionEntry,
 } from '../orchestration/planning-service.js';
 import { createStorageContext, initializeMovieStorage, planStore } from '../storage.js';
@@ -15,25 +15,22 @@ function buildTestBlueprint(): BlueprintTreeNode {
     namespacePath: [],
     document: {
       meta: {
-        id: 'test',
+        id: 'ScriptProducer',
         name: 'Test Blueprint',
+        kind: 'producer',
       },
       inputs: [
         { name: 'InquiryPrompt', type: 'string', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      artefacts: [
+      outputs: [
         { name: 'NarrationScript', type: 'string', required: true },
-      ],
-      producerImports: [],
-      edges: [
-        { from: 'InquiryPrompt', to: 'ScriptProducer' },
-        { from: 'NumOfSegments', to: 'ScriptProducer' },
-        { from: 'ScriptProducer', to: 'NarrationScript' },
       ],
       producers: [
         { name: 'ScriptProducer', provider: 'openai', model: 'gpt-4o-mini' },
       ],
+      imports: [],
+      edges: [],
     },
     children: new Map(),
     sourcePath: '/test/mock-blueprint.yaml',
@@ -111,14 +108,14 @@ describe('planning service', () => {
     expect(stored).not.toBeNull();
   });
 
-  it('records pending artefact drafts in the event log', async () => {
+  it('records pending artifact drafts in the event log', async () => {
     const manifestService = createManifestService(storage);
     const eventLog = createEventLog(storage);
     const planningService = createPlanningService();
 
-    const pending: PendingArtefactDraft[] = [
+    const pending: PendingArtifactDraft[] = [
       {
-        artefactId: 'Artifact:NarrationScript',
+        artifactId: 'Artifact:NarrationScript',
         producedBy: 'manual-edit',
         output: {
           blob: {
@@ -143,16 +140,16 @@ describe('planning service', () => {
       storage,
       manifestService,
       eventLog,
-      pendingArtefacts: pending,
+      pendingArtifacts: pending,
     });
 
-    const artefactEvents = [];
-    for await (const event of eventLog.streamArtefacts(movieId)) {
-      artefactEvents.push(event);
+    const artifactEvents = [];
+    for await (const event of eventLog.streamArtifacts(movieId)) {
+      artifactEvents.push(event);
     }
-    expect(artefactEvents).toHaveLength(1);
-    expect(artefactEvents[0]?.artefactId).toBe('Artifact:NarrationScript');
-    expect(artefactEvents[0]?.producedBy).toBe('manual-edit');
+    expect(artifactEvents).toHaveLength(1);
+    expect(artifactEvents[0]?.artifactId).toBe('Artifact:NarrationScript');
+    expect(artifactEvents[0]?.producedBy).toBe('manual-edit');
   });
 
 });

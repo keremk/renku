@@ -29,10 +29,10 @@ export interface ArtifactRecheckResponse {
 }
 
 /**
- * ArtefactEvent structure for reading from event log.
+ * ArtifactEvent structure for reading from event log.
  */
-interface ArtefactEvent {
-  artefactId: string;
+interface ArtifactEvent {
+  artifactId: string;
   output: {
     blob?: {
       hash: string;
@@ -63,7 +63,7 @@ export async function handleArtifactRecheck(
 ): Promise<void> {
   const { blueprintFolder, movieId, artifactId } = request;
   const movieDir = path.join(blueprintFolder, 'builds', movieId);
-  const logPath = path.join(movieDir, 'events', 'artefacts.log');
+  const logPath = path.join(movieDir, 'events', 'artifacts.log');
 
   try {
     // Read event log to find the artifact
@@ -83,11 +83,11 @@ export async function handleArtifactRecheck(
     const lines = content.split(/\r?\n/).filter((line) => line.trim());
 
     // Find the latest event for this artifact
-    let latestEvent: ArtefactEvent | undefined;
+    let latestEvent: ArtifactEvent | undefined;
     for (const line of lines) {
       try {
-        const event = JSON.parse(line) as ArtefactEvent;
-        if (event.artefactId === artifactId) {
+        const event = JSON.parse(line) as ArtifactEvent;
+        if (event.artifactId === artifactId) {
           latestEvent = event;
         }
       } catch {
@@ -167,7 +167,7 @@ export async function handleArtifactRecheck(
  */
 function buildArtifactInfo(
   artifactId: string,
-  event: ArtefactEvent
+  event: ArtifactEvent
 ): ArtifactInfo {
   if (!artifactId.startsWith('Artifact:')) {
     throw new Error(

@@ -7,10 +7,10 @@ import {
 } from './manifest.js';
 import { createStorageContext, initializeMovieStorage } from './storage.js';
 import type {
-  ArtefactEvent,
+  ArtifactEvent,
   Clock,
   Manifest,
-  ManifestArtefactEntry,
+  ManifestArtifactEntry,
   ManifestInputEntry,
 } from './types.js';
 import { hashPayload } from './hashing.js';
@@ -36,8 +36,8 @@ describe('ManifestService', () => {
       inputs: {
         inquiry_prompt: exampleInputEntry(),
       },
-      artefacts: {
-        segment_script_0: exampleArtefactEntry(),
+      artifacts: {
+        segment_script_0: exampleArtifactEntry(),
       },
       timeline: {},
     };
@@ -70,7 +70,7 @@ describe('ManifestService', () => {
       baseRevision: null,
       createdAt: clock.now(),
       inputs: {},
-      artefacts: {},
+      artifacts: {},
       timeline: {},
     };
 
@@ -115,8 +115,8 @@ describe('ManifestService', () => {
       createdAt: new Date('2024-12-31T00:00:00Z').toISOString(),
     });
 
-    const artefactEvent: ArtefactEvent = {
-      artefactId: 'segment_script_0',
+    const artifactEvent: ArtifactEvent = {
+      artifactId: 'segment_script_0',
       revision: 'rev-0002',
       inputsHash: 'inputs:hash',
       output: {
@@ -130,9 +130,9 @@ describe('ManifestService', () => {
       producedBy: 'script_producer',
       createdAt: new Date('2024-12-31T01:00:00Z').toISOString(),
     };
-    await eventLog.appendArtefact('demo', artefactEvent);
-    await eventLog.appendArtefact('demo', {
-      ...artefactEvent,
+    await eventLog.appendArtifact('demo', artifactEvent);
+    await eventLog.appendArtifact('demo', {
+      ...artifactEvent,
       revision: 'rev-0003',
       status: 'failed',
       createdAt: new Date('2024-12-31T02:00:00Z').toISOString(),
@@ -152,7 +152,7 @@ describe('ManifestService', () => {
     );
     // The latest event for segment_script_0 is 'failed' (rev-0003),
     // so it should be excluded from the manifest
-    expect(Object.keys(manifest.artefacts)).toEqual([]);
+    expect(Object.keys(manifest.artifacts)).toEqual([]);
     expect(manifest.revision).toBe('rev-0003');
     expect(manifest.baseRevision).toBe('rev-0002');
     expect(manifest.createdAt).toBe(clock.now());
@@ -165,8 +165,8 @@ describe('ManifestService', () => {
     const eventLog = createEventLog(ctx);
 
     // Artifact A succeeds in rev-0001
-    const succeededEvent: ArtefactEvent = {
-      artefactId: 'artifact_a',
+    const succeededEvent: ArtifactEvent = {
+      artifactId: 'artifact_a',
       revision: 'rev-0001',
       inputsHash: 'inputs:hash',
       output: {
@@ -180,11 +180,11 @@ describe('ManifestService', () => {
       producedBy: 'producer_a',
       createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
     };
-    await eventLog.appendArtefact('demo', succeededEvent);
+    await eventLog.appendArtifact('demo', succeededEvent);
 
     // Artifact B succeeds in rev-0001 (control — should remain)
-    const succeededEventB: ArtefactEvent = {
-      artefactId: 'artifact_b',
+    const succeededEventB: ArtifactEvent = {
+      artifactId: 'artifact_b',
       revision: 'rev-0001',
       inputsHash: 'inputs:hash',
       output: {
@@ -198,10 +198,10 @@ describe('ManifestService', () => {
       producedBy: 'producer_b',
       createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
     };
-    await eventLog.appendArtefact('demo', succeededEventB);
+    await eventLog.appendArtifact('demo', succeededEventB);
 
     // Artifact A fails in rev-0002 — should evict the stale succeeded entry
-    await eventLog.appendArtefact('demo', {
+    await eventLog.appendArtifact('demo', {
       ...succeededEvent,
       revision: 'rev-0002',
       status: 'failed',
@@ -217,10 +217,10 @@ describe('ManifestService', () => {
     });
 
     // Artifact A's latest event is 'failed' → excluded from manifest
-    expect(manifest.artefacts.artifact_a).toBeUndefined();
+    expect(manifest.artifacts.artifact_a).toBeUndefined();
     // Artifact B's latest event is 'succeeded' → still present
-    expect(manifest.artefacts.artifact_b).toBeDefined();
-    expect(manifest.artefacts.artifact_b.hash).toBe('artifact-b-hash');
+    expect(manifest.artifacts.artifact_b).toBeDefined();
+    expect(manifest.artifacts.artifact_b.hash).toBe('artifact-b-hash');
   });
 
   it('errors when loading manifest without pointer', async () => {
@@ -241,7 +241,7 @@ function exampleInputEntry(): ManifestInputEntry {
   };
 }
 
-function exampleArtefactEntry(): ManifestArtefactEntry {
+function exampleArtifactEntry(): ManifestArtifactEntry {
   return {
     hash: 'sha-output',
     producedBy: 'script_producer',

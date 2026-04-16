@@ -90,7 +90,7 @@ describe('fal-ai unified response contract regressions', () => {
       })
     );
 
-    const saved = JSON.parse(result.artefacts[0]!.blob!.data.toString('utf8')) as Record<
+    const saved = JSON.parse(result.artifacts[0]!.blob!.data.toString('utf8')) as Record<
       string,
       unknown
     >;
@@ -137,7 +137,7 @@ describe('fal-ai unified response contract regressions', () => {
       })
     );
 
-    const saved = JSON.parse(result.artefacts[0]!.blob!.data.toString('utf8')) as Record<
+    const saved = JSON.parse(result.artifacts[0]!.blob!.data.toString('utf8')) as Record<
       string,
       unknown
     >;
@@ -178,13 +178,13 @@ describe('fal-ai unified response contract regressions', () => {
     );
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(2);
+    expect(result.artifacts).toHaveLength(2);
     expect(
-      result.artefacts.every(
-        (artefact) =>
-          artefact.status === 'succeeded' &&
-          artefact.diagnostics?.sourceUrl &&
-          artefact.blob?.mimeType === 'image/png'
+      result.artifacts.every(
+        (artifact) =>
+          artifact.status === 'succeeded' &&
+          artifact.diagnostics?.sourceUrl &&
+          artifact.blob?.mimeType === 'image/png'
       )
     ).toBe(true);
   });
@@ -223,21 +223,21 @@ describe('fal-ai unified response contract regressions', () => {
     );
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(4);
+    expect(result.artifacts).toHaveLength(4);
     expect(
-      result.artefacts.find((artefact) => artefact.artefactId === 'Artifact:VideoProducer.GeneratedVideo')
+      result.artifacts.find((artifact) => artifact.artifactId === 'Artifact:VideoProducer.GeneratedVideo')
         ?.blob?.mimeType
     ).toBe('video/mp4');
     expect(
-      result.artefacts.find((artefact) => artefact.artefactId === 'Artifact:VideoProducer.FirstFrame')
+      result.artifacts.find((artifact) => artifact.artifactId === 'Artifact:VideoProducer.FirstFrame')
         ?.blob?.mimeType
     ).toBe('image/png');
     expect(
-      result.artefacts.find((artefact) => artefact.artefactId === 'Artifact:VideoProducer.LastFrame')
+      result.artifacts.find((artifact) => artifact.artifactId === 'Artifact:VideoProducer.LastFrame')
         ?.blob?.mimeType
     ).toBe('image/png');
     expect(
-      result.artefacts.find((artefact) => artefact.artefactId === 'Artifact:VideoProducer.AudioTrack')
+      result.artifacts.find((artifact) => artifact.artifactId === 'Artifact:VideoProducer.AudioTrack')
         ?.blob?.mimeType
     ).toBe('audio/wav');
   });
@@ -271,7 +271,7 @@ describe('fal-ai unified response contract regressions', () => {
     );
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
-    expect(result.artefacts[0]?.blob?.mimeType).toBe('audio/mpeg');
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.blob?.mimeType).toBe('audio/mpeg');
   });
 });

@@ -164,9 +164,9 @@ describe('extractSttOutputFromResult', () => {
   it('reads the delegated STT result from the artifact blob JSON', () => {
     const result = extractSttOutputFromResult({
       status: 'succeeded',
-      artefacts: [
+      artifacts: [
         {
-          artefactId: 'Artifact:TranscriptionProducer.SttTranscription',
+          artifactId: 'Artifact:TranscriptionProducer.SttTranscription',
           status: 'succeeded',
           blob: {
             data: Buffer.from(JSON.stringify(sttOutput)),
@@ -183,9 +183,9 @@ describe('extractSttOutputFromResult', () => {
     expect(() =>
       extractSttOutputFromResult({
         status: 'succeeded',
-        artefacts: [
+        artifacts: [
           {
-            artefactId: 'Artifact:TranscriptionProducer.SttTranscription',
+            artifactId: 'Artifact:TranscriptionProducer.SttTranscription',
             status: 'succeeded',
           },
         ],
@@ -197,9 +197,9 @@ describe('extractSttOutputFromResult', () => {
     expect(() =>
       extractSttOutputFromResult({
         status: 'succeeded',
-        artefacts: [
+        artifacts: [
           {
-            artefactId: 'Artifact:TranscriptionProducer.SttTranscription',
+            artifactId: 'Artifact:TranscriptionProducer.SttTranscription',
             status: 'succeeded',
             blob: {
               data: Buffer.from('not-json'),

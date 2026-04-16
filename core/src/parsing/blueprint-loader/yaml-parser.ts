@@ -6,11 +6,12 @@ import { createParserError, ParserErrorCode } from '../../errors/index.js';
 import { isRenkuError } from '../../errors/types.js';
 import type {
   ArrayDimensionMapping,
-  BlueprintArtefactDefinition,
+  BlueprintImportDefinition,
   BlueprintConditionDefinitions,
   BlueprintDocument,
   BlueprintEdgeDefinition,
   BlueprintInputDefinition,
+  BlueprintOutputDefinition,
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
   BlueprintTreeNode,
@@ -27,7 +28,6 @@ import type {
   MappingValue,
   NamedConditionDefinition,
   ProducerConfig,
-  ProducerImportDefinition,
   ProducerMappings,
   ResolutionObjectFieldConfig,
   ResolutionProjectionMode,
@@ -65,9 +65,9 @@ const defaultReader = new NodeFilesystemReader();
 const ALLOWED_TOP_LEVEL_BLUEPRINT_SECTIONS = new Set([
   'meta',
   'inputs',
-  'artifacts',
+  'outputs',
+  'imports',
   'loops',
-  'producers',
   'connections',
   'collectors',
   'conditions',
@@ -124,9 +124,23 @@ export async function parseYamlBlueprintFile(
     );
   }
   assertKnownTopLevelSections(raw as Record<string, unknown>, filePath);
+  if (raw.artifacts !== undefined) {
+    throw createParserError(
+      ParserErrorCode.INVALID_YAML_DOCUMENT,
+      `Blueprint YAML at ${filePath} uses "artifacts". Rename that section to "outputs".`,
+      { filePath }
+    );
+  }
+  if (raw.producers !== undefined) {
+    throw createParserError(
+      ParserErrorCode.INVALID_YAML_DOCUMENT,
+      `Blueprint YAML at ${filePath} uses "producers" for child blueprint references. Rename that section to "imports".`,
+      { filePath }
+    );
+  }
   const meta = parseMeta(raw.meta, filePath);
-  const rawProducerImports = Array.isArray(raw.producers) ? raw.producers : [];
-  const isProducerBlueprint = rawProducerImports.length === 0;
+  const rawImports = Array.isArray(raw.imports) ? raw.imports : [];
+  const isProducerBlueprint = meta.kind === 'producer';
   assertProducerBlueprintKind(raw.meta, filePath, isProducerBlueprint);
 
   const inputs = Array.isArray(raw.inputs)
@@ -136,18 +150,30 @@ export async function parseYamlBlueprintFile(
   const loops = Array.isArray(raw.loops) ? parseLoops(raw.loops) : [];
   const loopSymbols = new Set(loops.map((loop) => loop.name));
   const conditionDefs = parseConditionDefinitions(raw.conditions, loopSymbols);
-  const artefactSource = Array.isArray(raw.artifacts) ? raw.artifacts : [];
-  if (artefactSource.length === 0) {
+  const outputSource = Array.isArray(raw.outputs) ? raw.outputs : [];
+  if (outputSource.length === 0) {
     throw createParserError(
       ParserErrorCode.MISSING_REQUIRED_SECTION,
-      `Blueprint YAML at ${filePath} must declare at least one artifact.`,
+      `Blueprint YAML at ${filePath} must declare at least one output.`,
       { filePath }
     );
   }
-  const artefacts = artefactSource.map((entry) => parseArtefact(entry, filePath));
-  const producerImports = rawProducerImports.map((entry) =>
-    parseProducerImport(entry)
-  );
+  const outputs = outputSource.map((entry) => parseOutput(entry, filePath));
+  const imports = rawImports.map((entry) => parseBlueprintImport(entry));
+  if (!isProducerBlueprint && imports.length === 0) {
+    throw createParserError(
+      ParserErrorCode.INVALID_PRODUCER_BLUEPRINT_KIND,
+      `Leaf producer blueprint at ${filePath} must declare meta.kind: producer.`,
+      { filePath }
+    );
+  }
+  if (isProducerBlueprint && imports.length > 0) {
+    throw createParserError(
+      ParserErrorCode.INVALID_YAML_DOCUMENT,
+      `Producer blueprint at ${filePath} must be a leaf and cannot declare "imports".`,
+      { filePath }
+    );
+  }
   let edges = Array.isArray(raw.connections)
     ? raw.connections.map((entry) =>
         parseEdge(entry, loopSymbols, conditionDefs)
@@ -159,9 +185,6 @@ export async function parseYamlBlueprintFile(
     producers.push({
       name: meta.id,
     });
-    if (edges.length === 0) {
-      edges = inferProducerEdges(inputs, artefacts, meta.id);
-    }
   }
   if (raw.collectors !== undefined) {
     throw createParserError(
@@ -175,9 +198,9 @@ export async function parseYamlBlueprintFile(
   return {
     meta,
     inputs,
-    artefacts,
+    outputs,
     producers,
-    producerImports,
+    imports,
     edges,
     loops: loops.length > 0 ? loops : undefined,
     conditions:
@@ -222,16 +245,14 @@ async function loadNode(
     sourcePath: absolute,
   };
 
-  // Producer imports use the alias as a scope for their internal nodes.
-  // This is NOT a hierarchical namespace - it's producer aliasing to avoid conflicts.
-  for (const producerImport of document.producerImports) {
-    const childPath = resolveProducerImportPath(
+  // Imported blueprints use the authored alias as a scope for their internal nodes.
+  for (const blueprintImport of document.imports) {
+    const childPath = resolveBlueprintImportPath(
       absolute,
-      producerImport,
+      blueprintImport,
       options
     );
-    // Use the producer alias as a scope for the producer's nodes
-    const aliasPath = [...namespacePath, producerImport.name];
+    const aliasPath = [...namespacePath, blueprintImport.name];
     const child = await loadNode(
       childPath,
       aliasPath,
@@ -239,45 +260,45 @@ async function loadNode(
       visiting,
       options
     );
-    node.children.set(producerImport.name, child);
+    node.children.set(blueprintImport.name, child);
   }
 
   visiting.delete(absolute);
   return node;
 }
 
-function resolveProducerImportPath(
+function resolveBlueprintImportPath(
   parentFile: string,
-  producerImport: ProducerImportDefinition,
+  blueprintImport: BlueprintImportDefinition,
   options: BlueprintLoadOptions = {}
 ): string {
-  if (producerImport.path) {
-    return resolve(dirname(parentFile), producerImport.path);
+  if (blueprintImport.path) {
+    return resolve(dirname(parentFile), blueprintImport.path);
   }
 
-  if (producerImport.producer && options.catalogRoot) {
+  if (blueprintImport.producer && options.catalogRoot) {
     const producersRoot = resolve(options.catalogRoot, 'producers');
     const resolved = findProducerByQualifiedName(
       producersRoot,
-      producerImport.producer
+      blueprintImport.producer
     );
     if (resolved) {
       return resolved;
     }
     throw createParserError(
       ParserErrorCode.UNKNOWN_PRODUCER_REFERENCE,
-      `Producer "${producerImport.producer}" not found in ${producersRoot}. ` +
-        `Tried: ${producersRoot}/${producerImport.producer}.yaml and ` +
-        `${producersRoot}/${producerImport.producer}/${producerImport.producer.split('/').pop()}.yaml`,
+      `Producer "${blueprintImport.producer}" not found in ${producersRoot}. ` +
+        `Tried: ${producersRoot}/${blueprintImport.producer}.yaml and ` +
+        `${producersRoot}/${blueprintImport.producer}/${blueprintImport.producer.split('/').pop()}.yaml`,
       { filePath: parentFile }
     );
   }
 
   // If producer is specified but no catalogRoot, give a helpful error
-  if (producerImport.producer && !options.catalogRoot) {
+  if (blueprintImport.producer && !options.catalogRoot) {
     throw createParserError(
       ParserErrorCode.MISSING_CATALOG_ROOT,
-      `Producer "${producerImport.producer}" uses qualified name syntax but no catalogRoot was provided. ` +
+      `Producer "${blueprintImport.producer}" uses qualified name syntax but no catalogRoot was provided. ` +
         `Either use path: for relative paths or ensure catalogRoot is configured.`,
       { filePath: parentFile }
     );
@@ -285,7 +306,7 @@ function resolveProducerImportPath(
 
   throw createParserError(
     ParserErrorCode.MISSING_PRODUCER_IMPORT_SOURCE,
-    `Producer import "${producerImport.name}" must declare exactly one import source: "path" or "producer".`,
+    `Blueprint import "${blueprintImport.name}" must declare exactly one import source: "path" or "producer".`,
     { filePath: parentFile }
   );
 }
@@ -320,9 +341,11 @@ function findProducerByQualifiedName(
 interface RawBlueprint {
   meta?: unknown;
   inputs?: unknown[];
-  artifacts?: unknown[];
+  outputs?: unknown[];
+  imports?: unknown[];
   loops?: unknown[];
   producers?: unknown[];
+  artifacts?: unknown[];
   connections?: unknown[];
   collectors?: unknown[];
   /** Named condition definitions for reuse across edges */
@@ -547,50 +570,50 @@ function validateStoryboardInputMetadata(
   }
 }
 
-function parseArtefact(
+function parseOutput(
   raw: unknown,
   filePath: string
-): BlueprintArtefactDefinition {
+): BlueprintOutputDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_ARTIFACT_ENTRY,
       `Invalid artifact entry: ${JSON.stringify(raw)}`
     );
   }
-  const artefact = raw as Record<string, unknown>;
-  const name = readString(artefact, 'name');
-  if (artefact.schema !== undefined) {
+  const output = raw as Record<string, unknown>;
+  const name = readString(output, 'name');
+  if (output.schema !== undefined) {
     throw createParserError(
       ParserErrorCode.INVALID_ARTIFACT_ENTRY,
-      `Artifact "${name}" in ${filePath} declares unsupported "schema" metadata. Use meta.outputSchema on the producer blueprint instead.`
+      `Output "${name}" in ${filePath} declares unsupported "schema" metadata. Use meta.outputSchema on the producer blueprint instead.`
     );
   }
-  const type = readString(artefact, 'type');
+  const type = readString(output, 'type');
   const countInput =
-    typeof artefact.countInput === 'string' ? artefact.countInput : undefined;
+    typeof output.countInput === 'string' ? output.countInput : undefined;
   const countInputOffset = readOptionalNonNegativeInteger(
-    artefact,
+    output,
     'countInputOffset'
   );
   if (countInputOffset !== undefined && !countInput) {
     throw createParserError(
       ParserErrorCode.INVALID_COUNTINPUT_CONFIG,
-      `Artifact "${name}" declares countInputOffset but is missing countInput.`
+      `Output "${name}" declares countInputOffset but is missing countInput.`
     );
   }
-  const arrays = parseArraysMetadata(artefact.arrays);
+  const arrays = parseArraysMetadata(output.arrays);
   return {
     name,
     type,
     description:
-      typeof artefact.description === 'string'
-        ? artefact.description
+      typeof output.description === 'string'
+        ? output.description
         : undefined,
     itemType:
-      typeof artefact.itemType === 'string' ? artefact.itemType : undefined,
+      typeof output.itemType === 'string' ? output.itemType : undefined,
     countInput,
     countInputOffset,
-    required: artefact.required === false ? false : true,
+    required: output.required === false ? false : true,
     arrays,
   };
 }
@@ -619,7 +642,7 @@ function parseArraysMetadata(
   });
 }
 
-function parseProducerImport(raw: unknown): ProducerImportDefinition {
+function parseBlueprintImport(raw: unknown): BlueprintImportDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_PRODUCER_ENTRY,
@@ -636,14 +659,14 @@ function parseProducerImport(raw: unknown): ProducerImportDefinition {
   if (path && producer) {
     throw createParserError(
       ParserErrorCode.PRODUCER_PATH_AND_NAME_CONFLICT,
-      `Producer import "${name}" cannot have both "path" and "producer" fields. Use one or the other.`
+      `Blueprint import "${name}" cannot have both "path" and "producer" fields. Use one or the other.`
     );
   }
 
   if (!path && !producer) {
     throw createParserError(
       ParserErrorCode.MISSING_PRODUCER_IMPORT_SOURCE,
-      `Producer import "${name}" must declare exactly one import source: "path" or "producer".`
+      `Blueprint import "${name}" must declare exactly one import source: "path" or "producer".`
     );
   }
 
@@ -1229,111 +1252,6 @@ function readOptionalNonNegativeInteger(
   throw createParserError(
     ParserErrorCode.MISSING_REQUIRED_FIELD,
     `Expected "${key}" to be a non-negative integer.`
-  );
-}
-
-function inferProducerEdges(
-  inputs: BlueprintInputDefinition[],
-  artefacts: BlueprintArtefactDefinition[],
-  producerName: string
-): BlueprintEdgeDefinition[] {
-  const edges: BlueprintEdgeDefinition[] = [];
-  for (const input of inputs) {
-    edges.push({ from: input.name, to: producerName });
-  }
-  for (const artefact of artefacts) {
-    // For JSON artifacts with schema decomposition, create edges to all decomposed fields
-    if (
-      artefact.type === 'json' &&
-      artefact.schema &&
-      artefact.arrays &&
-      artefact.arrays.length > 0
-    ) {
-      const decomposed = decomposeJsonSchemaForEdges(
-        artefact.schema,
-        artefact.name,
-        artefact.arrays
-      );
-      for (const field of decomposed) {
-        edges.push({ from: producerName, to: field.path });
-      }
-    } else {
-      edges.push({ from: producerName, to: artefact.name });
-    }
-  }
-  return edges;
-}
-
-/**
- * Simplified schema decomposition for edge creation.
- * Returns just the paths needed for creating edges.
- */
-function decomposeJsonSchemaForEdges(
-  schema: JsonSchemaDefinition,
-  artifactName: string,
-  arrayMappings: ArrayDimensionMapping[]
-): Array<{ path: string }> {
-  const artifacts: Array<{ path: string }> = [];
-  const arrayMap = new Map(arrayMappings.map((m) => [m.path, m.countInput]));
-
-  function walk(
-    pathSegments: string[],
-    barePath: string[],
-    prop: JsonSchemaProperty
-  ): void {
-    if (prop.type === 'object' && prop.properties) {
-      for (const [key, childProp] of Object.entries(prop.properties)) {
-        walk([...pathSegments, key], [...barePath, key], childProp);
-      }
-    } else if (prop.type === 'array' && prop.items) {
-      const currentBarePath = barePath.join('.');
-      const countInput = arrayMap.get(currentBarePath);
-
-      if (!countInput) {
-        return; // Not decomposed
-      }
-
-      const dimName = deriveDimensionName(countInput);
-      const newPathSegments =
-        pathSegments.length > 0
-          ? [
-              ...pathSegments.slice(0, -1),
-              `${pathSegments[pathSegments.length - 1]}[${dimName}]`,
-            ]
-          : [`[${dimName}]`];
-
-      if (prop.items.type === 'object' && prop.items.properties) {
-        for (const [key, childProp] of Object.entries(prop.items.properties)) {
-          walk([...newPathSegments, key], [...barePath, key], childProp);
-        }
-      } else if (isLeafTypeForEdges(prop.items.type)) {
-        const path = `${artifactName}.${newPathSegments.join('.')}`;
-        artifacts.push({ path });
-      }
-    } else if (isLeafTypeForEdges(prop.type)) {
-      const path =
-        pathSegments.length > 0
-          ? `${artifactName}.${pathSegments.join('.')}`
-          : artifactName;
-      artifacts.push({ path });
-    }
-  }
-
-  if (schema.schema.type === 'object' && schema.schema.properties) {
-    for (const [key, prop] of Object.entries(schema.schema.properties)) {
-      walk([key], [key], prop);
-    }
-  }
-
-  return artifacts;
-}
-
-function isLeafTypeForEdges(type: string): boolean {
-  return (
-    type === 'string' ||
-    type === 'number' ||
-    type === 'integer' ||
-    type === 'boolean'
   );
 }
 

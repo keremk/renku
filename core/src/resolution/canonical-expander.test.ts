@@ -15,11 +15,11 @@ describe('expandBlueprintGraph', () => {
         { name: 'InquiryPrompt', type: 'string', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      artefacts: [
+      outputs: [
         { name: 'NarrationScript', type: 'array', countInput: 'NumOfSegments' },
       ],
       producers: [{ name: 'ScriptProducer', provider: 'openai', model: 'gpt' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'InquiryPrompt', to: 'ScriptProducer' },
         { from: 'NumOfSegments', to: 'ScriptProducer' },
@@ -33,9 +33,9 @@ describe('expandBlueprintGraph', () => {
         { name: 'InquiryPrompt', type: 'string', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      artefacts: [],
+      outputs: [],
       producers: [],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'InquiryPrompt', to: 'ScriptGenerator.InquiryPrompt' },
         { from: 'NumOfSegments', to: 'ScriptGenerator.NumOfSegments' },
@@ -89,10 +89,10 @@ describe('expandBlueprintGraph', () => {
       'Input:NumOfSegments'
     );
 
-    const artefactNodes = canonical.nodes.filter(
+    const artifactNodes = canonical.nodes.filter(
       (node) => node.type === 'Artifact'
     );
-    expect(artefactNodes).toHaveLength(2);
+    expect(artifactNodes).toHaveLength(2);
     const edges = canonical.edges.filter((edge) =>
       edge.to.includes('Producer:ScriptGenerator')
     );
@@ -104,9 +104,9 @@ describe('expandBlueprintGraph', () => {
     const imageSourceDoc: BlueprintDocument = {
       meta: { id: 'ImageSource', name: 'ImageSource', kind: 'producer' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      outputs: [{ name: 'GeneratedImage', type: 'image' }],
       producers: [{ name: 'ImageGenerator', provider: 'fal-ai', model: 'image' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'ImageGenerator' },
         { from: 'ImageGenerator', to: 'GeneratedImage' },
@@ -119,9 +119,9 @@ describe('expandBlueprintGraph', () => {
         { name: 'Prompt', type: 'string', required: true },
         { name: 'SourceImages', type: 'array', required: false },
       ],
-      artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
+      outputs: [{ name: 'GeneratedVideo', type: 'video' }],
       producers: [{ name: 'VideoGenerator', provider: 'fal-ai', model: 'video' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'VideoGenerator' },
         { from: 'SourceImages', to: 'VideoGenerator' },
@@ -135,12 +135,12 @@ describe('expandBlueprintGraph', () => {
         { name: 'ImagePrompt', type: 'string', required: true },
         { name: 'VideoPrompt', type: 'string', required: true },
       ],
-      artefacts: [
+      outputs: [
         { name: 'SharedImage', type: 'image' },
         { name: 'FinalVideo', type: 'video' },
       ],
       producers: [],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'ImagePrompt', to: 'ImageSource.Prompt' },
         { from: 'ImageSource.GeneratedImage', to: 'SharedImage' },
@@ -208,9 +208,9 @@ describe('expandBlueprintGraph', () => {
     const rootDoc: BlueprintDocument = {
       meta: { id: 'ROOT', name: 'ROOT' },
       inputs: [{ name: 'Duration', type: 'int', required: true }],
-      artefacts: [{ name: 'MovieDuration', type: 'int' }],
+      outputs: [{ name: 'MovieDuration', type: 'int' }],
       producers: [],
-      producerImports: [],
+      imports: [],
       edges: [{ from: 'Duration', to: 'MovieDuration' }],
     };
 
@@ -242,11 +242,11 @@ describe('expandBlueprintGraph', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
-      artefacts: [
+      outputs: [
         { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'NumOfSegments', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
@@ -286,7 +286,7 @@ describe('expandBlueprintGraph', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
-      artefacts: [
+      outputs: [
         {
           name: 'Script',
           type: 'array',
@@ -295,7 +295,7 @@ describe('expandBlueprintGraph', () => {
         },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'NumOfSegments', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
@@ -340,7 +340,7 @@ describe('expandBlueprintGraph', () => {
         { name: 'NumOfSegments', type: 'int', required: true },
         { name: 'NumOfImages', type: 'int', required: true },
       ],
-      artefacts: [
+      outputs: [
         { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
         { name: 'Image', type: 'array', countInput: 'NumOfImages' },
       ],
@@ -348,7 +348,7 @@ describe('expandBlueprintGraph', () => {
         { name: 'ScriptProducer', provider: 'openai', model: 'gpt-4' },
         { name: 'ImageProducer', provider: 'replicate', model: 'flux' },
       ],
-      producerImports: [],
+      imports: [],
       loops: [
         { name: 'i', countInput: 'NumOfSegments' },
         { name: 'j', countInput: 'NumOfImages' },
@@ -405,13 +405,13 @@ describe('expandBlueprintGraph', () => {
 
   it('throws error for zero count input', () => {
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
-      artefacts: [
+      outputs: [
         { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'NumOfSegments', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
@@ -444,14 +444,14 @@ describe('expandBlueprintGraph', () => {
   it('expands producer nodes with multiple dimensions', () => {
     // Test producer that produces artifacts across 2 dimensions
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [
         { name: 'NumRows', type: 'int', required: true },
         { name: 'NumCols', type: 'int', required: true },
       ],
-      artefacts: [{ name: 'Cell', type: 'array', countInput: 'NumCols' }],
+      outputs: [{ name: 'Cell', type: 'array', countInput: 'NumCols' }],
       producers: [{ name: 'CellProducer', provider: 'openai', model: 'gpt-4' }],
-      producerImports: [],
+      imports: [],
       loops: [
         { name: 'row', countInput: 'NumRows' },
         { name: 'col', countInput: 'NumCols' },
@@ -501,13 +501,13 @@ describe('expandBlueprintGraph', () => {
 
   it('creates correct edges between producer and artifact instances', () => {
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
-      artefacts: [
+      outputs: [
         { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'NumOfSegments', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
@@ -550,9 +550,9 @@ describe('expandBlueprintGraph', () => {
   it('handles artifact dependencies between producer instances', () => {
     // First producer makes Scripts, second producer uses Scripts to make Images
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
-      artefacts: [
+      outputs: [
         { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
         { name: 'Image', type: 'array', countInput: 'NumOfSegments' },
       ],
@@ -560,7 +560,7 @@ describe('expandBlueprintGraph', () => {
         { name: 'ScriptProducer', provider: 'openai', model: 'gpt-4' },
         { name: 'ImageProducer', provider: 'replicate', model: 'flux' },
       ],
-      producerImports: [],
+      imports: [],
       loops: [{ name: 'i', countInput: 'NumOfSegments' }],
       edges: [
         { from: 'NumOfSegments', to: 'ScriptProducer' },
@@ -600,16 +600,16 @@ describe('expandBlueprintGraph', () => {
   it('preserves edge conditions through expansion', () => {
     // Test that conditional edges are preserved during expansion
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [
         { name: 'NumOfSegments', type: 'int', required: true },
         { name: 'UseSpecialEffect', type: 'boolean', required: true },
       ],
-      artefacts: [
+      outputs: [
         { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'NumOfSegments', to: 'Producer' },
         {
@@ -658,13 +658,13 @@ describe('expandBlueprintGraph', () => {
   it('handles input aliases correctly', () => {
     // Test input aliasing - when a parent blueprint routes its input to a child input
     const childDoc: BlueprintDocument = {
-      meta: { id: 'Child', name: 'Child' },
+      meta: { id: 'Child', name: 'Child', kind: 'producer' },
       inputs: [{ name: 'ChildInput', type: 'string', required: true }],
-      artefacts: [{ name: 'ChildOutput', type: 'string' }],
+      outputs: [{ name: 'ChildOutput', type: 'string' }],
       producers: [
         { name: 'ChildProducer', provider: 'openai', model: 'gpt-4' },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'ChildInput', to: 'ChildProducer' },
         { from: 'ChildProducer', to: 'ChildOutput' },
@@ -674,9 +674,9 @@ describe('expandBlueprintGraph', () => {
     const rootDoc: BlueprintDocument = {
       meta: { id: 'ROOT', name: 'ROOT' },
       inputs: [{ name: 'ParentInput', type: 'string', required: true }],
-      artefacts: [],
+      outputs: [],
       producers: [],
-      producerImports: [],
+      imports: [],
       edges: [{ from: 'ParentInput', to: 'Child.ChildInput' }],
     };
 
@@ -724,9 +724,9 @@ describe('expandBlueprintGraph', () => {
 
   it('throws error for negative countInputOffset', () => {
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
-      artefacts: [
+      outputs: [
         {
           name: 'Script',
           type: 'array',
@@ -735,7 +735,7 @@ describe('expandBlueprintGraph', () => {
         },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'NumOfSegments', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
@@ -762,22 +762,22 @@ describe('expandBlueprintGraph', () => {
     // Negative offsets are not allowed - throws validation error
     expect(() =>
       expandBlueprintGraph(graph, canonicalInputs, inputSources)
-    ).toThrow('Artefact "Script" declares an invalid countInputOffset (-1).');
+    ).toThrow('Artifact "Script" declares an invalid countInputOffset (-1).');
   });
 
   it('creates input nodes for each producer instance', () => {
     // When a producer has dimension, each instance should have access to the same inputs
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [
         { name: 'NumOfSegments', type: 'int', required: true },
         { name: 'Prompt', type: 'string', required: true },
       ],
-      artefacts: [
+      outputs: [
         { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'NumOfSegments', to: 'Producer' },
         { from: 'Prompt', to: 'Producer' },
@@ -820,16 +820,16 @@ describe('expandBlueprintGraph', () => {
   it('handles multi-dimension artifacts with nested loops', () => {
     // Test nested dimensions - images across segments and variations
     const doc: BlueprintDocument = {
-      meta: { id: 'Test', name: 'Test' },
+      meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [
         { name: 'NumOfSegments', type: 'int', required: true },
         { name: 'NumOfImages', type: 'int', required: true },
       ],
-      artefacts: [{ name: 'Image', type: 'array', countInput: 'NumOfImages' }],
+      outputs: [{ name: 'Image', type: 'array', countInput: 'NumOfImages' }],
       producers: [
         { name: 'ImageProducer', provider: 'replicate', model: 'flux' },
       ],
-      producerImports: [],
+      imports: [],
       loops: [
         { name: 'i', countInput: 'NumOfSegments' },
         { name: 'j', countInput: 'NumOfImages' },
@@ -878,16 +878,16 @@ describe('expandBlueprintGraph', () => {
     // The producer should receive bindings that resolve to the upstream artifacts
 
     const videoProducerDoc: BlueprintDocument = {
-      meta: { id: 'VideoProducer', name: 'VideoProducer' },
+      meta: { id: 'VideoProducer', name: 'VideoProducer', kind: 'producer' },
       inputs: [
         { name: 'ReferenceImages', type: 'array', required: false },
         { name: 'Prompt', type: 'string', required: true },
       ],
-      artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
+      outputs: [{ name: 'GeneratedVideo', type: 'video' }],
       producers: [
         { name: 'VideoGenerator', provider: 'fal-ai', model: 'video' },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'VideoGenerator' },
         { from: 'ReferenceImages', to: 'VideoGenerator' },
@@ -896,13 +896,13 @@ describe('expandBlueprintGraph', () => {
     };
 
     const imageProducerDoc: BlueprintDocument = {
-      meta: { id: 'ImageProducer', name: 'ImageProducer' },
+      meta: { id: 'ImageProducer', name: 'ImageProducer', kind: 'producer' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      outputs: [{ name: 'GeneratedImage', type: 'image' }],
       producers: [
         { name: 'ImageGenerator', provider: 'fal-ai', model: 'image' },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'ImageGenerator' },
         { from: 'ImageGenerator', to: 'GeneratedImage' },
@@ -917,9 +917,9 @@ describe('expandBlueprintGraph', () => {
         { name: 'VideoPrompt', type: 'string', required: true },
         { name: 'NumClips', type: 'int', required: true },
       ],
-      artefacts: [{ name: 'FinalVideo', type: 'video' }],
+      outputs: [{ name: 'FinalVideo', type: 'video' }],
       producers: [],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'CharacterPrompt', to: 'CharacterImage.Prompt' },
         { from: 'ProductPrompt', to: 'ProductImage.Prompt' },
@@ -1019,16 +1019,16 @@ describe('expandBlueprintGraph', () => {
 
   it('aliases symbolic cross-dimension array inputs to upstream artifacts', () => {
     const videoProducerDoc: BlueprintDocument = {
-      meta: { id: 'VideoProducer', name: 'VideoProducer' },
+      meta: { id: 'VideoProducer', name: 'VideoProducer', kind: 'producer' },
       inputs: [
         { name: 'Prompt', type: 'string', required: true },
         { name: 'ReferenceImages', type: 'array', required: false },
       ],
-      artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
+      outputs: [{ name: 'GeneratedVideo', type: 'video' }],
       producers: [
         { name: 'VideoGenerator', provider: 'fal-ai', model: 'video' },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'VideoGenerator' },
         { from: 'ReferenceImages', to: 'VideoGenerator' },
@@ -1037,13 +1037,13 @@ describe('expandBlueprintGraph', () => {
     };
 
     const imageProducerDoc: BlueprintDocument = {
-      meta: { id: 'ImageProducer', name: 'ImageProducer' },
+      meta: { id: 'ImageProducer', name: 'ImageProducer', kind: 'producer' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      outputs: [{ name: 'GeneratedImage', type: 'image' }],
       producers: [
         { name: 'ImageGenerator', provider: 'fal-ai', model: 'image' },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'ImageGenerator' },
         { from: 'ImageGenerator', to: 'GeneratedImage' },
@@ -1058,7 +1058,7 @@ describe('expandBlueprintGraph', () => {
         { name: 'NumScenes', type: 'int', required: true },
         { name: 'NumCharacters', type: 'int', required: true },
       ],
-      artefacts: [
+      outputs: [
         {
           name: 'SceneVideos',
           type: 'array',
@@ -1067,7 +1067,7 @@ describe('expandBlueprintGraph', () => {
         },
       ],
       producers: [],
-      producerImports: [],
+      imports: [],
       loops: [
         { name: 'scene', countInput: 'NumScenes' },
         { name: 'character', countInput: 'NumCharacters' },
@@ -1151,12 +1151,12 @@ describe('expandBlueprintGraph', () => {
 
   it('keeps array-input element bindings aligned with loop instance', () => {
     const producerDoc: BlueprintDocument = {
-      meta: { id: 'ThenImageProducer', name: 'ThenImageProducer' },
+      meta: { id: 'ThenImageProducer', name: 'ThenImageProducer', kind: 'producer' },
       inputs: [
         { name: 'Prompt', type: 'string', required: true },
         { name: 'SourceImages', type: 'array', required: false },
       ],
-      artefacts: [{ name: 'TransformedImage', type: 'image' }],
+      outputs: [{ name: 'TransformedImage', type: 'image' }],
       producers: [
         {
           name: 'ImageTransformer',
@@ -1164,7 +1164,7 @@ describe('expandBlueprintGraph', () => {
           model: 'flux-pro/kontext',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'ImageTransformer' },
         { from: 'SourceImages', to: 'ImageTransformer' },
@@ -1184,7 +1184,7 @@ describe('expandBlueprintGraph', () => {
           required: true,
         },
       ],
-      artefacts: [
+      outputs: [
         {
           name: 'OutputImages',
           type: 'array',
@@ -1193,7 +1193,7 @@ describe('expandBlueprintGraph', () => {
         },
       ],
       producers: [],
-      producerImports: [],
+      imports: [],
       loops: [{ name: 'character', countInput: 'NumCharacters' }],
       edges: [
         { from: 'Prompt', to: 'ThenImageProducer[character].Prompt' },
@@ -1267,12 +1267,12 @@ describe('expandBlueprintGraph', () => {
 
   it('keeps mixed source-image bindings aligned with loop instance', () => {
     const producerDoc: BlueprintDocument = {
-      meta: { id: 'ThenImageProducer', name: 'ThenImageProducer' },
+      meta: { id: 'ThenImageProducer', name: 'ThenImageProducer', kind: 'producer' },
       inputs: [
         { name: 'Prompt', type: 'string', required: true },
         { name: 'SourceImages', type: 'array', required: false },
       ],
-      artefacts: [{ name: 'TransformedImage', type: 'image' }],
+      outputs: [{ name: 'TransformedImage', type: 'image' }],
       producers: [
         {
           name: 'ImageTransformer',
@@ -1280,7 +1280,7 @@ describe('expandBlueprintGraph', () => {
           model: 'flux-pro/kontext',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Prompt', to: 'ImageTransformer' },
         { from: 'SourceImages', to: 'ImageTransformer' },
@@ -1301,7 +1301,7 @@ describe('expandBlueprintGraph', () => {
         },
         { name: 'SettingImage', type: 'image', required: true },
       ],
-      artefacts: [
+      outputs: [
         {
           name: 'OutputImages',
           type: 'array',
@@ -1310,7 +1310,7 @@ describe('expandBlueprintGraph', () => {
         },
       ],
       producers: [],
-      producerImports: [],
+      imports: [],
       loops: [{ name: 'character', countInput: 'NumCharacters' }],
       edges: [
         { from: 'Prompt', to: 'ThenImageProducer[character].Prompt' },
@@ -1386,20 +1386,20 @@ describe('expandBlueprintGraph', () => {
 
   it('creates implicit singleton fan-in for single-source fanIn input without explicit metadata', () => {
     const musicSourceDoc: BlueprintDocument = {
-      meta: { id: 'MusicSource', name: 'MusicSource' },
+      meta: { id: 'MusicSource', name: 'MusicSource', kind: 'producer' },
       inputs: [],
-      artefacts: [{ name: 'GeneratedMusic', type: 'audio' }],
+      outputs: [{ name: 'GeneratedMusic', type: 'audio' }],
       producers: [
         { name: 'MusicProducer', provider: 'elevenlabs', model: 'music_v1' },
       ],
-      producerImports: [],
+      imports: [],
       edges: [{ from: 'MusicProducer', to: 'GeneratedMusic' }],
     };
 
     const timelineComposerDoc: BlueprintDocument = {
-      meta: { id: 'TimelineComposer', name: 'TimelineComposer' },
+      meta: { id: 'TimelineComposer', name: 'TimelineComposer', kind: 'producer' },
       inputs: [{ name: 'Music', type: 'audio', required: false, fanIn: true }],
-      artefacts: [{ name: 'Timeline', type: 'json' }],
+      outputs: [{ name: 'Timeline', type: 'json' }],
       producers: [
         {
           name: 'TimelineProducer',
@@ -1407,7 +1407,7 @@ describe('expandBlueprintGraph', () => {
           model: 'timeline/ordered',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Music', to: 'TimelineProducer' },
         { from: 'TimelineProducer', to: 'Timeline' },
@@ -1417,9 +1417,9 @@ describe('expandBlueprintGraph', () => {
     const rootDoc: BlueprintDocument = {
       meta: { id: 'ROOT', name: 'ROOT' },
       inputs: [],
-      artefacts: [],
+      outputs: [],
       producers: [],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'MusicSource.GeneratedMusic', to: 'TimelineComposer.Music' },
       ],
@@ -1474,20 +1474,20 @@ describe('expandBlueprintGraph', () => {
 
   it('fails when fanIn input has multiple scalar sources without explicit metadata', () => {
     const musicSourceDoc: BlueprintDocument = {
-      meta: { id: 'MusicSource', name: 'MusicSource' },
+      meta: { id: 'MusicSource', name: 'MusicSource', kind: 'producer' },
       inputs: [],
-      artefacts: [{ name: 'GeneratedMusic', type: 'audio' }],
+      outputs: [{ name: 'GeneratedMusic', type: 'audio' }],
       producers: [
         { name: 'MusicProducer', provider: 'elevenlabs', model: 'music_v1' },
       ],
-      producerImports: [],
+      imports: [],
       edges: [{ from: 'MusicProducer', to: 'GeneratedMusic' }],
     };
 
     const timelineComposerDoc: BlueprintDocument = {
-      meta: { id: 'TimelineComposer', name: 'TimelineComposer' },
+      meta: { id: 'TimelineComposer', name: 'TimelineComposer', kind: 'producer' },
       inputs: [{ name: 'Music', type: 'audio', required: false, fanIn: true }],
-      artefacts: [{ name: 'Timeline', type: 'json' }],
+      outputs: [{ name: 'Timeline', type: 'json' }],
       producers: [
         {
           name: 'TimelineProducer',
@@ -1495,7 +1495,7 @@ describe('expandBlueprintGraph', () => {
           model: 'timeline/ordered',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'Music', to: 'TimelineProducer' },
         { from: 'TimelineProducer', to: 'Timeline' },
@@ -1505,9 +1505,9 @@ describe('expandBlueprintGraph', () => {
     const rootDoc: BlueprintDocument = {
       meta: { id: 'ROOT', name: 'ROOT' },
       inputs: [],
-      artefacts: [],
+      outputs: [],
       producers: [],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'MusicSourceA.GeneratedMusic', to: 'TimelineComposer.Music' },
         { from: 'MusicSourceB.GeneratedMusic', to: 'TimelineComposer.Music' },
@@ -1566,22 +1566,22 @@ describe('expandBlueprintGraph', () => {
 
   it('infers groupBy for multi-source fanIn connections sharing one loop dimension', () => {
     const videoSourceDoc: BlueprintDocument = {
-      meta: { id: 'VideoSource', name: 'VideoSource' },
+      meta: { id: 'VideoSource', name: 'VideoSource', kind: 'producer' },
       inputs: [],
-      artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
+      outputs: [{ name: 'GeneratedVideo', type: 'video' }],
       producers: [
         { name: 'VideoProducer', provider: 'fal-ai', model: 'image_to_video' },
       ],
-      producerImports: [],
+      imports: [],
       edges: [{ from: 'VideoProducer', to: 'GeneratedVideo' }],
     };
 
     const timelineComposerDoc: BlueprintDocument = {
-      meta: { id: 'TimelineComposer', name: 'TimelineComposer' },
+      meta: { id: 'TimelineComposer', name: 'TimelineComposer', kind: 'producer' },
       inputs: [
         { name: 'VideoSegments', type: 'video', required: false, fanIn: true },
       ],
-      artefacts: [{ name: 'Timeline', type: 'json' }],
+      outputs: [{ name: 'Timeline', type: 'json' }],
       producers: [
         {
           name: 'TimelineProducer',
@@ -1589,7 +1589,7 @@ describe('expandBlueprintGraph', () => {
           model: 'timeline/ordered',
         },
       ],
-      producerImports: [],
+      imports: [],
       edges: [
         { from: 'VideoSegments', to: 'TimelineProducer' },
         { from: 'TimelineProducer', to: 'Timeline' },
@@ -1599,9 +1599,9 @@ describe('expandBlueprintGraph', () => {
     const rootDoc: BlueprintDocument = {
       meta: { id: 'ROOT', name: 'ROOT' },
       inputs: [{ name: 'NumOfCharacters', type: 'number', required: true }],
-      artefacts: [],
+      outputs: [],
       producers: [],
-      producerImports: [],
+      imports: [],
       loops: [{ name: 'character', countInput: 'NumOfCharacters' }],
       edges: [
         {

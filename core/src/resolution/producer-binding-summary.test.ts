@@ -39,33 +39,25 @@ function makeTreeNode(
 
 function createFixtureTree(): BlueprintTreeNode {
   const videoProducerDoc = {
-    meta: { id: 'video-producer', name: 'Video Producer' },
+    meta: { id: 'video-producer', name: 'Video Producer', kind: 'producer' },
     inputs: [
       { name: 'Prompt', type: 'string', required: true },
       { name: 'Resolution', type: 'resolution', required: false },
       { name: 'ReferenceImages', type: 'array', required: false },
     ],
     producers: [{ name: 'VideoGenerator', provider: 'fal-ai', model: 'video' }],
-    producerImports: [],
-    artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
-    edges: [
-      { from: 'Prompt', to: 'VideoGenerator.Prompt' },
-      { from: 'Resolution', to: 'VideoGenerator.Resolution' },
-      { from: 'ReferenceImages', to: 'VideoGenerator.ReferenceImages' },
-      { from: 'VideoGenerator.GeneratedVideo', to: 'GeneratedVideo' },
-    ],
+    imports: [],
+    outputs: [{ name: 'GeneratedVideo', type: 'video' }],
+    edges: [],
   };
 
   const storyProducerDoc = {
-    meta: { id: 'story-producer', name: 'Story Producer' },
+    meta: { id: 'story-producer', name: 'Story Producer', kind: 'producer' },
     inputs: [{ name: 'Topic', type: 'string', required: false }],
     producers: [{ name: 'StoryGenerator', provider: 'openai', model: 'gpt-4' }],
-    producerImports: [],
-    artefacts: [{ name: 'Script', type: 'json' }],
-    edges: [
-      { from: 'Topic', to: 'StoryGenerator.Topic' },
-      { from: 'StoryGenerator.Script', to: 'Script' },
-    ],
+    imports: [],
+    outputs: [{ name: 'Script', type: 'json' }],
+    edges: [],
   };
 
   const rootDoc = {
@@ -75,11 +67,11 @@ function createFixtureTree(): BlueprintTreeNode {
       { name: 'Resolution', type: 'resolution', required: false },
     ],
     producers: [],
-    producerImports: [
-      { name: 'StoryProducer', producer: 'prompt/story' },
-      { name: 'VideoProducer', producer: 'video/text-to-video' },
+    imports: [
+      { name: 'StoryProducer', producer: 'test/story-producer' },
+      { name: 'VideoProducer', producer: 'test/video-producer' },
     ],
-    artefacts: [{ name: 'FinalVideo', type: 'video' }],
+    outputs: [{ name: 'FinalVideo', type: 'video' }],
     edges: [
       { from: 'Resolution', to: 'VideoProducer.Resolution' },
       { from: 'Prompt', to: 'VideoProducer.Prompt[0]' },
@@ -215,7 +207,7 @@ describe('producer-binding-summary', () => {
         mode: 'static',
       })
     ).toThrowError(
-      /Missing source graph node "AdScriptProducer.AdScript.CharacterImagePrompt"/
+      /Missing source graph node "Output:AdScriptProducer.AdScript.CharacterImagePrompt"/
     );
   });
 
@@ -244,32 +236,29 @@ describe('producer-binding-summary', () => {
       meta: { id: 'child-producer', name: 'Child Producer', kind: 'producer' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
       producers: [{ name: 'ImageGenerator', provider: 'fal-ai', model: 'image' }],
-      producerImports: [],
-      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
-      edges: [
-        { from: 'Prompt', to: 'ImageGenerator.Prompt' },
-        { from: 'ImageGenerator.GeneratedImage', to: 'GeneratedImage' },
-      ],
+      imports: [],
+      outputs: [{ name: 'GeneratedImage', type: 'image' }],
+      edges: [],
     };
 
     const timelineDoc = {
       meta: { id: 'timeline-producer', name: 'Timeline Producer', kind: 'producer' },
       inputs: [{ name: 'VideoSegments', type: 'array', required: false, fanIn: true }],
       producers: [{ name: 'TimelineBuilder', provider: 'renku', model: 'timeline/ordered' }],
-      producerImports: [],
-      artefacts: [{ name: 'Timeline', type: 'json' }],
-      edges: [
-        { from: 'VideoSegments', to: 'TimelineBuilder.VideoSegments' },
-        { from: 'TimelineBuilder.Timeline', to: 'Timeline' },
-      ],
+      imports: [],
+      outputs: [{ name: 'Timeline', type: 'json' }],
+      edges: [],
     };
 
     const rootDoc = {
       meta: { id: 'root', name: 'Root' },
       inputs: [{ name: 'ImagePrompt', type: 'string', required: true }],
       producers: [],
-      producerImports: [],
-      artefacts: [{ name: 'SegmentVideo', type: 'image' }],
+      imports: [
+        { name: 'ChildProducer', producer: 'test/child-producer' },
+        { name: 'TimelineComposer', producer: 'test/timeline-composer' },
+      ],
+      outputs: [{ name: 'SegmentVideo', type: 'image' }],
       edges: [
         { from: 'ImagePrompt', to: 'ChildProducer.Prompt' },
         { from: 'ChildProducer.GeneratedImage', to: 'SegmentVideo' },

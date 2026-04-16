@@ -13,13 +13,13 @@ import type { ExecutionPlan, JobDescriptor } from '@gorenku/core';
 describe('calculateCost', () => {
 	describe('flat pricing', () => {
 		it('returns flat price when config is a number', () => {
-			const result = calculateCost(0, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			const result = calculateCost(0, { values: {}, artifactSourcedFields: [], missingFields: [] });
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(false);
 		});
 
 		it('returns flat price for non-zero values', () => {
-			const result = calculateCost(0.05, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			const result = calculateCost(0.05, { values: {}, artifactSourcedFields: [], missingFields: [] });
 			expect(result.cost).toBe(0.05);
 			expect(result.isPlaceholder).toBe(false);
 		});
@@ -34,7 +34,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { text: 'Hello world' }, // 11 chars = ~3 tokens
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -48,12 +48,12 @@ describe('calculateCost', () => {
 				inputs: ['text'],
 				pricePerToken: 0.0001,
 			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: ['text'] });
+			const result = calculateCost(config, { values: {}, artifactSourcedFields: [], missingFields: ['text'] });
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
 		});
 
-		it('returns range when text comes from artefact', () => {
+		it('returns range when text comes from artifact', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByInputTokens',
 				inputs: ['text'],
@@ -61,7 +61,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: {},
-				artefactSourcedFields: ['text'],
+				artifactSourcedFields: ['text'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -79,7 +79,7 @@ describe('calculateCost', () => {
 				function: 'costByRun',
 				price: 0.05,
 			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			const result = calculateCost(config, { values: {}, artifactSourcedFields: [], missingFields: [] });
 			expect(result.cost).toBe(0.05);
 			expect(result.isPlaceholder).toBe(false);
 		});
@@ -88,7 +88,7 @@ describe('calculateCost', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByRun',
 			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			const result = calculateCost(config, { values: {}, artifactSourcedFields: [], missingFields: [] });
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
 		});
@@ -103,7 +103,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { text: 'Hello world' }, // 11 characters
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -117,12 +117,12 @@ describe('calculateCost', () => {
 				inputs: ['text'],
 				pricePerCharacter: 0.0001,
 			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: ['text'] });
+			const result = calculateCost(config, { values: {}, artifactSourcedFields: [], missingFields: ['text'] });
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
 		});
 
-		it('returns range when text comes from artefact', () => {
+		it('returns range when text comes from artifact', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByCharacters',
 				inputs: ['text'],
@@ -130,7 +130,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: {},
-				artefactSourcedFields: ['text'],
+				artifactSourcedFields: ['text'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -168,7 +168,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { text: 'Hello world' }, // 11 characters
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -192,7 +192,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { text: 'Hello world' }, // 11 characters
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -201,7 +201,7 @@ describe('calculateCost', () => {
 			expect(result.note).toBe('Plan: Scale');
 		});
 
-		it('returns range when text comes from artefact', () => {
+		it('returns range when text comes from artifact', () => {
 			delete process.env.ELEVEN_LABS_PLAN;
 			const config: ModelPriceConfig = {
 				function: 'costByCharactersAndPlan',
@@ -216,7 +216,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: {},
-				artefactSourcedFields: ['text'],
+				artifactSourcedFields: ['text'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -225,7 +225,7 @@ describe('calculateCost', () => {
 			// 100-1000 character range with Scale pricing (0.00018/char)
 			expect(result.range!.min).toBeCloseTo(0.018, 4);  // 100 * 0.00018
 			expect(result.range!.max).toBeCloseTo(0.18, 4);   // 1000 * 0.00018
-			expect(result.note).toContain('artefact');
+			expect(result.note).toContain('artifact');
 			expect(result.note).toContain('Plan: Scale');
 		});
 
@@ -241,7 +241,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { text: 'Hello' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -260,7 +260,7 @@ describe('calculateCost', () => {
 				},
 				defaultPlan: 'Scale',
 			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: ['text'] });
+			const result = calculateCost(config, { values: {}, artifactSourcedFields: [], missingFields: ['text'] });
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
 			expect(result.note).toBe('No text value found');
@@ -273,7 +273,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { text: 'Hello' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -294,7 +294,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { text: 'Hello world' }, // 11 characters
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -312,7 +312,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 30 },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -326,7 +326,7 @@ describe('calculateCost', () => {
 				inputs: ['duration'],
 				pricePerSecond: 0.01,
 			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: ['duration'] });
+			const result = calculateCost(config, { values: {}, artifactSourcedFields: [], missingFields: ['duration'] });
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
 		});
@@ -345,7 +345,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { image_size: 'square_hd', quality: 'hd', num_images: 2 },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -363,7 +363,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { image_size: 'square_hd', quality: 'standard' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -380,7 +380,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { image_size: 'unknown_size', quality: 'unknown_quality' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -397,7 +397,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -415,7 +415,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { resolution: '720p', aspect_ratio: '16:9' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -434,7 +434,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9', generate_audio: true },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -454,7 +454,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9', generate_audio: false },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -464,7 +464,7 @@ describe('calculateCost', () => {
 			expect(result.cost).toBeGreaterThan(0.1);
 		});
 
-		it('returns range when generate_audio comes from artefact', () => {
+		it('returns range when generate_audio comes from artifact', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByVideoPerMillionTokens',
 				inputs: ['duration', 'resolution', 'aspect_ratio', 'generate_audio'],
@@ -475,7 +475,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
-				artefactSourcedFields: ['generate_audio'],
+				artifactSourcedFields: ['generate_audio'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -494,7 +494,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -510,7 +510,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -529,7 +529,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: ['generate_audio'],
 			};
 			const result = calculateCost(config, extracted);
@@ -553,7 +553,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { resolution: '4K' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -572,7 +572,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { resolution: '4k' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -589,7 +589,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { resolution: '8K' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -597,7 +597,7 @@ describe('calculateCost', () => {
 			expect(result.isPlaceholder).toBe(true);
 		});
 
-		it('returns range when resolution comes from artefact', () => {
+		it('returns range when resolution comes from artifact', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByImageAndResolution',
 				inputs: ['resolution'],
@@ -608,7 +608,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: {},
-				artefactSourcedFields: ['resolution'],
+				artifactSourcedFields: ['resolution'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -632,7 +632,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { width: 1024, height: 1024 },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -647,7 +647,7 @@ describe('calculateCost', () => {
 					{ resolution: '1K', pricePerImage: 0.005 },
 				],
 			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			const result = calculateCost(config, { values: {}, artifactSourcedFields: [], missingFields: [] });
 			expect(result.cost).toBe(0.005);
 		});
 	});
@@ -661,7 +661,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 10 },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -677,7 +677,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: '5s' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -690,13 +690,13 @@ describe('calculateCost', () => {
 				function: 'costByVideoDuration',
 				pricePerSecond: 0.10,
 			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			const result = calculateCost(config, { values: {}, artifactSourcedFields: [], missingFields: [] });
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
 			expect(result.note).toBe('Missing duration, cannot calculate');
 		});
 
-		it('returns range when duration is provided with artefact-sourced fields', () => {
+		it('returns range when duration is provided with artifact-sourced fields', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByVideoDuration',
 				inputs: ['duration'],
@@ -704,7 +704,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 10 },
-				artefactSourcedFields: ['other_field'],
+				artifactSourcedFields: ['other_field'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -715,7 +715,7 @@ describe('calculateCost', () => {
 			expect(result.range!.max).toBe(3.0);  // 30s * 0.10
 		});
 
-		it('returns placeholder when duration comes from artefact without value', () => {
+		it('returns placeholder when duration comes from artifact without value', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByVideoDuration',
 				inputs: ['duration'],
@@ -723,7 +723,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: {},
-				artefactSourcedFields: ['duration'],
+				artifactSourcedFields: ['duration'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -746,7 +746,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 10, resolution: '720p' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -764,7 +764,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 5, resolution: '1080' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -781,7 +781,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: '10s', resolution: '720p' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -799,7 +799,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { resolution: '720p' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -821,7 +821,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 10, generate_audio: true },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -840,7 +840,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 10, generate_audio: false },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -858,7 +858,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: '5s', generate_audio: true },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -877,7 +877,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { generate_audio: true },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -886,7 +886,7 @@ describe('calculateCost', () => {
 			expect(result.note).toBe('Missing duration, cannot calculate');
 		});
 
-		it('returns placeholder when duration comes from artefact without value', () => {
+		it('returns placeholder when duration comes from artifact without value', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByVideoDurationAndWithAudio',
 				inputs: ['duration', 'generate_audio'],
@@ -897,7 +897,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: {},
-				artefactSourcedFields: ['duration'],
+				artifactSourcedFields: ['duration'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -906,7 +906,7 @@ describe('calculateCost', () => {
 			expect(result.note).toBe('Missing duration, cannot calculate');
 		});
 
-		it('calculates range when duration is provided and artefact-sourced fields exist', () => {
+		it('calculates range when duration is provided and artifact-sourced fields exist', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByVideoDurationAndWithAudio',
 				inputs: ['duration', 'generate_audio'],
@@ -917,7 +917,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { duration: 10 },
-				artefactSourcedFields: ['generate_audio'],
+				artifactSourcedFields: ['generate_audio'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -937,7 +937,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { num_images: 1, image_size: { width: 1024, height: 1024 } },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -954,7 +954,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { num_images: 4, image_size: { width: 1024, height: 1024 } },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -971,7 +971,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { num_images: 1, image_size: 'landscape_16_9' },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -988,7 +988,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { num_images: 1, image_size: { width: 2048, height: 2048 } },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -1005,7 +1005,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { num_images: 1, image_size: { width: 1920, height: 1080 } },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -1022,7 +1022,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { num_images: 1 },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: ['image_size'],
 			};
 			const result = calculateCost(config, extracted);
@@ -1031,7 +1031,7 @@ describe('calculateCost', () => {
 			expect(result.note).toContain('missing');
 		});
 
-		it('returns placeholder when image_size comes from artefact', () => {
+		it('returns placeholder when image_size comes from artifact', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByImageMegapixels',
 				pricePerMegapixel: 0.09,
@@ -1039,13 +1039,13 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { num_images: 1 },
-				artefactSourcedFields: ['image_size'],
+				artifactSourcedFields: ['image_size'],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
 			expect(result.isPlaceholder).toBe(true);
 			expect(result.range).toBeDefined();
-			expect(result.note).toContain('artefact');
+			expect(result.note).toContain('artifact');
 		});
 
 		it('uses default num_images when not provided', () => {
@@ -1056,7 +1056,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { image_size: { width: 1024, height: 1024 } },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -1072,7 +1072,7 @@ describe('calculateCost', () => {
 			};
 			const extracted: ExtractedCostInputs = {
 				values: { num_images: 1, image_size: { width: 1024, height: 1024 } },
-				artefactSourcedFields: [],
+				artifactSourcedFields: [],
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
@@ -1087,7 +1087,7 @@ describe('calculateCost', () => {
 			const config = {
 				function: 'unknownFunction' as ModelPriceConfig['function'],
 			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			const result = calculateCost(config, { values: {}, artifactSourcedFields: [], missingFields: [] });
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
 			expect(result.note).toContain('Unknown cost function');
@@ -1129,11 +1129,11 @@ describe('extractCostInputs', () => {
 		const result = extractCostInputs(job, resolvedInputs, ['text', 'voice_id']);
 
 		expect(result.values).toEqual({ text: 'Hello world', voice_id: 'narrator' });
-		expect(result.artefactSourcedFields).toEqual([]);
+		expect(result.artifactSourcedFields).toEqual([]);
 		expect(result.missingFields).toEqual([]);
 	});
 
-	it('detects artefact-sourced fields', () => {
+	it('detects artifact-sourced fields', () => {
 		const job: JobDescriptor = {
 			jobId: 'job-1',
 			producer: 'AudioProducer',
@@ -1160,7 +1160,7 @@ describe('extractCostInputs', () => {
 		const result = extractCostInputs(job, {}, ['text']);
 
 		expect(result.values).toEqual({});
-		expect(result.artefactSourcedFields).toEqual(['text']);
+		expect(result.artifactSourcedFields).toEqual(['text']);
 		expect(result.missingFields).toEqual([]);
 	});
 
@@ -1187,7 +1187,7 @@ describe('extractCostInputs', () => {
 		const result = extractCostInputs(job, {}, ['nonexistent_field']);
 
 		expect(result.values).toEqual({});
-		expect(result.artefactSourcedFields).toEqual([]);
+		expect(result.artifactSourcedFields).toEqual([]);
 		expect(result.missingFields).toEqual(['nonexistent_field']);
 	});
 });

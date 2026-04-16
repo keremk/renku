@@ -22,7 +22,7 @@ interface InputEventRecord {
 
 const console = globalThis.console;
 
-const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
 const generateStorySchema = z.object({
   inquiryPrompt: z.string().min(1, 'Inquiry prompt is required.'),
@@ -161,7 +161,7 @@ Before you start the generation, always provide a summary for what you are gener
         }
       }
 
-      const artefactUris = await buildArtefactUris(manifestPath, result.storageMovieId);
+      const artifactUris = await buildArtifactUris(manifestPath, result.storageMovieId);
       const timelineUri = buildTimelineUri(result.storageMovieId);
       const inputsUri = buildInputsUri(result.storageMovieId);
 
@@ -194,7 +194,7 @@ Before you start the generation, always provide a summary for what you are gener
           manifestPath,
           timelineUri,
           inputsUri,
-          artefactUris,
+          artifactUris,
           viewerUrl,
         },
       };
@@ -212,7 +212,7 @@ function buildInstructions(options: CreateMcpServerOptions): string {
     '- renku://blueprints/... for blueprint YAML files',
     '- renku://movies/{movieId}/inputs for the inputs used in the movie generation',
     '- renku://movies/{movieId}/timeline for the generated timeline JSON',
-    '- renku://movies/{movieId}/artefacts/{canonicalId} for any artefact stored in the manifest',
+    '- renku://movies/{movieId}/artifacts/{canonicalId} for any artifact stored in the manifest',
   ].join('\n');
 }
 
@@ -275,7 +275,7 @@ function registerMovieResources(server: McpServer, movieStore: MovieStorage): vo
     timelineTemplate,
     {
       title: 'Movie Timeline',
-      description: 'Rendered timeline JSON from the manifest timeline artefact.',
+      description: 'Rendered timeline JSON from the manifest timeline artifact.',
       mimeType: 'application/json',
     },
     async (_uri: URL, variables) => {
@@ -283,21 +283,21 @@ function registerMovieResources(server: McpServer, movieStore: MovieStorage): vo
     },
   );
 
-  const artefactTemplate = new ResourceTemplate('renku://movies/{movieId}/artefacts/{+artefactId}', {
-    list: async (): Promise<ListResourcesResult> => movieStore.listArtefacts(),
+  const artifactTemplate = new ResourceTemplate('renku://movies/{movieId}/artifacts/{+artifactId}', {
+    list: async (): Promise<ListResourcesResult> => movieStore.listArtifacts(),
   });
 
   server.registerResource(
-    'movie-artefacts',
-    artefactTemplate,
+    'movie-artifacts',
+    artifactTemplate,
     {
-      title: 'Movie Artefacts',
-      description: 'Manifest artefacts keyed by canonical node IDs.',
+      title: 'Movie Artifacts',
+      description: 'Manifest artifacts keyed by canonical node IDs.',
     },
     async (_uri: URL, variables) => {
       const movieId = readTemplateVar(variables, 'movieId');
-      const artefactId = readTemplateVar(variables, 'artefactId');
-      return movieStore.readArtefact(movieId, artefactId);
+      const artifactId = readTemplateVar(variables, 'artifactId');
+      return movieStore.readArtifact(movieId, artifactId);
     },
   );
 }
@@ -362,9 +362,9 @@ async function cleanupTempInputs(inputsPath: string): Promise<void> {
   }
 }
 
-async function buildArtefactUris(manifestPath: string, storageMovieId: string): Promise<string[]> {
+async function buildArtifactUris(manifestPath: string, storageMovieId: string): Promise<string[]> {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Manifest;
-  return Object.keys(manifest.artefacts ?? {}).map((id) => buildArtefactUri(storageMovieId, id));
+  return Object.keys(manifest.artifacts ?? {}).map((id) => buildArtifactUri(storageMovieId, id));
 }
 
 export class MovieStorage {
@@ -402,7 +402,7 @@ export class MovieStorage {
     };
   }
 
-  async listArtefacts(): Promise<ListResourcesResult> {
+  async listArtifacts(): Promise<ListResourcesResult> {
     const movieIds = await this.listMovieIds();
     const resources: Resource[] = [];
     for (const movieId of movieIds) {
@@ -410,10 +410,10 @@ export class MovieStorage {
       if (!manifest) {
         continue;
       }
-      for (const artefactId of Object.keys(manifest.artefacts ?? {})) {
+      for (const artifactId of Object.keys(manifest.artifacts ?? {})) {
         resources.push({
-          name: `${movieId}:${artefactId}`,
-          uri: buildArtefactUri(movieId, artefactId),
+          name: `${movieId}:${artifactId}`,
+          uri: buildArtifactUri(movieId, artifactId),
         });
       }
     }
@@ -439,29 +439,29 @@ export class MovieStorage {
 
   async readTimeline(movieId: string): Promise<ReadResourceResult> {
     const manifest = await this.loadManifest(movieId);
-    const artefact = manifest.artefacts[TIMELINE_ARTEFACT_ID];
-    if (!artefact) {
-      throw new Error(`Timeline artefact missing for movie ${movieId}`);
+    const artifact = manifest.artifacts[TIMELINE_ARTIFACT_ID];
+    if (!artifact) {
+      throw new Error(`Timeline artifact missing for movie ${movieId}`);
     }
-    if (artefact.blob?.hash) {
-      const payload = await this.readBlob(movieId, artefact.blob.hash, artefact.blob.mimeType);
-      const asText = toMaybeText(payload, artefact.blob.mimeType);
+    if (artifact.blob?.hash) {
+      const payload = await this.readBlob(movieId, artifact.blob.hash, artifact.blob.mimeType);
+      const asText = toMaybeText(payload, artifact.blob.mimeType);
       if (asText !== undefined) {
-        return wrapTextResource(buildTimelineUri(movieId), asText, artefact.blob.mimeType ?? 'application/json');
+        return wrapTextResource(buildTimelineUri(movieId), asText, artifact.blob.mimeType ?? 'application/json');
       }
-      return wrapBlobResource(buildTimelineUri(movieId), payload, artefact.blob.mimeType ?? 'application/json');
+      return wrapBlobResource(buildTimelineUri(movieId), payload, artifact.blob.mimeType ?? 'application/json');
     }
-    throw new Error('Timeline artefact has no blob payload.');
+    throw new Error('Timeline artifact has no blob payload.');
   }
 
-  async readArtefact(movieId: string, encodedArtefactId: string): Promise<ReadResourceResult> {
-    const artefactId = decodeURIComponent(encodedArtefactId);
+  async readArtifact(movieId: string, encodedArtifactId: string): Promise<ReadResourceResult> {
+    const artifactId = decodeURIComponent(encodedArtifactId);
     const manifest = await this.loadManifest(movieId);
-    const record = manifest.artefacts[artefactId];
+    const record = manifest.artifacts[artifactId];
     if (!record) {
-      throw new Error(`Artefact "${artefactId}" not found for movie ${movieId}.`);
+      throw new Error(`Artifact "${artifactId}" not found for movie ${movieId}.`);
     }
-    const uri = buildArtefactUri(movieId, artefactId);
+    const uri = buildArtifactUri(movieId, artifactId);
     if (record.blob) {
       const data = await this.readBlob(movieId, record.blob.hash, record.blob.mimeType);
       const asText = toMaybeText(data, record.blob.mimeType);
@@ -470,7 +470,7 @@ export class MovieStorage {
       }
       return wrapBlobResource(uri, data, record.blob.mimeType ?? 'application/octet-stream');
     }
-    throw new Error(`Artefact "${artefactId}" has no blob payload.`);
+    throw new Error(`Artifact "${artifactId}" has no blob payload.`);
   }
 
   private async listMovieIds(): Promise<string[]> {
@@ -600,8 +600,8 @@ function buildTimelineUri(movieId: string): string {
   return `renku://movies/${encodeURIComponent(movieId)}/timeline`;
 }
 
-function buildArtefactUri(movieId: string, artefactId: string): string {
-  return `renku://movies/${encodeURIComponent(movieId)}/artefacts/${encodeURIComponent(artefactId)}`;
+function buildArtifactUri(movieId: string, artifactId: string): string {
+  return `renku://movies/${encodeURIComponent(movieId)}/artifacts/${encodeURIComponent(artifactId)}`;
 }
 
 function readTemplateVar(variables: Variables, key: string): string {

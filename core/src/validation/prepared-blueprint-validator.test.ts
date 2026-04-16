@@ -88,7 +88,8 @@ describe('validatePreparedBlueprintTree', () => {
     expect(result.context).toBeDefined();
     expect(
       result.context?.graph.nodes.some(
-        (node) => node.id === 'VideoScript.Segments[segment].NarrationType'
+        (node) =>
+          node.id === 'Output:VideoScript.Segments[segment].NarrationType'
       )
     ).toBe(true);
     expect(

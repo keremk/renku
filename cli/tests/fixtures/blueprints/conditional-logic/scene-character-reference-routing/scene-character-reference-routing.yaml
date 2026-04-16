@@ -30,7 +30,7 @@ inputs:
     type: int
     required: true
 
-artifacts:
+outputs:
   - name: CharacterImages
     description: Generated character reference images.
     type: array
@@ -53,7 +53,7 @@ conditions:
     when: StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]
     is: true
 
-producers:
+imports:
   - name: StoryProducer
     path: ./storyboard-director/storyboard-director.yaml
   - name: CharacterImageProducer

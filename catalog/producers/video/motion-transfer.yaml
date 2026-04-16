@@ -22,7 +22,7 @@ inputs:
     description: Whether to trim the first second of the driving video.
     type: boolean
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The motion-transferred video.
     type: video

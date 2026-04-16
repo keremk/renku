@@ -31,7 +31,7 @@ inputs:
     type: int
     required: true
 
-artifacts:
+outputs:
   - name: CharacterImages
     type: array
     itemType: image
@@ -55,7 +55,7 @@ loops:
     parent: scene
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: CharacterImageProducer
     producer: image/image-compose
     loop: character

@@ -19,7 +19,7 @@ How it currently works in generation (and why generation works)
 2. Planning loads that schema and applies it to blueprint artifacts (applyOutputSchemasToBlueprintTree in core/src/orchestration/planning-service.ts).
 3. Canonical graph decomposition creates leaf artifact nodes from that schema (decomposeJsonSchema in core/src/resolution/schema-decomposition.ts, consumed by core/src/resolution/canonical-graph.ts).
 4. Canonical expansion resolves loops/indexes and builds real per-job input bindings (core/src/resolution/canonical-expander.ts).
-5. LLM provider gets request.produces containing those leaf artifact IDs and extracts each value from the returned JSON using JSON-path read (buildArtefactsFromResponse in providers/src/sdk/openai/artefacts.ts, readJsonPath in core/src/json-path.ts).
+5. LLM provider gets request.produces containing those leaf artifact IDs and extracts each value from the returned JSON using JSON-path read (buildArtifactsFromResponse in providers/src/sdk/openai/artifacts.ts, readJsonPath in core/src/json-path.ts).
 6. Runner stores each leaf as its own artifact event (core/src/runner.ts).
 So yes: actual generation depends on this decomposition machinery and that part is real/necessary.
 ---

@@ -7,6 +7,11 @@
 
 The core library for Renku - handles blueprint loading, execution planning, job orchestration, manifest management, and event logging. This package is the foundation for building AI-powered video generation workflows.
 
+Authoring/runtime terminology in core is intentionally split:
+
+- Authored blueprints declare `inputs:`, `outputs:`, and `imports:`
+- Runtime execution persists concrete products as canonical `Artifact:...` entries in manifests and event logs
+
 ## Overview
 
 `@gorenku/core` is designed for developers who want to build custom tooling on top of Renku's workflow orchestration system. It provides the fundamental building blocks for:
@@ -78,7 +83,7 @@ pnpm add @gorenku/core
 
 ### Blueprint Loader
 
-The blueprint loader parses YAML workflow definitions and validates them against the schema. It resolves module imports and input sources to create a complete blueprint ready for planning.
+The blueprint loader parses YAML workflow definitions and validates them against the schema. It resolves blueprint `imports:` and input sources to create a complete blueprint ready for planning.
 
 ### Planner
 
@@ -90,7 +95,7 @@ The runner executes the plan layer by layer, running independent jobs in paralle
 
 ### Manifest
 
-The manifest system tracks all artifacts produced during execution, including their metadata, dependencies, and content hashes. This enables incremental regeneration and dependency tracking across runs.
+The manifest system tracks all runtime artifacts produced during execution, including their metadata, dependencies, and content hashes. This enables incremental regeneration and dependency tracking across runs.
 
 ### Event Log
 

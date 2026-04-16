@@ -309,7 +309,7 @@ Suggested public API:
 interface BuildStoryboardProjectionArgs {
   root: BlueprintTreeNode;
   effectiveInputs: Record<string, unknown>;
-  manifestArtifacts?: Record<string, ManifestArtefactEntry>;
+  manifestArtifacts?: Record<string, ManifestArtifactEntry>;
   latestArtifactEvents?: Map<string, StoryboardArtifactEvent>;
   resolvedArtifactValues?: Record<string, unknown>;
 }

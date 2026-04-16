@@ -572,15 +572,15 @@ export function createTimelineProducerHandler(): HandlerFactory {
         tracks,
       };
 
-      const artefactId = runtime.artefacts.expectBlob(
+      const artifactId = runtime.artifacts.expectBlob(
         request.produces[0] ?? ''
       );
       const timelinePayload = JSON.stringify(timeline, null, 2);
       const result = {
         status: 'succeeded' as const,
-        artefacts: [
+        artifacts: [
           {
-            artefactId,
+            artifactId,
             status: 'succeeded' as const,
             blob: {
               data: timelinePayload,

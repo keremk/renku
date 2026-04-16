@@ -29,7 +29,7 @@ describe('parseYamlBlueprintFile', () => {
 meta:
   id: InvalidBlueprint
   name: Invalid Blueprint
-artifacts:
+outputs:
   - name: Output
     type: string
 models:
@@ -76,7 +76,7 @@ meta:
   name: Invalid Prompt Producer
   promptFile: ./prompt.toml
   outputSchema: ./output.json
-artifacts:
+outputs:
   - name: Script
     type: json
 `,
@@ -96,7 +96,7 @@ meta:
   id: InvalidPromptProducer
   name: Invalid Prompt Producer
   kind: blueprint
-artifacts:
+outputs:
   - name: Script
     type: json
 `,
@@ -127,7 +127,7 @@ meta:
   id: InvalidArtifactSchemaProducer
   name: Invalid Artifact Schema Producer
   kind: producer
-artifacts:
+outputs:
   - name: Script
     type: json
     schema: ./script-output.json
@@ -387,15 +387,15 @@ artifacts:
     ).toThrow(/megapixelsNearest requires megapixelCandidates/);
   });
 
-  it('parses countInputOffset for array artefacts', async () => {
+  it('parses countInputOffset for array artifacts', async () => {
     const modulePath = resolve(
       SHARED_BLUEPRINT_MODULES_ROOT,
       'flow-video',
       'flow-video.yaml'
     );
     const document = await parseYamlBlueprintFile(modulePath);
-    const imagePrompts = document.artefacts.find(
-      (artefact) => artefact.name === 'ImagePrompts'
+    const imagePrompts = document.outputs.find(
+      (artifact) => artifact.name === 'ImagePrompts'
     );
     expect(imagePrompts?.countInput).toBe('NumOfSegments');
     expect(imagePrompts?.countInputOffset).toBe(1);
@@ -413,7 +413,7 @@ inputs:
     type: array
     itemType: text
     countInput: NumOfCharacters
-artifacts:
+outputs:
   - name: Output
     type: string
 `,
@@ -446,7 +446,7 @@ inputs:
   - name: NumOfCharacters
     type: int
     countInput: NumOfSegments
-artifacts:
+outputs:
   - name: Output
     type: string
 `,
@@ -468,7 +468,7 @@ inputs:
   - name: SourceImages
     type: collection
     itemType: image
-artifacts:
+outputs:
   - name: Output
     type: string
 `,
@@ -502,7 +502,7 @@ artifacts:
         }),
       ])
     );
-    expect(document.producerImports.map((entry) => entry.name)).toEqual([
+    expect(document.imports.map((entry) => entry.name)).toEqual([
       'ScriptProducer',
       'ImagePromptProducer',
       'ImageProducer',
@@ -520,12 +520,12 @@ inputs:
     type: array
     itemType: video
     fanIn: true
-artifacts:
+outputs:
   - name: FirstClip
     type: video
   - name: SecondClip
     type: video
-producers:
+imports:
   - name: Stitcher
     producer: composition/video-stitcher
 connections:
@@ -827,10 +827,10 @@ meta:
 inputs:
   - name: TestInput
     type: string
-artifacts:
+outputs:
   - name: TestOutput
     type: string
-producers:
+imports:
   - name: AudioProducer
     producer: audio/text-to-speech
 `;
@@ -864,10 +864,10 @@ meta:
 inputs:
   - name: TestInput
     type: string
-artifacts:
+outputs:
   - name: TestOutput
     type: string
-producers:
+imports:
   - name: NonExistentProducer
     producer: nonexistent/producer
 `;
@@ -895,10 +895,10 @@ meta:
 inputs:
   - name: TestInput
     type: string
-artifacts:
+outputs:
   - name: TestOutput
     type: string
-producers:
+imports:
   - name: AudioProducer
     producer: audio/text-to-speech
 `;
@@ -927,10 +927,10 @@ meta:
 inputs:
   - name: TestInput
     type: string
-artifacts:
+outputs:
   - name: TestOutput
     type: string
-producers:
+imports:
   - name: AudioProducer
     path: ../../producers/audio/text-to-speech.yaml
     producer: audio/text-to-speech
@@ -960,10 +960,10 @@ meta:
 inputs:
   - name: TestInput
     type: string
-artifacts:
+outputs:
   - name: TestOutput
     type: string
-producers:
+imports:
   - name: AudioProducer
 `;
     const reader = {
@@ -990,10 +990,10 @@ meta:
 inputs:
   - name: TestInput
     type: string
-artifacts:
+outputs:
   - name: TestOutput
     type: string
-producers:
+imports:
   - name: MissingProducer
     path: ./missing-producer.yaml
 `;
@@ -1095,7 +1095,7 @@ describe('yaml-parser edge cases', () => {
     }
   });
 
-  it('handles blueprint with producerImports', async () => {
+  it('handles blueprint with imports', async () => {
     const blueprintPath = resolve(
       TEST_FIXTURES_ROOT,
       'audio-only',
@@ -1104,9 +1104,9 @@ describe('yaml-parser edge cases', () => {
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Verify producer imports are parsed
-    expect(document.producerImports).toBeDefined();
-    expect(document.producerImports.length).toBeGreaterThan(0);
-    for (const entry of document.producerImports) {
+    expect(document.imports).toBeDefined();
+    expect(document.imports.length).toBeGreaterThan(0);
+    for (const entry of document.imports) {
       expect(entry.name).toBeDefined();
       // Producer imports can use either path or producer (qualified name)
       expect(entry.path ?? entry.producer).toBeDefined();
@@ -1122,7 +1122,7 @@ describe('yaml-parser edge cases', () => {
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Look for array artifacts
-    const arrayArtifacts = document.artefacts.filter(
+    const arrayArtifacts = document.outputs.filter(
       (art) => art.type === 'array'
     );
     if (arrayArtifacts.length > 0) {
@@ -1282,7 +1282,7 @@ describe('yaml-parser edge cases', () => {
           '    type: string',
           '    storyboard: main',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: GeneratedImage',
           '    type: image',
           '',
@@ -1314,11 +1314,11 @@ describe('yaml-parser edge cases', () => {
           '    type: string',
           '    storyboard: main',
           '',
-          'artifacts:',
+          'outputs:',
           '  - name: FinalImage',
           '    type: image',
           '',
-          'producers:',
+          'imports:',
           '  - name: ImageProducer',
           '    producer: image/text-to-image',
           '',

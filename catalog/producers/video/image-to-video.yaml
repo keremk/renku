@@ -40,7 +40,7 @@ inputs:
     description: Whether to generate audio.
     type: boolean
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The generated video.
     type: video

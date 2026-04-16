@@ -47,8 +47,8 @@ export async function detectBlueprintInDirectory(
 }
 
 /**
- * Checks if a YAML file is a blueprint (has meta.kind === 'blueprint' and producers section).
- * A blueprint is distinguished from a producer by having a `producers` section.
+ * Checks if a YAML file is a top-level authored blueprint.
+ * A valid authored blueprint is not a producer leaf and declares child references via `imports:`.
  */
 async function isBlueprintFile(filePath: string): Promise<boolean> {
   try {
@@ -72,11 +72,11 @@ async function isBlueprintFile(filePath: string): Promise<boolean> {
       return false;
     }
 
-    // A top-level blueprint (not a producer) has a `producers` section
-    const hasProducers =
-      Array.isArray(docObj.producers) && docObj.producers.length > 0;
+    // A top-level authored blueprint references child blueprints/producers via `imports:`.
+    const hasImports =
+      Array.isArray(docObj.imports) && docObj.imports.length > 0;
 
-    return hasProducers;
+    return hasImports;
   } catch {
     return false;
   }

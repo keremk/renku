@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildArtefactsFromResponse, parseArtefactIdentifier } from './artefacts.js';
+import { buildArtifactsFromResponse, parseArtifactIdentifier } from './artifacts.js';
 
-describe('buildArtefactsFromResponse', () => {
+describe('buildArtifactsFromResponse', () => {
   it('trims namespace ordinals so nested fanout arrays resolve correctly', () => {
     const response = {
       ImagePrompt: ['first frame', 'second frame'],
@@ -11,29 +11,29 @@ describe('buildArtefactsFromResponse', () => {
       'Artifact:ImagePromptGenerator.ImagePrompt[0][1]',
     ];
 
-    const artefacts = buildArtefactsFromResponse(response, produces, {
+    const artifacts = buildArtifactsFromResponse(response, produces, {
       producerId: 'Producer:ImagePromptGenerator.ImagePromptProducer[0]',
     });
 
-    expect(artefacts).toHaveLength(2);
-    expect(artefacts[0]?.blob?.data).toBe('first frame');
-    expect(artefacts[1]?.blob?.data).toBe('second frame');
-    expect(artefacts.every((artefact) => artefact.status === 'succeeded')).toBe(true);
+    expect(artifacts).toHaveLength(2);
+    expect(artifacts[0]?.blob?.data).toBe('first frame');
+    expect(artifacts[1]?.blob?.data).toBe('second frame');
+    expect(artifacts.every((artifact) => artifact.status === 'succeeded')).toBe(true);
   });
 
-  it('skips indexing when artefacts only carry namespace ordinals', () => {
+  it('skips indexing when artifacts only carry namespace ordinals', () => {
     const response = {
       ImageSummary: 'concise summary',
     };
     const produces = ['Artifact:ImagePromptGenerator.ImageSummary[0]'];
 
-    const artefacts = buildArtefactsFromResponse(response, produces, {
+    const artifacts = buildArtifactsFromResponse(response, produces, {
       producerId: 'Producer:ImagePromptGenerator.ImagePromptProducer[0]',
     });
 
-    expect(artefacts).toHaveLength(1);
-    expect(artefacts[0]?.blob?.data).toBe('concise summary');
-    expect(artefacts[0]?.status).toBe('succeeded');
+    expect(artifacts).toHaveLength(1);
+    expect(artifacts[0]?.blob?.data).toBe('concise summary');
+    expect(artifacts[0]?.status).toBe('succeeded');
   });
 
   describe('decomposed JSON artifacts', () => {
@@ -54,16 +54,16 @@ describe('buildArtefactsFromResponse', () => {
         'Artifact:DocProducer.VideoScript.Segments[1].Script',
       ];
 
-      const artefacts = buildArtefactsFromResponse(response, produces, {
+      const artifacts = buildArtifactsFromResponse(response, produces, {
         producerId: 'Producer:DocProducer',
       });
 
-      expect(artefacts).toHaveLength(4);
-      expect(artefacts[0]?.blob?.data).toBe('Moon Landing Documentary');
-      expect(artefacts[1]?.blob?.data).toBe('A story about space exploration');
-      expect(artefacts[2]?.blob?.data).toBe('In 1969, humanity took its first steps on the moon...');
-      expect(artefacts[3]?.blob?.data).toBe('The Apollo 11 mission was a triumph of engineering...');
-      expect(artefacts.every((artefact) => artefact.status === 'succeeded')).toBe(true);
+      expect(artifacts).toHaveLength(4);
+      expect(artifacts[0]?.blob?.data).toBe('Moon Landing Documentary');
+      expect(artifacts[1]?.blob?.data).toBe('A story about space exploration');
+      expect(artifacts[2]?.blob?.data).toBe('In 1969, humanity took its first steps on the moon...');
+      expect(artifacts[3]?.blob?.data).toBe('The Apollo 11 mission was a triumph of engineering...');
+      expect(artifacts.every((artifact) => artifact.status === 'succeeded')).toBe(true);
     });
 
     it('handles nested arrays in decomposed artifacts', () => {
@@ -81,16 +81,16 @@ describe('buildArtefactsFromResponse', () => {
         'Artifact:DocProducer.VideoScript.Segments[1].ImagePrompts[1]',
       ];
 
-      const artefacts = buildArtefactsFromResponse(response, produces, {
+      const artifacts = buildArtifactsFromResponse(response, produces, {
         producerId: 'Producer:DocProducer',
       });
 
-      expect(artefacts).toHaveLength(4);
-      expect(artefacts[0]?.blob?.data).toBe('astronaut walking');
-      expect(artefacts[1]?.blob?.data).toBe('earth from moon');
-      expect(artefacts[2]?.blob?.data).toBe('rocket launch');
-      expect(artefacts[3]?.blob?.data).toBe('mission control');
-      expect(artefacts.every((artefact) => artefact.status === 'succeeded')).toBe(true);
+      expect(artifacts).toHaveLength(4);
+      expect(artifacts[0]?.blob?.data).toBe('astronaut walking');
+      expect(artifacts[1]?.blob?.data).toBe('earth from moon');
+      expect(artifacts[2]?.blob?.data).toBe('rocket launch');
+      expect(artifacts[3]?.blob?.data).toBe('mission control');
+      expect(artifacts.every((artifact) => artifact.status === 'succeeded')).toBe(true);
     });
 
     it('returns failure for missing JSON paths', () => {
@@ -103,14 +103,14 @@ describe('buildArtefactsFromResponse', () => {
         'Artifact:DocProducer.VideoScript.NonExistent',
       ];
 
-      const artefacts = buildArtefactsFromResponse(response, produces, {
+      const artifacts = buildArtifactsFromResponse(response, produces, {
         producerId: 'Producer:DocProducer',
       });
 
-      expect(artefacts).toHaveLength(2);
-      expect(artefacts[0]?.status).toBe('succeeded');
-      expect(artefacts[1]?.status).toBe('failed');
-      expect(artefacts[1]?.diagnostics?.reason).toBe('json_path_not_found');
+      expect(artifacts).toHaveLength(2);
+      expect(artifacts[0]?.status).toBe('succeeded');
+      expect(artifacts[1]?.status).toBe('failed');
+      expect(artifacts[1]?.diagnostics?.reason).toBe('json_path_not_found');
     });
 
     it('extracts boolean fields from decomposed artifacts', () => {
@@ -131,22 +131,22 @@ describe('buildArtefactsFromResponse', () => {
         'Artifact:DirectorProducer.Script.Characters[2].HasTransition',
       ];
 
-      const artefacts = buildArtefactsFromResponse(response, produces, {
+      const artifacts = buildArtifactsFromResponse(response, produces, {
         producerId: 'Producer:DirectorProducer',
       });
 
-      expect(artefacts).toHaveLength(6);
-      expect(artefacts.every((a) => a.status === 'succeeded')).toBe(true);
+      expect(artifacts).toHaveLength(6);
+      expect(artifacts.every((a) => a.status === 'succeeded')).toBe(true);
 
       // String values
-      expect(artefacts[0]?.blob?.data).toBe('Alice');
-      expect(artefacts[2]?.blob?.data).toBe('Bob');
-      expect(artefacts[4]?.blob?.data).toBe('Charlie');
+      expect(artifacts[0]?.blob?.data).toBe('Alice');
+      expect(artifacts[2]?.blob?.data).toBe('Bob');
+      expect(artifacts[4]?.blob?.data).toBe('Charlie');
 
       // Boolean values should be serialized as JSON
-      expect(artefacts[1]?.blob?.data).toBe('true');
-      expect(artefacts[3]?.blob?.data).toBe('false');
-      expect(artefacts[5]?.blob?.data).toBe('true');
+      expect(artifacts[1]?.blob?.data).toBe('true');
+      expect(artifacts[3]?.blob?.data).toBe('false');
+      expect(artifacts[5]?.blob?.data).toBe('true');
     });
 
     it('extracts number fields from decomposed artifacts', () => {
@@ -164,23 +164,23 @@ describe('buildArtefactsFromResponse', () => {
         'Artifact:Producer.Output.Items[1].Count',
       ];
 
-      const artefacts = buildArtefactsFromResponse(response, produces, {
+      const artifacts = buildArtifactsFromResponse(response, produces, {
         producerId: 'Producer:Producer',
       });
 
-      expect(artefacts).toHaveLength(4);
-      expect(artefacts.every((a) => a.status === 'succeeded')).toBe(true);
+      expect(artifacts).toHaveLength(4);
+      expect(artifacts.every((a) => a.status === 'succeeded')).toBe(true);
 
       // Number values should be serialized as JSON
-      expect(artefacts[1]?.blob?.data).toBe('42');
-      expect(artefacts[3]?.blob?.data).toBe('0');
+      expect(artifacts[1]?.blob?.data).toBe('42');
+      expect(artifacts[3]?.blob?.data).toBe('0');
     });
   });
 });
 
-describe('parseArtefactIdentifier', () => {
+describe('parseArtifactIdentifier', () => {
   it('parses simple artifact identifier', () => {
-    const result = parseArtefactIdentifier('Artifact:MovieTitle');
+    const result = parseArtifactIdentifier('Artifact:MovieTitle');
     expect(result).toEqual({
       kind: 'MovieTitle',
       baseName: 'MovieTitle',
@@ -191,7 +191,7 @@ describe('parseArtefactIdentifier', () => {
   });
 
   it('parses artifact with namespace', () => {
-    const result = parseArtefactIdentifier('Artifact:DocProducer.VideoScript');
+    const result = parseArtifactIdentifier('Artifact:DocProducer.VideoScript');
     expect(result).toEqual({
       kind: 'DocProducer.VideoScript',
       baseName: 'VideoScript',
@@ -202,7 +202,7 @@ describe('parseArtefactIdentifier', () => {
   });
 
   it('extracts JSON path when parent artifact name is provided', () => {
-    const result = parseArtefactIdentifier(
+    const result = parseArtifactIdentifier(
       'Artifact:DocProducer.VideoScript.Segments[0].Script',
       'VideoScript',
     );
@@ -211,7 +211,7 @@ describe('parseArtefactIdentifier', () => {
   });
 
   it('extracts JSON path with nested arrays', () => {
-    const result = parseArtefactIdentifier(
+    const result = parseArtifactIdentifier(
       'Artifact:DocProducer.VideoScript.Segments[1].ImagePrompts[2]',
       'VideoScript',
     );
@@ -220,12 +220,12 @@ describe('parseArtefactIdentifier', () => {
   });
 
   it('parses ordinal indices from brackets', () => {
-    const result = parseArtefactIdentifier('Artifact:Producer.Image[0][1]');
+    const result = parseArtifactIdentifier('Artifact:Producer.Image[0][1]');
     expect(result?.ordinal).toEqual([0, 1]);
   });
 
   it('parses named indices from brackets', () => {
-    const result = parseArtefactIdentifier('Artifact:Producer.Image[segment=2&image=3]');
+    const result = parseArtifactIdentifier('Artifact:Producer.Image[segment=2&image=3]');
     expect(result?.index).toEqual({ segment: 2, image: 3 });
   });
 });

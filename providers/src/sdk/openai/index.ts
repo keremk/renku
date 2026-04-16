@@ -14,11 +14,11 @@ export { renderPrompts, buildPrompt, type RenderedPrompts } from './prompts.js';
 
 // Artifact mapping
 export {
-  buildArtefactsFromResponse,
-  parseArtefactIdentifier,
-  type BuildArtefactOptions,
-  type ParsedArtefactIdentifier,
-} from './artefacts.js';
+  buildArtifactsFromResponse,
+  parseArtifactIdentifier,
+  type BuildArtifactOptions,
+  type ParsedArtifactIdentifier,
+} from './artifacts.js';
 
 // OpenAI generation
 export {

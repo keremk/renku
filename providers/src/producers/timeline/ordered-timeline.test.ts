@@ -183,8 +183,8 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
-    const payload = result.artefacts[0]?.blob?.data;
+    expect(result.artifacts).toHaveLength(1);
+    const payload = result.artifacts[0]?.blob?.data;
     expect(payload).toBeDefined();
     const timeline = JSON.parse(
       typeof payload === 'string' ? payload : '{}'
@@ -307,7 +307,7 @@ describe('TimelineProducer', () => {
     resolvedInputs['Artifact:Music[0]'] = createAssetPayload(5);
 
     const result = await handler.invoke(request);
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -357,7 +357,7 @@ describe('TimelineProducer', () => {
     resolvedInputs['Artifact:Music[0]'] = createAssetPayload(6);
 
     const result = await handler.invoke(request);
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : ''
     ) as {
@@ -408,7 +408,7 @@ describe('TimelineProducer', () => {
     resolvedInputs['Artifact:Video[1]'] = createAssetPayload(8);
 
     const result = await handler.invoke(request);
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -467,7 +467,7 @@ describe('TimelineProducer', () => {
     resolvedInputs['SegmentDuration'] = 10;
 
     const result = await handler.invoke(request);
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -573,7 +573,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -661,7 +661,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -720,7 +720,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -801,7 +801,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -893,7 +893,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -949,7 +949,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1019,7 +1019,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1079,7 +1079,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1224,7 +1224,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1338,7 +1338,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1455,7 +1455,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1540,7 +1540,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1624,7 +1624,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1692,7 +1692,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1803,7 +1803,7 @@ describe('TimelineProducer', () => {
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
 
-    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timelinePayload = result.artifacts[0]?.blob?.data;
     const timeline = JSON.parse(
       typeof timelinePayload === 'string' ? timelinePayload : '{}'
     ) as {
@@ -1902,7 +1902,7 @@ describe('TimelineProducer', () => {
       const result = await handler.invoke(request);
       expect(result.status).toBe('succeeded');
 
-      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timelinePayload = result.artifacts[0]?.blob?.data;
       const timeline = JSON.parse(
         typeof timelinePayload === 'string' ? timelinePayload : '{}'
       ) as {
@@ -1999,7 +1999,7 @@ describe('TimelineProducer', () => {
       const result = await handler.invoke(request);
       expect(result.status).toBe('succeeded');
 
-      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timelinePayload = result.artifacts[0]?.blob?.data;
       const timeline = JSON.parse(
         typeof timelinePayload === 'string' ? timelinePayload : '{}'
       ) as {
@@ -2070,7 +2070,7 @@ describe('TimelineProducer', () => {
       const result = await handler.invoke(request);
       expect(result.status).toBe('succeeded');
 
-      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timelinePayload = result.artifacts[0]?.blob?.data;
       const timeline = JSON.parse(
         typeof timelinePayload === 'string' ? timelinePayload : '{}'
       ) as {
@@ -2170,7 +2170,7 @@ describe('TimelineProducer', () => {
       const result = await handler.invoke(request);
       expect(result.status).toBe('succeeded');
 
-      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timelinePayload = result.artifacts[0]?.blob?.data;
       const timeline = JSON.parse(
         typeof timelinePayload === 'string' ? timelinePayload : '{}'
       ) as {
@@ -2252,7 +2252,7 @@ describe('TimelineProducer', () => {
       const result = await handler.invoke(request);
       expect(result.status).toBe('succeeded');
 
-      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timelinePayload = result.artifacts[0]?.blob?.data;
       const timeline = JSON.parse(
         typeof timelinePayload === 'string' ? timelinePayload : '{}'
       ) as {
@@ -2296,7 +2296,7 @@ describe('TimelineProducer', () => {
       const result = await handler.invoke(request);
       expect(result.status).toBe('succeeded');
 
-      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timelinePayload = result.artifacts[0]?.blob?.data;
       const timeline = JSON.parse(
         typeof timelinePayload === 'string' ? timelinePayload : '{}'
       ) as {
@@ -2408,7 +2408,7 @@ describe('TimelineProducer', () => {
       const result = await handler.invoke(request);
       expect(result.status).toBe('succeeded');
 
-      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timelinePayload = result.artifacts[0]?.blob?.data;
       const timeline = JSON.parse(
         typeof timelinePayload === 'string' ? timelinePayload : '{}'
       ) as {

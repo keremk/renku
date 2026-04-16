@@ -46,7 +46,7 @@ inputs:
     description: Total duration of the movie in seconds.
     type: int
 
-artifacts:
+outputs:
   - name: Timeline
     description: OrderedTimeline JSON manifest.
     type: json

@@ -8,6 +8,6 @@ inputs:
     type: image
     required: true
 
-artifacts:
+outputs:
   - name: EditedImage
     type: image

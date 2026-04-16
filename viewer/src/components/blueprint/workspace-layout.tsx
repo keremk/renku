@@ -398,8 +398,8 @@ function WorkspaceLayoutInner({
     if (state.status === 'executing') {
       return;
     }
-    if (selectedBuildManifest?.artefacts) {
-      initializeFromManifest(selectedBuildManifest.artefacts);
+    if (selectedBuildManifest?.artifacts) {
+      initializeFromManifest(selectedBuildManifest.artifacts);
     }
   }, [selectedBuildManifest, initializeFromManifest, state.status]);
 
@@ -434,11 +434,11 @@ function WorkspaceLayoutInner({
 
   // Check if the selected build has a timeline artifact
   const hasTimeline = useMemo(() => {
-    const artefacts = selectedBuildManifest?.artefacts;
-    if (!artefacts) return false;
+    const artifacts = selectedBuildManifest?.artifacts;
+    if (!artifacts) return false;
     // Check for timeline artifact (id contains "Timeline")
-    return artefacts.some((a) => a.id.includes('Timeline'));
-  }, [selectedBuildManifest?.artefacts]);
+    return artifacts.some((a) => a.id.includes('Timeline'));
+  }, [selectedBuildManifest?.artifacts]);
 
   // Lift timeline and playback state for syncing between Preview and Timeline panels
   const {
@@ -543,7 +543,7 @@ function WorkspaceLayoutInner({
                   blueprintFolder={blueprintFolder}
                   blueprintPath={blueprintPath}
                   catalogRoot={catalogRoot}
-                  artifacts={selectedBuildManifest?.artefacts ?? []}
+                  artifacts={selectedBuildManifest?.artifacts ?? []}
                   actionButton={runButton}
                   isInputsEditable={isInputsEditable}
                   onSaveInputs={handleSaveInputs}

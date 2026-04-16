@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { ArtefactEventOutput } from './types.js';
+import type { ArtifactEventOutput } from './types.js';
 import { isCanonicalInputId, isCanonicalArtifactId } from './canonical-ids.js';
 
 export interface HashedValue {
@@ -19,7 +19,7 @@ export function hashInputPayload(payload: unknown): string {
   return hashPayload(payload).hash;
 }
 
-export function hashArtefactOutput(output: ArtefactEventOutput): string {
+export function hashArtifactOutput(output: ArtifactEventOutput): string {
   return hashPayload(output).hash;
 }
 
@@ -33,7 +33,7 @@ export function hashInputContents(
   inputs: readonly string[],
   manifest: {
     inputs: Record<string, { hash: string }>;
-    artefacts: Record<string, { hash: string }>;
+    artifacts: Record<string, { hash: string }>;
   }
 ): string {
   const contentHashes: string[] = [];
@@ -43,7 +43,7 @@ export function hashInputContents(
       const entry = manifest.inputs[baseId] ?? manifest.inputs[id];
       contentHashes.push(entry?.hash ?? id);
     } else if (isCanonicalArtifactId(id)) {
-      const entry = manifest.artefacts[id];
+      const entry = manifest.artifacts[id];
       contentHashes.push(entry?.hash ?? id);
     } else {
       contentHashes.push(id);

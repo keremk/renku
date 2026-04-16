@@ -28,14 +28,14 @@ interface FanInValue {
 }
 
 interface StitchedClip {
-  artefactId: string;
+  artifactId: string;
   filePath: string;
   probe: VideoProbeResult;
 }
 
 const OUTPUT_MIME_TYPE = 'video/mp4';
 const OUTPUT_FILE_NAME = 'stitched-video.mp4';
-const STITCHED_OUTPUT_ARTEFACT_INDEX = 0;
+const STITCHED_OUTPUT_ARTIFACT_INDEX = 0;
 const FPS_TOLERANCE = 0.01;
 
 export const videoStitchOperation: CustomFfmpegOperation = {
@@ -61,11 +61,11 @@ export const videoStitchOperation: CustomFfmpegOperation = {
 
     const resolvedInputs = runtime.inputs.all();
     const config = (runtime.config.raw ?? {}) as CustomFfmpegConfig;
-    const outputArtefactId = request.produces[STITCHED_OUTPUT_ARTEFACT_INDEX];
-    if (!outputArtefactId) {
+    const outputArtifactId = request.produces[STITCHED_OUTPUT_ARTIFACT_INDEX];
+    if (!outputArtifactId) {
       throw createProviderError(
-        SdkErrorCode.UNKNOWN_ARTEFACT,
-        'Video stitcher requires a declared stitched video artefact output.',
+        SdkErrorCode.UNKNOWN_ARTIFACT,
+        'Video stitcher requires a declared stitched video artifact output.',
         {
           kind: 'user_input',
           causedByUser: true,
@@ -95,9 +95,9 @@ export const videoStitchOperation: CustomFfmpegOperation = {
       });
       return {
         status: 'succeeded',
-        artefacts: [
+        artifacts: [
           {
-            artefactId: runtime.artefacts.expectBlob(outputArtefactId),
+            artifactId: runtime.artifacts.expectBlob(outputArtifactId),
             status: 'succeeded',
             blob: {
               data: buffer,
@@ -117,11 +117,11 @@ export const videoStitchOperation: CustomFfmpegOperation = {
     const assetBlobPaths = readAssetBlobPaths(extras);
     const ffmpegPath = getFfmpegPath(config);
     const ffprobePath = getFfprobePath(ffmpegPath);
-    const clipArtefactIds = flattenFanInGroups(
+    const clipArtifactIds = flattenFanInGroups(
       readFanInValue(resolvedInputs, videoSegmentsInputId)
     );
 
-    if (clipArtefactIds.length < 2) {
+    if (clipArtifactIds.length < 2) {
       throw createProviderError(
         SdkErrorCode.MISSING_SEGMENTS,
         `Video stitcher requires at least 2 clips in "${videoSegmentsInputId}".`,
@@ -130,7 +130,7 @@ export const videoStitchOperation: CustomFfmpegOperation = {
           causedByUser: true,
           metadata: {
             canonicalInputId: videoSegmentsInputId,
-            clipCount: clipArtefactIds.length,
+            clipCount: clipArtifactIds.length,
           },
         }
       );
@@ -138,17 +138,17 @@ export const videoStitchOperation: CustomFfmpegOperation = {
 
     const storageRoot = resolveStorageRoot(resolvedInputs, assetBlobPaths);
     const stitchedClips = await Promise.all(
-      clipArtefactIds.map(async (artefactId) => {
-        const mappedPath = assetBlobPaths[artefactId];
+      clipArtifactIds.map(async (artifactId) => {
+        const mappedPath = assetBlobPaths[artifactId];
         if (typeof mappedPath !== 'string' || mappedPath.trim().length === 0) {
           throw createProviderError(
             SdkErrorCode.MISSING_ASSET,
-            `Video stitcher is missing assetBlobPaths entry for "${artefactId}".`,
+            `Video stitcher is missing assetBlobPaths entry for "${artifactId}".`,
             {
               kind: 'user_input',
               causedByUser: true,
               metadata: {
-                artefactId,
+                artifactId,
               },
             }
           );
@@ -163,7 +163,7 @@ export const videoStitchOperation: CustomFfmpegOperation = {
           signal: request.signal,
         });
         return {
-          artefactId,
+          artifactId,
           filePath,
           probe,
         } satisfies StitchedClip;
@@ -189,9 +189,9 @@ export const videoStitchOperation: CustomFfmpegOperation = {
 
       return {
         status: 'succeeded',
-        artefacts: [
+        artifacts: [
           {
-            artefactId: runtime.artefacts.expectBlob(outputArtefactId),
+            artifactId: runtime.artifacts.expectBlob(outputArtifactId),
             status: 'succeeded',
             blob: {
               data: outputBuffer,
@@ -199,7 +199,7 @@ export const videoStitchOperation: CustomFfmpegOperation = {
             },
             diagnostics: {
               operation: 'ffmpeg/video-stitch',
-              clipArtefactIds,
+              clipArtifactIds,
               hasAudio: stitchedClips[0]?.probe.hasAudio ?? false,
               width: stitchedClips[0]?.probe.width,
               height: stitchedClips[0]?.probe.height,
@@ -360,7 +360,7 @@ function incompatibleClipError(
       metadata: {
         field,
         clips: clips.map((clip) => ({
-          artefactId: clip.artefactId,
+          artifactId: clip.artifactId,
           width: clip.probe.width,
           height: clip.probe.height,
           fps: clip.probe.fps,

@@ -12,9 +12,9 @@ function createMinimalBlueprint(
   return {
     meta: { id: 'test', name: 'Test Blueprint' },
     inputs: [],
-    artefacts: [],
+    artifacts: [],
     producers: [],
-    producerImports: [],
+    imports: [],
     edges: [],
     ...overrides,
   };

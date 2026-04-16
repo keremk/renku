@@ -15,12 +15,12 @@ function createInvokeRequest(args: {
   storageRoot: string;
   mode?: 'live' | 'simulated';
   producerAlias?: string;
-  clipArtefactIds?: string[];
+  clipArtifactIds?: string[];
   assetBlobPaths?: Record<string, string>;
   duration?: number;
 }): ProviderJobContext {
   const producerAlias = args.producerAlias ?? 'VideoStitcher';
-  const clipArtefactIds = args.clipArtefactIds ?? [
+  const clipArtifactIds = args.clipArtifactIds ?? [
     'Artifact:ClipProducerA.GeneratedVideo',
     'Artifact:ClipProducerB.GeneratedVideo',
   ];
@@ -42,7 +42,7 @@ function createInvokeRequest(args: {
         resolvedInputs: {
           [`Input:${producerAlias}.VideoSegments`]: {
             groupBy: 'singleton',
-            groups: [clipArtefactIds],
+            groups: [clipArtifactIds],
           },
           [`Input:${producerAlias}.Duration`]: args.duration ?? 8,
           'Input:Duration': args.duration ?? 8,
@@ -51,8 +51,8 @@ function createInvokeRequest(args: {
         assetBlobPaths:
           args.assetBlobPaths ??
           Object.fromEntries(
-            clipArtefactIds.map((artefactId, index) => [
-              artefactId,
+            clipArtifactIds.map((artifactId, index) => [
+              artifactId,
               `builds/movie/blobs/video-${index + 1}.mp4`,
             ])
           ),
@@ -110,12 +110,12 @@ describe('video stitch operation helpers', () => {
     expect(() =>
       ensureCompatibleClipSet([
         {
-          artefactId: 'Artifact:A',
+          artifactId: 'Artifact:A',
           filePath: '/tmp/a.mp4',
           probe: { width: 1280, height: 720, fps: 24, hasAudio: true },
         },
         {
-          artefactId: 'Artifact:B',
+          artifactId: 'Artifact:B',
           filePath: '/tmp/b.mp4',
           probe: { width: 1280, height: 720, fps: 24, hasAudio: false },
         },
@@ -150,9 +150,9 @@ describe('createCustomFfmpegHandler video stitch invoke', () => {
     );
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
-    expect(result.artefacts[0]?.blob?.mimeType).toBe('video/mp4');
-    expect((result.artefacts[0]?.blob?.data as Buffer).length).toBeGreaterThan(0);
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.blob?.mimeType).toBe('video/mp4');
+    expect((result.artifacts[0]?.blob?.data as Buffer).length).toBeGreaterThan(0);
   });
 
   it('fails fast when the exact canonical fan-in input is missing', async () => {
@@ -188,7 +188,7 @@ describe('createCustomFfmpegHandler video stitch invoke', () => {
     const result = await handler.invoke(createInvokeRequest({ storageRoot }));
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts[0]?.blob?.mimeType).toBe('video/mp4');
-    expect((result.artefacts[0]?.blob?.data as Buffer).length).toBeGreaterThan(1000);
+    expect(result.artifacts[0]?.blob?.mimeType).toBe('video/mp4');
+    expect((result.artifacts[0]?.blob?.data as Buffer).length).toBeGreaterThan(1000);
   }, 15000);
 });

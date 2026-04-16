@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {
   readBlob,
-  type ArtefactEvent,
+  type ArtifactEvent,
   createEventLog,
   createStorageContext,
   createRuntimeError,
@@ -416,18 +416,18 @@ async function collectLatestSucceededArtifactEvents(args: {
   artifactIds: string[];
   eventLog: ReturnType<typeof createEventLog>;
   movieId: string;
-}): Promise<Map<string, ArtefactEvent>> {
+}): Promise<Map<string, ArtifactEvent>> {
   const requestedIds = new Set(args.artifactIds);
-  const latestEvents = new Map<string, ArtefactEvent>();
+  const latestEvents = new Map<string, ArtifactEvent>();
 
-  for await (const event of args.eventLog.streamArtefacts(args.movieId)) {
+  for await (const event of args.eventLog.streamArtifacts(args.movieId)) {
     if (event.status !== 'succeeded') {
       continue;
     }
-    if (!requestedIds.has(event.artefactId)) {
+    if (!requestedIds.has(event.artifactId)) {
       continue;
     }
-    latestEvents.set(event.artefactId, event);
+    latestEvents.set(event.artifactId, event);
   }
 
   return latestEvents;

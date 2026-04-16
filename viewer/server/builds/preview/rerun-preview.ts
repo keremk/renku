@@ -37,7 +37,7 @@ import {
   sliceExecutionPlanThroughLayer,
   readLlmInvocationSettings,
   type Manifest,
-  type PendingArtefactDraft,
+  type PendingArtifactDraft,
   type ProducerOptionsMap,
 } from '@gorenku/core';
 import {
@@ -320,7 +320,7 @@ async function prepareRerunSurgicalPreviewContext(
     memoryStorageContext,
     body.movieId
   );
-  const pendingArtefacts = convertArtifactOverridesToDrafts(persistedOverrides);
+  const pendingArtifacts = convertArtifactOverridesToDrafts(persistedOverrides);
 
   const promptOverrideDraft = await buildRerunPromptOverrideDraft({
     request: body,
@@ -329,7 +329,7 @@ async function prepareRerunSurgicalPreviewContext(
     storage: memoryStorageContext,
   });
   if (promptOverrideDraft) {
-    pendingArtefacts.push(promptOverrideDraft);
+    pendingArtifacts.push(promptOverrideDraft);
   }
 
   const inputOverrideDrafts = await applyRerunInputOverrides({
@@ -344,7 +344,7 @@ async function prepareRerunSurgicalPreviewContext(
     movieId: body.movieId,
   });
   if (inputOverrideDrafts.length > 0) {
-    pendingArtefacts.push(...inputOverrideDrafts);
+    pendingArtifacts.push(...inputOverrideDrafts);
   }
 
   const planningService = createPlanningService();
@@ -361,8 +361,8 @@ async function prepareRerunSurgicalPreviewContext(
     storage: memoryStorageContext,
     manifestService,
     eventLog,
-    pendingArtefacts:
-      pendingArtefacts.length > 0 ? pendingArtefacts : undefined,
+    pendingArtifacts:
+      pendingArtifacts.length > 0 ? pendingArtifacts : undefined,
     userControls: {
       surgical: {
         regenerateIds: [body.artifactId],
@@ -499,7 +499,7 @@ async function applyRerunInputOverrides(args: {
   storage: ReturnType<typeof createStorageContext>;
   blueprintFolder: string;
   movieId: string;
-}): Promise<PendingArtefactDraft[]> {
+}): Promise<PendingArtifactDraft[]> {
   const {
     request,
     sourceJobId,
@@ -596,10 +596,10 @@ async function applyRerunInputOverrides(args: {
   const drafts = convertArtifactOverridesToDrafts(persisted);
 
   return drafts.map((draft) => {
-    const meta = artifactEventMeta.get(draft.artefactId);
+    const meta = artifactEventMeta.get(draft.artifactId);
     if (!meta) {
       throw new Error(
-        `Missing source event metadata for overridden artifact ${draft.artefactId}.`
+        `Missing source event metadata for overridden artifact ${draft.artifactId}.`
       );
     }
 
@@ -655,7 +655,7 @@ async function buildRerunPromptOverrideDraft(args: {
   blueprintFolder: string;
   movieId: string;
   storage: ReturnType<typeof createStorageContext>;
-}): Promise<PendingArtefactDraft | null> {
+}): Promise<PendingArtifactDraft | null> {
   const { request, blueprintFolder, movieId, storage } = args;
   const trimmedPrompt = request.prompt.trim();
   if (request.mode !== 'rerun' || trimmedPrompt.length === 0) {

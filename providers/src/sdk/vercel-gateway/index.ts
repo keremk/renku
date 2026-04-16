@@ -22,5 +22,5 @@ export { renderPrompts, buildPrompt, type RenderedPrompts } from '../openai/prom
 // Re-export simulation from OpenAI SDK
 export { simulateOpenAiGeneration } from '../openai/simulation.js';
 
-// Re-export artefact building from OpenAI SDK
-export { buildArtefactsFromResponse } from '../openai/artefacts.js';
+// Re-export artifact building from OpenAI SDK
+export { buildArtifactsFromResponse } from '../openai/artifacts.js';

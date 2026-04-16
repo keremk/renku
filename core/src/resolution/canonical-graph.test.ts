@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type {
-  BlueprintArtefactDefinition,
+  BlueprintOutputDefinition,
   BlueprintDocument,
   BlueprintEdgeDefinition,
   BlueprintInputDefinition,
@@ -15,16 +15,16 @@ describe('buildBlueprintGraph', () => {
     const bundle = createFixtureTree();
     const graph = buildBlueprintGraph(bundle);
 
-    const producerNode = graph.nodes.find((node) =>
-      node.id.endsWith('TextToImageProducer')
+    const producerNode = graph.nodes.find(
+      (node) => node.id === 'Producer:ImageGenerator'
     );
     expect(producerNode?.dimensions).toHaveLength(2);
     expect(new Set(producerNode?.dimensions ?? []).size).toBe(2);
 
-    const artefactNode = graph.nodes.find((node) =>
+    const artifactNode = graph.nodes.find((node) =>
       node.id.endsWith('NarrationScript')
     );
-    expect(artefactNode?.dimensions).toHaveLength(1);
+    expect(artifactNode?.dimensions).toHaveLength(1);
 
     const promptNode = graph.nodes.find((node) =>
       node.id.endsWith('ImagePrompt')
@@ -33,7 +33,7 @@ describe('buildBlueprintGraph', () => {
     expect(new Set(promptNode?.dimensions ?? []).size).toBe(2);
 
     const finalEdge = graph.edges.find(
-      (edge) => edge.to.nodeId === 'SegmentImage'
+      (edge) => edge.to.nodeId === 'Output:SegmentImage'
     );
     expect(finalEdge?.from.dimensions).toHaveLength(2);
     expect(finalEdge?.to.dimensions).toHaveLength(2);
@@ -315,7 +315,18 @@ function createFixtureTree(): BlueprintTreeNode {
       },
       { from: 'Size', to: 'ImageGenerator[i][j].Size' },
       { from: 'ImageGenerator[i][j].SegmentImage', to: 'SegmentImage[i][j]' },
-    ]
+    ],
+    undefined,
+    {
+      imports: [
+        { name: 'ScriptGenerator', producer: 'test/script-generator' },
+        {
+          name: 'ImagePromptGenerator',
+          producer: 'test/image-prompt-generator',
+        },
+        { name: 'ImageGenerator', producer: 'test/image-generator' },
+      ],
+    }
   );
 
   return makeTreeNode(
@@ -338,17 +349,26 @@ function createFixtureTree(): BlueprintTreeNode {
 function makeBlueprintDocument(
   id: string,
   inputs: BlueprintInputDefinition[],
-  artefacts: BlueprintArtefactDefinition[],
+  outputs: BlueprintOutputDefinition[],
   producers: ProducerConfig[],
   edges: BlueprintEdgeDefinition[],
-  loops?: BlueprintLoopDefinition[]
+  loops?: BlueprintLoopDefinition[],
+  options?: {
+    kind?: BlueprintDocument['meta']['kind'];
+    imports?: BlueprintDocument['imports'];
+  }
 ): BlueprintDocument {
+  const inferredKind =
+    options?.kind ??
+    (producers.length > 0 && (options?.imports?.length ?? 0) === 0
+      ? 'producer'
+      : undefined);
   return {
-    meta: { id, name: id },
+    meta: { id, name: id, ...(inferredKind ? { kind: inferredKind } : {}) },
     inputs,
-    artefacts,
+    outputs,
     producers,
-    producerImports: [],
+    imports: options?.imports ?? [],
     edges,
     loops,
   };
@@ -381,7 +401,7 @@ describe('edge cases', () => {
 
   it('handles blueprint with only artifacts (no producers)', () => {
     const doc = makeBlueprintDocument(
-      'ArtefactsOnly',
+      'ArtifactsOnly',
       [],
       [{ name: 'Output', type: 'string' }],
       [],
@@ -502,13 +522,16 @@ describe('edge cases', () => {
 
     // Verify edges connecting root to child namespace
     const edgeToChild = graph.edges.find(
-      (e) => e.from.nodeId === 'RootInput' && e.to.nodeId === 'Child.ChildInput'
+      (e) =>
+        e.from.nodeId === 'InputSource:RootInput' &&
+        e.to.nodeId === 'InputSource:Child.ChildInput'
     );
     expect(edgeToChild).toBeDefined();
 
     const edgeFromChild = graph.edges.find(
       (e) =>
-        e.from.nodeId === 'Child.ChildOutput' && e.to.nodeId === 'FinalOutput'
+        e.from.nodeId === 'Output:Child.ChildOutput' &&
+        e.to.nodeId === 'Output:FinalOutput'
     );
     expect(edgeFromChild).toBeDefined();
   });
@@ -536,7 +559,7 @@ describe('edge cases', () => {
 
     // Find the edge with offset (Current -> Next)
     const offsetEdge = graph.edges.find(
-      (e) => e.from.nodeId === 'Current' && e.to.nodeId === 'Next'
+      (e) => e.from.nodeId === 'Output:Current' && e.to.nodeId === 'Output:Next'
     );
     expect(offsetEdge).toBeDefined();
     expect(offsetEdge?.to.dimensions).toHaveLength(1);
@@ -574,7 +597,7 @@ describe('edge cases', () => {
 
     // All three edges from producer to outputs should exist
     const producerEdges = graph.edges.filter(
-      (e) => e.from.nodeId === 'Producer'
+      (e) => e.from.nodeId === 'Producer:Producer'
     );
     expect(producerEdges).toHaveLength(3);
   });
@@ -632,7 +655,9 @@ describe('edge cases', () => {
 
     // Both edges should exist
     const resultToProducer = graph.edges.find(
-      (e) => e.from.nodeId === 'Result' && e.to.nodeId === 'IterativeProducer'
+      (e) =>
+        e.from.nodeId === 'Output:Result' &&
+        e.to.nodeId === 'Producer:IterativeProducer'
     );
     expect(resultToProducer).toBeDefined();
   });
@@ -916,7 +941,7 @@ describe('edge cases', () => {
 
     // Verify that the edge from SegmentDuration exists
     const edgeFromSegmentDuration = graph.edges.find(
-      (e) => e.from.nodeId === 'SegmentDuration'
+      (e) => e.from.nodeId === 'InputSource:SegmentDuration'
     );
     expect(edgeFromSegmentDuration).toBeDefined();
   });
@@ -1000,16 +1025,16 @@ describe('edge cases', () => {
 
     // Verify edges exist from each system input
     const edgeFromMovieId = graph.edges.find(
-      (e) => e.from.nodeId === 'MovieId'
+      (e) => e.from.nodeId === 'InputSource:MovieId'
     );
     const edgeFromResolution = graph.edges.find(
-      (e) => e.from.nodeId === 'Resolution'
+      (e) => e.from.nodeId === 'InputSource:Resolution'
     );
     const edgeFromStorageRoot = graph.edges.find(
-      (e) => e.from.nodeId === 'StorageRoot'
+      (e) => e.from.nodeId === 'InputSource:StorageRoot'
     );
     const edgeFromStorageBasePath = graph.edges.find(
-      (e) => e.from.nodeId === 'StorageBasePath'
+      (e) => e.from.nodeId === 'InputSource:StorageBasePath'
     );
 
     expect(edgeFromMovieId).toBeDefined();
@@ -1184,8 +1209,8 @@ describe('edge cases', () => {
     // Verify: Edge connects root-level SegmentDuration to producer's Duration
     const edgeFromSegmentDuration = graph.edges.find(
       (e) =>
-        e.from.nodeId === 'SegmentDuration' &&
-        e.to.nodeId === 'ScriptProducer.Duration'
+        e.from.nodeId === 'InputSource:SegmentDuration' &&
+        e.to.nodeId === 'InputSource:ScriptProducer.Duration'
     );
     expect(edgeFromSegmentDuration).toBeDefined();
 
@@ -1252,7 +1277,8 @@ describe('edge cases', () => {
 
     const edgeFromDuration = graphWithDuration.edges.find(
       (e) =>
-        e.from.nodeId === 'Duration' && e.to.nodeId === 'VideoProducer.Duration'
+        e.from.nodeId === 'InputSource:Duration' &&
+        e.to.nodeId === 'InputSource:VideoProducer.Duration'
     );
     expect(edgeFromDuration).toBeDefined();
 
@@ -1291,8 +1317,8 @@ describe('edge cases', () => {
 
     const edgeFromSegmentDuration = graphWithSegmentDuration.edges.find(
       (e) =>
-        e.from.nodeId === 'SegmentDuration' &&
-        e.to.nodeId === 'VideoProducer.Duration'
+        e.from.nodeId === 'InputSource:SegmentDuration' &&
+        e.to.nodeId === 'InputSource:VideoProducer.Duration'
     );
     expect(edgeFromSegmentDuration).toBeDefined();
   });

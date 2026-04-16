@@ -23,7 +23,7 @@ inputs:
     type: image
     required: true
 
-artifacts:
+outputs:
   - name: OutputImages
     description: Transformed images by character.
     type: array
@@ -34,7 +34,7 @@ loops:
   - name: character
     countInput: NumCharacters
 
-producers:
+imports:
   - name: ThenImageProducer
     producer: image/image-compose
     loop: character

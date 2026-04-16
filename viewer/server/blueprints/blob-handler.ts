@@ -100,19 +100,19 @@ export async function streamBuildAsset(
     const manifestPath = path.join(movieDir, current.manifestPath);
     const manifestContent = await fs.readFile(manifestPath, "utf8");
     const manifest = JSON.parse(manifestContent) as {
-      artefacts?: Record<string, { blob?: { hash: string; size?: number; mimeType?: string } }>;
+      artifacts?: Record<string, { blob?: { hash: string; size?: number; mimeType?: string } }>;
     };
 
     // Find the artifact
-    const artefact = manifest.artefacts?.[canonicalId];
-    if (!artefact?.blob?.hash) {
+    const artifact = manifest.artifacts?.[canonicalId];
+    if (!artifact?.blob?.hash) {
       res.statusCode = 404;
       res.end("Asset not found");
       return;
     }
 
     // Resolve blob path
-    const { hash, mimeType: blobMimeType, size } = artefact.blob;
+    const { hash, mimeType: blobMimeType, size } = artifact.blob;
     const blobsDir = path.join(movieDir, "blobs");
     const prefix = hash.slice(0, 2);
 

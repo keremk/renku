@@ -1,5 +1,5 @@
 import type {
-  BlueprintArtefactDefinition,
+  BlueprintOutputDefinition,
   BlueprintDocument,
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
@@ -9,6 +9,7 @@ import type {
   ProducerConfig,
 } from '../types.js';
 import { SYSTEM_INPUTS } from '../types.js';
+import { formatCanonicalProducerId } from '../parsing/canonical-ids.js';
 import {
   parseDimensionSelector,
   type DimensionSelector,
@@ -42,8 +43,8 @@ export interface BlueprintGraphNode {
   name: string;
   dimensions: string[];
   input?: BlueprintInputDefinition;
-  artefact?: BlueprintArtefactDefinition;
-  output?: BlueprintArtefactDefinition;
+  artifact?: BlueprintOutputDefinition;
+  output?: BlueprintOutputDefinition;
   producer?: ProducerConfig;
 }
 
@@ -234,13 +235,13 @@ function collectLocalNodeDimensions(
     registerLocalDims(edge.from, localDims);
     registerLocalDims(edge.to, localDims);
   }
-  for (const artefact of tree.document.artefacts) {
+  for (const artifact of tree.document.outputs) {
     // Handle JSON artifacts with schema decomposition
-    if (artefact.type === 'json' && artefact.schema && artefact.arrays) {
+    if (artifact.type === 'json' && artifact.schema && artifact.arrays) {
       const decomposed = decomposeJsonSchema(
-        artefact.schema,
-        artefact.name,
-        artefact.arrays
+        artifact.schema,
+        artifact.name,
+        artifact.arrays
       );
       for (const field of decomposed) {
         if (field.dimensions.length === 0) {
@@ -255,15 +256,15 @@ function collectLocalNodeDimensions(
           );
         }
       }
-    } else if (artefact.countInput) {
+    } else if (artifact.countInput) {
       // Handle regular artifacts with countInput
-      const existing = localDims.get(artefact.name);
+      const existing = localDims.get(artifact.name);
       if (!existing || existing.length === 0) {
         localDims.set(
-          artefact.name,
+          artifact.name,
           createDimensionSymbols(
-            [artefact.countInput],
-            `Artefact "${artefact.name}"`
+            [artifact.countInput],
+            `Artifact "${artifact.name}"`
           )
         );
       }
@@ -524,7 +525,7 @@ function collectGraphNodes(
   tree: BlueprintTreeNode,
   namespaceDims: Map<string, DimensionSymbol[]>,
   localDims: Map<BlueprintTreeNode, LocalNodeDims>,
-  output: BlueprintGraphNode[],
+  nodes: BlueprintGraphNode[],
   namespaceMembership: Map<string, string>
 ): void {
   const namespaceSlots = collectNamespacePrefixDims(
@@ -532,183 +533,155 @@ function collectGraphNodes(
     namespaceDims
   );
   const local = localDims.get(tree) ?? new Map();
-  // Create Input nodes from input definitions
   const inputNames = new Set(tree.document.inputs.map((input) => input.name));
+
   for (const input of tree.document.inputs) {
-    const nodeKey = nodeId(tree.namespacePath, input.name);
-    const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
-    namespaceQualified.forEach((symbol, index) => {
-      registerNamespaceSymbol(
-        symbol,
-        namespaceSlots[index]!,
-        namespaceMembership
-      );
-    });
-    const localSymbols = toLocalSlots(nodeKey, local.get(input.name) ?? []);
-    const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
-    output.push({
-      id: nodeKey,
-      type: 'InputSource',
-      namespacePath: tree.namespacePath,
+    pushGraphNode({
+      nodes,
+      kind: 'InputSource',
+      tree,
+      namespaceSlots,
+      local,
+      namespaceMembership,
       name: input.name,
-      dimensions: [...namespaceQualified, ...localQualified],
       input,
     });
   }
 
   // Create Input nodes for constant-indexed input references (e.g., ReferenceImages[0])
-  // These are registered in local dims by collectConstantIndexedInputs
   for (const [localName] of local) {
-    // Check if this is a constant-indexed input reference
     const match = localName.match(/^([A-Za-z_][A-Za-z0-9_]*)(\[\d+\]+)$/);
     if (!match) {
       continue;
     }
     const baseName = match[1];
-    // Only create if the base input exists
     if (!inputNames.has(baseName)) {
       continue;
     }
-    // Find the base input definition
     const baseInput = tree.document.inputs.find(
       (input) => input.name === baseName
     );
     if (!baseInput) {
       continue;
     }
-    const nodeKey = nodeId(tree.namespacePath, localName);
-    const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
-    namespaceQualified.forEach((symbol, index) => {
-      registerNamespaceSymbol(
-        symbol,
-        namespaceSlots[index]!,
-        namespaceMembership
-      );
-    });
-    const localSymbols = toLocalSlots(nodeKey, local.get(localName) ?? []);
-    const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
-    output.push({
-      id: nodeKey,
-      type: 'InputSource',
-      namespacePath: tree.namespacePath,
+    pushGraphNode({
+      nodes,
+      kind: 'InputSource',
+      tree,
+      namespaceSlots,
+      local,
+      namespaceMembership,
       name: localName,
-      dimensions: [...namespaceQualified, ...localQualified],
-      input: baseInput, // Use the base input's definition
+      input: baseInput,
     });
   }
-  for (const artefact of tree.document.artefacts) {
-    const isProducerBlueprint =
-      tree.document.meta.kind === 'producer' ||
-      (tree.children.size === 0 && tree.document.producers.length > 0);
-    const artifactNodeKind: NodeKind = isProducerBlueprint
-      ? 'Artifact'
-      : 'Output';
 
-    // Handle JSON artifacts with schema decomposition
-    if (artefact.type === 'json' && artefact.schema && artefact.arrays) {
-      const decomposed = decomposeJsonSchema(
-        artefact.schema,
-        artefact.name,
-        artefact.arrays
-      );
-      for (const field of decomposed) {
-        const fieldNodeKey = nodeId(tree.namespacePath, field.path);
-        const namespaceQualified = qualifyDimensionSlots(
-          fieldNodeKey,
-          namespaceSlots
-        );
-        namespaceQualified.forEach((symbol, index) => {
-          registerNamespaceSymbol(
-            symbol,
-            namespaceSlots[index]!,
-            namespaceMembership
-          );
-        });
-        // Use decomposed field's dimensions
-        const localSymbols = toLocalSlots(
-          fieldNodeKey,
-          local.get(field.path) ?? []
-        );
-        const localQualified = qualifyDimensionSlots(
-          fieldNodeKey,
-          localSymbols
-        );
-        // Create artefact definition for this decomposed field
-        const fieldArtefact: BlueprintArtefactDefinition = {
-          name: field.path,
-          type: field.type,
-          required: artefact.required,
-          description: artefact.description,
-        };
-        output.push({
-          id: fieldNodeKey,
-          type: artifactNodeKind,
-          namespacePath: tree.namespacePath,
-          name: field.path,
-          dimensions: [...namespaceQualified, ...localQualified],
-          ...(artifactNodeKind === 'Artifact'
-            ? { artefact: fieldArtefact }
-            : { output: fieldArtefact }),
+  for (const outputDefinition of tree.document.outputs) {
+    for (const expandedOutput of expandOutputDefinitions(outputDefinition)) {
+      pushGraphNode({
+        nodes,
+        kind: 'Output',
+        tree,
+        namespaceSlots,
+        local,
+        namespaceMembership,
+        name: expandedOutput.name,
+        outputDefinition: expandedOutput,
+      });
+
+      if (tree.document.meta.kind === 'producer') {
+        pushGraphNode({
+          nodes,
+          kind: 'Artifact',
+          tree,
+          namespaceSlots,
+          local,
+          namespaceMembership,
+          name: expandedOutput.name,
+          artifact: expandedOutput,
         });
       }
-    } else {
-      // Handle regular artifacts
-      const nodeKey = nodeId(tree.namespacePath, artefact.name);
-      const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
-      namespaceQualified.forEach((symbol, index) => {
-        registerNamespaceSymbol(
-          symbol,
-          namespaceSlots[index]!,
-          namespaceMembership
-        );
-      });
-      const localSymbols = toLocalSlots(
-        nodeKey,
-        local.get(artefact.name) ?? []
-      );
-      const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
-      output.push({
-        id: nodeKey,
-        type: artifactNodeKind,
-        namespacePath: tree.namespacePath,
-        name: artefact.name,
-        dimensions: [...namespaceQualified, ...localQualified],
-        ...(artifactNodeKind === 'Artifact'
-          ? { artefact }
-          : { output: artefact }),
-      });
     }
   }
+
   for (const producer of tree.document.producers) {
-    const nodeKey = nodeId(tree.namespacePath, producer.name);
-    const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
-    namespaceQualified.forEach((symbol, index) => {
-      registerNamespaceSymbol(
-        symbol,
-        namespaceSlots[index]!,
-        namespaceMembership
-      );
-    });
-    const localSymbols = toLocalSlots(nodeKey, local.get(producer.name) ?? []);
-    const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
-    output.push({
-      id: nodeKey,
-      type: 'Producer',
-      namespacePath: tree.namespacePath,
+    pushGraphNode({
+      nodes,
+      kind: 'Producer',
+      tree,
+      namespaceSlots,
+      local,
+      namespaceMembership,
       name: producer.name,
-      dimensions: [...namespaceQualified, ...localQualified],
       producer,
     });
   }
+
   for (const child of tree.children.values()) {
     collectGraphNodes(
       child,
       namespaceDims,
       localDims,
-      output,
+      nodes,
       namespaceMembership
     );
   }
+}
+
+function expandOutputDefinitions(
+  definition: BlueprintOutputDefinition
+): BlueprintOutputDefinition[] {
+  if (definition.type !== 'json' || !definition.schema || !definition.arrays) {
+    return [definition];
+  }
+
+  return decomposeJsonSchema(
+    definition.schema,
+    definition.name,
+    definition.arrays
+  ).map((field) => ({
+    name: field.path,
+    type: field.type,
+    required: definition.required,
+    description: definition.description,
+  }));
+}
+
+function pushGraphNode(args: {
+  nodes: BlueprintGraphNode[];
+  kind: NodeKind;
+  tree: BlueprintTreeNode;
+  namespaceSlots: DimensionSlot[];
+  local: LocalNodeDims;
+  namespaceMembership: Map<string, string>;
+  name: string;
+  input?: BlueprintInputDefinition;
+  outputDefinition?: BlueprintOutputDefinition;
+  artifact?: BlueprintOutputDefinition;
+  producer?: ProducerConfig;
+}): void {
+  const nodeKey = nodeGraphId(args.kind, args.tree.namespacePath, args.name);
+  const namespaceQualified = qualifyDimensionSlots(nodeKey, args.namespaceSlots);
+  namespaceQualified.forEach((symbol, index) => {
+    registerNamespaceSymbol(
+      symbol,
+      args.namespaceSlots[index]!,
+      args.namespaceMembership
+    );
+  });
+  const localSymbols = toLocalSlots(nodeKey, args.local.get(args.name) ?? []);
+  const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
+  args.nodes.push({
+    id: nodeKey,
+    type: args.kind,
+    namespacePath: args.tree.namespacePath,
+    name: args.name,
+    dimensions: [...namespaceQualified, ...localQualified],
+    ...(args.input ? { input: args.input } : {}),
+    ...(args.outputDefinition ? { output: args.outputDefinition } : {}),
+    ...(args.artifact ? { artifact: args.artifact } : {}),
+    ...(args.producer ? { producer: args.producer } : {}),
+  });
 }
 
 function collectGraphEdges(
@@ -719,6 +692,9 @@ function collectGraphEdges(
   root: BlueprintTreeNode
 ): void {
   for (const edge of tree.document.edges) {
+    if (isRedundantProducerOutputEdge(tree, edge)) {
+      continue;
+    }
     output.push({
       from: resolveEdgeEndpoint(
         edge.from,
@@ -734,9 +710,130 @@ function collectGraphEdges(
       conditions: edge.conditions,
     });
   }
+
+  if (tree.document.meta.kind === 'producer') {
+    const producer = tree.document.producers[0];
+    if (!producer) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Producer blueprint "${tree.id}" is missing its executable producer definition.`
+      );
+    }
+
+    for (const input of tree.document.inputs) {
+      output.push({
+        from: buildLocalEdgeEndpoint(
+          'InputSource',
+          input.name,
+          tree,
+          namespaceDims,
+          localDims
+        ),
+        to: buildLocalEdgeEndpoint(
+          'Producer',
+          producer.name,
+          tree,
+          namespaceDims,
+          localDims
+        ),
+      });
+    }
+
+    for (const outputDefinition of tree.document.outputs) {
+      for (const expandedOutput of expandOutputDefinitions(outputDefinition)) {
+        output.push({
+          from: buildLocalEdgeEndpoint(
+            'Producer',
+            producer.name,
+            tree,
+            namespaceDims,
+            localDims
+          ),
+          to: buildLocalEdgeEndpoint(
+            'Artifact',
+            expandedOutput.name,
+            tree,
+            namespaceDims,
+            localDims
+          ),
+        });
+        output.push({
+          from: buildLocalEdgeEndpoint(
+            'Artifact',
+            expandedOutput.name,
+            tree,
+            namespaceDims,
+            localDims
+          ),
+          to: buildLocalEdgeEndpoint(
+            'Output',
+            expandedOutput.name,
+            tree,
+            namespaceDims,
+            localDims
+          ),
+        });
+      }
+    }
+  }
+
   for (const child of tree.children.values()) {
     collectGraphEdges(child, namespaceDims, localDims, output, root);
   }
+}
+
+function isRedundantProducerOutputEdge(
+  tree: BlueprintTreeNode,
+  edge: BlueprintDocument['edges'][number]
+): boolean {
+  if (tree.document.meta.kind !== 'producer') {
+    return false;
+  }
+
+  const producerNames = new Set(
+    (tree.document.producers ?? []).map((producer) => producer.name)
+  );
+  const outputNames = new Set(
+    expandAllOutputNames(tree.document.outputs ?? [])
+  );
+
+  const fromBaseName = stripReferenceIndices(edge.from.split('.')[0] ?? edge.from);
+  const toBaseName = stripReferenceIndices(edge.to.split('.')[0] ?? edge.to);
+
+  return producerNames.has(fromBaseName) && outputNames.has(toBaseName);
+}
+
+function expandAllOutputNames(
+  outputs: BlueprintOutputDefinition[]
+): string[] {
+  return outputs.flatMap((output) =>
+    expandOutputDefinitions(output).map((expanded) => expanded.name)
+  );
+}
+
+function buildLocalEdgeEndpoint(
+  kind: 'InputSource' | 'Output' | 'Artifact' | 'Producer',
+  nodeName: string,
+  tree: BlueprintTreeNode,
+  namespaceDims: Map<string, DimensionSymbol[]>,
+  localDims: Map<BlueprintTreeNode, LocalNodeDims>
+): BlueprintGraphEdgeEndpoint {
+  const namespaceSlots = collectNamespacePrefixDims(
+    tree.namespacePath,
+    namespaceDims
+  );
+  const nodeKey = nodeGraphId(kind, tree.namespacePath, nodeName);
+  const ownerLocalDims = localDims.get(tree) ?? new Map();
+  const nodeDims = toLocalSlots(nodeKey, ownerLocalDims.get(nodeName) ?? []);
+  const dimensions = qualifyDimensionSlots(nodeKey, [
+    ...namespaceSlots,
+    ...nodeDims,
+  ]);
+
+  return {
+    nodeId: nodeKey,
+    dimensions,
+  };
 }
 
 function initializeNamespaceParentMap(
@@ -922,7 +1019,8 @@ function resolveEdgeEndpoint(
     nodeName = strippedNodeName;
   }
 
-  const targetNodeId = nodeId(targetPath, nodeName);
+  const targetKind = resolveAuthoredReferenceKind(owner, nodeName);
+  const targetNodeId = nodeGraphId(targetKind, targetPath, nodeName);
 
   // For decomposed artifacts, look up dimensions by the full path
   const nodeDims = toLocalSlots(
@@ -968,6 +1066,24 @@ function resolveEdgeEndpoint(
     selectors: parsedSelectors?.selectors,
     arraySelectors: parsedSelectors?.arraySelectors,
   };
+}
+
+function resolveAuthoredReferenceKind(
+  owner: BlueprintTreeNode,
+  nodeName: string
+): 'InputSource' | 'Output' | 'Producer' {
+  const baseName = stripReferenceIndices(nodeName.split('.')[0] ?? nodeName);
+  if (owner.document.inputs.some((input) => input.name === baseName)) {
+    return 'InputSource';
+  }
+  if (owner.document.producers.some((producer) => producer.name === baseName)) {
+    return 'Producer';
+  }
+  return 'Output';
+}
+
+function stripReferenceIndices(value: string): string {
+  return value.replace(/\[[^\]]+\]/g, '');
 }
 
 function parseAllSelectors(
@@ -1077,11 +1193,18 @@ function formatNamespaceParentKey(
   return `namespace:${normalized}#${ordinal}`;
 }
 
-function nodeId(namespacePath: string[], name: string): string {
-  if (namespacePath.length === 0) {
-    return name;
+function nodeGraphId(
+  kind: 'InputSource' | 'Output' | 'Artifact' | 'Producer',
+  namespacePath: string[],
+  name: string
+): string {
+  if (kind === 'Producer') {
+    return formatCanonicalProducerId(namespacePath, name);
   }
-  return `${namespacePath.join('.')}.${name}`;
+  if (namespacePath.length === 0) {
+    return `${kind}:${name}`;
+  }
+  return `${kind}:${namespacePath.join('.')}.${name}`;
 }
 
 /**
@@ -1148,9 +1271,9 @@ function collectReferencedRootSystemInputs(root: BlueprintTreeNode): Set<string>
   }
 
   // Artifact cardinality references (including JSON array metadata)
-  for (const artefact of root.document.artefacts) {
-    addSystemInputReference(artefact.countInput, referenced);
-    for (const arrayMapping of artefact.arrays ?? []) {
+  for (const artifact of root.document.outputs) {
+    addSystemInputReference(artifact.countInput, referenced);
+    for (const arrayMapping of artifact.arrays ?? []) {
       addSystemInputReference(arrayMapping.countInput, referenced);
     }
   }

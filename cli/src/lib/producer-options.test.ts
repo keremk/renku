@@ -19,7 +19,7 @@ function createBlueprintNode(
 		document: {
 			meta: { id, name: id },
 			inputs: [],
-			artefacts: [],
+			artifacts: [],
 			producers,
 			producerImports: [],
 			edges: [],

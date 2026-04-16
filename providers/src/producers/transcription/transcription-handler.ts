@@ -12,8 +12,8 @@ import type {
   STTOutput,
 } from './types.js';
 
-const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
-const STT_DELEGATE_ARTEFACT_ID = 'Artifact:TranscriptionProducer.SttTranscription';
+const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const STT_DELEGATE_ARTIFACT_ID = 'Artifact:TranscriptionProducer.SttTranscription';
 
 /**
  * Nested model config structure for STT backend.
@@ -67,13 +67,13 @@ export function createTranscriptionHandler(): HandlerFactory {
         if (!produceId) {
           throw createProviderError(
             SdkErrorCode.INVALID_CONFIG,
-            'Transcription producer requires at least one declared artefact output.',
+            'Transcription producer requires at least one declared artifact output.',
             { kind: 'user_input', causedByUser: true },
           );
         }
 
         // Load timeline from input artifact
-        const timeline = runtime.inputs.getByNodeId<TimelineDocument>(TIMELINE_ARTEFACT_ID);
+        const timeline = runtime.inputs.getByNodeId<TimelineDocument>(TIMELINE_ARTIFACT_ID);
         if (!timeline) {
           throw createProviderError(
             SdkErrorCode.MISSING_TIMELINE,
@@ -203,7 +203,7 @@ export function createTranscriptionHandler(): HandlerFactory {
           layerIndex: request.layerIndex,
           attempt: request.attempt,
           inputs: [],
-          produces: [STT_DELEGATE_ARTEFACT_ID],
+          produces: [STT_DELEGATE_ARTIFACT_ID],
           context: {
             providerConfig: {},
             extras: {
@@ -245,8 +245,8 @@ export function createTranscriptionHandler(): HandlerFactory {
 
         return {
           status: 'succeeded',
-          artefacts: [{
-            artefactId: runtime.artefacts.expectBlob(produceId),
+          artifacts: [{
+            artifactId: runtime.artifacts.expectBlob(produceId),
             status: 'succeeded',
             blob: {
               data: Buffer.from(JSON.stringify(transcription, null, 2)),
@@ -322,7 +322,7 @@ function extractSttOutputFromResult(result: import('../../types.js').ProviderRes
     );
   }
 
-  const firstArtifact = result.artefacts?.[0];
+  const firstArtifact = result.artifacts?.[0];
   if (!firstArtifact) {
     throw createProviderError(
       SdkErrorCode.PROVIDER_PREDICTION_FAILED,

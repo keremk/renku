@@ -55,7 +55,7 @@ function parseBooleanText(value: string, artifactId: string): boolean {
 }
 
 function getRequiredBlob(manifest: Manifest, artifactId: string) {
-	const entry = manifest.artefacts[artifactId];
+	const entry = manifest.artifacts[artifactId];
 	if (!entry) {
 		throw new Error(`Missing manifest artifact: ${artifactId}`);
 	}

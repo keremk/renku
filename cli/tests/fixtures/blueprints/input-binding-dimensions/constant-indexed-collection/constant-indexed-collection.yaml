@@ -30,7 +30,7 @@ inputs:
     type: int
     required: true
 
-artifacts:
+outputs:
   - name: CharacterImage
     description: Generated character image.
     type: image
@@ -48,7 +48,7 @@ loops:
     description: Iterates over video clips.
     countInput: NumOfClips
 
-producers:
+imports:
   - name: CharacterImageProducer
     producer: image/text-to-image
   - name: ProductImageProducer

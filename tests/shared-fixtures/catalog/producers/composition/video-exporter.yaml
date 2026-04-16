@@ -20,7 +20,7 @@ inputs:
     type: string
     required: false
 
-artifacts:
+outputs:
   - name: FinalVideo
     description: Final rendered MP4 video.
     type: video

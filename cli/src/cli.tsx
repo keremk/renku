@@ -873,7 +873,7 @@ function printDryRunSummary(
 	const layerMap = buildLayerMap(jobs);
 	if (layerMap.size === 0) {
 		logger.info('Layer breakdown: no jobs scheduled.');
-		logger.info(`Mock artefacts and logs stored under: ${storagePath}`);
+		logger.info(`Mock artifacts and logs stored under: ${storagePath}`);
 		return;
 	}
 
@@ -920,7 +920,7 @@ function printDryRunSummary(
 		}
 	}
 
-	logger.info(`Mock artefacts and logs stored under: ${storagePath}`);
+	logger.info(`Mock artifacts and logs stored under: ${storagePath}`);
 }
 
 function printDryRunValidationSummary(
@@ -976,7 +976,7 @@ function printDryRunValidationSummary(
 							.join('/')}`
 					: 'variation n/a';
 			logger.info(
-				`    ${coverage.field}: ${coverage.matchedArtifacts} artefacts, ${dualOutcome}, ${dimensions}, ${variation}`
+				`    ${coverage.field}: ${coverage.matchedArtifacts} artifacts, ${dualOutcome}, ${dimensions}, ${variation}`
 			);
 		}
 	}

@@ -235,7 +235,7 @@ export function displayCostSummary(
 
 		if (data.hasRanges && data.minCost !== data.maxCost) {
 			costStr = formatCostRange(data.minCost, data.maxCost);
-			annotation = chalk.cyan(' (input from artefact)');
+			annotation = chalk.cyan(' (input from artifact)');
 		} else {
 			costStr = formatCost(data.totalCost);
 			if (data.hasPlaceholders) {
@@ -254,7 +254,7 @@ export function displayCostSummary(
 
 	if (summary.hasRanges && summary.minTotalCost !== summary.maxTotalCost) {
 		totalStr = formatCostRange(summary.minTotalCost, summary.maxTotalCost);
-		totalAnnotation = chalk.cyan(' (some inputs from artefacts)');
+		totalAnnotation = chalk.cyan(' (some inputs from artifacts)');
 	} else {
 		totalStr = formatCost(summary.totalCost);
 		if (summary.hasPlaceholders) {
@@ -322,17 +322,17 @@ export function displayPlanExplanation(
 
 	// Show dirty artifacts
 	logger.info(
-		`${chalk.bold('Dirty Artifacts')} (${explanation.dirtyArtefacts.length}):`
+		`${chalk.bold('Dirty Artifacts')} (${explanation.dirtyArtifacts.length}):`
 	);
-	if (explanation.dirtyArtefacts.length === 0) {
+	if (explanation.dirtyArtifacts.length === 0) {
 		logger.info(`  ${chalk.dim('(none)')}`);
 	} else {
-		for (const artifact of explanation.dirtyArtefacts.slice(0, 20)) {
+		for (const artifact of explanation.dirtyArtifacts.slice(0, 20)) {
 			logger.info(`  ${chalk.dim('•')} ${chalk.magenta(artifact)}`);
 		}
-		if (explanation.dirtyArtefacts.length > 20) {
+		if (explanation.dirtyArtifacts.length > 20) {
 			logger.info(
-				`  ${chalk.dim(`... and ${explanation.dirtyArtefacts.length - 20} more`)}`
+				`  ${chalk.dim(`... and ${explanation.dirtyArtifacts.length - 20} more`)}`
 			);
 		}
 	}
@@ -399,14 +399,14 @@ export function displayPlanExplanation(
 						);
 					}
 					break;
-				case 'touchesDirtyArtefact':
-					if (jobReason.dirtyArtefacts && jobReason.dirtyArtefacts.length > 0) {
-						const artifactsList = jobReason.dirtyArtefacts
+				case 'touchesDirtyArtifact':
+					if (jobReason.dirtyArtifacts && jobReason.dirtyArtifacts.length > 0) {
+						const artifactsList = jobReason.dirtyArtifacts
 							.slice(0, 3)
 							.join(', ');
 						const more =
-							jobReason.dirtyArtefacts.length > 3
-								? ` (+${jobReason.dirtyArtefacts.length - 3} more)`
+							jobReason.dirtyArtifacts.length > 3
+								? ` (+${jobReason.dirtyArtifacts.length - 3} more)`
 								: '';
 						logger.info(
 							`    ${chalk.dim('Dirty artifacts:')} ${artifactsList}${more}`
@@ -477,8 +477,8 @@ function displayRecoverySummary(
 	if (recoverySummary.checkedArtifactIds.length === 0) {
 		logger.info(`    ${chalk.dim('(none)')}`);
 	} else {
-		for (const artefactId of recoverySummary.checkedArtifactIds.slice(0, 10)) {
-			logger.info(`    ${chalk.dim('-')} ${chalk.magenta(artefactId)}`);
+		for (const artifactId of recoverySummary.checkedArtifactIds.slice(0, 10)) {
+			logger.info(`    ${chalk.dim('-')} ${chalk.magenta(artifactId)}`);
 		}
 		if (recoverySummary.checkedArtifactIds.length > 10) {
 			logger.info(
@@ -493,11 +493,11 @@ function displayRecoverySummary(
 	if (recoverySummary.recoveredArtifactIds.length === 0) {
 		logger.info(`    ${chalk.dim('(none)')}`);
 	} else {
-		for (const artefactId of recoverySummary.recoveredArtifactIds.slice(
+		for (const artifactId of recoverySummary.recoveredArtifactIds.slice(
 			0,
 			10
 		)) {
-			logger.info(`    ${chalk.dim('-')} ${chalk.green(artefactId)}`);
+			logger.info(`    ${chalk.dim('-')} ${chalk.green(artifactId)}`);
 		}
 		if (recoverySummary.recoveredArtifactIds.length > 10) {
 			logger.info(
@@ -512,8 +512,8 @@ function displayRecoverySummary(
 	if (recoverySummary.pendingArtifactIds.length === 0) {
 		logger.info(`    ${chalk.dim('(none)')}`);
 	} else {
-		for (const artefactId of recoverySummary.pendingArtifactIds.slice(0, 10)) {
-			logger.info(`    ${chalk.dim('-')} ${chalk.yellow(artefactId)}`);
+		for (const artifactId of recoverySummary.pendingArtifactIds.slice(0, 10)) {
+			logger.info(`    ${chalk.dim('-')} ${chalk.yellow(artifactId)}`);
 		}
 		if (recoverySummary.pendingArtifactIds.length > 10) {
 			logger.info(
@@ -530,7 +530,7 @@ function displayRecoverySummary(
 	} else {
 		for (const failure of recoverySummary.failedRecoveries.slice(0, 10)) {
 			logger.info(
-				`    ${chalk.dim('-')} ${chalk.magenta(failure.artefactId)}: ${failure.reason}`
+				`    ${chalk.dim('-')} ${chalk.magenta(failure.artifactId)}: ${failure.reason}`
 			);
 		}
 		if (recoverySummary.failedRecoveries.length > 10) {
@@ -556,7 +556,7 @@ function formatReasonLabel(reason: string): string {
 			return chalk.cyan('TOUCHES DIRTY INPUTS');
 		case 'latestAttemptFailed':
 			return chalk.red('LATEST ATTEMPT FAILED');
-		case 'touchesDirtyArtefact':
+		case 'touchesDirtyArtifact':
 			return chalk.magenta('TOUCHES DIRTY ARTIFACTS');
 		case 'inputsHashChanged':
 			return chalk.magenta('INPUTS HASH CHANGED');

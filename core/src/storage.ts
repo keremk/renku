@@ -176,7 +176,7 @@ export async function initializeMovieStorage(
   await ensureDirectoryChain(storage, blobsDir);
 
   await ensureFile(storage, path.join(eventsDir, 'inputs.log'), '');
-  await ensureFile(storage, path.join(eventsDir, 'artefacts.log'), '');
+  await ensureFile(storage, path.join(eventsDir, 'artifacts.log'), '');
 
   if (options.seedCurrentJson !== false) {
     await ensureFile(

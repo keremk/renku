@@ -104,9 +104,9 @@ describe('findLatestSucceededArtifactEvent', () => {
         jobId: 'Producer:A',
         producer: 'ProducerA',
         status: 'succeeded',
-        artefacts: [
+        artifacts: [
           {
-            artefactId: 'Artifact:Image.Output',
+            artifactId: 'Artifact:Image.Output',
             revision: 'rev-0001',
             inputsHash: 'inputs-1',
             output: {
@@ -130,9 +130,9 @@ describe('findLatestSucceededArtifactEvent', () => {
         jobId: 'Producer:B',
         producer: 'ProducerB',
         status: 'succeeded',
-        artefacts: [
+        artifacts: [
           {
-            artefactId: 'Artifact:Image.Output',
+            artifactId: 'Artifact:Image.Output',
             revision: 'rev-0002',
             inputsHash: 'inputs-2',
             output: {

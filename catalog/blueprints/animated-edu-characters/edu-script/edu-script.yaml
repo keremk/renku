@@ -29,7 +29,7 @@ inputs:
     description: Animation style description (e.g., "Pixar-style 3D animated").
     type: string
 
-artifacts:
+outputs:
   - name: VideoScript
     description: The generated video script with character definitions.
     type: json

@@ -67,6 +67,6 @@ export interface BuildManifestResponse {
   revision: string | null;
   inputs: Record<string, unknown>;
   models?: ManifestModelSelection[];
-  artefacts: ArtifactInfo[];
+  artifacts: ArtifactInfo[];
   createdAt: string | null;
 }

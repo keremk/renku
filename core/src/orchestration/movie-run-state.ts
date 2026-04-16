@@ -51,13 +51,13 @@ export async function copyLatestSucceededArtifactBlobsToMemory(
   const localEventLog = createEventLog(localStorageContext);
   const latestBlobs = new Map<string, { hash: string; mimeType: string }>();
 
-  for await (const event of localEventLog.streamArtefacts(movieId)) {
+  for await (const event of localEventLog.streamArtifacts(movieId)) {
     if (
       event.status === 'succeeded' &&
       event.output.blob?.hash &&
       event.output.blob.mimeType
     ) {
-      latestBlobs.set(event.artefactId, {
+      latestBlobs.set(event.artifactId, {
         hash: event.output.blob.hash,
         mimeType: event.output.blob.mimeType,
       });

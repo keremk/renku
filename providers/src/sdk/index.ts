@@ -1,6 +1,6 @@
 export * from './types.js';
 export * from './runtime.js';
-export * from './artefacts.js';
+export * from './artifacts.js';
 export * from './errors.js';
 export * from './handler-factory.js';
 export * from './transforms.js';
@@ -15,7 +15,7 @@ export { generateWavWithDuration } from './unified/wav-generator.js';
 
 // FFmpeg extraction exports
 export {
-  extractDerivedArtefacts,
+  extractDerivedArtifacts,
   detectRequiredExtractions,
   needsExtraction,
   checkFfmpegAvailability,

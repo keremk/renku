@@ -136,7 +136,7 @@ function createCorePlanResult() {
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
-      artefacts: {},
+      artifacts: {},
       timeline: {},
     },
     manifestHash: null,

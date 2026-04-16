@@ -117,12 +117,12 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
 				return {
 					jobId: request.job.jobId,
 					status: 'succeeded',
-					artefacts: request.job.produces
+					artifacts: request.job.produces
 						.filter((id: string) => id.startsWith('Artifact:'))
-						.map((artefactId: string) => ({
-							artefactId,
+						.map((artifactId: string) => ({
+							artifactId,
 							blob: {
-								data: `original-data-for-${artefactId}`,
+								data: `original-data-for-${artifactId}`,
 								mimeType: 'text/plain',
 							},
 						})),
@@ -155,7 +155,7 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
 		});
 
 		// Verify all artifacts are in manifest
-		expect(Object.keys(manifest1.artefacts).length).toBeGreaterThanOrEqual(4);
+		expect(Object.keys(manifest1.artifacts).length).toBeGreaterThanOrEqual(4);
 
 		// ============================================================
 		// PHASE 2: Create override inputs.yaml with artifact override

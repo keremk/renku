@@ -22,8 +22,8 @@ _Exit criteria:_ Repo matches the last known-good legacy state plus this plan.
 
 1. **Parser**
    - Replace `cli/src/lib/blueprint-loader/toml-parser.ts` with the new schema that understands:
-     - `[[inputs]]`, `[[artefacts]]`, `[[producers]]`, `[[producers.sdkMapping]]`, `[[producers.outputs]]`, `[[subBlueprints]]`.
-     - `countInput` for artefacts, descriptive metadata, sdk mapping fields, etc.
+     - `[[inputs]]`, `[[artifacts]]`, `[[producers]]`, `[[producers.sdkMapping]]`, `[[producers.outputs]]`, `[[subBlueprints]]`.
+     - `countInput` for artifacts, descriptive metadata, sdk mapping fields, etc.
    - Add coverage in `cli/src/lib/blueprint-loader/toml-parser.test.ts` using the sample blueprints under `cli/blueprints/`.
 
 2. **Bundle loader**
@@ -63,13 +63,13 @@ _Exit criteria:_ CLI commands operate solely on the new schema; the only legacy 
 **Purpose:** Eliminate the legacy cardinality/flattening logic and replace it with the universal node ID model. Core becomes the single source of truth for graph expansion.
 
 1. **Types & Graph Builder**
-   - Extend `core/src/types.ts` with the canonical graph types (node IDs like `Artefact:ScriptGenerator.NarrationScript[i]`, sdk mappings, etc.).
+   - Extend `core/src/types.ts` with the canonical graph types (node IDs like `Artifact:ScriptGenerator.NarrationScript[i]`, sdk mappings, etc.).
    - Port the graph composition logic (currently prototyped in `core/src/blueprint-loader/v2/graph.ts`). This becomes the **only** implementation; remove `flattener.ts` and friends.
 
 2. **Blueprint expansion**
    - Delete `expandBlueprint` / `flattenBlueprint` and replace them with:
      - `buildBlueprintGraph(tree: BlueprintTreeNode)` – already built in Phase 1 tree.
-     - `expandGraph(graph, inputValues)` – enumerates producer/input/artefact instances, handling index notation and node collapsing.
+     - `expandGraph(graph, inputValues)` – enumerates producer/input/artifact instances, handling index notation and node collapsing.
 
 3. **Planner + Runner / Planning Service**
    - Update `createProducerGraph`, `createPlanner`, `mergeResolvedArtifacts`, etc. to use the universal IDs.
@@ -86,7 +86,7 @@ _Exit criteria:_ CLI commands operate solely on the new schema; the only legacy 
    - Update / add tests under `core/src/*` covering:
      - Graph building (dimensions, namespace collapsing).
      - Planner dirty-tracking with the new IDs.
-     - Runner integration (artefact resolution, diagnostics).
+     - Runner integration (artifact resolution, diagnostics).
    - Run `pnpm --filter tutopanda-core test`.
 
 _Exit criteria:_ Core consumes the new tree directly and produces universal node IDs end-to-end; no references to legacy cardinalities remain.
@@ -102,10 +102,10 @@ _Exit criteria:_ Core consumes the new tree directly and produces universal node
      - `inputs`: array of canonical IDs.
      - `inputBindings`: map from human alias (e.g. Prompt) to canonical ID.
      - `sdkMapping`: map from alias → provider field definition.
-     - `produces`: canonical artefact IDs.
+     - `produces`: canonical artifact IDs.
 
 2. **Build pipeline separation**
-   - Aim to move the heavy lifting (resolving artefacts, merging bindings) into core so both CLI and cloud runtimes share the same logic. Expose a helper such as `core.providers.prepareJobContext(planJob, resolvedInputs)` that returns the payload the providers need.
+   - Aim to move the heavy lifting (resolving artifacts, merging bindings) into core so both CLI and cloud runtimes share the same logic. Expose a helper such as `core.providers.prepareJobContext(planJob, resolvedInputs)` that returns the payload the providers need.
    - Update `cli/src/lib/build.ts` to become a thin shell that:
      - Streams jobs from the plan.
      - Calls the new core helper to build provider contexts and diagnostics.
@@ -124,13 +124,13 @@ _Exit criteria:_ Providers receive everything they need (canonical IDs + sdk map
 
 1. **Runtime helpers**
    - Update `providers/src/sdk/runtime.ts` (or add helper modules) to expose:
-     - `runtime.inputs.getByNodeId('Artefact:...')`.
+     - `runtime.inputs.getByNodeId('Artifact:...')`.
      - `runtime.sdk.buildPayload(sdkMapping)`.
    - Fail fast if required fields are missing—no fallbacks.
 
 2. **Producers**
    - `providers/src/producers/llm/openai.ts`: use the new payload builder; drop implicit JSON field inference.
-   - `providers/src/producers/image/replicate-text-to-image.ts`: remove `resolvePrompt` and rely on the canonical artefact IDs.
+   - `providers/src/producers/image/replicate-text-to-image.ts`: remove `resolvePrompt` and rely on the canonical artifact IDs.
    - `providers/src/producers/audio/replicate-audio.ts`: same simplification.
 
 3. **Provider tests**
@@ -170,7 +170,7 @@ Keep this document up to date if we discover new sub-steps or need to adjust sco
 
   Plan:
 
-  1. Collect dimension scopes while building the blueprint graph. For every artefact or producer edge that declares [symbol], record
+  1. Collect dimension scopes while building the blueprint graph. For every artifact or producer edge that declares [symbol], record
      (nodeId, symbol) → source input.
   2. Store scoped keys in resolveDimensionSizes: instead of a flat Map<string, number> keyed by symbol, use Map<string, number> keyed
      by namespaceKey(nodeId, symbol). When resolving edges, derive the same scoped key by walking up the namespace path.
@@ -183,18 +183,18 @@ Keep this document up to date if we discover new sub-steps or need to adjust sco
 
   ### 2. Deterministic Input Collapsing (No Alias Ambiguity)
 
-  Goal: every canonical input/artefact ends up with one ID, matching “Artefact:ScriptGenerator.NarrationScript[i]”.
+  Goal: every canonical input/artifact ends up with one ID, matching “Artifact:ScriptGenerator.NarrationScript[i]”.
 
   Plan:
 
-  1. Restrict collapse to cases where there is exactly one upstream producer/artefact. Instead of throwing when resolveInputAlias sees     multiple inbound edges, choose the canonical artefact that sits at the root of that chain (the child inherits the parent’s ID).
-     This is valid because author intent is “this input is just a passthrough of that artefact”.
-  2. Stop emitting standalone input nodes after collapsing; their canonical ID becomes the upstream artefact ID. Any edges that
+  1. Restrict collapse to cases where there is exactly one upstream producer/artifact. Instead of throwing when resolveInputAlias sees     multiple inbound edges, choose the canonical artifact that sits at the root of that chain (the child inherits the parent’s ID).
+     This is valid because author intent is “this input is just a passthrough of that artifact”.
+  2. Stop emitting standalone input nodes after collapsing; their canonical ID becomes the upstream artifact ID. Any edges that
      previously targeted Input:… now target Artifact:… directly.
-  3. Edge rewrite: while collapsing, rewrite downstream edges so producers refer to the artefact ID; no alias map needed later.
-  4. Validation: if genuinely ambiguous (two different artefacts feeding the same input), we detect it at collapse time and throw with     a clearer error (“Input X receives artefacts A and B; blueprint must disambiguate”). This is the true misconfiguration scenario.
+  3. Edge rewrite: while collapsing, rewrite downstream edges so producers refer to the artifact ID; no alias map needed later.
+  4. Validation: if genuinely ambiguous (two different artifacts feeding the same input), we detect it at collapse time and throw with     a clearer error (“Input X receives artifacts A and B; blueprint must disambiguate”). This is the true misconfiguration scenario.
 
-  Result: each logical artefact/input has one canonical ID, and the rest of the pipeline (planner, runner, providers) never deals with  alias maps.
+  Result: each logical artifact/input has one canonical ID, and the rest of the pipeline (planner, runner, providers) never deals with  alias maps.
 
   ———
 
@@ -213,7 +213,7 @@ Keep this document up to date if we discover new sub-steps or need to adjust sco
   ### 4. Validation & Tests
 
   1. Add integration fixture that mirrors image-only.toml (segment loop feeding prompt generator, which feeds image
-     generator). Expand it via expandBlueprintGraph to ensure no duplicate IDs and that artefact IDs look like
+     generator). Expand it via expandBlueprintGraph to ensure no duplicate IDs and that artifact IDs look like
      Artifact:ScriptGenerator.NarrationScript[segment=0].
   2. Add regression test in core runner to confirm resolvedInputs contains only canonical keys and providers receive the expected
      payload.

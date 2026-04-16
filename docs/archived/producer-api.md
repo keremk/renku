@@ -134,8 +134,8 @@ interface ProviderAttachment {
 }
 
 interface ProviderResult {
-  status?: ArtefactEventStatus;
-  artefacts: ProducedArtefact[];
+  status?: ArtifactEventStatus;
+  artifacts: ProducedArtifact[];
   diagnostics?: Record<string, unknown>;
 }
 ```
@@ -169,9 +169,9 @@ interface ProviderLogger {
 
 Instantiating the registry with `mode: 'mock'` activates the wildcard mock implementation:
 
-- `mock-producers.ts` returns handlers that generate deterministic artefacts using `mock-output.ts`.
-- Artefacts include inline summaries for text-based outputs and text blobs describing binary placeholders for media artefacts (audio, video, images, etc.).
-- Diagnostics capture the request metadata so downstream components can tell that the artefact originated from mock mode.
+- `mock-producers.ts` returns handlers that generate deterministic artifacts using `mock-output.ts`.
+- Artifacts include inline summaries for text-based outputs and text blobs describing binary placeholders for media artifacts (audio, video, images, etc.).
+- Diagnostics capture the request metadata so downstream components can tell that the artifact originated from mock mode.
 
 This allows end-to-end CLI runs and tests without network calls or billing.
 

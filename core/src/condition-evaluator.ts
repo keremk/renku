@@ -153,6 +153,7 @@ function evaluateConditionClause(
     const { inputId, fieldPath, exactInputId } = resolveInputConditionPath(
       clause.when,
       indices,
+      context.resolvedInputs,
     );
     const inputValue =
       context.resolvedInputs?.[exactInputId] ??
@@ -405,12 +406,33 @@ function resolveIndexedCanonicalId(
 function resolveInputConditionPath(
   whenPath: string,
   indices: Record<string, number>,
+  resolvedInputs: Record<string, unknown> | undefined,
 ): { inputId: string; fieldPath: string[]; exactInputId: string } {
   const exactInputId = resolveIndexedCanonicalId(whenPath, indices);
+  if (resolvedInputs?.[exactInputId] !== undefined) {
+    return {
+      inputId: exactInputId,
+      fieldPath: [],
+      exactInputId,
+    };
+  }
   const body = exactInputId.slice('Input:'.length);
-  const trailingIndices = body.match(/(\[\d+\])+$/)?.[0] ?? '';
+  const segments = splitPathWithIndices(body);
 
-  if (!trailingIndices) {
+  for (let prefixLength = segments.length; prefixLength >= 1; prefixLength -= 1) {
+    const candidateBody = joinPathSegments(segments.slice(0, prefixLength));
+    const candidateInputId = `Input:${candidateBody}`;
+    if (resolvedInputs?.[candidateInputId] === undefined) {
+      continue;
+    }
+    return {
+      inputId: candidateInputId,
+      fieldPath: segments.slice(prefixLength),
+      exactInputId,
+    };
+  }
+
+  if (segments.length <= 1) {
     return {
       inputId: exactInputId,
       fieldPath: [],
@@ -418,14 +440,20 @@ function resolveInputConditionPath(
     };
   }
 
-  const inputBody = body.slice(0, body.length - trailingIndices.length);
-  const fieldPath = trailingIndices.match(/\[\d+\]/g) ?? [];
-
   return {
-    inputId: `Input:${inputBody}`,
-    fieldPath,
+    inputId: `Input:${segments[0]}`,
+    fieldPath: segments.slice(1),
     exactInputId,
   };
+}
+
+function joinPathSegments(segments: string[]): string {
+  return segments.reduce((path, segment) => {
+    if (segment.startsWith('[')) {
+      return `${path}${segment}`;
+    }
+    return path.length === 0 ? segment : `${path}.${segment}`;
+  }, '');
 }
 
 /**

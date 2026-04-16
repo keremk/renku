@@ -69,7 +69,7 @@ export function createProviderProduce(
       return {
         jobId: request.job.jobId,
         status: 'skipped',
-        artefacts: [],
+        artifacts: [],
       } satisfies ProduceResult;
     }
 
@@ -256,7 +256,7 @@ export function createProviderProduce(
     return {
       jobId: request.job.jobId,
       status: response.status ?? 'succeeded',
-      artefacts: response.artefacts,
+      artifacts: response.artifacts,
       diagnostics,
     } satisfies ProduceResult;
   };

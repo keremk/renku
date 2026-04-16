@@ -527,12 +527,12 @@ function deriveArrayLengthsFromProduces(
   const lengths = new Map<string, number[]>();
   const namespaceOrdinalDepth = countBracketSegments(request.jobId);
 
-  for (const artefactId of request.produces) {
+  for (const artifactId of request.produces) {
     // Extract array fields with their ordinals from the artifact path
     // For "Artifact:DocProducer.VideoScript.Segments[0].UseNarrationAudio"
     // we need to associate ordinal [0] with field "Segments", not "UseNarrationAudio"
     const arrayFields = extractArrayFieldsFromPath(
-      artefactId,
+      artifactId,
       namespaceOrdinalDepth
     );
 
@@ -572,14 +572,14 @@ function deriveArrayLengthsFromProduces(
  * → [{ fieldName: "ImagePrompt", ordinals: [1] }] (first ordinal [0] skipped as namespace)
  */
 function extractArrayFieldsFromPath(
-  artefactId: string,
+  artifactId: string,
   skipOrdinalCount: number
 ): Array<{ fieldName: string; ordinals: number[] }> {
-  if (!artefactId.startsWith('Artifact:')) {
+  if (!artifactId.startsWith('Artifact:')) {
     return [];
   }
 
-  const path = artefactId.slice('Artifact:'.length);
+  const path = artifactId.slice('Artifact:'.length);
   const results: Array<{ fieldName: string; ordinals: number[] }> = [];
 
   // Find all field[ordinal] patterns, including consecutive brackets

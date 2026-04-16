@@ -88,7 +88,7 @@ describe('artifact materialization', () => {
         baseRevision: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         inputs: {},
-        artefacts: {
+        artifacts: {
           'Artifact:CharacterImageProducer.GeneratedImage[0]': {
             hash: 'digest-1',
             blob: {
@@ -147,7 +147,7 @@ describe('artifact materialization', () => {
         baseRevision: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         inputs: {},
-        artefacts: {
+        artifacts: {
           'Artifact:AudioProducer.GeneratedAudio[0]': {
             hash: 'digest-2',
             blob: {

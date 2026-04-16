@@ -22,7 +22,7 @@ inputs:
     type: integer
     required: true
 
-artifacts:
+outputs:
   - name: GeneratedMusic
     description: The generated music audio.
     type: audio

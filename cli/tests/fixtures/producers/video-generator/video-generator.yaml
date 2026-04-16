@@ -23,7 +23,7 @@ inputs:
     type: integer
     required: true
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The generated video.
     type: video

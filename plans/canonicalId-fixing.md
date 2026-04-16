@@ -84,11 +84,11 @@ Canonical ID System Critique
 
   The same validation is repeated 10+ times:
   // planner.ts:94
-  const artefactInputs = node.inputs.filter((input) => input.startsWith('Artifact:'));
+  const artifactInputs = node.inputs.filter((input) => input.startsWith('Artifact:'));
 
   // planner.ts:123
   const producesMissing = info.node.produces.some(
-    (id) => id.startsWith('Artifact:') && manifest.artefacts[id] === undefined,
+    (id) => id.startsWith('Artifact:') && manifest.artifacts[id] === undefined,
   );
 
   // planner.ts:339
@@ -151,8 +151,8 @@ Canonical ID System Critique
 
   Location: cli/src/lib/friendly-view.ts:179-193
 
-  function toFriendlyFileName(artefactId: string, mimeType?: string): string {
-    const trimmed = artefactId.replace(/^Artifact:/, '').trim();
+  function toFriendlyFileName(artifactId: string, mimeType?: string): string {
+    const trimmed = artifactId.replace(/^Artifact:/, '').trim();
     const withoutNamespace = trimmed.includes('.')
       ? trimmed.slice(trimmed.lastIndexOf('.') + 1)
       : trimmed;

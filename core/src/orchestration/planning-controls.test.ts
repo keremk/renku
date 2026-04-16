@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RuntimeErrorCode } from '../errors/index.js';
 import type {
-  ArtefactEvent,
+  ArtifactEvent,
   Manifest,
   ProducerGraph,
   ProducerGraphNode,
@@ -79,7 +79,7 @@ function buildManifest(): Manifest {
     baseRevision: null,
     createdAt: new Date().toISOString(),
     inputs: {},
-    artefacts: {
+    artifacts: {
       'Artifact:Script[0]': {
         hash: 'h-script-0',
         producedBy: 'Producer:ScriptProducer',
@@ -117,11 +117,11 @@ function buildManifest(): Manifest {
 
 function buildLatestSnapshot(): LatestArtifactSnapshot {
   const manifest = buildManifest();
-  const latestById = new Map<string, ArtefactEvent>(
-    Object.entries(manifest.artefacts).map(([artifactId, entry]) => [
+  const latestById = new Map<string, ArtifactEvent>(
+    Object.entries(manifest.artifacts).map(([artifactId, entry]) => [
       artifactId,
       {
-        artefactId: artifactId,
+        artifactId: artifactId,
         revision: manifest.revision,
         inputsHash: 'inputs-hash',
         output: {},
@@ -134,7 +134,7 @@ function buildLatestSnapshot(): LatestArtifactSnapshot {
 
   return {
     latestById,
-    latestSuccessfulIds: new Set(Object.keys(manifest.artefacts)),
+    latestSuccessfulIds: new Set(Object.keys(manifest.artifacts)),
     latestFailedIds: new Set<string>(),
   };
 }

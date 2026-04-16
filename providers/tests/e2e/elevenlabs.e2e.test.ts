@@ -73,12 +73,12 @@ describeIf('ElevenLabs provider integration', () => {
     const result = await handler.invoke(request);
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
-    expect(result.artefacts[0]?.blob?.mimeType).toBe('audio/mp3');
-    expect(result.artefacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.blob?.mimeType).toBe('audio/mp3');
+    expect(result.artifacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
 
-    if (result.artefacts[0]?.blob?.data) {
-      saveTestArtifact('elevenlabs-tts-output.mp3', result.artefacts[0].blob.data);
+    if (result.artifacts[0]?.blob?.data) {
+      saveTestArtifact('elevenlabs-tts-output.mp3', result.artifacts[0].blob.data);
     }
   }, 60000);
 
@@ -124,12 +124,12 @@ describeIf('ElevenLabs provider integration', () => {
     const result = await handler.invoke(request);
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
-    expect(result.artefacts[0]?.blob?.mimeType).toBe('audio/mp3');
-    expect(result.artefacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.blob?.mimeType).toBe('audio/mp3');
+    expect(result.artifacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
 
-    if (result.artefacts[0]?.blob?.data) {
-      saveTestArtifact('elevenlabs-multilingual-output.mp3', result.artefacts[0].blob.data);
+    if (result.artifacts[0]?.blob?.data) {
+      saveTestArtifact('elevenlabs-multilingual-output.mp3', result.artifacts[0].blob.data);
     }
   }, 60000);
 
@@ -175,12 +175,12 @@ describeIf('ElevenLabs provider integration', () => {
     const result = await handler.invoke(request);
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
-    expect(result.artefacts[0]?.blob?.mimeType).toBe('audio/mp3');
-    expect(result.artefacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.blob?.mimeType).toBe('audio/mp3');
+    expect(result.artifacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
 
-    if (result.artefacts[0]?.blob?.data) {
-      saveTestArtifact('elevenlabs-music-output.mp3', result.artefacts[0].blob.data);
+    if (result.artifacts[0]?.blob?.data) {
+      saveTestArtifact('elevenlabs-music-output.mp3', result.artifacts[0].blob.data);
     }
   }, 180000); // Music generation can take longer
 });

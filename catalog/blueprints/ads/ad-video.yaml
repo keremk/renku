@@ -45,7 +45,7 @@ inputs:
     type: string
     required: false
 
-artifacts:
+outputs:
   - name: CharacterImage
     description: Generated character image used as base for video clips.
     type: image
@@ -77,7 +77,7 @@ loops:
     description: Iterates over video clips.
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: AdScriptProducer
     path: ./ad-script/ad-script.yaml
   - name: CharacterImageProducer

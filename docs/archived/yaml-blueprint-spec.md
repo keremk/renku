@@ -6,7 +6,7 @@ This document defines the YAML surface that replaces the legacy TOML blueprints.
 
 ## 1. Repository layout
 - **Top-level blueprints** live in `catalog/blueprints/*.yaml`. Each file describes a public workflow the CLI can execute (audio-only, image-only, image+audio, etc.).
-- **Modules** live under `catalog/blueprints/modules/`. A module contains reusable node definitions (inputs, artefacts, producers) and can itself import other modules.
+- **Modules** live under `catalog/blueprints/modules/`. A module contains reusable node definitions (inputs, artifacts, producers) and can itself import other modules.
 - **Prompt definitions** for LLM producers live in `catalog/blueprints/modules/prompts/*.toml`.
 - **JSON schemas** referenced by those prompts live in `catalog/blueprints/modules/schemas/*.json`.
 
@@ -47,7 +47,7 @@ Rules:
 - `type` is a free-form string that flows through to validation/UI and eventually the providers.
 
 ### 2.3 `artifacts`
-Array of artefact definitions:
+Array of artifact definitions:
 ```yaml
 artifacts:
   - name: SegmentImage
@@ -58,8 +58,8 @@ artifacts:
 ```
 Rules:
 - Names must be unique.
-- `countInput` is how the parser knows the cardinality of a multi-instance artefact. It should point at an input declared in the same file.
-- Artefacts inherit the namespace of the file (or module) in which they appear.
+- `countInput` is how the parser knows the cardinality of a multi-instance artifact. It should point at an input declared in the same file.
+- Artifacts inherit the namespace of the file (or module) in which they appear.
 
 ### 2.4 `loops`
 Loops declare human-friendly dimension symbols:
@@ -92,7 +92,7 @@ modules:
 - Cycles are rejected when the loader builds the tree.
 
 ### 2.6 `connections`
-Edges wire inputs, producers, and artefacts:
+Edges wire inputs, producers, and artifacts:
 ```yaml
 connections:
   - from: InquiryPrompt
@@ -120,10 +120,10 @@ collectors:
     groupBy: segment
     orderBy: image
 ```
-- The parser validates that `from` points at one or more artefact nodes and `into` references an input node. It marks the target input as `fanIn: true` so downstream consumers know to expect an array of canonical IDs.
-- `groupBy` is required and must match a loop declared in the current file. This tells the runtime how to bucket artefacts (e.g., all `segment=0` images belong together).
+- The parser validates that `from` points at one or more artifact nodes and `into` references an input node. It marks the target input as `fanIn: true` so downstream consumers know to expect an array of canonical IDs.
+- `groupBy` is required and must match a loop declared in the current file. This tells the runtime how to bucket artifacts (e.g., all `segment=0` images belong together).
 - `orderBy` is optional metadata describing the secondary sort key within each group.
-- During expansion the collector rewrites edges so producers receive a collection keyed by `groupBy`. No ad-hoc alias maps are needed—producers simply iterate over the array of canonical artefact IDs.
+- During expansion the collector rewrites edges so producers receive a collection keyed by `groupBy`. No ad-hoc alias maps are needed—producers simply iterate over the array of canonical artifact IDs.
 
 ### 2.8 `producers`
 Module YAML files define their producers inline:
@@ -172,19 +172,19 @@ producers:
 2. Parse `meta`, `inputs`, `artifacts`, `loops`, `modules`, `connections`, `collectors`, and `producers`.
 3. Validate:
    - Optional inputs must have defaults.
-   - Artefacts have unique names.
+   - Artifacts have unique names.
    - Loop names are unique.
    - Connection references do **not** use `@` and only mention dimensions declared in the current file.
 4. Load external TOML/JSON resources via FlyStorage.
 5. Return a `BlueprintDocument` with:
-   - `meta`, `inputs`, `artefacts`, `producers`, `subBlueprints`, `edges`.
+   - `meta`, `inputs`, `artifacts`, `producers`, `subBlueprints`, `edges`.
    - Sub-blueprints keep the `loop` property for future use, but canonical graph expansion still relies solely on the node IDs expressed in the `edges`.
 
 --- 
 
 ## 6. Authoring checklist
 1. Declare every user-facing input in `inputs`.
-2. For any repeated artefact, add a `countInput`.
+2. For any repeated artifact, add a `countInput`.
 3. Use `loops` to name dimension symbols; reference them with `[symbol]` everywhere.
 4. Import shared logic through `modules` and keep their namespaces consistent.
 5. Wire everything with `connections` using the `[symbol]` notation—no `@` shortcuts.

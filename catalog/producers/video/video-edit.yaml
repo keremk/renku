@@ -34,7 +34,7 @@ inputs:
     description: Resolution as width/height pixel dimensions.
     type: resolution
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The edited video.
     type: video

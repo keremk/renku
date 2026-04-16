@@ -31,7 +31,7 @@ inputs:
     description: Video resolution in pixel dimensions.
     type: resolution
 
-artifacts:
+outputs:
   - name: CharacterImage
     description: Generated character images for each segment.
     type: array
@@ -62,7 +62,7 @@ loops:
     description: Iterates over character segments.
     countInput: NumOfSegments
 
-producers:
+imports:
   # Script and character generation
   - name: EduScriptProducer
     path: ./edu-script/edu-script.yaml

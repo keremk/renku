@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ProducedArtefact } from '@gorenku/core';
+import type { ProducedArtifact } from '@gorenku/core';
 import type { ProviderMode } from '../../types.js';
 import { generateMockPng } from './png-generator.js';
 
@@ -42,7 +42,7 @@ export interface RequiredPanelExtractions {
 
 export interface PanelExtractionResult {
   /** Array of produced artifacts, one per panel */
-  panels: ProducedArtefact[];
+  panels: ProducedArtifact[];
 }
 
 // Cache for ffmpeg/ffprobe availability check
@@ -195,13 +195,13 @@ export async function extractPanelImages(options: PanelExtractionOptions): Promi
     const panelHeight = Math.floor(imageDimensions.height / gridDimensions.rows);
 
     // Extract each requested panel
-    const panels: ProducedArtefact[] = [];
+    const panels: ProducedArtifact[] = [];
     for (const [panelIndex, artifactId] of extractions.panels) {
       // Validate panel index is within grid bounds
       const totalPanels = gridDimensions.cols * gridDimensions.rows;
       if (panelIndex < 0 || panelIndex >= totalPanels) {
         panels.push({
-          artefactId: artifactId,
+          artifactId: artifactId,
           status: 'failed',
           diagnostics: {
             extraction: 'panel',
@@ -245,7 +245,7 @@ async function extractSinglePanel(
   gridDimensions: GridDimensions,
   panelWidth: number,
   panelHeight: number,
-): Promise<ProducedArtefact> {
+): Promise<ProducedArtifact> {
   // Calculate position (reading order: left-to-right, top-to-bottom)
   const col = panelIndex % gridDimensions.cols;
   const row = Math.floor(panelIndex / gridDimensions.cols);
@@ -266,7 +266,7 @@ async function extractSinglePanel(
     ]);
 
     return {
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'succeeded',
       blob: {
         data: buffer,
@@ -282,7 +282,7 @@ async function extractSinglePanel(
     };
   } catch (error) {
     return {
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'failed',
       diagnostics: {
         extraction: 'panel',
@@ -331,7 +331,7 @@ function generateMockPanelResult(
   extractions: RequiredPanelExtractions,
   gridDimensions: GridDimensions,
 ): PanelExtractionResult {
-  const panels: ProducedArtefact[] = [];
+  const panels: ProducedArtifact[] = [];
 
   for (const [panelIndex, artifactId] of extractions.panels) {
     const col = panelIndex % gridDimensions.cols;
@@ -345,7 +345,7 @@ function generateMockPanelResult(
     };
 
     panels.push({
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'succeeded',
       blob: {
         data: generateMockPng(100, 100, color),
@@ -367,11 +367,11 @@ function generateMockPanelResult(
  * Generate skipped panel extraction results when ffmpeg is not available.
  */
 function generateSkippedPanelResult(extractions: RequiredPanelExtractions, reason: string): PanelExtractionResult {
-  const panels: ProducedArtefact[] = [];
+  const panels: ProducedArtifact[] = [];
 
   for (const [panelIndex, artifactId] of extractions.panels) {
     panels.push({
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'skipped',
       diagnostics: {
         reason,
@@ -392,11 +392,11 @@ function generateFailedPanelResult(
   reason: string,
   errorMessage: string,
 ): PanelExtractionResult {
-  const panels: ProducedArtefact[] = [];
+  const panels: ProducedArtifact[] = [];
 
   for (const [panelIndex, artifactId] of extractions.panels) {
     panels.push({
-      artefactId: artifactId,
+      artifactId: artifactId,
       status: 'failed',
       diagnostics: {
         reason,

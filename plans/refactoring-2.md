@@ -58,11 +58,11 @@ Understood: no aliases, no lookup magic. Producer inputs that are wired to upstr
      dropping any self-references.
   3. Adjust provider-context/runner if needed to stop injecting mirror entries for connected inputs.
   4. Add tests:
-      - Planner test with a producer input connected to an upstream artefact asserting inputBindings and sdkMapping use that artefact
+      - Planner test with a producer input connected to an upstream artifact asserting inputBindings and sdkMapping use that artifact
         ID, not Input:Producer.*.
       - Fan-in test ensuring aggregated canonical input is used for sdkMapping.
       - Regression test for the AudioProducer path (TextInput wired to NarrationScript) verifying the emitted plan and that
-        runtime.sdk.buildPayload succeeds with resolved artefacts.
+        runtime.sdk.buildPayload succeeds with resolved artifacts.
 
   Let me know if this architecture matches your intent; I’ll then apply it end-to-end with the guardrails above.
 
@@ -76,38 +76,38 @@ Understood: no aliases, no lookup magic. Producer inputs that are wired to upstr
   What the job carries for fan-in
 
   - job.inputs: includes the canonical aggregated input ID (Input:TimelineComposer.VideoSegments). We do NOT replace it with any
-    single artefact ID because it’s many->one.
+    single artifact ID because it’s many->one.
   - job.context.fanIn: a map describing the aggregation for that input, e.g.:
       - key: Input:TimelineComposer.VideoSegments
       - value: { groupBy: "segment", members: [{ id: "Artifact:VideoProducer.SegmentVideo[0]", group: 0 }, { id:
         "Artifact:VideoProducer.SegmentVideo[1]", group: 1 }, …] }
-  - No aliases/self-bindings are added. The fan-in descriptor is the canonical linkage to upstream artefacts.
+  - No aliases/self-bindings are added. The fan-in descriptor is the canonical linkage to upstream artifacts.
 
   What the runner provides at runtime for fan-in
 
-  - It resolves each member artefact ID to its payload and stores those in resolvedInputs keyed by the artefact IDs (e.g.,
+  - It resolves each member artifact ID to its payload and stores those in resolvedInputs keyed by the artifact IDs (e.g.,
     Artifact:VideoProducer.SegmentVideo[0] → blob data).
   - It also injects the grouped collection under the aggregated input key, e.g. resolvedInputs['Input:TimelineComposer.VideoSegments']
     = { groupBy: 'segment', groups: [['Artifact:VideoProducer.SegmentVideo[0]'], ['Artifact:VideoProducer.SegmentVideo[1]'], …] }.
   - So the provider sees:
       - The aggregated, canonical input value at Input:TimelineComposer.VideoSegments.
-      - Each upstream artefact value keyed by its canonical artefact ID.
+      - Each upstream artifact value keyed by its canonical artifact ID.
   - No aliases, no lookups: everything is canonical and explicit.
 
   What sdkMapping should use
 
-  - For 1:1: map directly to the upstream canonical artefact/input (e.g., Artifact:ScriptProducer.NarrationScript[0]).
+  - For 1:1: map directly to the upstream canonical artifact/input (e.g., Artifact:ScriptProducer.NarrationScript[0]).
   - For fan-in: map to the aggregated canonical input (Input:TimelineComposer.VideoSegments). If the producer needs blobs, it can read
-    the artefact IDs from that grouped structure and then use the artefact entries already present in resolvedInputs.
+    the artifact IDs from that grouped structure and then use the artifact entries already present in resolvedInputs.
 
   Why we keep the aggregated input in fan-in
 
-  - It’s the only canonical handle for the collection; there is no single upstream artefact to substitute.
+  - It’s the only canonical handle for the collection; there is no single upstream artifact to substitute.
   - Removing it would lose grouping metadata and break the many->one aggregation contract.
 
   Edge cases called out
 
-  - Mixed: a producer can have both 1:1 inputs (collapsed to artefacts) and fan-in inputs (keep the aggregated canonical ID).
+  - Mixed: a producer can have both 1:1 inputs (collapsed to artifacts) and fan-in inputs (keep the aggregated canonical ID).
   - Dimensions/loops: fan-in members carry indexed canonical IDs (e.g., Artifact:VideoProducer.SegmentVideo[2]); the aggregated input
     remains Input:TimelineComposer.VideoSegments with grouped member IDs.
   - Unconnected config/selection inputs: stay as Input:Producer.* canonical IDs (they’re true inputs, not connections).
@@ -116,13 +116,13 @@ Understood: no aliases, no lookup magic. Producer inputs that are wired to upstr
 # Overall approach
 
   - Keep the architecture but cleanly split the work into: Stage 1 (Parsing), Stage 2 (Graph Resolution), Stage 3 (Planning). Remove
-    alias/self-binding behavior. Everything uses canonical IDs; connected 1:1 inputs collapse to upstream artefacts; fan-in keeps the
-    aggregated canonical input with explicit member artefacts.
+    alias/self-binding behavior. Everything uses canonical IDs; connected 1:1 inputs collapse to upstream artifacts; fan-in keeps the
+    aggregated canonical input with explicit member artifacts.
 
   Stage 1: Parsing (structure only, no connections yet)
 
   - Inputs parsed:
-      - Blueprint YAMLs (blueprint documents, modules) → inputs, artefacts, producers.
+      - Blueprint YAMLs (blueprint documents, modules) → inputs, artifacts, producers.
       - Producer YAMLs → model variants, sdkMapping, outputs, schemas, config defaults.
       - User inputs (inputs.yaml) + implicit inputs (MovieId, StorageRoot, StorageBasePath, etc.).
   - Outputs:
@@ -130,7 +130,7 @@ Understood: no aliases, no lookup magic. Producer inputs that are wired to upstr
       - Producer declared inputs/outputs stored structurally (no edges yet).
       - Canonical ID helpers well-tested: formatCanonicalInputId, producer-scoped input IDs, dimension handling.
   - Tests to add/strengthen:
-      - Parsing a blueprint with namespaces/loops produces correct canonical IDs for inputs/artefacts/producers.
+      - Parsing a blueprint with namespaces/loops produces correct canonical IDs for inputs/artifacts/producers.
       - Producer YAML variant parsing preserves sdkMapping/output schema, config defaults, and canonicalizes model/provider casing.
       - Implicit inputs are present and canonical.
 
@@ -138,17 +138,17 @@ Understood: no aliases, no lookup magic. Producer inputs that are wired to upstr
 
   - Responsibilities:
       - Resolve declared connections into edges between canonical nodes.
-      - Collapse 1:1 producer inputs to upstream canonical sources: job inputs use the artefact/input IDs, not Input:Producer.*.
-      - Fan-in: keep aggregated canonical input; attach fan-in descriptor with member artefact canonical IDs (group/order). No
+      - Collapse 1:1 producer inputs to upstream canonical sources: job inputs use the artifact/input IDs, not Input:Producer.*.
+      - Fan-in: keep aggregated canonical input; attach fan-in descriptor with member artifact canonical IDs (group/order). No
         aliases.
-      - Build inputBindings for each producer: logical input name → canonical source (artefact/global input for 1:1; aggregated input
+      - Build inputBindings for each producer: logical input name → canonical source (artifact/global input for 1:1; aggregated input
         for fan-in; Input:Producer.* only for unconnected config/selection inputs).
       - Normalize sdkMapping to the same canonical sources (no self-binding).
       - Produce a resolved graph ready for planning: nodes with concrete inputs, produces, inputBindings, sdkMapping, fanIn
         descriptors, schemas/config attached.
   - Tests to add/strengthen:
       - 1:1: AudioProducer.TextInput → ScriptProducer.NarrationScript[segment] yields inputs/bindings/sdkMapping all pointing to the
-        artefact ID.
+        artifact ID.
       - Fan-in: TimelineComposer.VideoSegments keeps aggregated input, fan-in members list VideoProducer.SegmentVideo[*], sdkMapping
         uses the aggregated input.
       - Mixed: a producer with both connected and unconnected inputs keeps only the unconnected ones as Input:Producer.*.
@@ -160,11 +160,11 @@ Understood: no aliases, no lookup magic. Producer inputs that are wired to upstr
 
   - Responsibilities:
       - Kahn/topological layering over the resolved graph.
-      - Dirty detection unchanged but operating on resolved canonical inputs/artefacts.
+      - Dirty detection unchanged but operating on resolved canonical inputs/artifacts.
       - Emit execution plan with resolved job.inputs, inputBindings, sdkMapping, fanIn, schemas, config, outputs.
   - Tests to add/strengthen:
       - Topology respects dependencies after collapse (VideoProducer after VideoPrompt; AudioProducer after Script).
-      - Dirty detection triggers reruns when upstream inputs/artefacts change.
+      - Dirty detection triggers reruns when upstream inputs/artifacts change.
       - Plan serialization keeps canonical IDs (snapshot test for the AudioProducer case).
 
   Cleanup/renames
@@ -186,7 +186,7 @@ Understood: no aliases, no lookup magic. Producer inputs that are wired to upstr
   # Stages
   Stage 1 – Parsing isolation and hardening
 
-  - Refactor/organize code so parsing is a clean unit: blueprint YAML → canonical node inventory (inputs, artefacts, producers),
+  - Refactor/organize code so parsing is a clean unit: blueprint YAML → canonical node inventory (inputs, artifacts, producers),
     producer YAML variants (sdkMapping/outputs/schemas/config), implicit inputs (MovieId, StorageRoot, StorageBasePath, etc.), and
     canonical ID helpers.
   - No connections or collapsing here; just structural data with namespaces/dimensions resolved.
@@ -201,8 +201,8 @@ Understood: no aliases, no lookup magic. Producer inputs that are wired to upstr
   Stage 2 – Graph resolution and planning (collapse + plan)
 
   - Consume the parsed structure and resolve connections:
-      - 1:1: collapse connected producer inputs to upstream canonical artefacts/inputs; eliminate self-bound Input:Producer.*.
-      - Fan-in: keep aggregated canonical input; attach fan-in descriptor with member artefact IDs; sdkMapping targets the aggregated
+      - 1:1: collapse connected producer inputs to upstream canonical artifacts/inputs; eliminate self-bound Input:Producer.*.
+      - Fan-in: keep aggregated canonical input; attach fan-in descriptor with member artifact IDs; sdkMapping targets the aggregated
         input.
       - Build inputBindings and sdkMapping using resolved canonical sources; unconnected config/selection inputs remain
         Input:Producer.*.
@@ -211,7 +211,7 @@ Understood: no aliases, no lookup magic. Producer inputs that are wired to upstr
     sdkMapping, fanIn, schemas/config/outputs).
   - Add/strengthen tests:
       - 1:1 collapse (AudioProducer.TextInput → ScriptProducer.NarrationScript[segment]) reflected in plan.
-      - Fan-in aggregation (TimelineComposer.VideoSegments) keeps aggregated input with member artefacts; sdkMapping uses aggregated
+      - Fan-in aggregation (TimelineComposer.VideoSegments) keeps aggregated input with member artifacts; sdkMapping uses aggregated
         canonical input.
       - Mixed connected/unconnected inputs; dimensions/loops; failure on missing bindings; dirty detection still correct.
       - Snapshot-style plan test for the AudioProducer case to prove canonical IDs flow end-to-end.

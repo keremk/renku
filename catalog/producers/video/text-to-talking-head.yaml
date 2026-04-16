@@ -40,7 +40,7 @@ inputs:
     description: Resolution as width/height pixel dimensions.
     type: resolution
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The generated talking head video.
     type: video

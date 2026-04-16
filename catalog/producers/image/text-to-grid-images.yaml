@@ -24,7 +24,7 @@ inputs:
     description: Resolution as width/height pixel dimensions.
     type: resolution
 
-artifacts:
+outputs:
   - name: GeneratedImage
     description: The full grid image.
     type: image

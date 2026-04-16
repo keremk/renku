@@ -41,7 +41,7 @@ inputs:
     type: string
     required: true
 
-artifacts:
+outputs:
   - name: SegmentImage
     description: Generated images (conditional).
     type: multiDimArray
@@ -80,7 +80,7 @@ conditions:
     when: DocProducer.VideoScript.Segments[segment].NarrationType
     is: 'TalkingHead'
 
-producers:
+imports:
   - name: DocProducer
     path: ../_shared/documentary/documentary.yaml
   - name: ImageProducer

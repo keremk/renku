@@ -10,7 +10,7 @@ inputs:
     description: Input text.
     type: string
 
-artifacts:
+outputs:
   - name: OutputText
     description: Output text.
     type: string

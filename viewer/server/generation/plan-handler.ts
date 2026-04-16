@@ -437,9 +437,9 @@ async function generatePlan(
     movieId
   );
 
-  // Convert artifact overrides to PendingArtefactDraft objects
+  // Convert artifact overrides to PendingArtifactDraft objects
   const overrideDrafts = convertArtifactOverridesToDrafts(persistedOverrides);
-  const allPendingArtefacts = overrideDrafts;
+  const allPendingArtifacts = overrideDrafts;
 
   // Build provider metadata with schemas
   const providerMetadata = await buildProviderMetadata(
@@ -473,8 +473,8 @@ async function generatePlan(
     storage: memoryStorageContext,
     manifestService,
     eventLog,
-    pendingArtefacts:
-      allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
+    pendingArtifacts:
+      allPendingArtifacts.length > 0 ? allPendingArtifacts : undefined,
     userControls: planningControls,
   });
 

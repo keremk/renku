@@ -8,7 +8,7 @@ inputs:
   - name: Prompt
     type: string
 
-artifacts:
+outputs:
   - name: Output
     type: string
 

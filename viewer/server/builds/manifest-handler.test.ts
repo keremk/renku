@@ -49,7 +49,7 @@ describe('getBuildManifest', () => {
 
     expect(result.movieId).toBe(movieId);
     expect(result.revision).toBeNull();
-    expect(result.artefacts).toEqual([]);
+    expect(result.artifacts).toEqual([]);
   });
 
   it('normalizes nested manifest model fields into the canonical TranscriptionProducer config', async () => {
@@ -79,7 +79,7 @@ describe('getBuildManifest', () => {
             payloadDigest: '"elevenlabs/speech-to-text"',
           },
         },
-        artefacts: {},
+        artifacts: {},
         createdAt: '2024-01-01T00:00:00Z',
       })
     );
@@ -120,7 +120,7 @@ describe('getBuildManifest', () => {
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
       JSON.stringify({
-        artefacts: {
+        artifacts: {
           'Artifact:TestProducer.Output': {
             blob: { hash: 'abc123', size: 100, mimeType: 'image/png' },
             status: 'succeeded',
@@ -133,11 +133,11 @@ describe('getBuildManifest', () => {
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
-    expect(result.artefacts.length).toBe(1);
-    expect(result.artefacts[0].id).toBe('Artifact:TestProducer.Output');
-    expect(result.artefacts[0].name).toBe('TestProducer.Output');
-    expect(result.artefacts[0].hash).toBe('abc123');
-    expect(result.artefacts[0].status).toBe('succeeded');
+    expect(result.artifacts.length).toBe(1);
+    expect(result.artifacts[0].id).toBe('Artifact:TestProducer.Output');
+    expect(result.artifacts[0].name).toBe('TestProducer.Output');
+    expect(result.artifacts[0].hash).toBe('abc123');
+    expect(result.artifacts[0].status).toBe('succeeded');
   });
 
   it('includes event-log-only artifacts not in manifest', async () => {
@@ -154,14 +154,14 @@ describe('getBuildManifest', () => {
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
       JSON.stringify({
-        artefacts: {},
+        artifacts: {},
         createdAt: '2024-01-01T00:00:00Z',
       })
     );
 
     // Create event log with a succeeded artifact (simulating mid-execution state)
     const eventLogEntry = {
-      artefactId: 'Artifact:NewProducer.Result',
+      artifactId: 'Artifact:NewProducer.Result',
       output: {
         blob: { hash: 'newHash456', size: 200, mimeType: 'application/json' },
       },
@@ -169,19 +169,19 @@ describe('getBuildManifest', () => {
       createdAt: '2024-01-02T00:00:00Z',
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(eventLogEntry) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
-    expect(result.artefacts.length).toBe(1);
-    expect(result.artefacts[0].id).toBe('Artifact:NewProducer.Result');
-    expect(result.artefacts[0].name).toBe('NewProducer.Result');
-    expect(result.artefacts[0].hash).toBe('newHash456');
-    expect(result.artefacts[0].size).toBe(200);
-    expect(result.artefacts[0].mimeType).toBe('application/json');
-    expect(result.artefacts[0].status).toBe('succeeded');
+    expect(result.artifacts.length).toBe(1);
+    expect(result.artifacts[0].id).toBe('Artifact:NewProducer.Result');
+    expect(result.artifacts[0].name).toBe('NewProducer.Result');
+    expect(result.artifacts[0].hash).toBe('newHash456');
+    expect(result.artifacts[0].size).toBe(200);
+    expect(result.artifacts[0].mimeType).toBe('application/json');
+    expect(result.artifacts[0].status).toBe('succeeded');
   });
 
   it('combines manifest artifacts with event-log-only artifacts', async () => {
@@ -199,7 +199,7 @@ describe('getBuildManifest', () => {
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
       JSON.stringify({
-        artefacts: {
+        artifacts: {
           'Artifact:ExistingProducer.Output': {
             blob: { hash: 'existingHash', size: 50, mimeType: 'text/plain' },
             status: 'succeeded',
@@ -212,7 +212,7 @@ describe('getBuildManifest', () => {
 
     // Create event log with different artifact (mid-execution)
     const eventLogEntry = {
-      artefactId: 'Artifact:NewProducer.Result',
+      artifactId: 'Artifact:NewProducer.Result',
       output: {
         blob: { hash: 'newHash789', size: 300, mimeType: 'audio/mpeg' },
       },
@@ -220,19 +220,19 @@ describe('getBuildManifest', () => {
       createdAt: '2024-01-02T00:00:00Z',
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(eventLogEntry) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
     // Should have both artifacts
-    expect(result.artefacts.length).toBe(2);
+    expect(result.artifacts.length).toBe(2);
 
-    const existingArtifact = result.artefacts.find(
+    const existingArtifact = result.artifacts.find(
       (a) => a.id === 'Artifact:ExistingProducer.Output'
     );
-    const newArtifact = result.artefacts.find(
+    const newArtifact = result.artifacts.find(
       (a) => a.id === 'Artifact:NewProducer.Result'
     );
 
@@ -258,7 +258,7 @@ describe('getBuildManifest', () => {
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
       JSON.stringify({
-        artefacts: {
+        artifacts: {
           'Artifact:TestProducer.Output': {
             blob: { hash: 'oldHash', size: 100, mimeType: 'image/png' },
             status: 'succeeded',
@@ -271,7 +271,7 @@ describe('getBuildManifest', () => {
 
     // Create event log with updated version of same artifact (user edit)
     const eventLogEntry = {
-      artefactId: 'Artifact:TestProducer.Output',
+      artifactId: 'Artifact:TestProducer.Output',
       output: {
         blob: { hash: 'newEditedHash', size: 150, mimeType: 'image/png' },
       },
@@ -281,17 +281,17 @@ describe('getBuildManifest', () => {
       originalHash: 'oldHash',
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(eventLogEntry) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
-    expect(result.artefacts.length).toBe(1);
-    expect(result.artefacts[0].hash).toBe('newEditedHash');
-    expect(result.artefacts[0].size).toBe(150);
-    expect(result.artefacts[0].editedBy).toBe('user');
-    expect(result.artefacts[0].originalHash).toBe('oldHash');
+    expect(result.artifacts.length).toBe(1);
+    expect(result.artifacts[0].hash).toBe('newEditedHash');
+    expect(result.artifacts[0].size).toBe(150);
+    expect(result.artifacts[0].editedBy).toBe('user');
+    expect(result.artifacts[0].originalHash).toBe('oldHash');
   });
 
   it('preserves edit tracking fields from event log', async () => {
@@ -309,7 +309,7 @@ describe('getBuildManifest', () => {
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
       JSON.stringify({
-        artefacts: {
+        artifacts: {
           'Artifact:TestProducer.Output': {
             blob: { hash: 'originalHash', size: 100, mimeType: 'image/png' },
             status: 'succeeded',
@@ -321,7 +321,7 @@ describe('getBuildManifest', () => {
 
     // Event log shows user edit
     const eventLogEntry = {
-      artefactId: 'Artifact:TestProducer.Output',
+      artifactId: 'Artifact:TestProducer.Output',
       output: {
         blob: { hash: 'editedHash', size: 120, mimeType: 'image/png' },
       },
@@ -331,14 +331,14 @@ describe('getBuildManifest', () => {
       originalHash: 'originalHash',
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(eventLogEntry) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
-    expect(result.artefacts[0].editedBy).toBe('user');
-    expect(result.artefacts[0].originalHash).toBe('originalHash');
+    expect(result.artifacts[0].editedBy).toBe('user');
+    expect(result.artifacts[0].originalHash).toBe('originalHash');
   });
 
   it('includes failed events in artifact list with status', async () => {
@@ -354,29 +354,29 @@ describe('getBuildManifest', () => {
     await fs.mkdir(path.join(movieDir, 'manifests'), { recursive: true });
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
-      JSON.stringify({ artefacts: {}, createdAt: '2024-01-01T00:00:00Z' })
+      JSON.stringify({ artifacts: {}, createdAt: '2024-01-01T00:00:00Z' })
     );
 
     // Event log has a failed event (no blob since it failed)
     const failedEvent = {
-      artefactId: 'Artifact:FailedProducer.Output',
+      artifactId: 'Artifact:FailedProducer.Output',
       output: {},
       status: 'failed',
       createdAt: '2024-01-02T00:00:00Z',
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(failedEvent) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
     // Failed events should appear as artifacts with failed status (for UI display/recovery)
-    expect(result.artefacts.length).toBe(1);
-    expect(result.artefacts[0].id).toBe('Artifact:FailedProducer.Output');
-    expect(result.artefacts[0].status).toBe('failed');
-    expect(result.artefacts[0].hash).toBe(''); // No blob for failed artifacts
-    expect(result.artefacts[0].size).toBe(0);
+    expect(result.artifacts.length).toBe(1);
+    expect(result.artifacts[0].id).toBe('Artifact:FailedProducer.Output');
+    expect(result.artifacts[0].status).toBe('failed');
+    expect(result.artifacts[0].hash).toBe(''); // No blob for failed artifacts
+    expect(result.artifacts[0].size).toBe(0);
   });
 
   it('includes skipped events with skip reason', async () => {
@@ -392,12 +392,12 @@ describe('getBuildManifest', () => {
     await fs.mkdir(path.join(movieDir, 'manifests'), { recursive: true });
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
-      JSON.stringify({ artefacts: {}, createdAt: '2024-01-01T00:00:00Z' })
+      JSON.stringify({ artifacts: {}, createdAt: '2024-01-01T00:00:00Z' })
     );
 
     // Event log has a skipped event (conditional skip)
     const skippedEvent = {
-      artefactId: 'Artifact:ConditionalProducer.Output',
+      artifactId: 'Artifact:ConditionalProducer.Output',
       output: {},
       status: 'skipped',
       skipReason: 'conditions_not_met',
@@ -405,18 +405,18 @@ describe('getBuildManifest', () => {
       createdAt: '2024-01-02T00:00:00Z',
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(skippedEvent) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
     // Skipped events should appear with skip info for UI display
-    expect(result.artefacts.length).toBe(1);
-    expect(result.artefacts[0].id).toBe('Artifact:ConditionalProducer.Output');
-    expect(result.artefacts[0].status).toBe('skipped');
-    expect(result.artefacts[0].failureReason).toBe('conditions_not_met');
-    expect(result.artefacts[0].skipMessage).toBe(
+    expect(result.artifacts.length).toBe(1);
+    expect(result.artifacts[0].id).toBe('Artifact:ConditionalProducer.Output');
+    expect(result.artifacts[0].status).toBe('skipped');
+    expect(result.artifacts[0].failureReason).toBe('conditions_not_met');
+    expect(result.artifacts[0].skipMessage).toBe(
       "Condition 'has_video' was not met"
     );
   });
@@ -434,12 +434,12 @@ describe('getBuildManifest', () => {
     await fs.mkdir(path.join(movieDir, 'manifests'), { recursive: true });
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
-      JSON.stringify({ artefacts: {}, createdAt: '2024-01-01T00:00:00Z' })
+      JSON.stringify({ artifacts: {}, createdAt: '2024-01-01T00:00:00Z' })
     );
 
     // Event log has a failed event with recovery info
     const failedEvent = {
-      artefactId: 'Artifact:VideoGen.Output',
+      artifactId: 'Artifact:VideoGen.Output',
       output: {},
       status: 'failed',
       createdAt: '2024-01-02T00:00:00Z',
@@ -452,15 +452,15 @@ describe('getBuildManifest', () => {
       },
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(failedEvent) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
     // Failed events should include recovery info from diagnostics
-    expect(result.artefacts.length).toBe(1);
-    const artifact = result.artefacts[0];
+    expect(result.artifacts.length).toBe(1);
+    const artifact = result.artifacts[0];
     expect(artifact.id).toBe('Artifact:VideoGen.Output');
     expect(artifact.status).toBe('failed');
     expect(artifact.provider).toBe('fal-ai');
@@ -482,11 +482,11 @@ describe('getBuildManifest', () => {
     await fs.mkdir(path.join(movieDir, 'manifests'), { recursive: true });
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
-      JSON.stringify({ artefacts: {}, createdAt: '2024-01-01T00:00:00Z' })
+      JSON.stringify({ artifacts: {}, createdAt: '2024-01-01T00:00:00Z' })
     );
 
     const failedEvent = {
-      artefactId: 'Artifact:VideoGen.Output',
+      artifactId: 'Artifact:VideoGen.Output',
       output: {},
       status: 'failed',
       createdAt: '2024-01-02T00:00:00Z',
@@ -497,14 +497,14 @@ describe('getBuildManifest', () => {
       },
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(failedEvent) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
-    expect(result.artefacts.length).toBe(1);
-    const artifact = result.artefacts[0];
+    expect(result.artifacts.length).toBe(1);
+    const artifact = result.artifacts[0];
     expect(artifact.providerRequestId).toBe('req-abc123');
     expect(artifact.recoverable).toBeUndefined();
   });
@@ -521,11 +521,11 @@ describe('getBuildManifest', () => {
     await fs.mkdir(path.join(movieDir, 'manifests'), { recursive: true });
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
-      JSON.stringify({ artefacts: {}, createdAt: '2024-01-01T00:00:00Z' })
+      JSON.stringify({ artifacts: {}, createdAt: '2024-01-01T00:00:00Z' })
     );
 
     const failedEvent = {
-      artefactId: 'Artifact:VideoGen.Output',
+      artifactId: 'Artifact:VideoGen.Output',
       output: {},
       status: 'failed',
       createdAt: '2024-01-02T00:00:00Z',
@@ -537,14 +537,14 @@ describe('getBuildManifest', () => {
       },
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(failedEvent) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
-    expect(result.artefacts.length).toBe(1);
-    const artifact = result.artefacts[0];
+    expect(result.artifacts.length).toBe(1);
+    const artifact = result.artifacts[0];
     expect(artifact.recoverable).toBe(true);
     expect(artifact.failureReason).toBeUndefined();
   });
@@ -558,7 +558,7 @@ describe('getBuildManifest', () => {
 
     // Event log has artifacts from completed producers
     const event1 = {
-      artefactId: 'Artifact:ImageGen.Output',
+      artifactId: 'Artifact:ImageGen.Output',
       output: {
         blob: { hash: 'imgHash123', size: 500, mimeType: 'image/png' },
       },
@@ -566,7 +566,7 @@ describe('getBuildManifest', () => {
       createdAt: '2024-01-01T12:00:00Z',
     };
     const event2 = {
-      artefactId: 'Artifact:AudioGen.Output',
+      artifactId: 'Artifact:AudioGen.Output',
       output: {
         blob: { hash: 'audioHash456', size: 1000, mimeType: 'audio/mpeg' },
       },
@@ -574,7 +574,7 @@ describe('getBuildManifest', () => {
       createdAt: '2024-01-01T12:01:00Z',
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(event1) + '\n' + JSON.stringify(event2) + '\n'
     );
 
@@ -582,16 +582,16 @@ describe('getBuildManifest', () => {
 
     expect(result.movieId).toBe(movieId);
     expect(result.revision).toBe('rev-001');
-    expect(result.artefacts.length).toBe(2);
+    expect(result.artifacts.length).toBe(2);
 
-    const imgArtifact = result.artefacts.find(
+    const imgArtifact = result.artifacts.find(
       (a) => a.id === 'Artifact:ImageGen.Output'
     );
     expect(imgArtifact).toBeDefined();
     expect(imgArtifact!.hash).toBe('imgHash123');
     expect(imgArtifact!.mimeType).toBe('image/png');
 
-    const audioArtifact = result.artefacts.find(
+    const audioArtifact = result.artifacts.find(
       (a) => a.id === 'Artifact:AudioGen.Output'
     );
     expect(audioArtifact).toBeDefined();
@@ -602,7 +602,7 @@ describe('getBuildManifest', () => {
   it('returns event log artifacts when no current.json exists', async () => {
     // No current.json, but event log exists (edge case)
     const eventLogEntry = {
-      artefactId: 'Artifact:Producer.Output',
+      artifactId: 'Artifact:Producer.Output',
       output: {
         blob: { hash: 'hash789', size: 250, mimeType: 'text/plain' },
       },
@@ -610,7 +610,7 @@ describe('getBuildManifest', () => {
       createdAt: '2024-01-01T12:00:00Z',
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(eventLogEntry) + '\n'
     );
 
@@ -618,8 +618,8 @@ describe('getBuildManifest', () => {
 
     expect(result.movieId).toBe(movieId);
     expect(result.revision).toBeNull();
-    expect(result.artefacts.length).toBe(1);
-    expect(result.artefacts[0].hash).toBe('hash789');
+    expect(result.artifacts.length).toBe(1);
+    expect(result.artifacts[0].hash).toBe('hash789');
   });
 
   it('defaults mimeType to application/octet-stream for event-log artifacts', async () => {
@@ -635,12 +635,12 @@ describe('getBuildManifest', () => {
     await fs.mkdir(path.join(movieDir, 'manifests'), { recursive: true });
     await fs.writeFile(
       path.join(movieDir, 'manifests', 'rev-001.json'),
-      JSON.stringify({ artefacts: {}, createdAt: '2024-01-01T00:00:00Z' })
+      JSON.stringify({ artifacts: {}, createdAt: '2024-01-01T00:00:00Z' })
     );
 
     // Event log entry without mimeType
     const eventLogEntry = {
-      artefactId: 'Artifact:Producer.Output',
+      artifactId: 'Artifact:Producer.Output',
       output: {
         blob: { hash: 'someHash', size: 100 },
       },
@@ -648,13 +648,13 @@ describe('getBuildManifest', () => {
       createdAt: '2024-01-02T00:00:00Z',
     };
     await fs.writeFile(
-      path.join(movieDir, 'events', 'artefacts.log'),
+      path.join(movieDir, 'events', 'artifacts.log'),
       JSON.stringify(eventLogEntry) + '\n'
     );
 
     const result = await getBuildManifest(blueprintFolder, movieId);
 
-    expect(result.artefacts.length).toBe(1);
-    expect(result.artefacts[0].mimeType).toBe('application/octet-stream');
+    expect(result.artifacts.length).toBe(1);
+    expect(result.artifacts[0].mimeType).toBe('application/octet-stream');
   });
 });

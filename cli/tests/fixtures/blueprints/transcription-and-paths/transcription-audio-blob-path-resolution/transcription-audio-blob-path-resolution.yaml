@@ -27,7 +27,7 @@ inputs:
     type: string
     required: true
 
-artifacts:
+outputs:
   - name: SegmentAudio
     description: Narration audio per segment.
     type: array
@@ -44,7 +44,7 @@ loops:
   - name: segment
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: AudioProducer
     producer: audio/text-to-speech
     loop: segment

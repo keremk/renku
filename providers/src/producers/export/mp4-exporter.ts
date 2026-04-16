@@ -25,7 +25,7 @@ interface ManifestPointer {
 }
 
 interface ManifestFile {
-  artefacts?: Record<
+  artifacts?: Record<
     string,
     {
       blob: {
@@ -37,7 +37,7 @@ interface ManifestFile {
   >;
 }
 
-const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
 export function createMp4ExporterHandler(): HandlerFactory {
   return createProducerHandlerFactory({
@@ -61,7 +61,7 @@ export function createMp4ExporterHandler(): HandlerFactory {
       if (!produceId) {
         throw createProviderError(
           SdkErrorCode.INVALID_CONFIG,
-          'MP4 exporter requires at least one declared artefact output.',
+          'MP4 exporter requires at least one declared artifact output.',
           { kind: 'user_input', causedByUser: true }
         );
       }
@@ -79,9 +79,9 @@ export function createMp4ExporterHandler(): HandlerFactory {
       });
 
       const inlineTimeline =
-        runtime.inputs.getByNodeId<unknown>(TIMELINE_ARTEFACT_ID);
+        runtime.inputs.getByNodeId<unknown>(TIMELINE_ARTIFACT_ID);
 
-      // Ensure timeline exists; if manifest pointer is missing but an inline artefact is present,
+      // Ensure timeline exists; if manifest pointer is missing but an inline artifact is present,
       // return it directly (useful for simulated/dry-run flows).
       try {
         await loadTimeline(storage, movieId);
@@ -90,9 +90,9 @@ export function createMp4ExporterHandler(): HandlerFactory {
           const buffer = normalizeToBuffer(inlineTimeline);
           return {
             status: 'succeeded',
-            artefacts: [
+            artifacts: [
               {
-                artefactId: runtime.artefacts.expectBlob(produceId),
+                artifactId: runtime.artifacts.expectBlob(produceId),
                 status: 'succeeded',
                 blob: {
                   data: buffer,
@@ -111,9 +111,9 @@ export function createMp4ExporterHandler(): HandlerFactory {
           : Buffer.from('simulated-video');
         return {
           status: 'succeeded',
-          artefacts: [
+          artifacts: [
             {
-              artefactId: runtime.artefacts.expectBlob(produceId),
+              artifactId: runtime.artifacts.expectBlob(produceId),
               status: 'succeeded',
               blob: {
                 data: buffer,
@@ -141,9 +141,9 @@ export function createMp4ExporterHandler(): HandlerFactory {
 
       const result = {
         status: 'succeeded' as const,
-        artefacts: [
+        artifacts: [
           {
-            artefactId: runtime.artefacts.expectBlob(produceId),
+            artifactId: runtime.artifacts.expectBlob(produceId),
             status: 'succeeded' as const,
             blob: {
               data: buffer,
@@ -227,18 +227,18 @@ async function loadTimeline(
   const manifestPath = storage.resolve(movieId, pointer.manifestPath);
   const manifestRaw = await storage.storage.readToString(manifestPath);
   const manifest = JSON.parse(manifestRaw) as ManifestFile;
-  const artefact = manifest.artefacts?.[TIMELINE_ARTEFACT_ID];
-  if (!artefact) {
+  const artifact = manifest.artifacts?.[TIMELINE_ARTIFACT_ID];
+  if (!artifact) {
     throw createProviderError(
       SdkErrorCode.MISSING_TIMELINE,
-      `Timeline artefact not found for movie ${movieId}.`,
+      `Timeline artifact not found for movie ${movieId}.`,
       { kind: 'user_input', causedByUser: true }
     );
   }
-  if (!artefact.blob) {
+  if (!artifact.blob) {
     throw createProviderError(
       SdkErrorCode.MISSING_TIMELINE_BLOB,
-      `Timeline artefact for movie ${movieId} is missing blob metadata.`,
+      `Timeline artifact for movie ${movieId} is missing blob metadata.`,
       { kind: 'user_input', causedByUser: true }
     );
   }
@@ -256,7 +256,7 @@ function normalizeToBuffer(value: unknown): Buffer {
   }
   throw createProviderError(
     SdkErrorCode.INVALID_TIMELINE_PAYLOAD,
-    'Timeline artefact payload is not readable as a buffer.',
+    'Timeline artifact payload is not readable as a buffer.',
     { kind: 'user_input', causedByUser: true }
   );
 }

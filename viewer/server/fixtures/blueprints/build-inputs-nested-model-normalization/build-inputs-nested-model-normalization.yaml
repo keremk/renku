@@ -10,11 +10,11 @@ inputs:
     type: string
     required: false
 
-artifacts:
+outputs:
   - name: Transcript
     type: text
 
-producers:
+imports:
   - name: TranscriptionProducer
     path: ./transcription-producer.yaml
 

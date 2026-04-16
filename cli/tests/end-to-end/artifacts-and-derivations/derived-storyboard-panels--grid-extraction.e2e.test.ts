@@ -201,7 +201,7 @@ describe('end-to-end: real ffmpeg panel extraction', () => {
 		for (let i = 0; i < 9; i++) {
 			const panel = result.panels[i];
 			expect(panel.status).toBe('succeeded');
-			expect(panel.artefactId).toBe(`Artifact:TestProducer.PanelImages[${i}]`);
+			expect(panel.artifactId).toBe(`Artifact:TestProducer.PanelImages[${i}]`);
 			expect(panel.blob?.mimeType).toBe('image/png');
 
 			// Verify PNG magic bytes

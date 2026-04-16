@@ -3,21 +3,42 @@ import { collectNodeInventory } from './node-inventory.js';
 import type { BlueprintTreeNode } from '../types.js';
 
 function createTree(): BlueprintTreeNode {
-  const child: BlueprintTreeNode = {
+  const scriptProducer: BlueprintTreeNode = {
+    id: 'Script',
+    namespacePath: ['Script'],
+    document: {
+      meta: { id: 'Script', name: 'Script Producer', kind: 'producer' },
+      inputs: [
+        { name: 'InquiryPrompt', type: 'string', required: true },
+      ],
+      outputs: [
+        { name: 'NarrationScript', type: 'string', required: true, countInput: 'NumOfSegments' },
+      ],
+      producers: [
+        { name: 'Script', provider: 'openai', model: 'gpt-5-mini' },
+      ],
+      imports: [],
+      edges: [],
+    },
+    children: new Map(),
+    sourcePath: '/test/mock-blueprint.yaml',
+  };
+
+  const videoProducer: BlueprintTreeNode = {
     id: 'Video',
     namespacePath: ['Video'],
     document: {
-      meta: { id: 'Video', name: 'Video Blueprint' },
+      meta: { id: 'Video', name: 'Video Producer', kind: 'producer' },
       inputs: [
         { name: 'Style', type: 'string', required: true },
       ],
-      artefacts: [
+      outputs: [
         { name: 'SegmentVideo', type: 'video', required: true, countInput: 'NumOfSegments' },
       ],
       producers: [
-        { name: 'VideoProducer', provider: 'replicate', model: 'bytedance/seedance' },
+        { name: 'Video', provider: 'replicate', model: 'bytedance/seedance' },
       ],
-      producerImports: [],
+      imports: [],
       edges: [],
     },
     children: new Map(),
@@ -33,16 +54,17 @@ function createTree(): BlueprintTreeNode {
         { name: 'InquiryPrompt', type: 'string', required: true },
         { name: 'NumOfSegments', type: 'int', required: true },
       ],
-      artefacts: [
+      outputs: [
         { name: 'NarrationScript', type: 'string', required: true, countInput: 'NumOfSegments' },
       ],
-      producers: [
-        { name: 'ScriptProducer', provider: 'openai', model: 'gpt-5-mini' },
-      ],
-      producerImports: [{ name: 'Video' }],
+      producers: [],
+      imports: [{ name: 'Script' }, { name: 'Video' }],
       edges: [],
     },
-    children: new Map([['Video', child]]),
+    children: new Map([
+      ['Script', scriptProducer],
+      ['Video', videoProducer],
+    ]),
     sourcePath: '/test/mock-blueprint.yaml',
   };
 
@@ -50,7 +72,7 @@ function createTree(): BlueprintTreeNode {
 }
 
 describe('collectNodeInventory', () => {
-  it('returns canonical ids for inputs, artefacts, and producers without resolving connections', () => {
+  it('returns canonical ids for inputs, outputs, and producers without resolving connections', () => {
     const tree = createTree();
     const inventory = collectNodeInventory(tree);
 
@@ -61,15 +83,15 @@ describe('collectNodeInventory', () => {
         'Input:Video.Style',
       ]),
     );
-    expect(inventory.artefacts).toEqual(
+    expect(inventory.outputs).toEqual(
       expect.arrayContaining([
-        'Artifact:NarrationScript',
-        'Artifact:Video.SegmentVideo',
+        'Output:NarrationScript',
+        'Output:Video.SegmentVideo',
       ]),
     );
     expect(inventory.producers).toEqual(
       expect.arrayContaining([
-        'Producer:ScriptProducer',
+        'Producer:Script',
         'Producer:Video',
       ]),
     );

@@ -26,8 +26,8 @@ import {
 } from './condition-evaluator.js';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import {
-  type ArtefactEvent,
-  type ArtefactEventStatus,
+  type ArtifactEvent,
+  type ArtifactEventStatus,
   type BlobRef,
   type Clock,
   type ExecutionPlan,
@@ -37,7 +37,7 @@ import {
   type ProduceFn,
   type ProduceRequest,
   type ProduceResult,
-  type ProducedArtefact,
+  type ProducedArtifact,
   type RunResult,
   type SerializedError,
   type RevisionId,
@@ -160,7 +160,7 @@ export function createRunner(options: RunnerOptions = {}) {
           // Update running manifest with produced artifacts so later layers see correct hashes
           runningManifest = accumulateArtifacts(
             runningManifest,
-            jobResult.artefacts
+            jobResult.artifacts
           );
         }
 
@@ -233,7 +233,7 @@ function createStubProduce(): ProduceFn {
   return async (request: ProduceRequest): Promise<ProduceResult> => ({
     jobId: request.job.jobId,
     status: 'skipped',
-    artefacts: [],
+    artifacts: [],
     diagnostics: {
       reason: 'stubbed',
     },
@@ -259,7 +259,7 @@ async function executeJob(
   const notifications = context.notifications;
   const startedAt = clock.now();
   const inputsHash = hashInputContents(job.inputs, context.manifest);
-  const expectedArtefacts = job.produces.filter((id) =>
+  const expectedArtifacts = job.produces.filter((id) =>
     isCanonicalArtifactId(id)
   );
 
@@ -292,9 +292,9 @@ async function executeJob(
       });
 
       // Record failed artifacts for this job due to upstream failure
-      for (const artefactId of expectedArtefacts) {
-        const event: ArtefactEvent = {
-          artefactId,
+      for (const artifactId of expectedArtifacts) {
+        const event: ArtifactEvent = {
+          artifactId,
           revision,
           inputsHash,
           output: {},
@@ -306,14 +306,14 @@ async function executeJob(
           },
           createdAt: clock.now(),
         };
-        await eventLog.appendArtefact(movieId, event);
+        await eventLog.appendArtifact(movieId, event);
       }
 
       return {
         jobId: job.jobId,
         producer: job.producer,
         status: 'failed',
-        artefacts: [],
+        artifacts: [],
         diagnostics: {
           reason: 'upstream_failure',
           failedUpstreamArtifacts: failedUpstream,
@@ -400,7 +400,7 @@ async function executeJob(
           jobId: job.jobId,
           producer: job.producer,
           status: 'skipped',
-          artefacts: [],
+          artifacts: [],
           diagnostics: { reason: 'conditions_not_met' },
           layerIndex,
           attempt,
@@ -459,7 +459,7 @@ async function executeJob(
       signal,
     });
 
-    const artefacts = await materializeArtefacts(result.artefacts, {
+    const artifacts = await materializeArtifacts(result.artifacts, {
       movieId,
       job,
       revision,
@@ -470,9 +470,9 @@ async function executeJob(
     });
 
     const completedAt = clock.now();
-    const status = deriveJobStatus(normalizeStatus(result.status), artefacts);
+    const status = deriveJobStatus(normalizeStatus(result.status), artifacts);
 
-    // logger.info?.(`The ${chalk.blue(job.producer)} successfully completed in ${attempt} attempt, produced ${artefacts.length} artifacts\n`)
+    // logger.info?.(`The ${chalk.blue(job.producer)} successfully completed in ${attempt} attempt, produced ${artifacts.length} artifacts\n`)
     logger.debug?.('runner.job.completed', {
       movieId,
       revision,
@@ -481,7 +481,7 @@ async function executeJob(
       status,
       layerIndex,
       attempt,
-      artefacts: artefacts.length,
+      artifacts: artifacts.length,
     });
     notifications?.publish({
       type:
@@ -498,7 +498,7 @@ async function executeJob(
       jobId: job.jobId,
       producer: job.producer,
       status,
-      artefacts,
+      artifacts,
       diagnostics: result.diagnostics,
       layerIndex,
       attempt,
@@ -510,11 +510,11 @@ async function executeJob(
     const serialized = serializeError(error);
     const failureDiagnostics = buildFailureDiagnostics(error, serialized);
 
-    // Record failed artefacts for observability even when produce throws.
+    // Record failed artifacts for observability even when produce throws.
     try {
-      for (const artefactId of expectedArtefacts) {
-        const event: ArtefactEvent = {
-          artefactId,
+      for (const artifactId of expectedArtifacts) {
+        const event: ArtifactEvent = {
+          artifactId,
           revision,
           inputsHash,
           output: {},
@@ -523,7 +523,7 @@ async function executeJob(
           diagnostics: failureDiagnostics,
           createdAt: clock.now(),
         };
-        await eventLog.appendArtefact(movieId, event);
+        await eventLog.appendArtifact(movieId, event);
       }
     } catch (logError) {
       logger.error?.('runner.job.failed.log', {
@@ -561,7 +561,7 @@ async function executeJob(
       jobId: job.jobId,
       producer: job.producer,
       status: 'failed',
-      artefacts: [],
+      artifacts: [],
       layerIndex,
       attempt,
       startedAt,
@@ -571,8 +571,8 @@ async function executeJob(
   }
 }
 
-async function materializeArtefacts(
-  artefacts: ProducedArtefact[],
+async function materializeArtifacts(
+  artifacts: ProducedArtifact[],
   context: {
     movieId: string;
     job: JobDescriptor;
@@ -582,19 +582,19 @@ async function materializeArtefacts(
     eventLog: EventLog;
     clock: Clock;
   }
-): Promise<ArtefactEvent[]> {
-  const events: ArtefactEvent[] = [];
-  for (const artefact of artefacts) {
-    const status = normalizeStatus(artefact.status);
+): Promise<ArtifactEvent[]> {
+  const events: ArtifactEvent[] = [];
+  for (const artifact of artifacts) {
+    const status = normalizeStatus(artifact.status);
     const output: { blob?: BlobRef } = {};
 
-    const blobPayload = artefact.blob;
+    const blobPayload = artifact.blob;
 
     if (status === 'succeeded' && !blobPayload) {
       throw createRuntimeError(
         RuntimeErrorCode.MISSING_BLOB_PAYLOAD,
-        `Expected blob payload for artefact ${artefact.artefactId}.`,
-        { context: `artefact ${artefact.artefactId}` }
+        `Expected blob payload for artifact ${artifact.artifactId}.`,
+        { context: `artifact ${artifact.artifactId}` }
       );
     }
     if (blobPayload && status === 'succeeded') {
@@ -605,26 +605,26 @@ async function materializeArtefacts(
       );
     }
 
-    const event: ArtefactEvent = {
-      artefactId: artefact.artefactId,
+    const event: ArtifactEvent = {
+      artifactId: artifact.artifactId,
       revision: context.revision,
       inputsHash: context.inputsHash,
       output,
       status,
       producedBy: context.job.jobId,
-      diagnostics: artefact.diagnostics,
+      diagnostics: artifact.diagnostics,
       createdAt: context.clock.now(),
     };
 
-    await context.eventLog.appendArtefact(context.movieId, event);
+    await context.eventLog.appendArtifact(context.movieId, event);
     events.push(event);
   }
   return events;
 }
 
 function normalizeStatus(
-  status: ArtefactEventStatus | undefined
-): ArtefactEventStatus {
+  status: ArtifactEventStatus | undefined
+): ArtifactEventStatus {
   if (status === 'succeeded' || status === 'failed' || status === 'skipped') {
     return status;
   }
@@ -632,40 +632,40 @@ function normalizeStatus(
 }
 
 function deriveJobStatus(
-  baseStatus: ArtefactEventStatus,
-  artefacts: ArtefactEvent[]
-): ArtefactEventStatus {
-  if (artefacts.some((event) => event.status === 'failed')) {
+  baseStatus: ArtifactEventStatus,
+  artifacts: ArtifactEvent[]
+): ArtifactEventStatus {
+  if (artifacts.some((event) => event.status === 'failed')) {
     return 'failed';
   }
   if (baseStatus === 'failed') {
     return 'failed';
   }
-  if (artefacts.length === 0) {
+  if (artifacts.length === 0) {
     return baseStatus;
   }
-  if (artefacts.every((event) => event.status === 'skipped')) {
+  if (artifacts.every((event) => event.status === 'skipped')) {
     return baseStatus === 'succeeded' ? 'skipped' : baseStatus;
   }
   return 'succeeded';
 }
 
 /**
- * Accumulate newly produced artifacts into the manifest's artefacts map.
+ * Accumulate newly produced artifacts into the manifest's artifacts map.
  * This ensures that later-layer jobs see correct upstream artifact hashes
  * when computing content-aware inputsHash.
  */
 export function accumulateArtifacts(
   manifest: Manifest,
-  artefacts: ArtefactEvent[]
+  artifacts: ArtifactEvent[]
 ): Manifest {
-  if (artefacts.length === 0) {
+  if (artifacts.length === 0) {
     return manifest;
   }
-  const updatedArtefacts = { ...manifest.artefacts };
-  for (const event of artefacts) {
+  const updatedArtifacts = { ...manifest.artifacts };
+  for (const event of artifacts) {
     if (event.status === 'succeeded' && event.output.blob) {
-      updatedArtefacts[event.artefactId] = {
+      updatedArtifacts[event.artifactId] = {
         hash: event.output.blob.hash,
         blob: event.output.blob,
         producedBy: event.producedBy,
@@ -676,7 +676,7 @@ export function accumulateArtifacts(
       };
     }
   }
-  return { ...manifest, artefacts: updatedArtefacts };
+  return { ...manifest, artifacts: updatedArtifacts };
 }
 
 function serializeError(error: unknown): SerializedError {

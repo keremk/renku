@@ -1,4 +1,4 @@
-import { isCanonicalId, type ArtefactEventStatus } from '@gorenku/core';
+import { isCanonicalId, type ArtifactEventStatus } from '@gorenku/core';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
@@ -9,7 +9,7 @@ import {
   parseOpenAiConfig,
   renderPrompts,
   callVercelGateway,
-  buildArtefactsFromResponse,
+  buildArtifactsFromResponse,
   sanitizeResponseMetadata,
   sanitizeProviderMetadata,
   type OpenAiLlmConfig,
@@ -129,12 +129,12 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
           }
 
           // 8. Build artifacts using implicit mapping
-          const artefacts = buildArtefactsFromResponse(generation.data, request.produces, {
+          const artifacts = buildArtifactsFromResponse(generation.data, request.produces, {
             producerId: request.jobId,
           });
 
           // 9. Determine overall status
-          const status: ArtefactEventStatus = artefacts.some((artefact) => artefact.status === 'failed')
+          const status: ArtifactEventStatus = artifacts.some((artifact) => artifact.status === 'failed')
             ? 'failed'
             : 'succeeded';
 
@@ -162,7 +162,7 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
           });
           return {
             status,
-            artefacts,
+            artifacts,
             diagnostics,
           };
         } catch (error) {

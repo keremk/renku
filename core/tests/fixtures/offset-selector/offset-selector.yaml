@@ -14,7 +14,7 @@ inputs:
     type: string
     required: true
 
-artifacts:
+outputs:
   - name: OutputVideo
     description: Generated video per segment.
     type: array
@@ -30,7 +30,7 @@ loops:
     countInput: NumOfSegments
     countInputOffset: 1
 
-producers:
+imports:
   - name: ImageProducer
     producer: image/text-to-image
     loop: image

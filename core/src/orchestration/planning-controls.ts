@@ -5,7 +5,7 @@ import {
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type {
   ArtifactRegenerationConfig,
-  ArtefactEvent,
+  ArtifactEvent,
   Manifest,
   PlanningUserControls,
   PlanningWarning,
@@ -24,7 +24,7 @@ import {
 } from './producer-overrides.js';
 
 export interface LatestArtifactSnapshot {
-  latestById: Map<string, ArtefactEvent>;
+  latestById: Map<string, ArtifactEvent>;
   latestSuccessfulIds: Set<string>;
   latestFailedIds: Set<string>;
 }
@@ -229,7 +229,7 @@ function resolveForcedJobIds(args: {
   regenerationIds: string[];
   producerGraph: ProducerGraph;
   manifest: Manifest;
-  latestById: Map<string, ArtefactEvent>;
+  latestById: Map<string, ArtifactEvent>;
   blockedJobIds: Set<string>;
   effectiveUpToLayer?: number;
   layerByJobId: Map<string, number>;
@@ -448,7 +448,7 @@ function resolvePinnedArtifactIds(args: {
   }
 
   const hasSucceededManifestArtifacts = Object.values(
-    args.manifest.artefacts
+    args.manifest.artifacts
   ).some((entry) => entry.status === 'succeeded');
   const hasPriorReusableArtifacts =
     hasSucceededManifestArtifacts || args.latestSnapshot.latestSuccessfulIds.size > 0;
@@ -519,7 +519,7 @@ function validatePinnedTargetsReusable(
     if (latestSnapshot.latestSuccessfulIds.has(artifactId)) {
       continue;
     }
-    const manifestEntry = manifest.artefacts[artifactId];
+    const manifestEntry = manifest.artifacts[artifactId];
     if (manifestEntry?.status === 'succeeded') {
       continue;
     }
@@ -597,7 +597,7 @@ export function resolveArtifactsToJobs(
   artifactIds: string[],
   manifest: Manifest,
   producerGraph: { nodes: Array<{ jobId: string }> },
-  latestById?: Map<string, ArtefactEvent>
+  latestById?: Map<string, ArtifactEvent>
 ): ArtifactRegenerationConfig[] {
   return artifactIds.map((id) =>
     resolveArtifactToJob(id, manifest, producerGraph, latestById)
@@ -608,9 +608,9 @@ export function resolveArtifactToJob(
   artifactId: string,
   manifest: Manifest,
   producerGraph: { nodes: Array<{ jobId: string }> },
-  latestById?: Map<string, ArtefactEvent>
+  latestById?: Map<string, ArtifactEvent>
 ): ArtifactRegenerationConfig {
-  const entry = manifest.artefacts[artifactId];
+  const entry = manifest.artifacts[artifactId];
   const latestEvent = latestById?.get(artifactId);
   const sourceJobId = entry?.producedBy ?? latestEvent?.producedBy;
 

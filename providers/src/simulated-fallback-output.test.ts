@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { ALL_FORMATS, BufferSource, Input } from 'mediabunny';
 import { describe, expect, it } from 'vitest';
-import { createSimulatedFallbackArtefacts } from './simulated-fallback-output.js';
+import { createSimulatedFallbackArtifacts } from './simulated-fallback-output.js';
 import type { ProviderJobContext } from './types.js';
 
 function createRequest(args: {
@@ -43,9 +43,9 @@ async function computeDurationSeconds(buffer: Buffer): Promise<number> {
   }
 }
 
-describe('createSimulatedFallbackArtefacts', () => {
+describe('createSimulatedFallbackArtifacts', () => {
   it('emits a valid MP4 using the explicit Duration binding', async () => {
-    const artefacts = await createSimulatedFallbackArtefacts(
+    const artifacts = await createSimulatedFallbackArtifacts(
       createRequest({
         inputs: ['Input:SegmentDuration'],
         produces: ['Artifact:GeneratedVideo[segment=0]'],
@@ -58,21 +58,21 @@ describe('createSimulatedFallbackArtefacts', () => {
       })
     );
 
-    expect(artefacts).toHaveLength(1);
-    expect(artefacts[0]?.blob?.mimeType).toBe('video/mp4');
-    expect(artefacts[0]?.blob?.data).toBeInstanceOf(Buffer);
-    expect(artefacts[0]?.diagnostics?.simulatedReport).toContain(
+    expect(artifacts).toHaveLength(1);
+    expect(artifacts[0]?.blob?.mimeType).toBe('video/mp4');
+    expect(artifacts[0]?.blob?.data).toBeInstanceOf(Buffer);
+    expect(artifacts[0]?.diagnostics?.simulatedReport).toContain(
       'Simulated Provider Invocation'
     );
 
     const duration = await computeDurationSeconds(
-      artefacts[0]?.blob?.data as Buffer
+      artifacts[0]?.blob?.data as Buffer
     );
     expect(duration).toBeCloseTo(3, 1);
   });
 
-  it('emits a valid MP3 for audio artefacts', async () => {
-    const artefacts = await createSimulatedFallbackArtefacts(
+  it('emits a valid MP3 for audio artifacts', async () => {
+    const artifacts = await createSimulatedFallbackArtifacts(
       createRequest({
         inputs: ['Input:Duration'],
         produces: ['Artifact:MusicTrack'],
@@ -85,12 +85,12 @@ describe('createSimulatedFallbackArtefacts', () => {
       })
     );
 
-    expect(artefacts).toHaveLength(1);
-    expect(artefacts[0]?.blob?.mimeType).toBe('audio/mpeg');
-    expect(artefacts[0]?.blob?.data).toBeInstanceOf(Buffer);
+    expect(artifacts).toHaveLength(1);
+    expect(artifacts[0]?.blob?.mimeType).toBe('audio/mpeg');
+    expect(artifacts[0]?.blob?.data).toBeInstanceOf(Buffer);
 
     const duration = await computeDurationSeconds(
-      artefacts[0]?.blob?.data as Buffer
+      artifacts[0]?.blob?.data as Buffer
     );
     expect(duration).toBeCloseTo(4, 1);
   });

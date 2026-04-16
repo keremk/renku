@@ -32,7 +32,7 @@ const describeIfText =
 
 describeIfCredentials('Vercel AI Gateway integration', () => {
   describeIfText('text response', () => {
-    it('executes live generation and returns artefacts using google/gemini-3-flash', async () => {
+    it('executes live generation and returns artifacts using google/gemini-3-flash', async () => {
       const handler = createVercelAiGatewayHandler()({
         descriptor: {
           provider: 'vercel',
@@ -70,9 +70,9 @@ describeIfCredentials('Vercel AI Gateway integration', () => {
               topic: 'topic',
             },
             responseFormat: { type: 'text' },
-            artefactMapping: [
+            artifactMapping: [
               {
-                artefactId: 'Artifact:NarrationScript',
+                artifactId: 'Artifact:NarrationScript',
                 output: 'blob',
               },
             ],
@@ -91,9 +91,9 @@ describeIfCredentials('Vercel AI Gateway integration', () => {
       const result = await handler.invoke(request);
       console.log('Vercel Gateway text response test result:', JSON.stringify(result));
       expect(result.status).toBe('succeeded');
-      const artefact = result.artefacts[0];
-      expect(artefact).toBeDefined();
-      expect(typeof artefact?.blob?.data === 'string' ? artefact.blob.data.length : 0).toBeGreaterThan(0);
+      const artifact = result.artifacts[0];
+      expect(artifact).toBeDefined();
+      expect(typeof artifact?.blob?.data === 'string' ? artifact.blob.data.length : 0).toBeGreaterThan(0);
     });
   });
 });

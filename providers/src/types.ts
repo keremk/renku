@@ -1,6 +1,6 @@
 import type {
-  ArtefactEventStatus,
-  ProducedArtefact,
+  ArtifactEventStatus,
+  ProducedArtifact,
   ProviderName,
   ProviderEnvironment,
   ProviderAttachment,
@@ -52,8 +52,8 @@ export interface ProviderJobContext {
 }
 
 export interface ProviderResult {
-  status?: ArtefactEventStatus;
-  artefacts: ProducedArtefact[];
+  status?: ArtifactEventStatus;
+  artifacts: ProducedArtifact[];
   diagnostics?: Record<string, unknown>;
 }
 

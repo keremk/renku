@@ -8,7 +8,7 @@ ANSWER: Actually the ownership is clear. Only the parsing stage can create new c
 
 ANSWER: Yes, agreed.
 
-- planning/service.ts is a God object in the planning folder. It loads/creates manifests, appends input and artefact events, seeds defaults, builds/expands the blueprint graph, constructs the producer graph, and then calls the planner (planning/service.ts:1-144). That mixes stage 1 (input/default handling), stage 2 (graph build + expansion), and stage 3 orchestration. Consider:
+- planning/service.ts is a God object in the planning folder. It loads/creates manifests, appends input and artifact events, seeds defaults, builds/expands the blueprint graph, constructs the producer graph, and then calls the planner (planning/service.ts:1-144). That mixes stage 1 (input/default handling), stage 2 (graph build + expansion), and stage 3 orchestration. Consider:
   - Extracting a top-level orchestration layer (outside planning/) to own IO and cross-stage wiring.
   - Keeping planning/ to the pure planner (computePlan) and maybe a thin adapter that only invokes it.
 

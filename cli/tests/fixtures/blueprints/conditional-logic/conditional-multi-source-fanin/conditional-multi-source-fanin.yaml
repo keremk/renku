@@ -24,7 +24,7 @@ inputs:
     type: resolution
     required: true
 
-artifacts:
+outputs:
   - name: Timeline
     type: json
 
@@ -32,7 +32,7 @@ loops:
   - name: character
     countInput: NumOfCharacters
 
-producers:
+imports:
   - name: DirectorProducer
     path: ./director/director.yaml
   - name: MeetingVideoProducer

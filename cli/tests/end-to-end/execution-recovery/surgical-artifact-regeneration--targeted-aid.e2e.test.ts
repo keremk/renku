@@ -90,12 +90,12 @@ describe('end-to-end: surgical artifact regeneration', () => {
       return {
         jobId: request.job.jobId,
         status: 'succeeded',
-        artefacts: request.job.produces
+        artifacts: request.job.produces
           .filter((id: string) => id.startsWith('Artifact:'))
-          .map((artefactId: string) => ({
-            artefactId,
+          .map((artifactId: string) => ({
+            artifactId,
             blob: {
-              data: `initial-data-for-${artefactId}`,
+              data: `initial-data-for-${artifactId}`,
               mimeType: 'text/plain',
             },
           })),
@@ -242,11 +242,11 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => ({
       jobId: request.job.jobId,
       status: 'succeeded',
-      artefacts: request.job.produces
+      artifacts: request.job.produces
         .filter((id: string) => id.startsWith('Artifact:'))
-        .map((artefactId: string) => ({
-          artefactId,
-          blob: { data: `stub-${artefactId}`, mimeType: 'text/plain' },
+        .map((artifactId: string) => ({
+          artifactId,
+          blob: { data: `stub-${artifactId}`, mimeType: 'text/plain' },
         })),
     }));
 
@@ -319,11 +319,11 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => ({
       jobId: request.job.jobId,
       status: 'succeeded',
-      artefacts: request.job.produces
+      artifacts: request.job.produces
         .filter((id: string) => id.startsWith('Artifact:'))
-        .map((artefactId: string) => ({
-          artefactId,
-          blob: { data: `stub-${artefactId}`, mimeType: 'text/plain' },
+        .map((artifactId: string) => ({
+          artifactId,
+          blob: { data: `stub-${artifactId}`, mimeType: 'text/plain' },
         })),
     }));
 
@@ -424,11 +424,11 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => ({
       jobId: request.job.jobId,
       status: 'succeeded',
-      artefacts: request.job.produces
+      artifacts: request.job.produces
         .filter((id: string) => id.startsWith('Artifact:'))
-        .map((artefactId: string) => ({
-          artefactId,
-          blob: { data: `stub-${artefactId}`, mimeType: 'text/plain' },
+        .map((artifactId: string) => ({
+          artifactId,
+          blob: { data: `stub-${artifactId}`, mimeType: 'text/plain' },
         })),
     }));
 
@@ -522,12 +522,12 @@ describe('end-to-end: surgical artifact regeneration', () => {
       return {
         jobId: request.job.jobId,
         status: 'succeeded',
-        artefacts: request.job.produces
+        artifacts: request.job.produces
           .filter((id: string) => id.startsWith('Artifact:'))
-          .map((artefactId: string) => ({
-            artefactId,
+          .map((artifactId: string) => ({
+            artifactId,
             blob: {
-              data: `initial-data-for-${artefactId}`,
+              data: `initial-data-for-${artifactId}`,
               mimeType: 'text/plain',
             },
           })),
@@ -661,11 +661,11 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => ({
       jobId: request.job.jobId,
       status: 'succeeded',
-      artefacts: request.job.produces
+      artifacts: request.job.produces
         .filter((id: string) => id.startsWith('Artifact:'))
-        .map((artefactId: string) => ({
-          artefactId,
-          blob: { data: `stub-${artefactId}`, mimeType: 'text/plain' },
+        .map((artifactId: string) => ({
+          artifactId,
+          blob: { data: `stub-${artifactId}`, mimeType: 'text/plain' },
         })),
     }));
 

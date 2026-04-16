@@ -169,9 +169,9 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 					const result: ProduceResult = {
 						jobId: request.job.jobId,
 						status: 'succeeded',
-						artefacts: [
+						artifacts: [
 							{
-								artefactId: 'Artifact:DocProducer.VideoScript',
+								artifactId: 'Artifact:DocProducer.VideoScript',
 								blob: {
 									data: JSON.stringify(mockVideoScript),
 									mimeType: 'application/json',
@@ -193,28 +193,28 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 						producerName
 					)
 				) {
-					const artefacts = await Promise.all(
+					const artifacts = await Promise.all(
 						request.job.produces
 							.filter((id: string) => id.startsWith('Artifact:'))
-							.map(async (artefactId: string) => {
-							const isAudio = artefactId.includes('Audio');
-							const isVideo = artefactId.includes('Video');
+							.map(async (artifactId: string) => {
+							const isAudio = artifactId.includes('Audio');
+							const isVideo = artifactId.includes('Video');
 							const data = isAudio
 								? generateWavWithDuration(10)
 								: isVideo
 									? await generateMp4WithDuration(10)
 									: new Uint8Array([137, 80, 78, 71]); // PNG magic bytes
-							const mimeType = artefactId.includes('Image')
+							const mimeType = artifactId.includes('Image')
 								? 'image/png'
 								: isAudio
 									? 'audio/wav'
 									: 'video/mp4';
 
 							// Store artifact in resolvedInputs for TimelineComposer to read
-							resolvedInputs[artefactId] = data;
+							resolvedInputs[artifactId] = data;
 
 							return {
-								artefactId,
+								artifactId,
 								blob: { data, mimeType },
 							};
 							})
@@ -223,7 +223,7 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 					return {
 						jobId: request.job.jobId,
 						status: 'succeeded',
-						artefacts,
+						artifacts,
 					};
 				}
 
@@ -287,7 +287,7 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 					return {
 						jobId: request.job.jobId,
 						status: response.status ?? 'succeeded',
-						artefacts: response.artefacts,
+						artifacts: response.artifacts,
 						diagnostics: response.diagnostics,
 					};
 				}
@@ -316,14 +316,14 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 		// ============================================================
 
 		const manifest = await result.buildManifest();
-		const artifactIds = Object.keys(manifest.artefacts);
+		const artifactIds = Object.keys(manifest.artifacts);
 
 		// Find timeline artifact
 		const timelineArtifactId = artifactIds.find((id) =>
 			id.includes('Timeline')
 		);
 		expect(timelineArtifactId).toBeDefined();
-		const timelineArtifact = manifest.artefacts[timelineArtifactId!];
+		const timelineArtifact = manifest.artifacts[timelineArtifactId!];
 		expect(timelineArtifact).toBeDefined();
 		expect(timelineArtifact.blob).toBeDefined();
 

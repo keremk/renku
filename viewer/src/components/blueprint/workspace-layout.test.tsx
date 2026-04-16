@@ -185,7 +185,7 @@ const selectedBuildManifest: BuildManifestResponse = {
   revision: 'revision-1',
   inputs: {},
   models: [],
-  artefacts: [
+  artifacts: [
     {
       id: 'Artifact:TimelineComposer.Timeline',
       name: 'timeline.json',

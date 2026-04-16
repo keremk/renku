@@ -34,7 +34,7 @@ inputs:
     description: Output resolution as width/height pixel dimensions.
     type: resolution
 
-artifacts:
+outputs:
   - name: TransformedImage
     description: The image rendered from the new camera viewpoint.
     type: image

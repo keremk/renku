@@ -5,7 +5,7 @@ import {
   type ProviderError,
 } from '../errors.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
-import { buildArtefactsFromUrls, buildArtefactsFromJson } from './artefacts.js';
+import { buildArtifactsFromUrls, buildArtifactsFromJson } from './artifacts.js';
 import { extractPlannerContext } from './utils.js';
 import { validatePayload } from '../schema-validator.js';
 import type {
@@ -288,11 +288,11 @@ export function createUnifiedHandler(
             }
           | undefined;
 
-        let artefacts: import('@gorenku/core').ProducedArtefact[];
+        let artifacts: import('@gorenku/core').ProducedArtifact[];
 
         if (isJsonOutput) {
           // JSON outputs: serialize the response directly as artifact data
-          artefacts = buildArtefactsFromJson({
+          artifacts = buildArtifactsFromJson({
             produces: request.produces,
             jsonOutput: predictionOutput,
             mimeType: outputMimeType,
@@ -300,7 +300,7 @@ export function createUnifiedHandler(
         } else {
           // Media outputs: extract URLs and download/mock content
           const outputUrls = adapter.normalizeOutput(predictionOutput);
-          artefacts = await buildArtefactsFromUrls({
+          artifacts = await buildArtifactsFromUrls({
             produces: request.produces,
             durationInputId: jobContext?.inputBindings?.Duration,
             urls: outputUrls,
@@ -312,7 +312,7 @@ export function createUnifiedHandler(
           });
         }
 
-        const status = artefacts.some((a) => a.status === 'failed')
+        const status = artifacts.some((a) => a.status === 'failed')
           ? 'failed'
           : 'succeeded';
 
@@ -321,7 +321,7 @@ export function createUnifiedHandler(
           model: request.model,
           jobId: request.jobId,
           status,
-          artefactCount: artefacts.length,
+          artifactCount: artifacts.length,
           simulated: isSimulated,
         });
         notify?.publish({
@@ -332,7 +332,7 @@ export function createUnifiedHandler(
 
         return {
           status,
-          artefacts,
+          artifacts,
           diagnostics: {
             provider: adapter.name,
             model: request.model,

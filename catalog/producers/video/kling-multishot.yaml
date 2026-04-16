@@ -71,7 +71,7 @@ inputs:
     description: What to avoid in the video.
     type: string
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The generated video.
     type: video

@@ -64,7 +64,7 @@ function collectFromNode(
   namespacePath: string[],
   producers: ExtractedProducer[],
 ): void {
-  for (const importDef of node.document.producerImports) {
+  for (const importDef of node.document.imports) {
     const ref = importDef.producer;
 
     // Require the `producer:` field - reject legacy `path:` syntax
@@ -133,7 +133,7 @@ function collectCompositionFromNode(
   namespacePath: string[],
   producers: ExtractedCompositionProducer[],
 ): void {
-  for (const importDef of node.document.producerImports) {
+  for (const importDef of node.document.imports) {
     const ref = importDef.producer;
     if (!ref || !ref.startsWith('composition/')) {
       continue;

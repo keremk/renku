@@ -8,7 +8,7 @@ description: Learn what Renku is, the problems it solves, and how it works
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                           Blueprint YAML                            │
-│  • Defines workflow: inputs, producers, connections                 │
+│  • Defines workflow: inputs, outputs, imports, connections          │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
@@ -57,8 +57,8 @@ Understanding these concepts will help you work effectively with Renku:
 A YAML file that defines your complete video generation workflow. Blueprints specify:
 
 - What inputs the user provides (topic, duration, style, etc.)
-- What artifacts are produced (script, images, audio, video)
-- Which producers to use and how to connect them
+- What output connectors the blueprint exposes
+- Which child blueprints it imports and how to connect them
 - How to iterate over segments (loops)
 
 Blueprints are the "recipe" for your video.
@@ -75,7 +75,7 @@ Examples: `ScriptProducer`, `VideoProducer`, `AudioProducer`, `TimelineComposer`
 
 ### Artifact
 
-Any output produced by a producer:
+Any runtime product produced by a producer job:
 
 - Text (scripts, prompts)
 - Images (PNG, JPEG)
@@ -83,7 +83,7 @@ Any output produced by a producer:
 - Video (MP4)
 - JSON (timelines, metadata)
 
-Artifacts can be scalar (single value) or arrays (one per segment).
+Artifacts are stored under canonical `Artifact:...` IDs in manifests and event logs. They can be scalar (single value) or arrays (one per segment).
 
 ### Loop
 
@@ -91,11 +91,11 @@ A dimension that enables parallel execution. If you have 5 narration segments, a
 
 ### Connection
 
-Data flow edges that wire outputs to inputs. Connections define how artifacts flow from one producer to another:
+Data flow edges that wire outputs to inputs. Connections define how data flows from one producer to another:
 
 - Blueprint input → Producer input
 - Producer artifact → Another producer's input
-- Producer artifact → Blueprint artifact (final output)
+- Producer artifact → Blueprint output connector
 
 ### Layer
 

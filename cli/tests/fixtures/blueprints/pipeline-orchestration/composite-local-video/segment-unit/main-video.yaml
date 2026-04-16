@@ -14,6 +14,6 @@ inputs:
     type: image
     required: true
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     type: video

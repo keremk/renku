@@ -282,14 +282,14 @@ describe('createOpenAiLlmHandler', () => {
     expect(callArgs.output).toBeDefined();
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(2);
-    expect(result.artefacts[0]).toMatchObject({
-      artefactId: 'Artifact:MovieTitle',
+    expect(result.artifacts).toHaveLength(2);
+    expect(result.artifacts[0]).toMatchObject({
+      artifactId: 'Artifact:MovieTitle',
       blob: { data: 'Journey to Mars', mimeType: 'text/plain' },
       status: 'succeeded',
     });
-    expect(result.artefacts[1]).toMatchObject({
-      artefactId: 'Artifact:MovieSummary',
+    expect(result.artifacts[1]).toMatchObject({
+      artifactId: 'Artifact:MovieSummary',
       blob: { data: 'A thrilling space adventure', mimeType: 'text/plain' },
       status: 'succeeded',
     });
@@ -361,25 +361,25 @@ describe('createOpenAiLlmHandler', () => {
 
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(4);
+    expect(result.artifacts).toHaveLength(4);
 
-    const title = result.artefacts.find(
-      (a) => a.artefactId === 'Artifact:MovieTitle'
+    const title = result.artifacts.find(
+      (a) => a.artifactId === 'Artifact:MovieTitle'
     );
     expect(title?.blob?.data).toBe('The Great War');
 
-    const seg0 = result.artefacts.find(
-      (a) => a.artefactId === 'Artifact:NarrationScript[segment=0]'
+    const seg0 = result.artifacts.find(
+      (a) => a.artifactId === 'Artifact:NarrationScript[segment=0]'
     );
     expect(seg0?.blob?.data).toBe('Segment zero');
 
-    const seg1 = result.artefacts.find(
-      (a) => a.artefactId === 'Artifact:NarrationScript[segment=1]'
+    const seg1 = result.artifacts.find(
+      (a) => a.artifactId === 'Artifact:NarrationScript[segment=1]'
     );
     expect(seg1?.blob?.data).toBe('Segment one');
 
-    const seg2 = result.artefacts.find(
-      (a) => a.artefactId === 'Artifact:NarrationScript[segment=2]'
+    const seg2 = result.artifacts.find(
+      (a) => a.artifactId === 'Artifact:NarrationScript[segment=2]'
     );
     expect(seg2?.blob?.data).toBe('Segment two');
   });
@@ -439,7 +439,7 @@ describe('createOpenAiLlmHandler', () => {
     expect(callArgs.prompt).toContain('- Conflict section');
   });
 
-  it('marks artefacts as failed when field is missing from JSON response', async () => {
+  it('marks artifacts as failed when field is missing from JSON response', async () => {
     mocks.generateText.mockResolvedValueOnce({
       output: { MovieTitle: 'Title only' },
       usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
@@ -469,9 +469,9 @@ describe('createOpenAiLlmHandler', () => {
 
     const result = await handler.invoke(request);
     expect(result.status).toBe('failed');
-    expect(result.artefacts[0]?.status).toBe('succeeded');
-    expect(result.artefacts[1]?.status).toBe('failed');
-    expect(result.artefacts[1]?.diagnostics?.reason).toBe('missing_field');
+    expect(result.artifacts[0]?.status).toBe('succeeded');
+    expect(result.artifacts[1]?.status).toBe('failed');
+    expect(result.artifacts[1]?.diagnostics?.reason).toBe('missing_field');
   });
 
   it('produces text blobs for text responses', async () => {
@@ -513,7 +513,7 @@ describe('createOpenAiLlmHandler', () => {
 
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts[0]?.blob?.data).toBe('Plain response text');
+    expect(result.artifacts[0]?.blob?.data).toBe('Plain response text');
 
     const args = mocks.generateText.mock.calls[0]?.[0] as Record<
       string,
@@ -615,7 +615,7 @@ describe('createOpenAiLlmHandler', () => {
 
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
+    expect(result.artifacts).toHaveLength(1);
 
     const args = mocks.generateText.mock.calls[0]?.[0] as Record<
       string,
@@ -693,15 +693,15 @@ describe('createOpenAiLlmHandler', () => {
     expect(result.status).toBe('succeeded');
 
     // The simulated data is generated based on the schema
-    const title = result.artefacts.find(
-      (artefact) =>
-        artefact.artefactId === 'Artifact:ScriptGenerator.MovieTitle'
+    const title = result.artifacts.find(
+      (artifact) =>
+        artifact.artifactId === 'Artifact:ScriptGenerator.MovieTitle'
     );
     expect(title?.blob?.data).toContain('Simulated MovieTitle');
 
-    const segmentOne = result.artefacts.find(
-      (artefact) =>
-        artefact.artefactId === 'Artifact:ScriptGenerator.NarrationScript[0]'
+    const segmentOne = result.artifacts.find(
+      (artifact) =>
+        artifact.artifactId === 'Artifact:ScriptGenerator.NarrationScript[0]'
     );
     expect(segmentOne?.blob?.data).toContain('segment 1');
   });
@@ -771,15 +771,15 @@ describe('createOpenAiLlmHandler', () => {
 
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(2);
+    expect(result.artifacts).toHaveLength(2);
 
-    const title = result.artefacts.find(
-      (artefact) => artefact.artefactId === 'Artifact:MovieTitle'
+    const title = result.artifacts.find(
+      (artifact) => artifact.artifactId === 'Artifact:MovieTitle'
     );
     expect(title?.blob?.data).toBe('The Battle');
 
-    const summary = result.artefacts.find(
-      (artefact) => artefact.artefactId === 'Artifact:MovieSummary'
+    const summary = result.artifacts.find(
+      (artifact) => artifact.artifactId === 'Artifact:MovieSummary'
     );
     expect(summary?.blob?.data).toBe('A historic event');
 
@@ -1087,7 +1087,7 @@ describe('createOpenAiLlmHandler', () => {
 
     expect(mocks.generateText).not.toHaveBeenCalled();
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts[0]?.blob?.data).toContain('Simulated');
+    expect(result.artifacts[0]?.blob?.data).toContain('Simulated');
   });
 
   it('throws when a required prompt variable is not resolved', async () => {
@@ -1284,7 +1284,7 @@ describe('createOpenAiLlmHandler', () => {
       // Should use generateText with output option (structured output)
       expect(mocks.generateText).toHaveBeenCalledTimes(1);
       expect(result.status).toBe('succeeded');
-      expect(result.artefacts).toHaveLength(2);
+      expect(result.artifacts).toHaveLength(2);
 
       // Verify output option was passed (contains schema)
       const args = mocks.generateText.mock.calls[0]?.[0] as Record<

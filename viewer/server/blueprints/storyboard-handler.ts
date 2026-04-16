@@ -166,7 +166,7 @@ async function resolveBuildArtifactContext(args: {
   const artifactStates: Record<string, StoryboardArtifactState> = {};
   const resolvedArtifactValues: Record<string, unknown> = {};
 
-  for (const artifact of manifest.artefacts) {
+  for (const artifact of manifest.artifacts) {
     artifactStates[artifact.id] = {
       canonicalArtifactId: artifact.id,
       status:

@@ -5,7 +5,7 @@ import {
 	readCliConfig,
 	type CliConfig,
 } from '../lib/cli-config.js';
-import { generatePlan, type PendingArtefactDraft } from '../lib/planner.js';
+import { generatePlan, type PendingArtifactDraft } from '../lib/planner.js';
 import { executeBuild, type BuildSummary } from '../lib/build.js';
 import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
@@ -49,8 +49,8 @@ export interface ExecuteOptions {
 	/** Blueprint specifier - used only for new movies, ignored for edits */
 	blueprintSpecifier?: string;
 
-	/** Pending artefacts for partial re-rendering (edit only) */
-	pendingArtefacts?: PendingArtefactDraft[];
+	/** Pending artifacts for partial re-rendering (edit only) */
+	pendingArtifacts?: PendingArtifactDraft[];
 
 	/** Run in dry-run mode (simulate without executing) */
 	dryRun?: boolean;
@@ -189,7 +189,7 @@ export async function runExecute(
 		isNew,
 		inputsPath,
 		usingBlueprint: blueprintPath,
-		pendingArtefacts: options.pendingArtefacts,
+		pendingArtifacts: options.pendingArtifacts,
 		logger,
 		planningControls,
 		collectExplanation: options.explain,
@@ -422,9 +422,9 @@ async function executeDryRunWithValidation(args: {
 			return {
 				movieId: args.storageMovieId,
 				failedJobs: collectFailedJobsFromSummary(buildResult.summary),
-				artifactIds: Object.keys(buildResult.manifest.artefacts),
+				artifactIds: Object.keys(buildResult.manifest.artifacts),
 				readArtifactText: async (artifactId: string): Promise<string> => {
-					const entry = buildResult.manifest.artefacts[artifactId];
+					const entry = buildResult.manifest.artifacts[artifactId];
 					if (!entry) {
 						throw new Error(
 							`Missing manifest artifact ${artifactId} in dry-run case ${caseDefinition.id}.`

@@ -261,7 +261,7 @@ export interface JsonSchemaProperty {
   additionalProperties?: boolean;
 }
 
-export interface BlueprintArtefactDefinition {
+export interface BlueprintOutputDefinition {
   name: string;
   type: string;
   required?: boolean;
@@ -423,7 +423,7 @@ export interface ResolvedEdgeConditionGroup {
 }
 
 /**
- * Definition for importing a local or catalog-backed module through `producers:`.
+ * Definition for importing a local or catalog-backed blueprint through `imports:`.
  *
  * The import source must be declared explicitly with exactly one of:
  * - `path`: a local YAML module relative to the parent blueprint
@@ -433,10 +433,10 @@ export interface ResolvedEdgeConditionGroup {
  * connections. Internally that alias becomes the canonical namespace path for
  * the imported module's public and private nodes.
  */
-export interface ProducerImportDefinition {
-  /** Alias used to refer to this producer in connections (e.g., "ScriptProducer") */
+export interface BlueprintImportDefinition {
+  /** Alias used to refer to this imported blueprint in connections (e.g., "ScriptProducer") */
   name: string;
-  /** Path to the producer blueprint file (relative to this blueprint) */
+  /** Path to the imported blueprint file (relative to this blueprint) */
   path?: string;
   /** Qualified producer name (e.g., "prompt/script", "audio/text-to-speech") */
   producer?: string;
@@ -464,10 +464,10 @@ export interface BlueprintLoopDefinition {
 export interface BlueprintDocument {
   meta: BlueprintMeta;
   inputs: BlueprintInputDefinition[];
-  artefacts: BlueprintArtefactDefinition[];
+  outputs: BlueprintOutputDefinition[];
   producers: ProducerConfig[];
-  /** Producer imports from the `producers:` section. No namespace is created. */
-  producerImports: ProducerImportDefinition[];
+  /** Imported child blueprints from the authored `imports:` section. */
+  imports: BlueprintImportDefinition[];
   edges: BlueprintEdgeDefinition[];
   /** Loop dimension definitions for artifact iteration */
   loops?: BlueprintLoopDefinition[];
@@ -734,15 +734,15 @@ export interface ManifestInputEntry {
   createdAt: IsoDatetime;
 }
 
-export interface ManifestArtefactEntry {
+export interface ManifestArtifactEntry {
   hash: string;
   blob?: BlobRef;
   producedBy: Id;
-  status: ArtefactEventStatus;
+  status: ArtifactEventStatus;
   diagnostics?: Record<string, unknown>;
   createdAt: IsoDatetime;
   /** Source of this artifact - 'producer' for generated, 'user' for edited */
-  editedBy?: ArtefactEventEditedBy;
+  editedBy?: ArtifactEventEditedBy;
   /** The first producer-generated blob hash (preserved across edits for restore) */
   originalHash?: string;
   /** Content-aware hash of inputs used to produce this artifact */
@@ -754,7 +754,7 @@ export interface Manifest {
   baseRevision: RevisionId | null;
   createdAt: IsoDatetime;
   inputs: Record<string, ManifestInputEntry>;
-  artefacts: Record<string, ManifestArtefactEntry>;
+  artifacts: Record<string, ManifestArtifactEntry>;
   timeline?: TimelineDocument;
   /** Configuration options used when this revision was generated */
   runConfig?: RunConfig;
@@ -807,25 +807,25 @@ export interface InputEvent {
   createdAt: IsoDatetime;
 }
 
-export type ArtefactEventStatus = 'succeeded' | 'failed' | 'skipped';
+export type ArtifactEventStatus = 'succeeded' | 'failed' | 'skipped';
 
-export interface ArtefactEventOutput {
+export interface ArtifactEventOutput {
   blob?: BlobRef;
 }
 
-export type ArtefactEventEditedBy = 'producer' | 'user';
+export type ArtifactEventEditedBy = 'producer' | 'user';
 
-export interface ArtefactEvent {
-  artefactId: Id;
+export interface ArtifactEvent {
+  artifactId: Id;
   revision: RevisionId;
   inputsHash: string;
-  output: ArtefactEventOutput;
-  status: ArtefactEventStatus;
+  output: ArtifactEventOutput;
+  status: ArtifactEventStatus;
   producedBy: Id;
   diagnostics?: Record<string, unknown>;
   createdAt: IsoDatetime;
   /** Source of this artifact - 'producer' for generated, 'user' for edited */
-  editedBy?: ArtefactEventEditedBy;
+  editedBy?: ArtifactEventEditedBy;
   /** The first producer-generated blob hash (preserved across edits for restore) */
   originalHash?: string;
 }
@@ -841,9 +841,9 @@ export interface ProducedBlobOutput {
   mimeType: string;
 }
 
-export interface ProducedArtefact {
-  artefactId: Id;
-  status?: ArtefactEventStatus;
+export interface ProducedArtifact {
+  artifactId: Id;
+  status?: ArtifactEventStatus;
   blob?: ProducedBlobOutput;
   diagnostics?: Record<string, unknown>;
 }
@@ -859,8 +859,8 @@ export interface ProduceRequest {
 
 export interface ProduceResult {
   jobId: Id;
-  status?: ArtefactEventStatus;
-  artefacts: ProducedArtefact[];
+  status?: ArtifactEventStatus;
+  artifacts: ProducedArtifact[];
   diagnostics?: Record<string, unknown>;
 }
 
@@ -870,8 +870,8 @@ export type ProduceFn = (request: ProduceRequest) => Promise<ProduceResult>;
 export interface JobResult {
   jobId: Id;
   producer: ProducerKind | string;
-  status: ArtefactEventStatus;
-  artefacts: ArtefactEvent[];
+  status: ArtifactEventStatus;
+  artifacts: ArtifactEvent[];
   diagnostics?: Record<string, unknown>;
   layerIndex: number;
   attempt: number;

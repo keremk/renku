@@ -18,7 +18,7 @@ inputs:
   - name: TransitionDuration
     type: int
 
-artifacts:
+outputs:
   - name: Script
     type: json
     arrays:

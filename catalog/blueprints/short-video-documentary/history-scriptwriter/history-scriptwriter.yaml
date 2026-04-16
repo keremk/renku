@@ -30,7 +30,7 @@ inputs:
     description: Tone for the narrator (e.g., authoritative, storytelling, dramatic)
     type: string
 
-artifacts:
+outputs:
   - name: MovieTitle
     description: A compelling title for the historical video
     type: string

@@ -163,9 +163,9 @@ describe('createTranscriptionHandler invoke contract', () => {
       Promise<ProviderResult>
     >().mockResolvedValue({
       status: 'succeeded',
-      artefacts: [
+      artifacts: [
         {
-          artefactId: 'Artifact:TranscriptionProducer.SttTranscription',
+          artifactId: 'Artifact:TranscriptionProducer.SttTranscription',
           status: 'succeeded',
           blob: {
             data: Buffer.from(JSON.stringify(sttOutput)),
@@ -260,7 +260,7 @@ describe('createTranscriptionHandler invoke contract', () => {
       ])
     );
     expect(
-      JSON.parse(result.artefacts[0]!.blob!.data.toString('utf8'))
+      JSON.parse(result.artifacts[0]!.blob!.data.toString('utf8'))
     ).toEqual(alignedTranscription);
   });
 
@@ -292,9 +292,9 @@ describe('createTranscriptionHandler invoke contract', () => {
         mode: 'live',
         invoke: async () => ({
           status: 'succeeded',
-          artefacts: [
+          artifacts: [
             {
-              artefactId: 'Artifact:TranscriptionProducer.SttTranscription',
+              artifactId: 'Artifact:TranscriptionProducer.SttTranscription',
               status: 'succeeded',
               blob: {
                 data: Buffer.from(

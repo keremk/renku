@@ -221,12 +221,12 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 				return {
 					jobId: request.job.jobId,
 					status: 'succeeded',
-					artefacts: request.job.produces
+					artifacts: request.job.produces
 						.filter((id: string) => id.startsWith('Artifact:'))
-						.map((artefactId: string) => ({
-							artefactId,
+						.map((artifactId: string) => ({
+							artifactId,
 							blob: {
-								data: `original-data-for-${artefactId}`,
+								data: `original-data-for-${artifactId}`,
 								mimeType: 'text/plain',
 							},
 						})),
@@ -259,7 +259,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		});
 
 		// Verify all artifacts are in manifest
-		expect(Object.keys(manifest1.artefacts).length).toBeGreaterThanOrEqual(5);
+		expect(Object.keys(manifest1.artifacts).length).toBeGreaterThanOrEqual(5);
 
 		// ============================================================
 		// PHASE 2: Create override inputs.yaml with virtual artifact override
@@ -440,11 +440,11 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 				return {
 					jobId: request.job.jobId,
 					status: 'succeeded',
-					artefacts: request.job.produces
+					artifacts: request.job.produces
 						.filter((id: string) => id.startsWith('Artifact:'))
-						.map((artefactId: string) => ({
-							artefactId,
-							blob: { data: `data-for-${artefactId}`, mimeType: 'text/plain' },
+						.map((artifactId: string) => ({
+							artifactId,
+							blob: { data: `data-for-${artifactId}`, mimeType: 'text/plain' },
 						})),
 				};
 			}

@@ -15,7 +15,7 @@ import { setupTempCliConfig } from '../end-to-end/helpers.js';
 import { CLI_FIXTURES_BLUEPRINTS } from '../test-catalog-paths.js';
 
 interface TestManifest {
-	artefacts: Record<
+	artifacts: Record<
 		string,
 		{
 			blob?: {
@@ -212,13 +212,10 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 					'  - name: NumOfStyleImages',
 					'    type: int',
 					'    required: false',
-					'artifacts:',
+					'outputs:',
 					'  - name: Script',
 					'    type: string',
 					'    required: true',
-					'connections:',
-					'  - from: Topic',
-					'    to: Script',
 					'',
 				].join('\n'),
 				'utf8'
@@ -301,7 +298,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 			expect(manifestPath).toBeDefined();
 			const manifest = await readManifest(manifestPath!);
 
-			const shotTypeIds = Object.keys(manifest.artefacts)
+			const shotTypeIds = Object.keys(manifest.artifacts)
 				.filter(
 					(id) =>
 						id.includes('StoryProducer.Storyboard.Scenes[') &&
@@ -310,7 +307,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 				.sort();
 			expect(shotTypeIds.length).toBeGreaterThanOrEqual(3);
 
-			const sceneNumberIds = Object.keys(manifest.artefacts)
+			const sceneNumberIds = Object.keys(manifest.artifacts)
 				.filter(
 					(id) =>
 						id.includes('StoryProducer.Storyboard.Scenes[') &&
@@ -319,7 +316,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 				.sort();
 			expect(sceneNumberIds.length).toBeGreaterThanOrEqual(3);
 
-			const characterPresenceIds = Object.keys(manifest.artefacts)
+			const characterPresenceIds = Object.keys(manifest.artifacts)
 				.filter(
 					(id) =>
 						id.includes('StoryProducer.Storyboard.Scenes[') &&
@@ -330,7 +327,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 
 			const observedShotTypes: string[] = [];
 			for (const artifactId of shotTypeIds.slice(0, 3)) {
-				const blob = manifest.artefacts[artifactId]?.blob;
+				const blob = manifest.artifacts[artifactId]?.blob;
 				expect(blob).toBeDefined();
 				expect(blob?.mimeType).toBe('text/plain');
 				observedShotTypes.push(
@@ -343,7 +340,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 
 			const observedSceneNumbers: number[] = [];
 			for (const artifactId of sceneNumberIds.slice(0, 3)) {
-				const blob = manifest.artefacts[artifactId]?.blob;
+				const blob = manifest.artifacts[artifactId]?.blob;
 				expect(blob).toBeDefined();
 				expect(blob?.mimeType).toBe('text/plain');
 				const value = await readTextBlob({
@@ -355,7 +352,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 
 			const observedCharacterPresence: string[] = [];
 			for (const artifactId of characterPresenceIds.slice(0, 3)) {
-				const blob = manifest.artefacts[artifactId]?.blob;
+				const blob = manifest.artifacts[artifactId]?.blob;
 				expect(blob).toBeDefined();
 				expect(blob?.mimeType).toBe('text/plain');
 				observedCharacterPresence.push(
@@ -484,7 +481,7 @@ cases:
 			expect(manifestPath).toBeDefined();
 			const manifest = await readManifest(manifestPath!);
 
-			const narrationTypeIds = Object.keys(manifest.artefacts)
+			const narrationTypeIds = Object.keys(manifest.artifacts)
 				.filter(
 					(id) =>
 						id.includes('DocProducer.VideoScript.Segments[') &&
@@ -493,7 +490,7 @@ cases:
 				.sort();
 			expect(narrationTypeIds.length).toBeGreaterThanOrEqual(3);
 
-			const useNarrationAudioIds = Object.keys(manifest.artefacts)
+			const useNarrationAudioIds = Object.keys(manifest.artifacts)
 				.filter(
 					(id) =>
 						id.includes('DocProducer.VideoScript.Segments[') &&
@@ -504,7 +501,7 @@ cases:
 
 			const observedNarrationTypes: string[] = [];
 			for (const artifactId of narrationTypeIds.slice(0, 3)) {
-				const blob = manifest.artefacts[artifactId]?.blob;
+				const blob = manifest.artifacts[artifactId]?.blob;
 				expect(blob).toBeDefined();
 				expect(blob?.mimeType).toBe('text/plain');
 				observedNarrationTypes.push(
@@ -517,7 +514,7 @@ cases:
 
 			const observedUseNarrationAudio: string[] = [];
 			for (const artifactId of useNarrationAudioIds.slice(0, 3)) {
-				const blob = manifest.artefacts[artifactId]?.blob;
+				const blob = manifest.artifacts[artifactId]?.blob;
 				expect(blob).toBeDefined();
 				expect(blob?.mimeType).toBe('text/plain');
 				observedUseNarrationAudio.push(

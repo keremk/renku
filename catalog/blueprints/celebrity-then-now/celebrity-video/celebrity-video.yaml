@@ -47,12 +47,12 @@ inputs:
     type: resolution
     required: true
 
-artifacts:
+outputs:
   - name: CelebrityVideo
     description: Final stitched celebrity segment video.
     type: video
 
-producers:
+imports:
   - name: TogetherImageProducer
     producer: image/image-compose
   - name: MeetingVideoProducer

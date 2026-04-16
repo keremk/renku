@@ -28,7 +28,7 @@ inputs:
     type: string
     required: false
 
-artifacts:
+outputs:
   - name: SegmentAudio
     description: Generated audio for each narration segment.
     type: array
@@ -40,7 +40,7 @@ loops:
     description: Iterates over narration segments.
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: ScriptProducer
     path: ../_shared/script/script.yaml
   - name: AudioProducer

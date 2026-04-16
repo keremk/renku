@@ -1,5 +1,5 @@
 import type {
-  ArtefactEvent,
+  ArtifactEvent,
   ExecutionPlan,
   JobResult,
   SurgicalRegenerationScope,
@@ -68,16 +68,16 @@ export function sliceExecutionPlanThroughLayer(
 export function findLatestSucceededArtifactEvent(
   jobs: JobResult[],
   artifactId: string
-): ArtefactEvent | null {
+): ArtifactEvent | null {
   for (let jobIndex = jobs.length - 1; jobIndex >= 0; jobIndex -= 1) {
-    const artefacts = jobs[jobIndex]?.artefacts ?? [];
+    const artifacts = jobs[jobIndex]?.artifacts ?? [];
     for (
-      let artefactIndex = artefacts.length - 1;
-      artefactIndex >= 0;
-      artefactIndex -= 1
+      let artifactIndex = artifacts.length - 1;
+      artifactIndex >= 0;
+      artifactIndex -= 1
     ) {
-      const event = artefacts[artefactIndex];
-      if (event.artefactId === artifactId && event.status === 'succeeded') {
+      const event = artifacts[artifactIndex];
+      if (event.artifactId === artifactId && event.status === 'succeeded') {
         return event;
       }
     }

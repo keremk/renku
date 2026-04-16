@@ -255,8 +255,8 @@ describe('getProducerFieldPreview', () => {
         data: promptArtifact.text,
         mimeType: 'text/plain',
       });
-      await eventLog.appendArtefact(movieId, {
-        artefactId: promptArtifact.artifactId,
+      await eventLog.appendArtifact(movieId, {
+        artifactId: promptArtifact.artifactId,
         revision: 'rev-preview',
         inputsHash: 'inputs-preview',
         output: { blob },
@@ -273,8 +273,8 @@ describe('getProducerFieldPreview', () => {
         mimeType: 'image/png',
       });
       imageBlobHashes.set(imageArtifact.artifactId, blob.hash);
-      await eventLog.appendArtefact(movieId, {
-        artefactId: imageArtifact.artifactId,
+      await eventLog.appendArtifact(movieId, {
+        artifactId: imageArtifact.artifactId,
         revision: 'rev-preview',
         inputsHash: 'inputs-preview',
         output: { blob },

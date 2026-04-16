@@ -5,9 +5,9 @@ Here’s the full brief for the next pass:
   - Use canonical IDs only; no fallbacks or alias lookups at runtime. If a required canonical input is missing, throw.
   - Collapsing rules:
       - Input fed by another Input: treat downstream input as the upstream; discard the downstream input node/value.
-      - Artefact fed into an Input: collapse to the artefact and discard the input, except when the input is a fan-in target (then
+      - Artifact fed into an Input: collapse to the artifact and discard the input, except when the input is a fan-in target (then
         keep the fan-in input).
-  - Inputs and artefacts should not have parallel defaulted values fighting each other; connectivity must determine which value flows.
+  - Inputs and artifacts should not have parallel defaulted values fighting each other; connectivity must determine which value flows.
   Desired flow:
 
   1. Parsing (loadInputsFromYaml):
@@ -19,8 +19,8 @@ Here’s the full brief for the next pass:
           - If exactly one upstream Input, map this canonical input ID to the upstream canonical input ID.
           - If multiple upstream inputs, throw.
           - If no upstream inputs, map to itself.
-      - Fan-in inputs are left as themselves. They aggregate all the artefacts in an array with canonical IDs.
-      - No artefact handling here (artefact→input collapse happens later, post-expansion).
+      - Fan-in inputs are left as themselves. They aggregate all the artifacts in an array with canonical IDs.
+      - No artifact handling here (artifact→input collapse happens later, post-expansion).
   3. Normalize inputValues using that map:
       - For each Input:* entry, rewrite it to its source canonical ID (from the map) and drop the downstream key. The result should keep only
         the source canonical IDs (e.g., only Input:NumOfImagesPerNarrative=3, not Input:ImagePromptProducer.NumOfImagesPerNarrative=1).
@@ -34,7 +34,7 @@ Here’s the full brief for the next pass:
       - Expand nodes with computed sizes.
       - collapseInputNodes on the expanded graph collapses:
           - Input→Input: downstream input dropped.
-          - Artefact→Input (non fan-in): input dropped, artefact retained.
+          - Artifact→Input (non fan-in): input dropped, artifact retained.
           - Fan-in inputs preserved.
       - Build inputBindings and fan-in collections as before.
 

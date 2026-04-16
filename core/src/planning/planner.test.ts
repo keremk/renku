@@ -8,7 +8,7 @@ import { createEventLog } from '../event-log.js';
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
 import { createManifestService, ManifestNotFoundError } from '../manifest.js';
 import {
-  hashArtefactOutput,
+  hashArtifactOutput,
   hashPayload,
   hashInputContents,
 } from '../hashing.js';
@@ -179,7 +179,7 @@ async function loadManifest(
         baseRevision: null,
         createdAt: new Date().toISOString(),
         inputs: {},
-        artefacts: {},
+        artifacts: {},
         timeline: {},
       };
     }
@@ -232,14 +232,14 @@ function createSucceededManifest(
   baseline: InputEvent[],
   options?: {
     revision?: RevisionId;
-    artefacts?: Record<string, { hash: string; producedBy: string }>;
+    artifacts?: Record<string, { hash: string; producedBy: string }>;
   }
 ): Manifest {
   const revision = options?.revision ?? 'rev-0001';
-  const artefactCreatedAt = new Date().toISOString();
+  const artifactCreatedAt = new Date().toISOString();
 
   // Default artifacts for the standard test graph
-  const defaultArtefacts: Record<string, { hash: string; producedBy: string }> =
+  const defaultArtifacts: Record<string, { hash: string; producedBy: string }> =
     {
       'Artifact:NarrationScript[0]': {
         hash: 'h0',
@@ -263,21 +263,21 @@ function createSucceededManifest(
       },
     };
 
-  const artefactDefs = options?.artefacts ?? defaultArtefacts;
-  const artefacts: Manifest['artefacts'] = {};
-  for (const [id, def] of Object.entries(artefactDefs)) {
-    artefacts[id] = {
+  const artifactDefs = options?.artifacts ?? defaultArtifacts;
+  const artifacts: Manifest['artifacts'] = {};
+  for (const [id, def] of Object.entries(artifactDefs)) {
+    artifacts[id] = {
       hash: def.hash,
       producedBy: def.producedBy,
       status: 'succeeded',
-      createdAt: artefactCreatedAt,
+      createdAt: artifactCreatedAt,
     };
   }
 
   return {
     revision,
     baseRevision: null,
-    createdAt: artefactCreatedAt,
+    createdAt: artifactCreatedAt,
     inputs: Object.fromEntries(
       baseline.map((event) => [
         event.id,
@@ -288,7 +288,7 @@ function createSucceededManifest(
         },
       ])
     ),
-    artefacts,
+    artifacts,
     timeline: {},
   };
 }
@@ -330,11 +330,11 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const artefactCreatedAt = new Date().toISOString();
+    const artifactCreatedAt = new Date().toISOString();
     const manifest: Manifest = {
       revision: 'rev-0001',
       baseRevision: null,
-      createdAt: artefactCreatedAt,
+      createdAt: artifactCreatedAt,
       inputs: Object.fromEntries(
         baseline.map((event) => [
           event.id,
@@ -345,36 +345,36 @@ describe('planner', () => {
           },
         ])
       ),
-      artefacts: {
+      artifacts: {
         'Artifact:NarrationScript[0]': {
           hash: 'hash-script-0',
           producedBy: 'Producer:ScriptProducer',
           status: 'succeeded',
-          createdAt: artefactCreatedAt,
+          createdAt: artifactCreatedAt,
         },
         'Artifact:NarrationScript[1]': {
           hash: 'hash-script-1',
           producedBy: 'Producer:ScriptProducer',
           status: 'succeeded',
-          createdAt: artefactCreatedAt,
+          createdAt: artifactCreatedAt,
         },
         'Artifact:SegmentAudio[0]': {
           hash: 'hash-audio-0',
           producedBy: 'Producer:AudioProducer[0]',
           status: 'succeeded',
-          createdAt: artefactCreatedAt,
+          createdAt: artifactCreatedAt,
         },
         'Artifact:SegmentAudio[1]': {
           hash: 'hash-audio-1',
           producedBy: 'Producer:AudioProducer[1]',
           status: 'succeeded',
-          createdAt: artefactCreatedAt,
+          createdAt: artifactCreatedAt,
         },
         'Artifact:FinalVideo': {
           hash: 'hash-final-video',
           producedBy: 'Producer:TimelineAssembler',
           status: 'succeeded',
-          createdAt: artefactCreatedAt,
+          createdAt: artifactCreatedAt,
         },
       },
       timeline: {},
@@ -409,7 +409,7 @@ describe('planner', () => {
     }
 
     const manifest = createSucceededManifest(baseline, {
-      artefacts: {
+      artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
           producedBy: 'Producer:DirectorProducer',
@@ -450,7 +450,7 @@ describe('planner', () => {
     }
 
     const manifest = createSucceededManifest(baseline, {
-      artefacts: {
+      artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
           producedBy: 'Producer:DirectorProducer',
@@ -494,7 +494,7 @@ describe('planner', () => {
     }
 
     const manifest = createSucceededManifest(baseline, {
-      artefacts: {
+      artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
           producedBy: 'Producer:DirectorProducer',
@@ -520,7 +520,7 @@ describe('planner', () => {
     });
 
     expect(plan.layers.flat()).toHaveLength(0);
-    expect(explanation?.dirtyArtefacts).toEqual([]);
+    expect(explanation?.dirtyArtifacts).toEqual([]);
   });
 
   it('does not propagate to conditional downstream jobs when condition is unsatisfied', async () => {
@@ -541,7 +541,7 @@ describe('planner', () => {
 
     const manifest = createSucceededManifest(baseline, {
       revision: baseRevision as RevisionId,
-      artefacts: {
+      artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
           producedBy: 'Producer:DirectorProducer',
@@ -591,7 +591,7 @@ describe('planner', () => {
     }
 
     const manifest = createSucceededManifest(baseline, {
-      artefacts: {
+      artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
           producedBy: 'Producer:DirectorProducer',
@@ -603,8 +603,8 @@ describe('planner', () => {
       },
     });
 
-    await eventLog.appendArtefact('demo', {
-      artefactId:
+    await eventLog.appendArtifact('demo', {
+      artifactId:
         'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
       revision: 'rev-fix',
       inputsHash: 'condition-hash',
@@ -662,7 +662,7 @@ describe('planner', () => {
           },
         ])
       ),
-      artefacts: {},
+      artifacts: {},
       timeline: {},
     };
 
@@ -690,7 +690,7 @@ describe('planner', () => {
     ).toBe(true);
   });
 
-  it('marks artefact consumers dirty when artefact output changes without input edits', async () => {
+  it('marks artifact consumers dirty when artifact output changes without input edits', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
     const eventLog = createEventLog(ctx);
@@ -706,9 +706,9 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const scriptArtefactId = 'Artifact:NarrationScript[0]';
+    const scriptArtifactId = 'Artifact:NarrationScript[0]';
     const originalScript = 'Segment 0: original narration';
-    const originalHash = hashArtefactOutput({
+    const originalHash = hashArtifactOutput({
       blob: {
         hash: 'script-0-hash',
         size: originalScript.length,
@@ -716,19 +716,19 @@ describe('planner', () => {
       },
     });
     const originalScriptOne = 'Segment 1: original narration';
-    const originalScriptOneHash = hashArtefactOutput({
+    const originalScriptOneHash = hashArtifactOutput({
       blob: {
         hash: 'script-1-hash',
         size: originalScriptOne.length,
         mimeType: 'text/plain',
       },
     });
-    const baselineArtefactTimestamp = new Date().toISOString();
+    const baselineArtifactTimestamp = new Date().toISOString();
 
     const manifest: Manifest = {
       revision: baseRevision,
       baseRevision: null,
-      createdAt: baselineArtefactTimestamp,
+      createdAt: baselineArtifactTimestamp,
       inputs: Object.fromEntries(
         baseline.map((event) => [
           event.id,
@@ -739,43 +739,43 @@ describe('planner', () => {
           },
         ])
       ),
-      artefacts: {
-        [scriptArtefactId]: {
+      artifacts: {
+        [scriptArtifactId]: {
           hash: originalHash,
           producedBy: 'Producer:ScriptProducer',
           status: 'succeeded',
-          createdAt: baselineArtefactTimestamp,
+          createdAt: baselineArtifactTimestamp,
         },
         'Artifact:NarrationScript[1]': {
           hash: originalScriptOneHash,
           producedBy: 'Producer:ScriptProducer',
           status: 'succeeded',
-          createdAt: baselineArtefactTimestamp,
+          createdAt: baselineArtifactTimestamp,
         },
         'Artifact:SegmentAudio[0]': {
           hash: 'hash-audio-0',
           producedBy: 'Producer:AudioProducer[0]',
           status: 'succeeded',
-          createdAt: baselineArtefactTimestamp,
+          createdAt: baselineArtifactTimestamp,
         },
         'Artifact:SegmentAudio[1]': {
           hash: 'hash-audio-1',
           producedBy: 'Producer:AudioProducer[1]',
           status: 'succeeded',
-          createdAt: baselineArtefactTimestamp,
+          createdAt: baselineArtifactTimestamp,
         },
         'Artifact:FinalVideo': {
           hash: 'hash-final-video',
           producedBy: 'Producer:TimelineAssembler',
           status: 'succeeded',
-          createdAt: baselineArtefactTimestamp,
+          createdAt: baselineArtifactTimestamp,
         },
       },
       timeline: {},
     };
 
-    await eventLog.appendArtefact('demo', {
-      artefactId: scriptArtefactId,
+    await eventLog.appendArtifact('demo', {
+      artifactId: scriptArtifactId,
       revision: 'rev-manual',
       inputsHash: 'manual',
       output: {
@@ -825,8 +825,8 @@ describe('planner', () => {
       revision: baseRevision as RevisionId,
     });
 
-    await eventLog.appendArtefact('demo', {
-      artefactId: 'Artifact:SegmentAudio[0]',
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:SegmentAudio[0]',
       revision: 'rev-manual-fail',
       inputsHash: 'manual-fail',
       output: {},
@@ -919,30 +919,30 @@ describe('planner', () => {
     for (const event of baselineInputs) {
       await eventLog.appendInput('demo', event);
     }
-    const artefactCreatedAt = new Date().toISOString();
-    await eventLog.appendArtefact('demo', {
-      artefactId: 'Artifact:A',
+    const artifactCreatedAt = new Date().toISOString();
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:A',
       revision: 'rev-0001',
       inputsHash: 'hash-a',
       output: { blob: { hash: 'blob-a', size: 1, mimeType: 'text/plain' } },
       status: 'succeeded',
       producedBy: 'Producer:A',
-      createdAt: artefactCreatedAt,
+      createdAt: artifactCreatedAt,
     });
-    await eventLog.appendArtefact('demo', {
-      artefactId: 'Artifact:B',
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:B',
       revision: 'rev-0001',
       inputsHash: 'hash-b',
       output: { blob: { hash: 'blob-b', size: 1, mimeType: 'text/plain' } },
       status: 'succeeded',
       producedBy: 'Producer:B',
-      createdAt: artefactCreatedAt,
+      createdAt: artifactCreatedAt,
     });
 
     const manifest: Manifest = {
       revision: 'rev-0001',
       baseRevision: null,
-      createdAt: artefactCreatedAt,
+      createdAt: artifactCreatedAt,
       inputs: Object.fromEntries(
         baselineInputs.map((event) => [
           event.id,
@@ -953,18 +953,18 @@ describe('planner', () => {
           },
         ])
       ),
-      artefacts: {
+      artifacts: {
         'Artifact:A': {
           hash: 'blob-a',
           producedBy: 'Producer:A',
           status: 'succeeded',
-          createdAt: artefactCreatedAt,
+          createdAt: artifactCreatedAt,
         },
         'Artifact:B': {
           hash: 'blob-b',
           producedBy: 'Producer:B',
           status: 'succeeded',
-          createdAt: artefactCreatedAt,
+          createdAt: artifactCreatedAt,
         },
       },
       timeline: {},
@@ -1045,30 +1045,30 @@ describe('planner', () => {
     for (const event of baselineInputs) {
       await eventLog.appendInput('demo', event);
     }
-    const artefactCreatedAt = new Date().toISOString();
-    await eventLog.appendArtefact('demo', {
-      artefactId: 'Artifact:A',
+    const artifactCreatedAt = new Date().toISOString();
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:A',
       revision: 'rev-0001',
       inputsHash: 'hash-a',
       output: { blob: { hash: 'blob-a', size: 1, mimeType: 'text/plain' } },
       status: 'succeeded',
       producedBy: 'Producer:A',
-      createdAt: artefactCreatedAt,
+      createdAt: artifactCreatedAt,
     });
-    await eventLog.appendArtefact('demo', {
-      artefactId: 'Artifact:B',
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:B',
       revision: 'rev-0001',
       inputsHash: 'hash-b',
       output: { blob: { hash: 'blob-b', size: 1, mimeType: 'text/plain' } },
       status: 'succeeded',
       producedBy: 'Producer:B',
-      createdAt: artefactCreatedAt,
+      createdAt: artifactCreatedAt,
     });
 
     const manifest: Manifest = {
       revision: 'rev-0001',
       baseRevision: null,
-      createdAt: artefactCreatedAt,
+      createdAt: artifactCreatedAt,
       inputs: Object.fromEntries(
         baselineInputs.map((event) => [
           event.id,
@@ -1079,18 +1079,18 @@ describe('planner', () => {
           },
         ])
       ),
-      artefacts: {
+      artifacts: {
         'Artifact:A': {
           hash: 'blob-a',
           producedBy: 'Producer:A',
           status: 'succeeded',
-          createdAt: artefactCreatedAt,
+          createdAt: artifactCreatedAt,
         },
         'Artifact:B': {
           hash: 'blob-b',
           producedBy: 'Producer:B',
           status: 'succeeded',
-          createdAt: artefactCreatedAt,
+          createdAt: artifactCreatedAt,
         },
       },
       timeline: {},
@@ -1551,11 +1551,11 @@ describe('planner', () => {
 
       // Create a manifest where AudioProducer[1] artifact is MISSING (simulating a failed run).
       // Only AudioProducer[0]'s artifact and ScriptProducer's artifacts exist.
-      const artefactCreatedAt = new Date().toISOString();
+      const artifactCreatedAt = new Date().toISOString();
       const manifest: Manifest = {
         revision: baseRevision,
         baseRevision: null,
-        createdAt: artefactCreatedAt,
+        createdAt: artifactCreatedAt,
         inputs: Object.fromEntries(
           baseline.map((event) => [
             event.id,
@@ -1566,24 +1566,24 @@ describe('planner', () => {
             },
           ])
         ),
-        artefacts: {
+        artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
           },
           'Artifact:NarrationScript[1]': {
             hash: 'h1',
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'h2',
             producedBy: 'Producer:AudioProducer[0]',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
           },
           // Artifact:SegmentAudio[1] is MISSING (AudioProducer[1] failed)
           // Artifact:FinalVideo is MISSING (TimelineAssembler failed due to missing input)
@@ -1642,11 +1642,11 @@ describe('planner', () => {
       }
 
       // Ambient dirty state: SegmentAudio[1] is missing.
-      const artefactCreatedAt = new Date().toISOString();
+      const artifactCreatedAt = new Date().toISOString();
       const manifest: Manifest = {
         revision: baseRevision,
         baseRevision: null,
-        createdAt: artefactCreatedAt,
+        createdAt: artifactCreatedAt,
         inputs: Object.fromEntries(
           baseline.map((event) => [
             event.id,
@@ -1657,24 +1657,24 @@ describe('planner', () => {
             },
           ])
         ),
-        artefacts: {
+        artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
           },
           'Artifact:NarrationScript[1]': {
             hash: 'h1',
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'h2',
             producedBy: 'Producer:AudioProducer[0]',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
           },
           // Artifact:SegmentAudio[1] is intentionally missing.
         },
@@ -2109,11 +2109,11 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
+      const artifactCreatedAt = new Date().toISOString();
       const manifest: Manifest = {
         revision: baseRevision,
         baseRevision: null,
-        createdAt: artefactCreatedAt,
+        createdAt: artifactCreatedAt,
         inputs: Object.fromEntries(
           baseline.map((event) => [
             event.id,
@@ -2124,7 +2124,7 @@ describe('planner', () => {
             },
           ])
         ),
-        artefacts: {},
+        artifacts: {},
         timeline: {},
       };
 
@@ -2318,7 +2318,7 @@ describe('planner', () => {
       }
       const manifest = createSucceededManifest(baseline, {
         revision: 'rev-0001',
-        artefacts: {
+        artifacts: {
           'Artifact:A': { hash: 'ha', producedBy: 'Producer:A' },
           'Artifact:B': { hash: 'hb', producedBy: 'Producer:B' },
         },
@@ -2509,20 +2509,20 @@ describe('planner', () => {
       }
 
       // Simulate a completed run: all artifacts exist, inputsHash stored on each
-      const artefactCreatedAt = new Date().toISOString();
+      const artifactCreatedAt = new Date().toISOString();
 
       // Compute the content-aware inputsHash that would have been stored during the run
       const scriptInputsHash = hashInputContents(['Input:InquiryPrompt'], {
         inputs: Object.fromEntries(
           baseline.map((e) => [e.id, { hash: e.hash }])
         ),
-        artefacts: {},
+        artifacts: {},
       });
       const audioInputsHash0 = hashInputContents(
         ['Artifact:NarrationScript[0]'],
         {
           inputs: {},
-          artefacts: {
+          artifacts: {
             'Artifact:NarrationScript[0]': { hash: 'hash-script-0' },
           },
         }
@@ -2531,7 +2531,7 @@ describe('planner', () => {
         ['Artifact:NarrationScript[1]'],
         {
           inputs: {},
-          artefacts: {
+          artifacts: {
             'Artifact:NarrationScript[1]': { hash: 'hash-script-1' },
           },
         }
@@ -2540,7 +2540,7 @@ describe('planner', () => {
         ['Artifact:SegmentAudio[0]', 'Artifact:SegmentAudio[1]'],
         {
           inputs: {},
-          artefacts: {
+          artifacts: {
             'Artifact:SegmentAudio[0]': { hash: 'hash-audio-0' },
             'Artifact:SegmentAudio[1]': { hash: 'hash-audio-1' },
           },
@@ -2550,7 +2550,7 @@ describe('planner', () => {
       const manifest: Manifest = {
         revision: baseRevision,
         baseRevision: null,
-        createdAt: artefactCreatedAt,
+        createdAt: artifactCreatedAt,
         inputs: Object.fromEntries(
           baseline.map((event) => [
             event.id,
@@ -2561,40 +2561,40 @@ describe('planner', () => {
             },
           ])
         ),
-        artefacts: {
+        artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'hash-script-0',
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: scriptInputsHash,
           },
           'Artifact:NarrationScript[1]': {
             hash: 'hash-script-1',
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: scriptInputsHash,
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'hash-audio-0',
             producedBy: 'Producer:AudioProducer[0]',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: audioInputsHash0,
           },
           'Artifact:SegmentAudio[1]': {
             hash: 'hash-audio-1',
             producedBy: 'Producer:AudioProducer[1]',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: audioInputsHash1,
           },
           'Artifact:FinalVideo': {
             hash: 'hash-final-video',
             producedBy: 'Producer:TimelineAssembler',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: timelineInputsHash,
           },
         },
@@ -2604,8 +2604,8 @@ describe('planner', () => {
       // Now simulate layer 0 re-run: NarrationScript[0] gets a new hash
       // (ScriptProducer ran again and produced different content)
       // The artifact event in the event log already has the new hash
-      await eventLog.appendArtefact('demo', {
-        artefactId: 'Artifact:NarrationScript[0]',
+      await eventLog.appendArtifact('demo', {
+        artifactId: 'Artifact:NarrationScript[0]',
         revision: 'rev-0002' as RevisionId,
         inputsHash: scriptInputsHash, // same inputs, different output
         output: {
@@ -2621,11 +2621,11 @@ describe('planner', () => {
       });
 
       // Update manifest to reflect the new artifact hash (as if manifest was rebuilt from events)
-      manifest.artefacts['Artifact:NarrationScript[0]'] = {
+      manifest.artifacts['Artifact:NarrationScript[0]'] = {
         hash: 'NEW-hash-script-0',
         producedBy: 'Producer:ScriptProducer',
         status: 'succeeded',
-        createdAt: artefactCreatedAt,
+        createdAt: artifactCreatedAt,
         inputsHash: scriptInputsHash,
       };
 
@@ -2669,14 +2669,14 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
+      const artifactCreatedAt = new Date().toISOString();
 
       // Compute correct content-aware hashes for all artifacts
       const manifestData = {
         inputs: Object.fromEntries(
           baseline.map((e) => [e.id, { hash: e.hash }])
         ),
-        artefacts: {
+        artifacts: {
           'Artifact:NarrationScript[0]': { hash: 'hash-script-0' },
           'Artifact:NarrationScript[1]': { hash: 'hash-script-1' },
           'Artifact:SegmentAudio[0]': { hash: 'hash-audio-0' },
@@ -2688,7 +2688,7 @@ describe('planner', () => {
       const manifest: Manifest = {
         revision: baseRevision,
         baseRevision: null,
-        createdAt: artefactCreatedAt,
+        createdAt: artifactCreatedAt,
         inputs: Object.fromEntries(
           baseline.map((event) => [
             event.id,
@@ -2699,12 +2699,12 @@ describe('planner', () => {
             },
           ])
         ),
-        artefacts: {
+        artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'hash-script-0',
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Input:InquiryPrompt'],
               manifestData
@@ -2714,7 +2714,7 @@ describe('planner', () => {
             hash: 'hash-script-1',
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Input:InquiryPrompt'],
               manifestData
@@ -2724,7 +2724,7 @@ describe('planner', () => {
             hash: 'hash-audio-0',
             producedBy: 'Producer:AudioProducer[0]',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Artifact:NarrationScript[0]'],
               manifestData
@@ -2734,7 +2734,7 @@ describe('planner', () => {
             hash: 'hash-audio-1',
             producedBy: 'Producer:AudioProducer[1]',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Artifact:NarrationScript[1]'],
               manifestData
@@ -2744,7 +2744,7 @@ describe('planner', () => {
             hash: 'hash-final-video',
             producedBy: 'Producer:TimelineAssembler',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Artifact:SegmentAudio[0]', 'Artifact:SegmentAudio[1]'],
               manifestData
@@ -2854,12 +2854,12 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
+      const artifactCreatedAt = new Date().toISOString();
       const manifestData = {
         inputs: Object.fromEntries(
           baseline.map((e) => [e.id, { hash: e.hash }])
         ),
-        artefacts: {
+        artifacts: {
           'Artifact:A': { hash: 'old-hash-a' },
           'Artifact:B': { hash: 'hash-b' },
         },
@@ -2868,7 +2868,7 @@ describe('planner', () => {
       const manifest: Manifest = {
         revision: baseRevision,
         baseRevision: null,
-        createdAt: artefactCreatedAt,
+        createdAt: artifactCreatedAt,
         inputs: Object.fromEntries(
           baseline.map((e) => [
             e.id,
@@ -2879,19 +2879,19 @@ describe('planner', () => {
             },
           ])
         ),
-        artefacts: {
+        artifacts: {
           'Artifact:A': {
             hash: 'new-hash-a', // hash changed (re-run produced new content)
             producedBy: 'Producer:A',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(['Input:Prompt'], manifestData),
           },
           'Artifact:B': {
             hash: 'hash-b',
             producedBy: 'Producer:B',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             // inputsHash was computed with old Artifact:A hash
             inputsHash: hashInputContents(['Artifact:A'], manifestData),
           },
@@ -3111,12 +3111,12 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
+      const artifactCreatedAt = new Date().toISOString();
       const oldManifestData = {
         inputs: Object.fromEntries(
           baseline.map((e) => [e.id, { hash: e.hash }])
         ),
-        artefacts: {
+        artifacts: {
           'Artifact:A': { hash: 'old-hash-a' },
           'Artifact:B': { hash: 'hash-b' },
         },
@@ -3125,7 +3125,7 @@ describe('planner', () => {
       const manifest: Manifest = {
         revision: baseRevision,
         baseRevision: null,
-        createdAt: artefactCreatedAt,
+        createdAt: artifactCreatedAt,
         inputs: Object.fromEntries(
           baseline.map((e) => [
             e.id,
@@ -3136,19 +3136,19 @@ describe('planner', () => {
             },
           ])
         ),
-        artefacts: {
+        artifacts: {
           'Artifact:A': {
             hash: 'new-hash-a', // changed
             producedBy: 'Producer:A',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(['Input:Prompt'], oldManifestData),
           },
           'Artifact:B': {
             hash: 'hash-b',
             producedBy: 'Producer:B',
             status: 'succeeded',
-            createdAt: artefactCreatedAt,
+            createdAt: artifactCreatedAt,
             // inputsHash was computed with old Artifact:A hash
             inputsHash: hashInputContents(
               ['Artifact:A', 'Input:ProducerB.config'],
@@ -3294,7 +3294,7 @@ describe('planner', () => {
       }
 
       const manifest = createSucceededManifest(baseline, {
-        artefacts: {
+        artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
             producedBy: 'Producer:ScriptProducer',
@@ -3381,7 +3381,7 @@ describe('planner', () => {
       expect(allJobIds).not.toContain('Producer:AudioProducer[0]');
       expect(allJobIds).not.toContain('Producer:AudioProducer[1]');
       // TimelineAssembler stays because its inputs (SegmentAudio) are dirty artifacts in the manifest
-      // but the jobs that PRODUCE those artifacts are pinned, so it remains dirty via touchesDirtyArtefact
+      // but the jobs that PRODUCE those artifacts are pinned, so it remains dirty via touchesDirtyArtifact
       // This is correct: pinning protects the artifact from being RE-GENERATED, but downstream
       // jobs that depend on dirty-flagged artifacts are still scheduled.
     });
@@ -3621,7 +3621,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
       const manifest = createSucceededManifest(baseline, {
-        artefacts: {
+        artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
             producedBy: 'Producer:ScriptProducer',
@@ -3726,7 +3726,7 @@ describe('planner', () => {
       }
 
       const manifest = createSucceededManifest(baseline, {
-        artefacts: {
+        artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
             producedBy: 'Producer:ScriptProducer',
@@ -3780,7 +3780,7 @@ describe('planner', () => {
       }
 
       const manifest = createSucceededManifest(baseline, {
-        artefacts: {
+        artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
             producedBy: 'Producer:ScriptProducer',

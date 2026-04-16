@@ -13,7 +13,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { runExecute, formatMovieId } from '../../../src/commands/execute.js';
 import {
-	extractDerivedArtefacts,
+	extractDerivedArtifacts,
 	checkFfmpegAvailability,
 	resetFfmpegCache,
 } from '@gorenku/providers';
@@ -217,7 +217,7 @@ describe('end-to-end: real ffmpeg extraction', () => {
 			'Artifact:TestProducer.FirstFrame',
 		];
 
-		const result = await extractDerivedArtefacts({
+		const result = await extractDerivedArtifacts({
 			videoBuffer,
 			primaryArtifactId: 'Artifact:TestProducer.GeneratedVideo',
 			produces,
@@ -226,7 +226,7 @@ describe('end-to-end: real ffmpeg extraction', () => {
 
 		expect(result.firstFrame).toBeDefined();
 		expect(result.firstFrame?.status).toBe('succeeded');
-		expect(result.firstFrame?.artefactId).toBe(
+		expect(result.firstFrame?.artifactId).toBe(
 			'Artifact:TestProducer.FirstFrame'
 		);
 		expect(result.firstFrame?.blob?.mimeType).toBe('image/png');
@@ -254,7 +254,7 @@ describe('end-to-end: real ffmpeg extraction', () => {
 			'Artifact:TestProducer.LastFrame',
 		];
 
-		const result = await extractDerivedArtefacts({
+		const result = await extractDerivedArtifacts({
 			videoBuffer,
 			primaryArtifactId: 'Artifact:TestProducer.GeneratedVideo',
 			produces,
@@ -263,7 +263,7 @@ describe('end-to-end: real ffmpeg extraction', () => {
 
 		expect(result.lastFrame).toBeDefined();
 		expect(result.lastFrame?.status).toBe('succeeded');
-		expect(result.lastFrame?.artefactId).toBe(
+		expect(result.lastFrame?.artifactId).toBe(
 			'Artifact:TestProducer.LastFrame'
 		);
 		expect(result.lastFrame?.blob?.mimeType).toBe('image/png');
@@ -291,7 +291,7 @@ describe('end-to-end: real ffmpeg extraction', () => {
 			'Artifact:TestProducer.AudioTrack',
 		];
 
-		const result = await extractDerivedArtefacts({
+		const result = await extractDerivedArtifacts({
 			videoBuffer,
 			primaryArtifactId: 'Artifact:TestProducer.GeneratedVideo',
 			produces,
@@ -300,7 +300,7 @@ describe('end-to-end: real ffmpeg extraction', () => {
 
 		expect(result.audioTrack).toBeDefined();
 		expect(result.audioTrack?.status).toBe('succeeded');
-		expect(result.audioTrack?.artefactId).toBe(
+		expect(result.audioTrack?.artifactId).toBe(
 			'Artifact:TestProducer.AudioTrack'
 		);
 		expect(result.audioTrack?.blob?.mimeType).toBe('audio/wav');
@@ -329,7 +329,7 @@ describe('end-to-end: real ffmpeg extraction', () => {
 			'Artifact:TestProducer.AudioTrack',
 		];
 
-		const result = await extractDerivedArtefacts({
+		const result = await extractDerivedArtifacts({
 			videoBuffer,
 			primaryArtifactId: 'Artifact:TestProducer.GeneratedVideo',
 			produces,
@@ -369,7 +369,7 @@ describe('end-to-end: real ffmpeg extraction', () => {
 		const videoBuffer = await readFile(VIDEO_FIXTURE_PATH);
 		const produces = ['Artifact:TestProducer.GeneratedVideo']; // Only primary artifact
 
-		const result = await extractDerivedArtefacts({
+		const result = await extractDerivedArtifacts({
 			videoBuffer,
 			primaryArtifactId: 'Artifact:TestProducer.GeneratedVideo',
 			produces,

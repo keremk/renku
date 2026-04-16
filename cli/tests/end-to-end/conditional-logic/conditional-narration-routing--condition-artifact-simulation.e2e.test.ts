@@ -220,9 +220,9 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		expect(manifestPath).toBeDefined();
 		const manifest = await readManifest(manifestPath!);
 		expect(manifest).toBeDefined();
-		expect(manifest.artefacts).toBeDefined();
+		expect(manifest.artifacts).toBeDefined();
 
-		const artifactIds = Object.keys(manifest.artefacts);
+		const artifactIds = Object.keys(manifest.artifacts);
 
 		// Verify boolean artifacts exist in manifest
 		const booleanManifestIds = artifactIds.filter((id) =>
@@ -243,7 +243,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		const booleanValues: boolean[] = [];
 
 		for (const artifactId of booleanManifestIds.sort()) {
-			const artifact = manifest.artefacts[artifactId];
+			const artifact = manifest.artifacts[artifactId];
 			expect(artifact).toBeDefined();
 			expect(artifact.blob).toBeDefined();
 			expect(artifact.blob!.mimeType).toBe('text/plain');
@@ -281,7 +281,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		];
 
 		for (const artifactId of enumManifestIds.sort()) {
-			const artifact = manifest.artefacts[artifactId];
+			const artifact = manifest.artifacts[artifactId];
 			expect(artifact).toBeDefined();
 			expect(artifact.blob).toBeDefined();
 			expect(artifact.blob!.mimeType).toBe('text/plain');
@@ -437,7 +437,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		const booleanValuesByIndex: Record<number, boolean> = {};
 		for (let i = 0; i < 3; i++) {
 			const artifactId = booleanArtifactIds[i];
-			const artifact = manifest.artefacts[artifactId!];
+			const artifact = manifest.artifacts[artifactId!];
 			const prefix = artifact.blob!.hash.slice(0, 2);
 			const blobPath = resolve(blobsDir, prefix, `${artifact.blob!.hash}.txt`);
 			const content = await readFile(blobPath, 'utf8');

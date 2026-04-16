@@ -128,10 +128,10 @@ async function runTranscriptionPathScenario(
 
   const produce: ProduceFn = async (request: ProduceRequest): Promise<ProduceResult> => {
     if (request.job.producer === 'AudioProducer') {
-      const artefacts = request.job.produces
+      const artifacts = request.job.produces
         .filter((id) => id.startsWith('Artifact:'))
-        .map((artefactId) => ({
-          artefactId,
+        .map((artifactId) => ({
+          artifactId,
           blob: {
             data: audioFixture,
             mimeType: 'audio/mpeg',
@@ -141,7 +141,7 @@ async function runTranscriptionPathScenario(
       return {
         jobId: request.job.jobId,
         status: 'succeeded',
-        artefacts,
+        artifacts,
       };
     }
 
@@ -234,17 +234,17 @@ describe('end-to-end: transcription audio path resolution', () => {
     }
 
     const manifest = await result.run.buildManifest();
-    const audioArtefactIds = Object.keys(manifest.artefacts).filter((artefactId) =>
-      artefactId.startsWith('Artifact:AudioProducer.GeneratedAudio['),
+    const audioArtifactIds = Object.keys(manifest.artifacts).filter((artifactId) =>
+      artifactId.startsWith('Artifact:AudioProducer.GeneratedAudio['),
     );
-    expect(audioArtefactIds).toHaveLength(3);
-    for (const artefactId of audioArtefactIds) {
-      expect(manifest.artefacts[artefactId]?.blob?.mimeType).toBe('audio/mpeg');
+    expect(audioArtifactIds).toHaveLength(3);
+    for (const artifactId of audioArtifactIds) {
+      expect(manifest.artifacts[artifactId]?.blob?.mimeType).toBe('audio/mpeg');
     }
 
-    const timelineArtefact = manifest.artefacts['Artifact:TimelineComposer.Timeline'];
-    expect(timelineArtefact?.blob?.mimeType).toBe('application/json');
-    if (!timelineArtefact?.blob) {
+    const timelineArtifact = manifest.artifacts['Artifact:TimelineComposer.Timeline'];
+    expect(timelineArtifact?.blob?.mimeType).toBe('application/json');
+    if (!timelineArtifact?.blob) {
       throw new Error('Timeline artifact blob missing');
     }
 
@@ -255,7 +255,7 @@ describe('end-to-end: transcription audio path resolution', () => {
         basePath: result.storageBasePath,
       }),
       movieId,
-      timelineArtefact.blob,
+      timelineArtifact.blob,
     );
     const timeline = JSON.parse(
       typeof timelineBlob.data === 'string'
@@ -290,9 +290,9 @@ describe('end-to-end: transcription audio path resolution', () => {
       expect(transcriptionClip?.duration).toBeGreaterThan(0);
     }
 
-    const transcriptionArtefact = manifest.artefacts['Artifact:TranscriptionProducer.Transcription'];
-    expect(transcriptionArtefact?.blob?.mimeType).toBe('application/json');
-    if (!transcriptionArtefact?.blob) {
+    const transcriptionArtifact = manifest.artifacts['Artifact:TranscriptionProducer.Transcription'];
+    expect(transcriptionArtifact?.blob?.mimeType).toBe('application/json');
+    if (!transcriptionArtifact?.blob) {
       throw new Error('Transcription artifact blob missing');
     }
 
@@ -303,7 +303,7 @@ describe('end-to-end: transcription audio path resolution', () => {
         basePath: result.storageBasePath,
       }),
       movieId,
-      transcriptionArtefact.blob,
+      transcriptionArtifact.blob,
     );
     const transcription = JSON.parse(
       typeof transcriptionBlob.data === 'string'

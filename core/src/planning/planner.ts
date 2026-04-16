@@ -7,7 +7,7 @@ import { evaluateInputConditions } from '../condition-evaluator.js';
 import type { EventLog } from '../event-log.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { hashPayload, hashInputContents } from '../hashing.js';
-import { deriveArtefactHash } from '../manifest.js';
+import { deriveArtifactHash } from '../manifest.js';
 import { computeTopologyLayers } from '../topology/index.js';
 import { normalizeSurgicalRegenerationScope } from '../orchestration/surgical-regeneration.js';
 import {
@@ -19,7 +19,7 @@ import {
   type ExecutionPlan,
   type InputEvent,
   type Manifest,
-  type ArtefactEvent,
+  type ArtifactEvent,
   type ProducerGraph,
   type ResolvedEdgeCondition,
   type ResolvedEdgeConditionGroup,
@@ -74,7 +74,7 @@ export interface ComputePlanResult {
 interface GraphMetadata {
   node: ProducerGraph['nodes'][number];
   inputBases: Set<string>;
-  artefactInputs: Set<string>;
+  artifactInputs: Set<string>;
 }
 
 /** Result from initial dirty job detection with reasons */
@@ -90,9 +90,9 @@ interface PropagateResult {
 }
 
 type InputsMap = Map<string, InputEvent>;
-type ArtefactMap = Map<string, ArtefactEvent>;
-interface ArtefactSnapshot {
-  latestSuccessful: ArtefactMap;
+type ArtifactMap = Map<string, ArtifactEvent>;
+interface ArtifactSnapshot {
+  latestSuccessful: ArtifactMap;
   latestFailedIds: Set<string>;
 }
 
@@ -120,15 +120,15 @@ export function createPlanner(options: PlannerOptions = {}) {
       const latestInputs = await readLatestInputs(eventLog, args.movieId);
       const combinedInputs = mergeInputs(latestInputs, pendingEdits);
       const dirtyInputs = determineDirtyInputs(manifest, combinedInputs);
-      const artefactSnapshot = await readLatestArtefactSnapshot(
+      const artifactSnapshot = await readLatestArtifactSnapshot(
         eventLog,
         args.movieId
       );
-      const latestArtefacts = artefactSnapshot.latestSuccessful;
-      const dirtyArtefacts = determineDirtyArtefacts(
+      const latestArtifacts = artifactSnapshot.latestSuccessful;
+      const dirtyArtifacts = determineDirtyArtifacts(
         manifest,
-        latestArtefacts,
-        artefactSnapshot.latestFailedIds
+        latestArtifacts,
+        artifactSnapshot.latestFailedIds
       );
       const requiredConditionArtifactIds =
         collectRequiredConditionArtifactIds(blueprint);
@@ -136,7 +136,7 @@ export function createPlanner(options: PlannerOptions = {}) {
         determineMissingRequiredConditionArtifacts(
           manifest,
           requiredConditionArtifactIds,
-          latestArtefacts
+          latestArtifacts
         );
 
       const metadata = buildGraphMetadata(blueprint);
@@ -175,9 +175,9 @@ export function createPlanner(options: PlannerOptions = {}) {
             metadata,
             conditionallyInactiveJobs,
             dirtyInputs,
-            dirtyArtefacts,
-            latestArtefacts,
-            artefactSnapshot.latestFailedIds,
+            dirtyArtifacts,
+            latestArtifacts,
+            artifactSnapshot.latestFailedIds,
             collectExplanation
           );
         const { allDirty: propagatedDirty, propagatedReasons } =
@@ -226,9 +226,9 @@ export function createPlanner(options: PlannerOptions = {}) {
             metadata,
             conditionallyInactiveJobs,
             dirtyInputs,
-            dirtyArtefacts,
-            latestArtefacts,
-            artefactSnapshot.latestFailedIds,
+            dirtyArtifacts,
+            latestArtifacts,
+            artifactSnapshot.latestFailedIds,
             collectExplanation
           );
 
@@ -279,8 +279,8 @@ export function createPlanner(options: PlannerOptions = {}) {
           protectedJobIds: forceTargetJobIds,
           metadata,
           manifest,
-          latestArtefacts,
-          latestFailedArtefacts: artefactSnapshot.latestFailedIds,
+          latestArtifacts,
+          latestFailedArtifacts: artifactSnapshot.latestFailedIds,
           resolvedConditionArtifacts: args.resolvedConditionArtifacts,
         });
       }
@@ -306,8 +306,8 @@ export function createPlanner(options: PlannerOptions = {}) {
             isPinnedArtifactReusable(
               id,
               manifest,
-              latestArtefacts,
-              artefactSnapshot.latestFailedIds
+              latestArtifacts,
+              artifactSnapshot.latestFailedIds
             )
           );
           if (allReusable) {
@@ -375,7 +375,7 @@ export function createPlanner(options: PlannerOptions = {}) {
           movieId: args.movieId,
           revision: args.targetRevision,
           dirtyInputs: Array.from(dirtyInputs),
-          dirtyArtefacts: Array.from(dirtyArtefacts),
+          dirtyArtifacts: Array.from(dirtyArtifacts),
           jobReasons,
           initialDirtyJobs,
           propagatedJobs,
@@ -456,7 +456,7 @@ function buildGraphMetadata(
 ): Map<string, GraphMetadata> {
   const metadata = new Map<string, GraphMetadata>();
   for (const node of blueprint.nodes) {
-    const artefactInputs = node.inputs.filter((input) =>
+    const artifactInputs = node.inputs.filter((input) =>
       isCanonicalArtifactId(input)
     );
     metadata.set(node.jobId, {
@@ -466,7 +466,7 @@ function buildGraphMetadata(
           .map(extractInputBaseId)
           .filter((value): value is string => value !== null)
       ),
-      artefactInputs: new Set(artefactInputs),
+      artifactInputs: new Set(artifactInputs),
     });
   }
   return metadata;
@@ -534,9 +534,9 @@ function determineInitialDirtyJobs(
   metadata: Map<string, GraphMetadata>,
   conditionallyInactiveJobs: Set<string>,
   dirtyInputs: Set<string>,
-  dirtyArtefacts: Set<string>,
-  latestArtefacts: ArtefactMap,
-  latestFailedArtefacts: Set<string>,
+  dirtyArtifacts: Set<string>,
+  latestArtifacts: ArtifactMap,
+  latestFailedArtifacts: Set<string>,
   collectReasons: boolean
 ): InitialDirtyResult {
   const dirtyJobs = new Set<string>();
@@ -565,11 +565,11 @@ function determineInitialDirtyJobs(
       if (!isCanonicalArtifactId(id)) {
         return false;
       }
-      return manifest.artefacts[id] === undefined && !latestArtefacts.has(id);
+      return manifest.artifacts[id] === undefined && !latestArtifacts.has(id);
     });
     const producesMissing = missingArtifacts.length > 0;
     const failedArtifacts = info.node.produces.filter(
-      (id) => isCanonicalArtifactId(id) && latestFailedArtefacts.has(id)
+      (id) => isCanonicalArtifactId(id) && latestFailedArtifacts.has(id)
     );
     const latestAttemptFailed = failedArtifacts.length > 0;
 
@@ -580,10 +580,10 @@ function determineInitialDirtyJobs(
     const touchesDirtyInput = dirtyInputsForJob.length > 0;
 
     // Check which upstream artifacts are dirty
-    const dirtyArtefactsForJob = Array.from(info.artefactInputs).filter(
-      (artefactId) => dirtyArtefacts.has(artefactId)
+    const dirtyArtifactsForJob = Array.from(info.artifactInputs).filter(
+      (artifactId) => dirtyArtifacts.has(artifactId)
     );
-    const touchesDirtyArtefact = dirtyArtefactsForJob.length > 0;
+    const touchesDirtyArtifact = dirtyArtifactsForJob.length > 0;
 
     // Check 4: Job's inputsHash has changed (content of inputs differs from when artifact was produced)
     let hasStaleInputsHash = false;
@@ -591,7 +591,7 @@ function determineInitialDirtyJobs(
     if (
       !producesMissing &&
       !touchesDirtyInput &&
-      !touchesDirtyArtefact &&
+      !touchesDirtyArtifact &&
       !latestAttemptFailed
     ) {
       const jobProducedIds = info.node.produces.filter((id) =>
@@ -600,7 +600,7 @@ function determineInitialDirtyJobs(
       const expectedHash = hashInputContents(info.node.inputs, manifest);
 
       for (const artId of jobProducedIds) {
-        const entry = manifest.artefacts[artId];
+        const entry = manifest.artifacts[artId];
         if (entry?.inputsHash && entry.inputsHash !== expectedHash) {
           staleInputsHashArtifacts.push(artId);
         }
@@ -611,7 +611,7 @@ function determineInitialDirtyJobs(
     if (
       producesMissing ||
       touchesDirtyInput ||
-      touchesDirtyArtefact ||
+      touchesDirtyArtifact ||
       latestAttemptFailed ||
       hasStaleInputsHash
     ) {
@@ -639,12 +639,12 @@ function determineInitialDirtyJobs(
             reason: 'touchesDirtyInput',
             dirtyInputs: dirtyInputsForJob,
           });
-        } else if (touchesDirtyArtefact) {
+        } else if (touchesDirtyArtifact) {
           reasons.push({
             jobId,
             producer: info.node.producer,
-            reason: 'touchesDirtyArtefact',
-            dirtyArtefacts: dirtyArtefactsForJob,
+            reason: 'touchesDirtyArtifact',
+            dirtyArtifacts: dirtyArtifactsForJob,
           });
         } else if (hasStaleInputsHash) {
           reasons.push({
@@ -664,13 +664,13 @@ function determineInitialDirtyJobs(
 function determineMissingRequiredConditionArtifacts(
   manifest: Manifest,
   requiredConditionArtifactIds: Set<string>,
-  latestArtefacts: ArtefactMap
+  latestArtifacts: ArtifactMap
 ): string[] {
   const missing: string[] = [];
   for (const artifactId of requiredConditionArtifactIds) {
     if (
-      manifest.artefacts[artifactId] === undefined &&
-      !latestArtefacts.has(artifactId)
+      manifest.artifacts[artifactId] === undefined &&
+      !latestArtifacts.has(artifactId)
     ) {
       missing.push(artifactId);
     }
@@ -974,8 +974,8 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
   protectedJobIds: Set<string>;
   metadata: Map<string, GraphMetadata>;
   manifest: Manifest;
-  latestArtefacts: ArtefactMap;
-  latestFailedArtefacts: Set<string>;
+  latestArtifacts: ArtifactMap;
+  latestFailedArtifacts: Set<string>;
   resolvedConditionArtifacts: Record<string, unknown> | undefined;
 }): PrunedUnrunnableJob[] {
   if (args.jobsToInclude.size === 0) {
@@ -984,8 +984,8 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
 
   const reusableArtifacts = buildReusableArtifactSet(
     args.manifest,
-    args.latestArtefacts,
-    args.latestFailedArtefacts
+    args.latestArtifacts,
+    args.latestFailedArtifacts
   );
   const conditionResultsByJobId = buildConditionResultsByJobId(
     args.metadata,
@@ -1060,22 +1060,22 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
 
 function buildReusableArtifactSet(
   manifest: Manifest,
-  latestArtefacts: ArtefactMap,
-  latestFailedArtefacts: Set<string>
+  latestArtifacts: ArtifactMap,
+  latestFailedArtifacts: Set<string>
 ): Set<string> {
   const reusable = new Set<string>();
 
-  for (const artifactId of latestArtefacts.keys()) {
-    if (!latestFailedArtefacts.has(artifactId)) {
+  for (const artifactId of latestArtifacts.keys()) {
+    if (!latestFailedArtifacts.has(artifactId)) {
       reusable.add(artifactId);
     }
   }
 
-  for (const [artifactId, entry] of Object.entries(manifest.artefacts)) {
+  for (const [artifactId, entry] of Object.entries(manifest.artifacts)) {
     if (entry.status !== 'succeeded') {
       continue;
     }
-    if (latestFailedArtefacts.has(artifactId)) {
+    if (latestFailedArtifacts.has(artifactId)) {
       continue;
     }
     reusable.add(artifactId);
@@ -1188,16 +1188,16 @@ interface BuildExecutionLayersResult {
 function isPinnedArtifactReusable(
   artifactId: string,
   manifest: Manifest,
-  latestArtefacts: ArtefactMap,
+  latestArtifacts: ArtifactMap,
   latestFailedIds: Set<string>
 ): boolean {
   if (latestFailedIds.has(artifactId)) {
     return false;
   }
-  if (latestArtefacts.has(artifactId)) {
+  if (latestArtifacts.has(artifactId)) {
     return true;
   }
-  const manifestEntry = manifest.artefacts[artifactId];
+  const manifestEntry = manifest.artifacts[artifactId];
   return manifestEntry?.status === 'succeeded';
 }
 
@@ -1629,24 +1629,24 @@ function determineDirtyInputs(
   return dirty;
 }
 
-async function readLatestArtefactSnapshot(
+async function readLatestArtifactSnapshot(
   eventLog: EventLog,
   movieId: string
-): Promise<ArtefactSnapshot> {
-  const latestById = new Map<string, ArtefactEvent>();
-  for await (const event of eventLog.streamArtefacts(movieId)) {
-    latestById.set(event.artefactId, event);
+): Promise<ArtifactSnapshot> {
+  const latestById = new Map<string, ArtifactEvent>();
+  for await (const event of eventLog.streamArtifacts(movieId)) {
+    latestById.set(event.artifactId, event);
   }
 
-  const latestSuccessful = new Map<string, ArtefactEvent>();
+  const latestSuccessful = new Map<string, ArtifactEvent>();
   const latestFailedIds = new Set<string>();
-  for (const [artefactId, event] of latestById) {
+  for (const [artifactId, event] of latestById) {
     if (event.status === 'succeeded') {
-      latestSuccessful.set(artefactId, event);
+      latestSuccessful.set(artifactId, event);
       continue;
     }
     if (event.status === 'failed') {
-      latestFailedIds.add(artefactId);
+      latestFailedIds.add(artifactId);
     }
   }
 
@@ -1656,21 +1656,21 @@ async function readLatestArtefactSnapshot(
   };
 }
 
-function determineDirtyArtefacts(
+function determineDirtyArtifacts(
   manifest: Manifest,
-  artefacts: ArtefactMap,
+  artifacts: ArtifactMap,
   latestFailedIds: Set<string>
 ): Set<string> {
   const dirty = new Set<string>();
-  for (const [id, event] of artefacts) {
-    const manifestEntry = manifest.artefacts[id];
-    const eventHash = deriveArtefactHash(event);
+  for (const [id, event] of artifacts) {
+    const manifestEntry = manifest.artifacts[id];
+    const eventHash = deriveArtifactHash(event);
     if (!manifestEntry || manifestEntry.hash !== eventHash) {
       dirty.add(id);
     }
   }
-  for (const artefactId of latestFailedIds) {
-    dirty.add(artefactId);
+  for (const artifactId of latestFailedIds) {
+    dirty.add(artifactId);
   }
   return dirty;
 }
@@ -1689,7 +1689,7 @@ function createEmptyManifest(): Manifest {
     baseRevision: null,
     createdAt: new Date().toISOString(),
     inputs: {},
-    artefacts: {},
+    artifacts: {},
     timeline: {},
   };
 }

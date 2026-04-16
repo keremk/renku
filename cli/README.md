@@ -8,6 +8,14 @@
 
 The Renku CLI is the primary interface for generating AI-powered video content. It orchestrates multiple AI providers to transform text prompts into complete video productions with narration, images, audio, and effects.
 
+When you author or edit blueprints for the CLI, use:
+
+- `inputs:` for user-facing inputs
+- `outputs:` for authored output connectors
+- `imports:` for child blueprints or leaf producer blueprints
+
+The build data written by the CLI still uses runtime `Artifact:...` IDs inside manifests and event logs.
+
 ## Installation
 
 Install globally via npm:
@@ -126,7 +134,7 @@ The CLI will:
 2. Create images for each segment
 3. Generate audio narration
 4. Compose the timeline
-5. Save all artifacts to `builds/movie-{id}/` (in current directory)
+5. Save all runtime artifacts to `builds/movie-{id}/` (in current directory)
 
 ### 5. View the Results
 
@@ -209,10 +217,10 @@ When you run `renku generate` from a project folder:
 ├── builds/                  # GITIGNORED - build data
 │   └── movie-{id}/
 │       ├── blobs/           # Generated files (audio, images, etc.)
-│       ├── manifests/       # Artifact metadata
-│       ├── events/          # Execution logs
+│       ├── manifests/       # Runtime artifact metadata keyed by Artifact IDs
+│       ├── events/          # Execution logs (including artifacts.log)
 │       └── runs/            # Execution plans
-└── artifacts/               # GITIGNORED - symlinks to build outputs
+└── artifacts/               # GITIGNORED - symlinks to materialized build outputs
     └── movie-{id}/
         ├── Script.txt       # Symlink to generated script
         ├── Segment_0.mp3    # Symlink to audio segments

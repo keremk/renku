@@ -29,7 +29,7 @@ describe('end-to-end: video-audio-music dry runs', () => {
 		restoreEnv();
 	});
 
-	it('runs query and edit dry-runs with canonical bindings and artefacts', async () => {
+	it('runs query and edit dry-runs with canonical bindings and artifacts', async () => {
 		const blueprintPath = resolve(
 			CLI_FIXTURES_BLUEPRINTS,
 			'pipeline-orchestration',

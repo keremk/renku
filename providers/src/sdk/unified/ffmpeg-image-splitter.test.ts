@@ -162,7 +162,7 @@ describe('extractPanelImages', () => {
 
       expect(result.panels.length).toBe(2);
       expect(result.panels[0].status).toBe('succeeded');
-      expect(result.panels[0].artefactId).toBe('Artifact:PanelImages[0]');
+      expect(result.panels[0].artifactId).toBe('Artifact:PanelImages[0]');
       expect(result.panels[0].blob?.mimeType).toBe('image/png');
       expect(result.panels[0].diagnostics?.source).toBe('simulated');
       expect(result.panels[0].diagnostics?.panelIndex).toBe(0);
@@ -183,7 +183,7 @@ describe('extractPanelImages', () => {
       expect(result.panels.length).toBe(9);
       result.panels.forEach((panel, i) => {
         expect(panel.status).toBe('succeeded');
-        expect(panel.artefactId).toBe(`Artifact:PanelImages[${i}]`);
+        expect(panel.artifactId).toBe(`Artifact:PanelImages[${i}]`);
         expect(panel.blob?.mimeType).toBe('image/png');
       });
     });

@@ -26,7 +26,7 @@ inputs:
     description: Intended audience for tailoring details. Model default varies.
     type: string
 
-artifacts:
+outputs:
   - name: ImagePrompt
     description: Generated text prompts for downstream image synthesis.
     type: array

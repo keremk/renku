@@ -48,7 +48,7 @@ inputs:
     type: resolution
     required: true
 
-artifacts:
+outputs:
   - name: StoryboardImage
     description: The generated storyboard grid image.
     type: image
@@ -81,7 +81,7 @@ loops:
     countInput: NumOfSegments
     countInputOffset: 1
 
-producers:
+imports:
   - name: StoryboardDirector
     path: ./storyboard-director/storyboard-director.yaml
   - name: StoryboardImageProducer

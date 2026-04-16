@@ -35,7 +35,7 @@ describe('MovieStorage', () => {
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
-      artefacts: {
+      artifacts: {
         [TIMELINE_ID]: {
           hash: 'feed1234',
           producedBy: 'Producer:Timeline',
@@ -83,7 +83,7 @@ describe('MovieStorage', () => {
     expect(result.resources[0]?.uri).toBe(`renku://movies/${movieId}/inputs`);
   });
 
-  it('reads timeline artefact as formatted JSON', async () => {
+  it('reads timeline artifact as formatted JSON', async () => {
     const response = await storage.readTimeline(movieId);
     const first = response.contents[0];
     if (!first || !('text' in first)) {
@@ -94,11 +94,11 @@ describe('MovieStorage', () => {
     expect(parsed.duration).toBe(30);
   });
 
-  it('reads blob artefacts as base64 resources', async () => {
-    const response = await storage.readArtefact(movieId, encodeURIComponent('Artifact:Audio.Sample'));
+  it('reads blob artifacts as base64 resources', async () => {
+    const response = await storage.readArtifact(movieId, encodeURIComponent('Artifact:Audio.Sample'));
     const first = response.contents[0];
     if (!first || !('blob' in first)) {
-      throw new Error('Expected blob content for artefact response');
+      throw new Error('Expected blob content for artifact response');
     }
     expect(first.blob).toBe(Buffer.from([1, 2, 3]).toString('base64'));
     expect(first.mimeType).toBe('audio/mpeg');

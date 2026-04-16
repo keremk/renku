@@ -45,7 +45,7 @@ inputs:
     type: resolution
     required: true
 
-artifacts:
+outputs:
   - name: CharacterImages
     description: Character image per character index.
     type: array
@@ -73,7 +73,7 @@ loops:
     description: Iterates over storyboard/video prompt arrays.
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: CharacterImageProducer
     producer: image/image-compose
     loop: character

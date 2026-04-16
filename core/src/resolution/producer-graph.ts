@@ -31,7 +31,7 @@ export function createProducerGraph(
   }>,
 ): ProducerGraph {
   const nodeMap = new Map(canonical.nodes.map((node) => [node.id, node]));
-  const artefactProducers = computeArtefactProducers(canonical, nodeMap);
+  const artifactProducers = computeArtifactProducers(canonical, nodeMap);
 
   // Build set of artifacts that are actually connected downstream
   // (used as input to another node or chained to another artifact)
@@ -66,7 +66,7 @@ export function createProducerGraph(
     }
 
     const inboundInputs = canonical.edges.filter((edge) => edge.to === node.id).map((edge) => edge.from);
-    const producedArtefacts = canonical.edges
+    const producedArtifacts = canonical.edges
       .filter((edge) => edge.from === node.id)
       .map((edge) => edge.to)
       .filter((id) => isCanonicalArtifactId(id))
@@ -142,7 +142,7 @@ export function createProducerGraph(
     }
 
     for (const dependencyKey of dependencyKeys) {
-      const upstream = artefactProducers.get(dependencyKey);
+      const upstream = artifactProducers.get(dependencyKey);
       if (upstream && upstream !== node.id) {
         const edgeKey = `${upstream}->${node.id}`;
         if (!edgeSet.has(edgeKey)) {
@@ -173,7 +173,7 @@ export function createProducerGraph(
       indices: node.indices,
       producerAlias: producerAlias,
       inputs: allInputs,
-      produces: producedArtefacts,
+      produces: producedArtifacts,
       inputBindings: inputBindings && Object.keys(inputBindings).length > 0 ? inputBindings : undefined,
       sdkMapping: canonicalSdkMapping,
       outputs: option.outputs ?? node.producer?.outputs,
@@ -190,7 +190,7 @@ export function createProducerGraph(
       jobId: node.id,
       producer: producerAlias,
       inputs: allInputs,
-      produces: producedArtefacts,
+      produces: producedArtifacts,
       provider: catalogEntry.provider,
       providerModel: catalogEntry.providerModel,
       rateKey: catalogEntry.rateKey,
@@ -201,7 +201,7 @@ export function createProducerGraph(
   return { nodes, edges };
 }
 
-function computeArtefactProducers(
+function computeArtifactProducers(
   canonical: CanonicalBlueprint,
   nodeMap: Map<string, CanonicalBlueprint['nodes'][number]>,
 ): Map<string, string> {

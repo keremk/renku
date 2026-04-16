@@ -5,8 +5,9 @@ import {
   isCanonicalArtifactId,
   parseCanonicalArtifactId,
 } from '../parsing/canonical-ids.js';
-import type { BlueprintTreeNode } from '../types.js';
+import type { BlueprintOutputDefinition, BlueprintTreeNode } from '../types.js';
 import { buildBlueprintGraph, type BlueprintGraphNode } from './canonical-graph.js';
+import { decomposeJsonSchema } from './schema-decomposition.js';
 import {
   selectBlueprintResolutionInputs,
   type BlueprintResolutionContext,
@@ -169,6 +170,7 @@ export function buildStoryboardProjection(
       ? args.expanded
       : buildLegacyStoryboardExpandedResolution(args);
   const { context, normalizedInputs, canonical } = expanded;
+  const root = context.root;
   const graph = context.graph;
   const artifactStateById = args.artifactStates ?? {};
   const resolvedArtifactValues = args.resolvedArtifactValues ?? {};
@@ -186,10 +188,14 @@ export function buildStoryboardProjection(
   const activeEdges = filterActiveEdges(
     canonical.edges,
     resolvedArtifactValues,
+    normalizedInputs,
     hasProducedStoryState
   );
+  const rootOutputIds = collectRootOutputIds(root);
   const publishedArtifactIds = collectPublishedArtifactIds(
-    canonical.outputSourceBindings,
+    canonical.outputSourceBindings.filter((binding) =>
+      rootOutputIds.has(stripCanonicalIndices(binding.outputId))
+    ),
     {
       resolvedArtifacts: resolvedArtifactValues,
       resolvedInputs: normalizedInputs,
@@ -433,6 +439,35 @@ export function buildStoryboardProjection(
     columns,
     connectors: Array.from(dedupedConnectors.values()),
   };
+}
+
+function collectRootOutputIds(root: BlueprintTreeNode): Set<string> {
+  const outputIds = new Set<string>();
+
+  for (const output of root.document.outputs) {
+    for (const expandedOutput of expandRootOutputDefinitions(output)) {
+      outputIds.add(`Output:${expandedOutput.name}`);
+    }
+  }
+
+  return outputIds;
+}
+
+function expandRootOutputDefinitions(
+  output: BlueprintOutputDefinition
+): BlueprintOutputDefinition[] {
+  if (output.type !== 'json' || !output.schema || !output.arrays) {
+    return [output];
+  }
+
+  return decomposeJsonSchema(output.schema, output.name, output.arrays).map(
+    (field) => ({
+      name: field.path,
+      type: field.type,
+      required: output.required,
+      description: output.description,
+    })
+  );
 }
 
 function buildLegacyStoryboardExpandedResolution(args: {
@@ -713,7 +748,7 @@ function filterDisconnectedProducerArtifacts(args: {
 }
 
 function resolveStoryMediaType(node: CanonicalNodeInstance): StoryMediaType | null {
-  const definition = node.type === 'Input' ? node.input : node.artefact;
+  const definition = node.type === 'Input' ? node.input : node.artifact;
   if (!definition) {
     return null;
   }
@@ -749,6 +784,7 @@ function resolveStoryMediaType(node: CanonicalNodeInstance): StoryMediaType | nu
 function filterActiveEdges(
   edges: CanonicalEdgeInstance[],
   resolvedArtifacts: Record<string, unknown>,
+  resolvedInputs: Record<string, unknown>,
   hasProducedStoryState: boolean
 ): CanonicalEdgeInstance[] {
   return edges.filter((edge) => {
@@ -756,6 +792,7 @@ function filterActiveEdges(
       edge.conditions,
       edge.indices,
       resolvedArtifacts,
+      resolvedInputs,
       hasProducedStoryState
     );
   });
@@ -765,6 +802,7 @@ function isConditionActive(
   conditions: CanonicalEdgeInstance['conditions'],
   indices: Record<string, number> | undefined,
   resolvedArtifacts: Record<string, unknown>,
+  resolvedInputs: Record<string, unknown>,
   hasProducedStoryState: boolean
 ): boolean {
   if (!conditions) {
@@ -773,6 +811,7 @@ function isConditionActive(
 
   const result = evaluateCondition(conditions, indices ?? {}, {
     resolvedArtifacts,
+    resolvedInputs,
   });
   if (result.satisfied) {
     return true;
@@ -1053,7 +1092,7 @@ function buildStoryboardItem(args: {
           canonicalProducerId: getCanonicalProducerId(args.node),
         },
         label: formatNodeLabel(args.node),
-        description: args.node.artefact?.description,
+        description: args.node.artifact?.description,
         state: placeholder.state,
         placeholderReason: placeholder.reason,
         placeholderMessage: placeholder.message,
@@ -1127,7 +1166,7 @@ function buildConcreteItem(args: {
       label: formatNodeLabel(args.node),
       description: args.node.type === 'Input'
         ? args.node.input?.description
-        : args.node.artefact?.description,
+        : args.node.artifact?.description,
       state: args.state,
       dependencyClass: args.dependencyClass,
       text: {
@@ -1150,7 +1189,7 @@ function buildConcreteItem(args: {
     label: formatNodeLabel(args.node),
     description: args.node.type === 'Input'
       ? args.node.input?.description
-      : args.node.artefact?.description,
+      : args.node.artifact?.description,
     state: args.state,
     dependencyClass: args.dependencyClass,
     media: {
@@ -1408,7 +1447,7 @@ function stringifyStoryText(value: unknown): string {
 }
 
 function inferTextLanguage(node: CanonicalNodeInstance): 'markdown' | 'json' {
-  const definition = node.type === 'Input' ? node.input : node.artefact;
+  const definition = node.type === 'Input' ? node.input : node.artifact;
   return definition?.type === 'json' ? 'json' : 'markdown';
 }
 

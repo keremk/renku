@@ -151,7 +151,7 @@ describe('createUnifiedHandler', () => {
     expect(typeof factory).toBe('function');
   });
 
-  it('handler invoke returns succeeded status with artefacts', async () => {
+  it('handler invoke returns succeeded status with artifacts', async () => {
     const adapter = createMockAdapter({
       normalizedUrls: ['https://mock.example.com/output.png'],
     });
@@ -164,8 +164,8 @@ describe('createUnifiedHandler', () => {
     const result = await handler.invoke(createMockRequest());
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
-    expect(result.artefacts[0]?.artefactId).toBe('Artifact:Output[index=0]');
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.artifactId).toBe('Artifact:Output[index=0]');
   });
 
   it('handler invoke calls adapter methods in correct order (live mode)', async () => {
@@ -382,8 +382,8 @@ describe('createUnifiedHandler', () => {
     const result = await handler.invoke(createMockRequest());
 
     expect(result.status).toBe('failed');
-    expect(result.artefacts).toHaveLength(1);
-    expect(result.artefacts[0]?.status).toBe('failed');
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.status).toBe('failed');
   });
 
   it('includes diagnostics in result', async () => {
@@ -713,7 +713,7 @@ describe('createUnifiedHandler', () => {
 
     expect(result.status).toBe('succeeded');
     expect(
-      JSON.parse(result.artefacts[0]!.blob!.data.toString('utf-8'))
+      JSON.parse(result.artifacts[0]!.blob!.data.toString('utf-8'))
     ).toEqual({
       transcript: 'hello world',
       words: [{ text: 'hello', start: 0, end: 0.5 }],
@@ -750,7 +750,7 @@ describe('createUnifiedHandler', () => {
 
     expect(result.diagnostics?.providerRequestId).toBe('req-123');
     expect(
-      JSON.parse(result.artefacts[0]!.blob!.data.toString('utf-8'))
+      JSON.parse(result.artifacts[0]!.blob!.data.toString('utf-8'))
     ).toEqual({
       transcript: 'ready',
       words: [],

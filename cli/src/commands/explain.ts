@@ -195,7 +195,7 @@ async function reconstructExplanation(args: ReconstructExplanationArgs): Promise
     movieId,
     revision: plan.revision,
     dirtyInputs: [], // Not available from saved plan
-    dirtyArtefacts: [], // Not available from saved plan
+    dirtyArtifacts: [], // Not available from saved plan
     jobReasons,
     initialDirtyJobs: allJobs.map((job) => job.jobId),
     propagatedJobs: [],

@@ -16,7 +16,7 @@ export interface JobDirtyReason {
     | 'producesMissing' // Job produces artifacts not in manifest
     | 'latestAttemptFailed' // Job produced artifacts that most recently failed
     | 'touchesDirtyInput' // Job depends on dirty inputs
-    | 'touchesDirtyArtefact' // Job depends on dirty upstream artifacts
+    | 'touchesDirtyArtifact' // Job depends on dirty upstream artifacts
     | 'inputsHashChanged' // Stored inputsHash differs from recomputed content hash
     | 'propagated' // Marked dirty because an upstream job is dirty
     | 'forcedBySurgicalTarget' // Included as a direct surgical target source job
@@ -28,8 +28,8 @@ export interface JobDirtyReason {
   failedArtifacts?: string[];
   /** Dirty input IDs if reason is 'touchesDirtyInput' */
   dirtyInputs?: string[];
-  /** Dirty artifact IDs if reason is 'touchesDirtyArtefact' */
-  dirtyArtefacts?: string[];
+  /** Dirty artifact IDs if reason is 'touchesDirtyArtifact' */
+  dirtyArtifacts?: string[];
   /** Artifact IDs with stale inputsHash if reason is 'inputsHashChanged' */
   staleArtifacts?: string[];
   /** Upstream job ID if reason is 'propagated' */
@@ -47,7 +47,7 @@ export interface PlanExplanation {
   /** All inputs that were detected as dirty */
   dirtyInputs: string[];
   /** All artifacts that were detected as dirty */
-  dirtyArtefacts: string[];
+  dirtyArtifacts: string[];
   /** Reasons why each scheduled job appears in the final plan */
   jobReasons: JobDirtyReason[];
   /** Scheduled job IDs that were initially dirty (before propagation) */

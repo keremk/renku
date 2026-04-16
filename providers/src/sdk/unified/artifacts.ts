@@ -1,9 +1,9 @@
 import { Buffer } from 'node:buffer';
-import { isCanonicalArtifactId, readJsonPath, type ProducedArtefact } from '@gorenku/core';
+import { isCanonicalArtifactId, readJsonPath, type ProducedArtifact } from '@gorenku/core';
 import type { ProviderMode } from '../../types.js';
 import {
   detectRequiredExtractions,
-  extractDerivedArtefacts,
+  extractDerivedArtifacts,
   needsExtraction,
   type RequiredExtractions,
 } from './ffmpeg-extractor.js';
@@ -20,7 +20,7 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
-export interface BuildArtefactsOptions {
+export interface BuildArtifactsOptions {
   produces: string[];
   durationInputId?: string;
   urls: string[];
@@ -29,12 +29,12 @@ export interface BuildArtefactsOptions {
   resolvedInputs?: Record<string, unknown>;
 }
 
-export interface BuildArtefactFromJsonOptions {
+export interface BuildArtifactFromJsonOptions {
   producerId?: string;
   namespaceOrdinalDepth?: number;
 }
 
-export interface BuildJsonArtefactsOptions {
+export interface BuildJsonArtifactsOptions {
   produces: string[];
   jsonOutput: unknown;
   mimeType: string;
@@ -51,14 +51,14 @@ function assertCanonicalProduces(produces: string[], operation: string): void {
 }
 
 /**
- * Creates ProducedArtefact objects from a JSON response.
+ * Creates ProducedArtifact objects from a JSON response.
  * Used for models that return structured data (like STT) rather than media URLs.
  *
  * The entire JSON response becomes the artifact blob data.
  */
-export function buildArtefactsFromJson(options: BuildJsonArtefactsOptions): ProducedArtefact[] {
+export function buildArtifactsFromJson(options: BuildJsonArtifactsOptions): ProducedArtifact[] {
   const { produces, jsonOutput, mimeType } = options;
-  assertCanonicalProduces(produces, 'buildArtefactsFromJson');
+  assertCanonicalProduces(produces, 'buildArtifactsFromJson');
 
   // Serialize the JSON output
   const jsonData = JSON.stringify(jsonOutput, null, 2);
@@ -67,10 +67,10 @@ export function buildArtefactsFromJson(options: BuildJsonArtefactsOptions): Prod
   // For JSON outputs, all produces share the same data
   // (typically there's only one artifact for JSON responses)
   return produces.map((providedId) => {
-    const artefactId = providedId;
+    const artifactId = providedId;
 
     return {
-      artefactId,
+      artifactId,
       status: 'succeeded' as const,
       blob: {
         data: buffer,
@@ -83,7 +83,7 @@ export function buildArtefactsFromJson(options: BuildJsonArtefactsOptions): Prod
   });
 }
 
-export interface ParsedArtefactIdentifier {
+export interface ParsedArtifactIdentifier {
   /** Full artifact kind path (e.g., "Producer.Image") */
   kind: string;
   /** Base name without namespace path (e.g., "Image") */
@@ -94,13 +94,13 @@ export interface ParsedArtefactIdentifier {
   ordinal?: number[];
 }
 
-interface ArtefactExtractionContext {
+interface ArtifactExtractionContext {
   skipNamespaceOrdinals: number;
   parentArtifactName?: string;
 }
 
 /**
- * Downloads binary data from URLs and creates ProducedArtefact objects.
+ * Downloads binary data from URLs and creates ProducedArtifact objects.
  * Handles missing URLs and download failures gracefully.
  *
  * In simulated mode, generates valid media with an explicit duration
@@ -114,10 +114,10 @@ interface ArtefactExtractionContext {
  * For image artifacts, this function can extract panel images from a grid
  * when PanelImages[N] artifacts are included in the produces array.
  */
-export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Promise<ProducedArtefact[]> {
+export async function buildArtifactsFromUrls(options: BuildArtifactsOptions): Promise<ProducedArtifact[]> {
   const { produces, durationInputId, urls, mimeType, mode, resolvedInputs } = options;
-  assertCanonicalProduces(produces, 'buildArtefactsFromUrls');
-  const artefacts: ProducedArtefact[] = [];
+  assertCanonicalProduces(produces, 'buildArtifactsFromUrls');
+  const artifacts: ProducedArtifact[] = [];
   const useMockDownloads = mode === 'simulated';
 
   // Detect which extractions are needed from video
@@ -155,12 +155,12 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
 
   for (let index = 0; index < primaryProduces.length; index += 1) {
     const providedId = primaryProduces[index];
-    const artefactId = providedId;
+    const artifactId = providedId;
     const url = urls[index];
 
     if (!url) {
-      artefacts.push({
-        artefactId,
+      artifacts.push({
+        artifactId,
         status: 'failed',
         diagnostics: {
           reason: 'missing_output',
@@ -178,8 +178,8 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
           })
         : await downloadBinary(url);
 
-      artefacts.push({
-        artefactId,
+      artifacts.push({
+        artifactId,
         status: 'succeeded',
         blob: {
           data: buffer,
@@ -193,17 +193,17 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
       // Store video buffer for extraction
       if (isVideo && extractionNeeded && !videoBuffer) {
         videoBuffer = buffer;
-        primaryVideoArtifactId = artefactId;
+        primaryVideoArtifactId = artifactId;
       }
 
       // Store image buffer for panel extraction
       if (isImage && panelExtractionNeeded && !imageBuffer) {
         imageBuffer = buffer;
-        primaryImageArtifactId = artefactId;
+        primaryImageArtifactId = artifactId;
       }
     } catch (error) {
-      artefacts.push({
-        artefactId,
+      artifacts.push({
+        artifactId,
         status: 'failed',
         diagnostics: {
           reason: 'download_failed',
@@ -216,7 +216,7 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
 
   // Extract derived artifacts from video if needed
   if (isVideo && extractionNeeded && videoBuffer && primaryVideoArtifactId) {
-    const extracted = await extractDerivedArtefacts({
+    const extracted = await extractDerivedArtifacts({
       videoBuffer,
       primaryArtifactId: primaryVideoArtifactId,
       produces,
@@ -226,13 +226,13 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
 
     // Add extracted artifacts to results
     if (extracted.firstFrame) {
-      artefacts.push(extracted.firstFrame);
+      artifacts.push(extracted.firstFrame);
     }
     if (extracted.lastFrame) {
-      artefacts.push(extracted.lastFrame);
+      artifacts.push(extracted.lastFrame);
     }
     if (extracted.audioTrack) {
-      artefacts.push(extracted.audioTrack);
+      artifacts.push(extracted.audioTrack);
     }
   }
 
@@ -247,10 +247,10 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
     });
 
     // Add extracted panel artifacts to results
-    artefacts.push(...extracted.panels);
+    artifacts.push(...extracted.panels);
   }
 
-  return artefacts;
+  return artifacts;
 }
 
 /**
@@ -331,7 +331,7 @@ export async function downloadBinary(url: string): Promise<Buffer> {
  * Builds artifacts from JSON response using canonical mapping.
  * Supports both simple field extraction and decomposed JSON artifacts.
  *
- * Convention: JSON field names **must** match the canonical artefact kind
+ * Convention: JSON field names **must** match the canonical artifact kind
  * (PascalCase, without namespace). No heuristics or fallbacks.
  *
  * @example
@@ -342,24 +342,24 @@ export async function downloadBinary(url: string): Promise<Buffer> {
  *   - "Artifact:NarrationScript[1]" → NarrationScript[1]
  *   - "Artifact:NarrationScript[2]" → NarrationScript[2]
  */
-export function buildArtefactsFromJsonResponse(
+export function buildArtifactsFromJsonResponse(
   response: JsonObject | string,
   produces: string[],
-  options: BuildArtefactFromJsonOptions = {},
-): ProducedArtefact[] {
-  const artefacts: ProducedArtefact[] = [];
+  options: BuildArtifactFromJsonOptions = {},
+): ProducedArtifact[] {
+  const artifacts: ProducedArtifact[] = [];
   const jsonResponse = typeof response === 'string' ? response : response;
-  const context: ArtefactExtractionContext = {
+  const context: ArtifactExtractionContext = {
     skipNamespaceOrdinals: resolveNamespaceOrdinalDepth(options),
     parentArtifactName: detectParentArtifactName(produces),
   };
 
-  for (const artefactId of produces) {
-    const artefact = buildSingleArtefact(jsonResponse, artefactId, context);
-    artefacts.push(artefact);
+  for (const artifactId of produces) {
+    const artifact = buildSingleArtifact(jsonResponse, artifactId, context);
+    artifacts.push(artifact);
   }
 
-  return artefacts;
+  return artifacts;
 }
 
 /**
@@ -429,17 +429,17 @@ function detectParentArtifactName(produces: string[]): string | undefined {
   return undefined;
 }
 
-function buildSingleArtefact(
+function buildSingleArtifact(
   response: JsonObject | string,
-  artefactId: string,
-  context: ArtefactExtractionContext,
-): ProducedArtefact {
+  artifactId: string,
+  context: ArtifactExtractionContext,
+): ProducedArtifact {
   const diagnostics: Record<string, unknown> = {};
 
   // For text responses, return the whole text
   if (typeof response === 'string') {
     return {
-      artefactId,
+      artifactId,
       status: 'succeeded',
       blob: {
         data: response,
@@ -450,12 +450,12 @@ function buildSingleArtefact(
   }
 
   // For JSON responses, use implicit mapping
-  const parsed = parseArtefactIdentifier(artefactId, context.parentArtifactName);
+  const parsed = parseArtifactIdentifier(artifactId, context.parentArtifactName);
   if (!parsed) {
     return {
-      artefactId,
+      artifactId,
       status: 'failed',
-      diagnostics: { reason: 'invalid_artefact_id', artefactId },
+      diagnostics: { reason: 'invalid_artifact_id', artifactId },
     };
   }
 
@@ -467,7 +467,7 @@ function buildSingleArtefact(
     const result = readJsonPath(response, parsed.jsonPath);
     if (!result.exists) {
       return {
-        artefactId,
+        artifactId,
         status: 'failed',
         diagnostics: { ...diagnostics, reason: 'json_path_not_found', jsonPath: parsed.jsonPath },
       };
@@ -476,14 +476,14 @@ function buildSingleArtefact(
     const materialized = materializeValue(result.value);
     if (!materialized.success) {
       return {
-        artefactId,
+        artifactId,
         status: 'failed',
         diagnostics: { ...diagnostics, reason: 'materialization_failed', error: materialized.error },
       };
     }
 
     return {
-      artefactId,
+      artifactId,
       status: 'succeeded',
       blob: {
         data: materialized.text ?? '',
@@ -501,7 +501,7 @@ function buildSingleArtefact(
   const fieldValue = response[fieldName];
   if (fieldValue === undefined) {
     return {
-      artefactId,
+      artifactId,
       status: 'failed',
       diagnostics: { ...diagnostics, reason: 'missing_field', field: fieldName },
     };
@@ -515,7 +515,7 @@ function buildSingleArtefact(
     value = selectByOrdinal(fieldValue, effectiveOrdinal, diagnostics);
     if (value === undefined) {
       return {
-        artefactId,
+        artifactId,
         status: 'failed',
         diagnostics,
       };
@@ -524,7 +524,7 @@ function buildSingleArtefact(
     value = selectArrayElement(fieldValue, parsed.index.segment, diagnostics);
     if (value === undefined) {
       return {
-        artefactId,
+        artifactId,
         status: 'failed',
         diagnostics,
       };
@@ -535,14 +535,14 @@ function buildSingleArtefact(
   const materialized = materializeValue(value);
   if (!materialized.success) {
     return {
-      artefactId,
+      artifactId,
       status: 'failed',
       diagnostics: { ...diagnostics, reason: 'materialization_failed', error: materialized.error },
     };
   }
 
   return {
-    artefactId,
+    artifactId,
     status: 'succeeded',
     blob: {
       data: materialized.text ?? '',
@@ -564,10 +564,10 @@ function buildSingleArtefact(
  * @param parentArtifactName - Optional parent artifact name for decomposed artifacts.
  *                             When provided, the JSON path is extracted after this name.
  */
-export function parseArtefactIdentifier(
+export function parseArtifactIdentifier(
   identifier: string,
   parentArtifactName?: string,
-): ParsedArtefactIdentifier | null {
+): ParsedArtifactIdentifier | null {
   if (!isCanonicalArtifactId(identifier)) {
     return null;
   }
@@ -632,7 +632,7 @@ function escapeRegex(str: string): string {
 
 function trimNamespaceOrdinals(
   ordinal: number[] | undefined,
-  context: ArtefactExtractionContext,
+  context: ArtifactExtractionContext,
 ): number[] | undefined {
   if (!ordinal || ordinal.length === 0) {
     return ordinal;
@@ -647,7 +647,7 @@ function trimNamespaceOrdinals(
   return ordinal.slice(skip);
 }
 
-function resolveNamespaceOrdinalDepth(options: BuildArtefactFromJsonOptions): number {
+function resolveNamespaceOrdinalDepth(options: BuildArtifactFromJsonOptions): number {
   if (typeof options.namespaceOrdinalDepth === 'number' && options.namespaceOrdinalDepth >= 0) {
     return options.namespaceOrdinalDepth;
   }

@@ -88,11 +88,11 @@ describe('viewer-parse-projection helpers', () => {
       meta: { id: 'id', name: 'test' },
       inputs: [{ name: 'Prompt', type: 'text', required: true }],
       producers: [],
-      producerImports: [
+      imports: [
         { name: 'PromptProducer', producer: 'prompt/director' },
         { name: 'VideoProducer', producer: 'video/image-to-video', loop: 'scene' },
       ],
-      artefacts: [{ name: 'FinalVideo', type: 'video' }],
+      outputs: [{ name: 'FinalVideo', type: 'video' }],
       edges: [
         { from: 'Prompt', to: 'PromptProducer.Prompt' },
         {
@@ -157,7 +157,7 @@ describe('viewer-parse-projection helpers', () => {
       meta: { id: 'ViewerParseComposite', name: 'Viewer Parse Composite' },
       inputs: [],
       producers: [],
-      producerImports: [
+      imports: [
         {
           name: 'CelebrityVideoProducer',
           path: './celebrity-video-producer.yaml',
@@ -167,7 +167,7 @@ describe('viewer-parse-projection helpers', () => {
           producer: 'video/timeline-compose',
         },
       ],
-      artefacts: [],
+      outputs: [],
       edges: [],
     });
 
@@ -181,8 +181,8 @@ describe('viewer-parse-projection helpers', () => {
         },
         inputs: [],
         producers: [],
-        producerImports: [],
-        artefacts: [],
+        imports: [],
+        outputs: [],
         edges: [],
       })
     );
@@ -196,8 +196,8 @@ describe('viewer-parse-projection helpers', () => {
         },
         inputs: [],
         producers: [],
-        producerImports: [],
-        artefacts: [],
+        imports: [],
+        outputs: [],
         edges: [],
       })
     );

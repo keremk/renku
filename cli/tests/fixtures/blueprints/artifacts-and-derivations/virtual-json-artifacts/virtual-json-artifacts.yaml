@@ -24,7 +24,7 @@ inputs:
     type: resolution
     required: false
 
-artifacts:
+outputs:
   - name: SegmentImage
     description: Generated images for each segment.
     type: multiDimArray
@@ -40,7 +40,7 @@ loops:
     parent: segment
     countInput: NumOfImagesPerSegment
 
-producers:
+imports:
   - name: DocProducer
     path: ../../_shared/documentary/documentary.yaml
   - name: ImageProducer

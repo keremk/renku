@@ -21,7 +21,7 @@ inputs:
     description: Number of scenes to produce.
     type: int
 
-artifacts:
+outputs:
   - name: Storyboard
     description: Storyboard with character prompts and scene character presence masks.
     type: json

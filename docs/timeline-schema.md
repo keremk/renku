@@ -68,7 +68,7 @@ Music Artifact: Music with Music duration 60s.
 Audio Artifacts: Audio[0], Audio[1] with Audio[0]+Audio[1] duration 24s (each 12s) - Master Track
 Video Artifacts: Video[0], Video[1] with each video 10s
 - In this case the difference is within +/- 20%, so:
-    - Video will be slowed down (frames/sec adjustment) to match the audio artefacts making it seamless (almost)
+    - Video will be slowed down (frames/sec adjustment) to match the audio artifacts making it seamless (almost)
 - If it is more than, we will use a fade-out transition. 
 - This can be overridden in the configuration
 - If the videos are longer they are always clipped out. 
@@ -112,7 +112,7 @@ Here is what the shape looks like
 The timeline output starts with section that describes the overall Timeline properties:
 - *id*: uniquely defines the timeline
 - *movieId*: this is the id of the movie that is created, CLI passes this in to the timeline producer. This will later be used to locate the assets in the builds and workspaces folders 
-- *movieTitle*: optional string fed by the upstream script generator when it connects the title artefact into the timeline module.
+- *movieTitle*: optional string fed by the upstream script generator when it connects the title artifact into the timeline module.
 
 As seen above, *tracks* is an array of clips and each clip has:
 - *id*: uniquely defines the clip within the movie timeline
@@ -239,7 +239,7 @@ producers:
         - kind: Audio
           inputs: AudioSegments
 ```
-- The AudioSegments input is grouped by segment via fan-in and each clip gets one audio artefact from its corresponding segment group.
+- The AudioSegments input is grouped by segment via fan-in and each clip gets one audio artifact from its corresponding segment group.
 
 And the algorithm generates these per audio clip calculating their start time and durations (using MediaBunny from the audio asset)
 ```json

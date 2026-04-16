@@ -42,7 +42,7 @@ This is the single combined plan for all related issues:
 Introduce `PlanningSnapshot` built only from:
 
 1. `events/inputs.log`
-2. `events/artefacts.log`
+2. `events/artifacts.log`
 3. run/job attempt status records
 4. expanded canonical blueprint graph
 

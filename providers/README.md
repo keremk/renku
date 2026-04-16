@@ -7,6 +7,11 @@
 
 AI provider integrations for Renku - includes implementations for OpenAI, Replicate, fal.ai, Wavespeed AI, and other AI services. Provides producer implementations, model catalogs, and a unified provider registry system.
 
+Providers operate on runtime data, not authored blueprint connectors:
+
+- blueprints author `outputs:`
+- providers produce concrete runtime `Artifact:...` values for those outputs
+
 ## Overview
 
 `@gorenku/providers` abstracts away the complexity of working with multiple AI service providers. It provides:

@@ -34,7 +34,7 @@ inputs:
     description: Total video duration in seconds.
     type: int
 
-artifacts:
+outputs:
   - name: Script
     description: Complete director script with image prompts, video prompts, and music direction.
     type: json

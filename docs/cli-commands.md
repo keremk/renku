@@ -989,7 +989,7 @@ Project directory (current working directory when running `renku generate`):
 │   └── movie-{id}/
 │       ├── events/
 │       │   ├── inputs.log   # Input events log (JSONL)
-│       │   └── artefacts.log # Artifact events log (JSONL)
+│       │   └── artifacts.log # Artifact events log (JSONL)
 │       ├── runs/
 │       │   └── {revision}-plan.json  # Execution plan
 │       ├── manifests/
@@ -1029,7 +1029,7 @@ Storage configuration created by `init`. Located at `~/.config/renku/cli-config.
 
 JSONL file containing input events. Each line is a JSON object with the input ID, value, and metadata.
 
-#### `events/artefacts.log`
+#### `events/artifacts.log`
 
 JSONL file containing artifact production events with status, blob references, and metadata.
 
@@ -1128,10 +1128,10 @@ renku generate --movie-id=<id> --pid="Producer:AudioProducer:1" --inputs=./input
 **Finding artifact IDs:** Browse the manifest or artifacts folder to find the artifact ID you want to regenerate:
 
 ```bash
-cat builds/movie-{id}/manifests/rev-XXXX.json | jq '.artefacts | keys'
+cat builds/movie-{id}/manifests/rev-XXXX.json | jq '.artifacts | keys'
 ```
 
-The keys under `.artefacts` are canonical IDs. Use those values directly with `--regen` and `--pin`.
+The keys under `.artifacts` are canonical IDs. Use those values directly with `--regen` and `--pin`.
 
 **Use cases:**
 

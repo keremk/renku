@@ -37,7 +37,7 @@ The system follows a three-layer architecture:
 │  - Blueprint System (defines workflow structure)            │
 │  - Input System (InputEvents, content hashing)              │
 │  - Producer Planning (creates execution plan)               │
-│  - Artefact Management                                       │
+│  - Artifact Management                                       │
 └─────────────────────┬───────────────────────────────────────┘
                       │
                       │ inputValues → InputEvents → resolvedInputs
@@ -97,7 +97,7 @@ Replicate producers are now schema-first: the blueprint supplies `sdkMapping` an
 
 ### Why This Architecture?
 
-1. **Content Hashing**: Values in `resolvedInputs` are part of the content hash. When projectConfig values change (voice, size, aspectRatio), the system knows to regenerate artefacts.
+1. **Content Hashing**: Values in `resolvedInputs` are part of the content hash. When projectConfig values change (voice, size, aspectRatio), the system knows to regenerate artifacts.
 
 2. **Separation of Concerns**:
    - CLI handles user interaction and configuration
@@ -116,8 +116,8 @@ Replicate producers are now schema-first: the blueprint supplies `sdkMapping` an
 
 Producers operate at different scopes:
 
-- **Per-Segment Producers**: Generate artefacts for each segment (audio, video, images)
-- **Per-Movie Producers**: Generate artefacts once per movie (music, script)
+- **Per-Segment Producers**: Generate artifacts for each segment (audio, video, images)
+- **Per-Movie Producers**: Generate artifacts once per movie (music, script)
 
 ```typescript
 // Per-segment: processes each segment independently
@@ -207,7 +207,7 @@ Answer these questions:
 1. **Scope**: Is this per-segment or per-movie?
 2. **Inputs**: What inputs does it need from resolvedInputs?
 3. **Config**: What model-specific configuration does it need?
-4. **Output**: What artefact(s) does it produce?
+4. **Output**: What artifact(s) does it produce?
 5. **Models**: Which Replicate models will you support?
 
 ### Step 2: Create the Handler File
@@ -222,7 +222,7 @@ import {
   createSchemaFirstReplicateHandler,
   createReplicateClientManager,
   normalizeReplicateOutput,
-  buildArtefactsFromUrls,
+  buildArtifactsFromUrls,
   extractPlannerContext,
   type PlannerContext,
 } from '../../sdk/replicate/index.js';
@@ -292,21 +292,21 @@ export function createReplicateYourDomainHandler(): HandlerFactory {
           });
         }
 
-        // Build artefacts
+        // Build artifacts
         const outputUrls = normalizeReplicateOutput(predictionOutput);
-        const artefacts = await buildArtefactsFromUrls({
+        const artifacts = await buildArtifactsFromUrls({
           produces: request.produces,
           urls: outputUrls,
           mimeType: config.outputMimeType,
         });
 
-        const status = artefacts.some((artefact) => artefact.status === 'failed')
+        const status = artifacts.some((artifact) => artifact.status === 'failed')
           ? 'failed'
           : 'succeeded';
 
         return {
           status,
-          artefacts,
+          artifacts,
           diagnostics: {
             provider: 'replicate',
             model: request.model,
@@ -922,16 +922,16 @@ export function createReplicateAudioHandler(): HandlerFactory {
           input[voiceFieldName] = voice; // Overrides customAttributes
         }
 
-        // Call API and build artefacts
+        // Call API and build artifacts
         const predictionOutput = await replicate.run(modelIdentifier, { input });
         const outputUrls = normalizeReplicateOutput(predictionOutput);
-        const artefacts = await buildArtefactsFromUrls({
+        const artifacts = await buildArtifactsFromUrls({
           produces: request.produces,
           urls: outputUrls,
           mimeType: config.outputMimeType,
         });
 
-        return { status: 'succeeded', artefacts, diagnostics };
+        return { status: 'succeeded', artifacts, diagnostics };
       },
     });
     return factory(init);
@@ -1356,12 +1356,12 @@ describeIfToken('Replicate audio integration', () => {
       const result = await handler.invoke(request);
 
       expect(result.status).toBe('succeeded');
-      expect(result.artefacts).toHaveLength(1);
-      expect(result.artefacts[0]?.blob?.mimeType).toBe('audio/mpeg');
+      expect(result.artifacts).toHaveLength(1);
+      expect(result.artifacts[0]?.blob?.mimeType).toBe('audio/mpeg');
 
       // Optional: save for manual verification
-      if (result.artefacts[0]?.blob?.data) {
-        saveTestArtifact('test-minimax-output.mp3', result.artefacts[0].blob.data);
+      if (result.artifacts[0]?.blob?.data) {
+        saveTestArtifact('test-minimax-output.mp3', result.artifacts[0].blob.data);
       }
     }, 60000); // 1 minute timeout
   });
@@ -1429,7 +1429,7 @@ Include comprehensive diagnostics in results:
 // ✅ Good: Complete context for debugging
 return {
   status,
-  artefacts,
+  artifacts,
   diagnostics: {
     provider: 'replicate',
     model: request.model,
@@ -1582,7 +1582,7 @@ When creating a new producer or adding model support, use this checklist:
 - [ ] Create resolution functions for each input
 - [ ] Create field mapping functions
 - [ ] Handle errors with typed errors
-- [ ] Build artefacts with complete diagnostics
+- [ ] Build artifacts with complete diagnostics
 - [ ] Register in mappings.ts
 - [ ] Add to producer-options.ts
 - [ ] Create unit tests (15+ tests recommended)

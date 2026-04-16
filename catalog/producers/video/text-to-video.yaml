@@ -35,7 +35,7 @@ inputs:
     description: URL to background audio file.
     type: string
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The generated video.
     type: video

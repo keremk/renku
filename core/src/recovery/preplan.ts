@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import { createEventLog } from '../event-log.js';
 import { parseCanonicalArtifactId } from '../canonical-ids.js';
 import { persistBlobToStorage } from '../blob-utils.js';
-import type { ArtefactEvent } from '../types.js';
+import type { ArtifactEvent } from '../types.js';
 import type { StorageContext } from '../storage.js';
 
 export type FalRecoveryStatus =
@@ -36,7 +36,7 @@ interface DownloadResult {
 }
 
 export interface RecoveryFailure {
-  artefactId: string;
+  artifactId: string;
   reason: string;
   providerRequestId?: string;
 }
@@ -68,17 +68,17 @@ interface RecoveryPrepassOptions {
 }
 
 interface FalRecoveryCandidate {
-  artefactId: string;
+  artifactId: string;
   providerRequestId: string;
   model: string;
-  event: ArtefactEvent;
+  event: ArtifactEvent;
 }
 
 type CandidateParseResult =
   | { kind: 'skip' }
   | {
       kind: 'malformed';
-      artefactId: string;
+      artifactId: string;
       reason: string;
       providerRequestId?: string;
     }
@@ -112,13 +112,13 @@ export async function recoverFailedArtifactsBeforePlanning(
   };
 
   const eventLog = createEventLog(storage);
-  const latestById = new Map<string, ArtefactEvent>();
-  const latestSucceededById = new Map<string, ArtefactEvent>();
+  const latestById = new Map<string, ArtifactEvent>();
+  const latestSucceededById = new Map<string, ArtifactEvent>();
 
-  for await (const event of eventLog.streamArtefacts(movieId)) {
-    latestById.set(event.artefactId, event);
+  for await (const event of eventLog.streamArtifacts(movieId)) {
+    latestById.set(event.artifactId, event);
     if (event.status === 'succeeded') {
-      latestSucceededById.set(event.artefactId, event);
+      latestSucceededById.set(event.artifactId, event);
     }
   }
 
@@ -138,20 +138,20 @@ export async function recoverFailedArtifactsBeforePlanning(
     if (parseResult.kind === 'malformed') {
       recordRecoveryFailure(
         summary,
-        parseResult.artefactId,
+        parseResult.artifactId,
         parseResult.reason,
         parseResult.providerRequestId
       );
       logger?.warn?.('recovery.preplan.malformedDiagnostics', {
         movieId,
-        artefactId: parseResult.artefactId,
+        artifactId: parseResult.artifactId,
         reason: parseResult.reason,
       });
       continue;
     }
 
     const candidate = parseResult.candidate;
-    summary.checkedArtifactIds.push(candidate.artefactId);
+    summary.checkedArtifactIds.push(candidate.artifactId);
 
     try {
       const statusResult = await checkFalStatus(
@@ -166,14 +166,14 @@ export async function recoverFailedArtifactsBeforePlanning(
         statusResult.status === 'in_progress' ||
         statusResult.status === 'in_queue'
       ) {
-        summary.pendingArtifactIds.push(candidate.artefactId);
+        summary.pendingArtifactIds.push(candidate.artifactId);
         continue;
       }
 
       if (statusResult.status !== 'completed') {
         recordRecoveryFailure(
           summary,
-          candidate.artefactId,
+          candidate.artifactId,
           statusResult.error ??
             `Provider returned status ${statusResult.status}.`,
           candidate.providerRequestId
@@ -182,11 +182,11 @@ export async function recoverFailedArtifactsBeforePlanning(
       }
 
       const url = pickRecoveryUrl(
-        candidate.artefactId,
+        candidate.artifactId,
         statusResult.urls ?? []
       );
       const downloaded = await downloadBinary(url);
-      const previousMimeType = latestSucceededById.get(candidate.artefactId)
+      const previousMimeType = latestSucceededById.get(candidate.artifactId)
         ?.output.blob?.mimeType;
       const mimeType = resolveMimeType({
         url,
@@ -200,8 +200,8 @@ export async function recoverFailedArtifactsBeforePlanning(
       });
 
       const recoveredAt = now();
-      const recoveredEvent: ArtefactEvent = {
-        artefactId: candidate.artefactId,
+      const recoveredEvent: ArtifactEvent = {
+        artifactId: candidate.artifactId,
         revision: candidate.event.revision,
         inputsHash: candidate.event.inputsHash,
         output: { blob },
@@ -217,19 +217,19 @@ export async function recoverFailedArtifactsBeforePlanning(
         createdAt: recoveredAt,
       };
 
-      await eventLog.appendArtefact(movieId, recoveredEvent);
-      latestSucceededById.set(candidate.artefactId, recoveredEvent);
-      summary.recoveredArtifactIds.push(candidate.artefactId);
+      await eventLog.appendArtifact(movieId, recoveredEvent);
+      latestSucceededById.set(candidate.artifactId, recoveredEvent);
+      summary.recoveredArtifactIds.push(candidate.artifactId);
     } catch (error) {
       recordRecoveryFailure(
         summary,
-        candidate.artefactId,
+        candidate.artifactId,
         error instanceof Error ? error.message : String(error),
         candidate.providerRequestId
       );
       logger?.warn?.('recovery.preplan.failed', {
         movieId,
-        artefactId: candidate.artefactId,
+        artifactId: candidate.artifactId,
         providerRequestId: candidate.providerRequestId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -248,16 +248,16 @@ export async function recoverFailedArtifactsBeforePlanning(
 
 function recordRecoveryFailure(
   summary: RecoveryPrepassSummary,
-  artefactId: string,
+  artifactId: string,
   reason: string,
   providerRequestId?: string
 ): void {
-  summary.failedArtifactIds.push(artefactId);
-  summary.failedRecoveries.push({ artefactId, reason, providerRequestId });
+  summary.failedArtifactIds.push(artifactId);
+  summary.failedRecoveries.push({ artifactId, reason, providerRequestId });
 }
 
 function parseRecoverableFalCandidate(
-  event: ArtefactEvent
+  event: ArtifactEvent
 ): CandidateParseResult {
   if (event.status !== 'failed') {
     return { kind: 'skip' };
@@ -278,7 +278,7 @@ function parseRecoverableFalCandidate(
   if (!provider) {
     return {
       kind: 'malformed',
-      artefactId: event.artefactId,
+      artifactId: event.artifactId,
       reason:
         'Recoverable artifact diagnostics are missing a provider identifier.',
       providerRequestId,
@@ -293,7 +293,7 @@ function parseRecoverableFalCandidate(
   if (!model) {
     return {
       kind: 'malformed',
-      artefactId: event.artefactId,
+      artifactId: event.artifactId,
       reason:
         'Recoverable fal-ai artifact diagnostics are missing model metadata.',
       providerRequestId,
@@ -303,7 +303,7 @@ function parseRecoverableFalCandidate(
   if (!providerRequestId) {
     return {
       kind: 'malformed',
-      artefactId: event.artefactId,
+      artifactId: event.artifactId,
       reason:
         'Recoverable fal-ai artifact diagnostics are missing providerRequestId.',
     };
@@ -312,7 +312,7 @@ function parseRecoverableFalCandidate(
   return {
     kind: 'candidate',
     candidate: {
-      artefactId: event.artefactId,
+      artifactId: event.artifactId,
       providerRequestId,
       model,
       event,
@@ -320,27 +320,27 @@ function parseRecoverableFalCandidate(
   };
 }
 
-function pickRecoveryUrl(artefactId: string, urls: string[]): string {
+function pickRecoveryUrl(artifactId: string, urls: string[]): string {
   if (urls.length === 0) {
-    throw new Error(`No recovery URL returned for ${artefactId}.`);
+    throw new Error(`No recovery URL returned for ${artifactId}.`);
   }
 
   if (urls.length === 1) {
     return urls[0]!;
   }
 
-  const parsed = parseCanonicalArtifactId(artefactId);
+  const parsed = parseCanonicalArtifactId(artifactId);
   const outputIndex = parsed.indices.at(-1);
   if (typeof outputIndex !== 'number') {
     throw new Error(
-      `Multiple recovery URLs returned for ${artefactId}, but no output index is available.`
+      `Multiple recovery URLs returned for ${artifactId}, but no output index is available.`
     );
   }
 
   const url = urls[outputIndex];
   if (!url) {
     throw new Error(
-      `Recovery URL index ${outputIndex} is out of range for ${artefactId}.`
+      `Recovery URL index ${outputIndex} is out of range for ${artifactId}.`
     );
   }
   return url;

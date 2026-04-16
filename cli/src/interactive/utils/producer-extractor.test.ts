@@ -17,9 +17,9 @@ function createMockDocument(producerImports: MockProducerImport[]): BlueprintDoc
   return {
     meta: { id: 'test', name: 'Test' },
     inputs: [],
-    artefacts: [],
+    outputs: [],
     producers: [],
-    producerImports: producerImports.map((p) => ({
+    imports: producerImports.map((p) => ({
       name: p.name,
       producer: p.producer,
       path: p.path,

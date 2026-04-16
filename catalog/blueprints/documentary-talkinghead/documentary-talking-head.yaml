@@ -40,7 +40,7 @@ inputs:
     type: string
     required: true
 
-artifacts:
+outputs:
   - name: TalkingHeadCharacterImage
     description: Generated talking head character image.
     type: array
@@ -93,7 +93,7 @@ conditions:
     when: DocProducer.VideoScript.Segments[segment].NarrationType
     is: 'VideoNarration'
 
-producers:
+imports:
   - name: DocProducer
     path: ./documentary-talkinghead/documentary-talkinghead.yaml
   - name: ImageProducer

@@ -140,8 +140,8 @@ export async function generateEditOrCameraPreview(
       );
     }
 
-    const producedArtifact = produceResult.artefacts.find(
-      (artifact) => artifact.artefactId === body.artifactId
+    const producedArtifact = produceResult.artifacts.find(
+      (artifact) => artifact.artifactId === body.artifactId
     );
     if (!producedArtifact) {
       throw new Error(

@@ -25,7 +25,7 @@ inputs:
     description: Upscale multiplier (e.g., 2 for 2x resolution).
     type: integer
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The upscaled video.
     type: video

@@ -61,17 +61,17 @@ describe("artifact-edit-handler", () => {
     it("appends events to JSONL file", async () => {
       const eventsDir = path.join(tempDir, "events");
       await fs.mkdir(eventsDir, { recursive: true });
-      const logPath = path.join(eventsDir, "artefacts.log");
+      const logPath = path.join(eventsDir, "artifacts.log");
 
       const event1 = {
-        artefactId: "Artifact:Test.Output",
+        artifactId: "Artifact:Test.Output",
         revision: "rev-1",
         status: "succeeded",
         createdAt: new Date().toISOString(),
       };
 
       const event2 = {
-        artefactId: "Artifact:Test.Output",
+        artifactId: "Artifact:Test.Output",
         revision: "rev-2",
         status: "succeeded",
         createdAt: new Date().toISOString(),
@@ -91,7 +91,7 @@ describe("artifact-edit-handler", () => {
       const parsed1 = JSON.parse(lines[0]);
       const parsed2 = JSON.parse(lines[1]);
 
-      expect(parsed1.artefactId).toBe("Artifact:Test.Output");
+      expect(parsed1.artifactId).toBe("Artifact:Test.Output");
       expect(parsed1.editedBy).toBeUndefined();
 
       expect(parsed2.editedBy).toBe("user");
@@ -101,11 +101,11 @@ describe("artifact-edit-handler", () => {
     it("preserves originalHash across multiple edits", async () => {
       const eventsDir = path.join(tempDir, "events");
       await fs.mkdir(eventsDir, { recursive: true });
-      const logPath = path.join(eventsDir, "artefacts.log");
+      const logPath = path.join(eventsDir, "artifacts.log");
 
       // Simulate: producer generates artifact
       const producerEvent = {
-        artefactId: "Artifact:Test.Output",
+        artifactId: "Artifact:Test.Output",
         revision: "rev-1",
         output: { blob: { hash: "original-hash-aaa", size: 100, mimeType: "image/png" } },
         status: "succeeded",
@@ -115,7 +115,7 @@ describe("artifact-edit-handler", () => {
 
       // First user edit
       const userEdit1 = {
-        artefactId: "Artifact:Test.Output",
+        artifactId: "Artifact:Test.Output",
         revision: "rev-2",
         output: { blob: { hash: "edited-hash-bbb", size: 120, mimeType: "image/png" } },
         status: "succeeded",
@@ -127,7 +127,7 @@ describe("artifact-edit-handler", () => {
 
       // Second user edit - originalHash should be preserved
       const userEdit2 = {
-        artefactId: "Artifact:Test.Output",
+        artifactId: "Artifact:Test.Output",
         revision: "rev-3",
         output: { blob: { hash: "edited-hash-ccc", size: 130, mimeType: "image/png" } },
         status: "succeeded",
@@ -156,11 +156,11 @@ describe("artifact-edit-handler", () => {
     it("restore event clears editedBy and originalHash", async () => {
       const eventsDir = path.join(tempDir, "events");
       await fs.mkdir(eventsDir, { recursive: true });
-      const logPath = path.join(eventsDir, "artefacts.log");
+      const logPath = path.join(eventsDir, "artifacts.log");
 
       // Simulate: user edits, then restores
       const editEvent = {
-        artefactId: "Artifact:Test.Output",
+        artifactId: "Artifact:Test.Output",
         revision: "rev-1",
         output: { blob: { hash: "edited-hash", size: 100, mimeType: "image/png" } },
         status: "succeeded",
@@ -172,7 +172,7 @@ describe("artifact-edit-handler", () => {
 
       // Restore event - points back to original, no editedBy/originalHash
       const restoreEvent = {
-        artefactId: "Artifact:Test.Output",
+        artifactId: "Artifact:Test.Output",
         revision: "rev-2",
         output: { blob: { hash: "original-hash", size: 90, mimeType: "image/png" } },
         status: "succeeded",

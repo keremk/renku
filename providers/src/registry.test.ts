@@ -27,20 +27,20 @@ describe('createProviderRegistry', () => {
       },
     });
 
-    expect(result.artefacts).toHaveLength(1);
-    const artefact = result.artefacts[0];
-    const inlinePayload = typeof artefact.blob?.data === 'string'
-      ? artefact.blob.data
-      : Buffer.from(artefact.blob!.data).toString('utf8');
+    expect(result.artifacts).toHaveLength(1);
+    const artifact = result.artifacts[0];
+    const inlinePayload = typeof artifact.blob?.data === 'string'
+      ? artifact.blob.data
+      : Buffer.from(artifact.blob!.data).toString('utf8');
     expect(inlinePayload).toContain('Simulated response');
-    expect(artefact.blob?.mimeType).toBe('text/plain');
-    const payload = typeof artefact.blob?.data === 'string'
-      ? artefact.blob.data
-      : Buffer.from(artefact.blob!.data).toString('utf8');
+    expect(artifact.blob?.mimeType).toBe('text/plain');
+    const payload = typeof artifact.blob?.data === 'string'
+      ? artifact.blob.data
+      : Buffer.from(artifact.blob!.data).toString('utf8');
     expect(payload).toContain('Simulated Provider Invocation');
   });
 
-  it('produces blob artefacts for media outputs', async () => {
+  it('produces blob artifacts for media outputs', async () => {
     const registry = createProviderRegistry();
     const handler = registry.resolve({
       provider: 'replicate',
@@ -72,9 +72,9 @@ describe('createProviderRegistry', () => {
       },
     });
 
-    expect(result.artefacts).toHaveLength(1);
-    const artefact = result.artefacts[0];
-    expect(artefact.blob?.mimeType).toBe('video/mp4');
+    expect(result.artifacts).toHaveLength(1);
+    const artifact = result.artifacts[0];
+    expect(artifact.blob?.mimeType).toBe('video/mp4');
   });
 
   it('caches handlers across resolveMany calls', () => {

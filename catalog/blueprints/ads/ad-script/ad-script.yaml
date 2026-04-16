@@ -32,7 +32,7 @@ inputs:
     description: Visual style for the ad (e.g., cinematic, modern, playful).
     type: string
 
-artifacts:
+outputs:
   - name: AdScript
     description: Complete ad script with character, product, and scene details.
     type: json

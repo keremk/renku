@@ -60,12 +60,12 @@ describeIf('Wavespeed.ai provider integration', () => {
     const result = await handler.invoke(request);
 
     expect(result.status).toBe('succeeded');
-    expect(result.artefacts).toHaveLength(1);
-    expect(result.artefacts[0]?.blob?.mimeType).toBe('image/jpeg');
-    expect(result.artefacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.blob?.mimeType).toBe('image/jpeg');
+    expect(result.artifacts[0]?.blob?.data).toBeInstanceOf(Uint8Array);
 
-    if (result.artefacts[0]?.blob?.data) {
-      saveTestArtifact('wavespeed-output.jpg', result.artefacts[0].blob.data);
+    if (result.artifacts[0]?.blob?.data) {
+      saveTestArtifact('wavespeed-output.jpg', result.artifacts[0].blob.data);
     }
   }, 180000);
 });

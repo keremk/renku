@@ -20,7 +20,7 @@ inputs:
     required: true
     countInput: NumOfSegments
 
-artifacts:
+outputs:
   - name: SegmentVideos
     type: array
     itemType: video
@@ -30,7 +30,7 @@ loops:
   - name: segment
     countInput: NumOfSegments
 
-producers:
+imports:
   - name: SegmentUnit
     path: ./segment-unit/segment-unit.yaml
     loop: segment

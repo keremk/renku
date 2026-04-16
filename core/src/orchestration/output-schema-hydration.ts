@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { decomposeJsonSchema } from '../resolution/schema-decomposition.js';
 import { formatProducerAlias } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { BlueprintTreeNode, JsonSchemaDefinition } from '../types.js';
@@ -99,22 +98,12 @@ function applyOutputSchemasToNode(
       continue;
     }
 
-    node.document.artefacts = node.document.artefacts.map((art) => {
-      if (art.type !== 'json' || !art.arrays || art.schema) {
-        return art;
+    node.document.outputs = node.document.outputs.map((output) => {
+      if (output.type !== 'json' || !output.arrays || output.schema) {
+        return output;
       }
 
-      const decomposed = decomposeJsonSchema(parsedSchema, art.name, art.arrays);
-      for (const field of decomposed) {
-        const edgeExists = node.document.edges.some(
-          (edge) => edge.from === producer.name && edge.to === field.path
-        );
-        if (!edgeExists) {
-          node.document.edges.push({ from: producer.name, to: field.path });
-        }
-      }
-
-      return { ...art, schema: parsedSchema };
+      return { ...output, schema: parsedSchema };
     });
   }
 }

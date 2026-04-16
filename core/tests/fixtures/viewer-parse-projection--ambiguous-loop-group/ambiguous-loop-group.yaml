@@ -14,7 +14,7 @@ inputs:
     type: int
     required: true
 
-artifacts:
+outputs:
   - name: SceneOutputs
     type: array
     itemType: text
@@ -30,7 +30,7 @@ loops:
   - name: shot
     countInput: NumOfShots
 
-producers:
+imports:
   - name: SceneProducer
     producer: prompt/director
     loop: scene

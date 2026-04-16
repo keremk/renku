@@ -55,7 +55,7 @@ inputs:
     description: Enable multi-shot segmentation.
     type: boolean
 
-artifacts:
+outputs:
   - name: GeneratedVideo
     description: The generated video.
     type: video

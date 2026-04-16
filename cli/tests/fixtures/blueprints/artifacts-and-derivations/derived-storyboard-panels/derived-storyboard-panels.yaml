@@ -24,7 +24,7 @@ inputs:
     type: resolution
     required: true
 
-artifacts:
+outputs:
   - name: StoryboardImage
     description: The generated storyboard grid image.
     type: image
@@ -39,7 +39,7 @@ loops:
     description: Iterates over panel images.
     countInput: PanelCount
 
-producers:
+imports:
   - name: ImageGenerator
     producer: image/text-to-grid-images
 

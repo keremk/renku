@@ -44,7 +44,7 @@ inputs:
     type: string
     required: false
 
-artifacts:
+outputs:
   - name: SegmentVideo
     description: Generated video for each narration segment.
     type: array
@@ -67,7 +67,7 @@ loops:
     countInput: NumOfSegments
     countInputOffset: 1
 
-producers:
+imports:
   - name: FlowVideoPromptProducer
     path: ../../_shared/flow-video/flow-video.yaml
   - name: ImageProducer

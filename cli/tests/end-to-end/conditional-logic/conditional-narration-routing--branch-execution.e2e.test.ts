@@ -170,9 +170,9 @@ describe('end-to-end: conditional edge execution', () => {
 					return {
 						jobId: request.job.jobId,
 						status: 'succeeded',
-						artefacts: [
+						artifacts: [
 							{
-								artefactId: 'Artifact:DocProducer.VideoScript',
+								artifactId: 'Artifact:DocProducer.VideoScript',
 								blob: {
 									data: JSON.stringify(mockVideoScript),
 									mimeType: 'application/json',
@@ -187,9 +187,9 @@ describe('end-to-end: conditional edge execution', () => {
 					return {
 						jobId: request.job.jobId,
 						status: 'succeeded',
-						artefacts: [
+						artifacts: [
 							{
-								artefactId: 'Artifact:TimelineComposer.Timeline',
+								artifactId: 'Artifact:TimelineComposer.Timeline',
 								blob: { data: '{}', mimeType: 'application/json' },
 							},
 						],
@@ -211,21 +211,21 @@ describe('end-to-end: conditional edge execution', () => {
 				return {
 					jobId: request.job.jobId,
 					status: 'succeeded',
-					artefacts: request.job.produces
+					artifacts: request.job.produces
 						.filter((id: string) => id.startsWith('Artifact:'))
-						.map((artefactId: string) => {
-							const isAudio = artefactId.includes('Audio');
-							const isVideo = artefactId.includes('Video');
+						.map((artifactId: string) => {
+							const isAudio = artifactId.includes('Audio');
+							const isVideo = artifactId.includes('Video');
 							// Duration byte: 10 seconds for audio/video so mediabunny mock can read it
 							const data =
 								isAudio || isVideo
 									? new Uint8Array([10]) // 10 second duration
-									: `stub-data-for-${artefactId}`;
+									: `stub-data-for-${artifactId}`;
 							return {
-								artefactId,
+								artifactId,
 								blob: {
 									data,
-									mimeType: artefactId.includes('Image')
+									mimeType: artifactId.includes('Image')
 										? 'image/png'
 										: isAudio
 											? 'audio/mp3'
@@ -316,7 +316,7 @@ describe('end-to-end: conditional edge execution', () => {
 
 		// Build and verify manifest
 		const manifest = await result.buildManifest();
-		const artifactIds = Object.keys(manifest.artefacts);
+		const artifactIds = Object.keys(manifest.artifacts);
 
 		// GeneratedImage: [0][0], [0][1], [2][0], [2][1] EXIST; [1][*] DO NOT EXIST
 		expect(

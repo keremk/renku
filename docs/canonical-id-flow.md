@@ -17,11 +17,11 @@ flowchart TD
   Runner --> ProviderRuntime["Provider runtime (buildPayload, resolvedInputs)"]
   EventLog --> Runner
   ProviderRuntime --> EventLog
-  EventLog --> Manifest["Manifest (canonical inputs / artefacts)"]
+  EventLog --> Manifest["Manifest (canonical inputs / artifacts)"]
 ```
 
 ## Sources and canonicalization
-- **Blueprint YAML** (`catalog/blueprints/**`): parsed into a tree (`core/src/blueprint-loader/yaml-parser.ts`). Inputs/artefacts/producers keep their namespace path. Edges are inferred when models[] is present. During canonical expansion (`canonical-expander.ts`) module-level inputs wired to an upstream input are collapsed to that upstream canonical ID; `inputBindings` remember the authored alias.
+- **Blueprint YAML** (`catalog/blueprints/**`): parsed into a tree (`core/src/blueprint-loader/yaml-parser.ts`). Inputs/artifacts/producers keep their namespace path. Edges are inferred when models[] is present. During canonical expansion (`canonical-expander.ts`) module-level inputs wired to an upstream input are collapsed to that upstream canonical ID; `inputBindings` remember the authored alias.
 - **Inputs file** (`inputs.yaml` + CLI overrides): parsed with `createInputIdResolver` (`core/src/canonical-ids.ts`) so every key becomes a canonical ID. Model selections and per-model configs are flattened into producer-scoped canonical inputs (`Input:<namespace>.<producer>.<field>`). Defaults are applied via provider options before planning.
 - **System injections** (`MovieId`, `StorageRoot`, `StorageBasePath`): added as canonical IDs in `cli/src/lib/build.ts` if not already present.
 
@@ -33,13 +33,13 @@ flowchart TD
   - `fanIn`: resolved collections keyed by canonical IDs.
 - Dirty calc:
   - Inputs: base canonical ID (dimensions removed for user inputs) is compared against manifest input hashes.
-  - Artefacts: full canonical artefact IDs (including dimensions) are compared; a change in `Artifact:ScriptProducer.NarrationScript[segment=1]` only dirties consumers of that exact artefact.
+  - Artifacts: full canonical artifact IDs (including dimensions) are compared; a change in `Artifact:ScriptProducer.NarrationScript[segment=1]` only dirties consumers of that exact artifact.
   - Dirty jobs propagate downstream via producer graph edges.
 
 ## Execution and provider runtime
-- Runner resolves artefacts for the exact canonical IDs in a job and merges them into `context.extras.resolvedInputs`; non-canonical keys are ignored.
+- Runner resolves artifacts for the exact canonical IDs in a job and merges them into `context.extras.resolvedInputs`; non-canonical keys are ignored.
 - Provider runtime (`providers/src/sdk/runtime.ts`) looks up values strictly by canonical IDs via `inputBindings` and `sdk.buildPayload`. No alias/fallback lookup is performed.
-- Manifest/event log persist only canonical IDs that were present in input events and produced artefact events.
+- Manifest/event log persist only canonical IDs that were present in input events and produced artifact events.
 
 ## Invariants
 - All user/system inputs and persisted events use canonical IDs (`Input:...` / `Artifact:...`).

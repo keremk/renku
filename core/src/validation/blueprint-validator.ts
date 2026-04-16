@@ -87,14 +87,14 @@ function getDeclaredInputNames(tree: BlueprintTreeNode): Set<string> {
  * Gets all declared artifact names for a tree node
  */
 function getDeclaredArtifactNames(tree: BlueprintTreeNode): Set<string> {
-  return new Set<string>(tree.document.artefacts.map((a) => a.name));
+  return new Set<string>(tree.document.outputs.map((a) => a.name));
 }
 
 /**
- * Gets all producer import names for a tree node
+ * Gets all imported blueprint alias names for a tree node.
  */
 function getProducerImportNames(tree: BlueprintTreeNode): Set<string> {
-  return new Set<string>(tree.document.producerImports.map((p) => p.name));
+  return new Set<string>(tree.document.imports.map((p) => p.name));
 }
 
 /**
@@ -153,7 +153,7 @@ function extractSimpleReferenceName(reference: string): string | undefined {
 }
 
 function isOrchestrationBlueprint(node: BlueprintTreeNode): boolean {
-  return node.document.producerImports.length > 0 || node.children.size > 0;
+  return node.document.imports.length > 0 || node.children.size > 0;
 }
 
 /**
@@ -182,9 +182,9 @@ function targetsProducer(
  * Validates all connection endpoints in a blueprint tree.
  *
  * Checks:
- * - Producer names exist in producerImports[]
+ * - Imported blueprint aliases exist in imports[]
  * - Input names exist in inputs[] or are system inputs
- * - Artifact names exist in artefacts[]
+ * - Output names exist in outputs[]
  */
 export function validateConnectionEndpoints(
   tree: BlueprintTreeNode
@@ -276,7 +276,7 @@ function validateEndpoint(
               namespacePath: tree.namespacePath,
               context,
             },
-            `Check that "${baseName}" is declared in inputs[] or artifacts[], or is a system input (${Array.from(SYSTEM_INPUT_NAMES).join(', ')})`
+            `Check that "${baseName}" is declared in inputs[] or outputs[], or is a system input (${Array.from(SYSTEM_INPUT_NAMES).join(', ')})`
           )
         );
       }
@@ -296,7 +296,7 @@ function validateEndpoint(
               namespacePath: tree.namespacePath,
               context,
             },
-            `Check that "${baseName}" is declared in artifacts[] or inputs[]`
+            `Check that "${baseName}" is declared in outputs[] or inputs[]`
           )
         );
       }
@@ -313,7 +313,7 @@ function validateEndpoint(
             namespacePath: tree.namespacePath,
             context,
           },
-          `Check that "${baseName}" is listed in producers[] with a valid path or producer name`
+          `Check that "${baseName}" is listed in imports[] with a valid path or producer reference`
         )
       );
     }
@@ -370,7 +370,7 @@ function validateEndpoint(
  *
  * For connections like:
  * - `to: SomeProducer.SomeInput` - SomeInput must be an input in SomeProducer's blueprint
- * - `from: SomeProducer.SomeOutput` - SomeOutput must be an artifact in SomeProducer's blueprint
+ * - `from: SomeProducer.SomeOutput` - SomeOutput must be an output in SomeProducer's blueprint
  */
 export function validateProducerInputOutput(
   tree: BlueprintTreeNode
@@ -392,20 +392,20 @@ export function validateProducerInputOutput(
         if (producerChild && segments.length >= 2) {
           // Get the immediate output/artifact name (second segment, stripped of dimensions)
           const outputName = stripDimensions(segments[1]!);
-          const producerArtifacts = getDeclaredArtifactNames(producerChild);
+          const producerOutputs = getDeclaredArtifactNames(producerChild);
 
-          // Check if this is an artifact of the producer
-          if (!producerArtifacts.has(outputName)) {
+          // Check if this is an output of the imported blueprint
+          if (!producerOutputs.has(outputName)) {
             issues.push(
               createError(
                 ValidationErrorCode.PRODUCER_OUTPUT_MISMATCH,
-                `Producer "${baseName}" does not expose artifact "${outputName}" in its public contract.`,
+                `Imported blueprint "${baseName}" does not expose output "${outputName}" in its public contract.`,
                 {
                   filePath: node.sourcePath,
                   namespacePath: node.namespacePath,
                   context: `connection from "${edge.from}" to "${edge.to}"`,
                 },
-                `Connect only to top-level artifacts exposed by "${baseName}". Available artifacts: ${Array.from(producerArtifacts).join(', ') || '(none)'}`
+                `Connect only to top-level outputs exposed by "${baseName}". Available outputs: ${Array.from(producerOutputs).join(', ') || '(none)'}`
               )
             );
           }
@@ -430,7 +430,7 @@ export function validateProducerInputOutput(
             issues.push(
               createError(
                 ValidationErrorCode.PRODUCER_INPUT_MISMATCH,
-                `Producer "${baseName}" does not expose input "${inputName}" in its public contract.`,
+                `Imported blueprint "${baseName}" does not expose input "${inputName}" in its public contract.`,
                 {
                   filePath: node.sourcePath,
                   namespacePath: node.namespacePath,
@@ -596,10 +596,10 @@ export function validateSegmentDurationContract(
         node.document.inputs.some(
           (input) => input.countInput === SYSTEM_INPUTS.SEGMENT_DURATION
         ) ||
-        node.document.artefacts.some(
-          (artefact) =>
-            artefact.countInput === SYSTEM_INPUTS.SEGMENT_DURATION ||
-            artefact.arrays?.some(
+        node.document.outputs.some(
+          (artifact) =>
+            artifact.countInput === SYSTEM_INPUTS.SEGMENT_DURATION ||
+            artifact.arrays?.some(
               (arrayMapping) =>
                 arrayMapping.countInput === SYSTEM_INPUTS.SEGMENT_DURATION
             ) === true
@@ -653,7 +653,7 @@ export function validateSegmentDurationContract(
 }
 
 function isMediaProducerBlueprint(node: BlueprintTreeNode): boolean {
-  return node.document.artefacts.some((artifact) =>
+  return node.document.outputs.some((artifact) =>
     isMediaArtifactType(artifact.type, artifact.itemType)
   );
 }
@@ -790,7 +790,7 @@ export function validateArtifactCountInputs(
   function validateTree(node: BlueprintTreeNode): void {
     const inputNames = getDeclaredInputNames(node);
 
-    for (const artifact of node.document.artefacts) {
+    for (const artifact of node.document.outputs) {
       // Check countInput
       if (artifact.countInput && !inputNames.has(artifact.countInput)) {
         issues.push(
@@ -843,7 +843,7 @@ export function validateArtifactCountInputs(
 // ============================================================================
 
 /**
- * Validates condition 'when' paths reference valid artifacts.
+ * Validates condition `when` paths reference valid imported blueprint outputs or canonical inputs.
  */
 export function validateConditionPaths(
   tree: BlueprintTreeNode
@@ -925,7 +925,7 @@ function validateConditionDef(
               namespacePath: node.namespacePath,
               context: `condition "${name}"`,
             },
-            `Check that "${baseName}" is listed in producers[]`
+            `Check that "${baseName}" is listed in imports[]`
           )
         );
       }
@@ -979,7 +979,7 @@ export function validateTypes(tree: BlueprintTreeNode): ValidationIssue[] {
     }
 
     // Validate artifact types
-    for (const artifact of node.document.artefacts) {
+    for (const artifact of node.document.outputs) {
       if (!VALID_ARTIFACT_TYPES.has(artifact.type)) {
         issues.push(
           createError(
@@ -1308,7 +1308,7 @@ export function findUnusedInputs(tree: BlueprintTreeNode): ValidationIssue[] {
     }
 
     // Collect from artifact countInputs
-    for (const artifact of node.document.artefacts) {
+    for (const artifact of node.document.outputs) {
       if (artifact.countInput) {
         usedInputs.add(artifact.countInput);
       }
@@ -1364,7 +1364,7 @@ function buildUnusedInputWarning(inputName: string): {
         `This count-style input looks unnecessary and should be removed.`,
       suggestion:
         `Remove "${inputName}" from blueprint inputs/template, or wire it into ` +
-        `inputs[].countInput, loops[].countInput, artifacts[].countInput, artifacts[].arrays[].countInput, or a connection.`,
+        `inputs[].countInput, loops[].countInput, outputs[].countInput, outputs[].arrays[].countInput, or a connection.`,
     };
   }
 
@@ -1398,7 +1398,7 @@ export function findUnusedArtifacts(
     }
 
     // Find unused artifacts
-    for (const artifact of node.document.artefacts) {
+    for (const artifact of node.document.outputs) {
       if (!usedArtifacts.has(artifact.name)) {
         issues.push(
           createWarning(
@@ -1445,7 +1445,7 @@ export function findUnreachableProducers(
     }
 
     // Find unreachable producers
-    for (const producerImport of node.document.producerImports) {
+    for (const producerImport of node.document.imports) {
       if (!reachedProducers.has(producerImport.name)) {
         issues.push(
           createWarning(
@@ -1456,7 +1456,7 @@ export function findUnreachableProducers(
               namespacePath: node.namespacePath,
               context: `producer "${producerImport.name}"`,
             },
-            `Add connections to "${producerImport.name}" or remove it from producers[]`
+            `Add connections to "${producerImport.name}" or remove it from imports[]`
           )
         );
       }

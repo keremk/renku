@@ -27,7 +27,7 @@ inputs:
     description: Visual/artistic style for the video (e.g., cinematic, anime, photorealistic).
     type: string
 
-artifacts:
+outputs:
   - name: MovieTitle
     description: The generated title for the video.
     type: string

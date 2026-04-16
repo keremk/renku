@@ -24,7 +24,7 @@ async function createRunnerContext() {
     baseRevision: null,
     createdAt: new Date().toISOString(),
     inputs: {},
-    artefacts: {},
+    artifacts: {},
   };
   return { movieId, storage, eventLog, manifestService, manifest };
 }
@@ -79,7 +79,7 @@ describe('executePlanWithConcurrency', () => {
       } else {
         layerTwoStartedAfter = completedLayerOne;
       }
-      return { jobId: job.jobId, status: 'succeeded', artefacts: [] };
+      return { jobId: job.jobId, status: 'succeeded', artifacts: [] };
     };
 
     const result = await executePlanWithConcurrency(
@@ -122,7 +122,7 @@ describe('executePlanWithConcurrency', () => {
     const executed: string[] = [];
     const produce: ProduceFn = async ({ job }) => {
       executed.push(job.jobId);
-      return { jobId: job.jobId, status: 'succeeded', artefacts: [] };
+      return { jobId: job.jobId, status: 'succeeded', artifacts: [] };
     };
 
     const result = await executePlanWithConcurrency(
@@ -148,7 +148,7 @@ describe('executePlanWithConcurrency', () => {
     const produce: ProduceFn = async ({ job }) => ({
       jobId: job.jobId,
       status: 'succeeded',
-      artefacts: [],
+      artifacts: [],
     });
 
     await expect(
@@ -177,7 +177,7 @@ describe('executePlanWithConcurrency', () => {
     const produce: ProduceFn = async ({ job }) => ({
       jobId: job.jobId,
       status: 'succeeded',
-      artefacts: [],
+      artifacts: [],
     });
 
     const events: Array<{ type: string; layerIndex?: number }> = [];
@@ -232,7 +232,7 @@ describe('executePlanWithConcurrency', () => {
       if (job.jobId === 'layer-0-job') {
         abortController.abort();
       }
-      return { jobId: job.jobId, status: 'succeeded', artefacts: [] };
+      return { jobId: job.jobId, status: 'succeeded', artifacts: [] };
     };
 
     const result = await executePlanWithConcurrency(

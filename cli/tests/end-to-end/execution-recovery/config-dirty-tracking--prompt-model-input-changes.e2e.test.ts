@@ -59,12 +59,12 @@ describe('end-to-end: config dirty tracking', () => {
 			return {
 				jobId: request.job.jobId,
 				status: 'succeeded',
-				artefacts: request.job.produces
+				artifacts: request.job.produces
 					.filter((id: string) => id.startsWith('Artifact:'))
-					.map((artefactId: string) => ({
-						artefactId,
+					.map((artifactId: string) => ({
+						artifactId,
 						blob: {
-							data: `stub-data-for-${artefactId}`,
+							data: `stub-data-for-${artifactId}`,
 							mimeType: 'text/plain',
 						},
 					})),

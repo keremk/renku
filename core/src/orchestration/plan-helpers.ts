@@ -14,7 +14,7 @@ import { inferMimeType } from '../blob-utils.js';
 import { persistInputBlob } from '../input-blob-storage.js';
 import type { Manifest } from '../types.js';
 import type { ArtifactOverride } from '../parsing/input-loader.js';
-import type { PendingArtefactDraft, ProviderOptionEntry } from './planning-service.js';
+import type { PendingArtifactDraft, ProviderOptionEntry } from './planning-service.js';
 import type { ProducerOptionsMap } from './producer-options.js';
 
 // ---------------------------------------------------------------------------
@@ -55,7 +55,7 @@ export async function copyEventsToMemory(
   memoryCtx: StorageContext,
   movieId: string,
 ): Promise<void> {
-  const eventFiles = ['events/inputs.log', 'events/artefacts.log'];
+  const eventFiles = ['events/inputs.log', 'events/artifacts.log'];
   for (const eventFile of eventFiles) {
     const localPath = localCtx.resolve(movieId, eventFile);
     if (await localCtx.storage.fileExists(localPath)) {
@@ -150,10 +150,10 @@ export async function buildProviderMetadata(
 // ---------------------------------------------------------------------------
 
 /**
- * Convert artifact overrides from inputs to PendingArtefactDraft objects.
+ * Convert artifact overrides from inputs to PendingArtifactDraft objects.
  * Computes blob hash from the data for dirty tracking.
  */
-export function convertArtifactOverridesToDrafts(overrides: ArtifactOverride[]): PendingArtefactDraft[] {
+export function convertArtifactOverridesToDrafts(overrides: ArtifactOverride[]): PendingArtifactDraft[] {
   return overrides.map((override) => {
     const buffer = Buffer.isBuffer(override.blob.data)
       ? override.blob.data
@@ -161,7 +161,7 @@ export function convertArtifactOverridesToDrafts(overrides: ArtifactOverride[]):
     const hash = createHash('sha256').update(buffer).digest('hex');
 
     return {
-      artefactId: override.artifactId,
+      artifactId: override.artifactId,
       producedBy: 'user-override',
       output: {
         blob: {
@@ -206,7 +206,7 @@ export function deriveSurgicalInfoArray(
 ): SurgicalInfo[] | undefined {
   const results: SurgicalInfo[] = [];
   for (const artifactId of regenerateArtifactIds) {
-    const entry = manifest.artefacts[artifactId];
+    const entry = manifest.artifacts[artifactId];
     if (!entry) {
       continue;
     }

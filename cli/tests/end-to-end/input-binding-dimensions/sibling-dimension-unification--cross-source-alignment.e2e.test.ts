@@ -221,9 +221,9 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 					return {
 						jobId: request.job.jobId,
 						status: 'succeeded',
-						artefacts: [
+						artifacts: [
 							{
-								artefactId: 'Artifact:ContentGenerator.Script',
+								artifactId: 'Artifact:ContentGenerator.Script',
 								blob: {
 									data: JSON.stringify(mockScript),
 									mimeType: 'application/json',
@@ -235,17 +235,17 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 
 				// ImageGenerator returns stub image data
 				if (request.job.producer === 'ImageGenerator') {
-					const artefactId = request.job.produces.find(
+					const artifactId = request.job.produces.find(
 						(id: string) =>
 							id.startsWith('Artifact:') && id.includes('GeneratedImage')
 					);
 					return {
 						jobId: request.job.jobId,
 						status: 'succeeded',
-						artefacts: artefactId
+						artifacts: artifactId
 							? [
 									{
-										artefactId,
+										artifactId,
 										blob: {
 											data: `stub-image-${request.job.jobId}`,
 											mimeType: 'image/png',
@@ -258,17 +258,17 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 
 				// VideoGenerator returns stub video data
 				if (request.job.producer === 'VideoGenerator') {
-					const artefactId = request.job.produces.find(
+					const artifactId = request.job.produces.find(
 						(id: string) =>
 							id.startsWith('Artifact:') && id.includes('GeneratedVideo')
 					);
 					return {
 						jobId: request.job.jobId,
 						status: 'succeeded',
-						artefacts: artefactId
+						artifacts: artifactId
 							? [
 									{
-										artefactId,
+										artifactId,
 										blob: {
 											data: new Uint8Array([10]), // 10 second duration
 											mimeType: 'video/mp4',
@@ -283,7 +283,7 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 				return {
 					jobId: request.job.jobId,
 					status: 'succeeded',
-					artefacts: [],
+					artifacts: [],
 				};
 			}
 		);
@@ -327,7 +327,7 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 		// ============================================================
 
 		const manifest = await result.buildManifest();
-		const artifactIds = Object.keys(manifest.artefacts);
+		const artifactIds = Object.keys(manifest.artifacts);
 
 		// Verify we have the expected number of artifacts
 		// ContentGenerator.Script + 3 GeneratedImage + 3 FinalVideo

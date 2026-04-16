@@ -13,10 +13,18 @@ import {
 import type { BlueprintTreeNode } from '@gorenku/core';
 
 function makeTreeNode(document: Record<string, unknown>): BlueprintTreeNode {
+  const meta = document.meta as { id: string };
+  const normalizedDocument = {
+    inputs: [],
+    outputs: [],
+    imports: [],
+    edges: [],
+    ...document,
+  };
   return {
-    id: String((document.meta as { id: string }).id),
+    id: String(meta.id),
     namespacePath: [],
-    document,
+    document: normalizedDocument,
     children: new Map(),
     sourcePath: '/tmp/test-blueprint.yaml',
   } as unknown as BlueprintTreeNode;
@@ -226,11 +234,11 @@ describe('collectNodesAndEdges', () => {
     const node = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [{ name: 'Title', type: 'string', required: true }],
-      producerImports: [
+      imports: [
         { name: 'AudioGen', producer: 'asset/text-to-audio' },
         { name: 'VideoGen', producer: 'asset/text-to-video' },
       ],
-      artefacts: [{ name: 'FinalVideo', type: 'video' }],
+      outputs: [{ name: 'FinalVideo', type: 'video' }],
       edges: [
         { from: 'Title', to: 'AudioGen.Input' },
         { from: 'AudioGen.Output', to: 'VideoGen.Input', if: 'HasAudio' },
@@ -291,7 +299,7 @@ describe('collectNodesAndEdges', () => {
         { name: 'Size', type: 'string', required: false },
         { name: 'AspectRatio', type: 'string', required: false },
       ],
-      producerImports: [
+      imports: [
         { name: 'ImagePromptProducer', producer: 'prompt/image' },
         { name: 'ImageProducer', producer: 'asset/text-to-image' },
         {
@@ -299,7 +307,7 @@ describe('collectNodesAndEdges', () => {
           producer: 'composition/timeline-composer',
         },
       ],
-      artefacts: [{ name: 'SegmentImage', type: 'array', itemType: 'image' }],
+      outputs: [{ name: 'SegmentImage', type: 'array', itemType: 'image' }],
       edges: [
         {
           from: 'ImagePromptProducer.ImagePrompt[segment][image]',
@@ -394,8 +402,8 @@ describe('collectNodesAndEdges', () => {
     const node = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [{ name: 'Title', type: 'string', required: true }],
-      producerImports: [{ name: 'AudioGen', producer: 'asset/text-to-audio' }],
-      artefacts: [{ name: 'FinalAudio', type: 'audio' }],
+      imports: [{ name: 'AudioGen', producer: 'asset/text-to-audio' }],
+      outputs: [{ name: 'FinalAudio', type: 'audio' }],
       edges: [
         { from: 'Title', to: 'AudioGen.Input' },
         { from: 'UnknownThing', to: 'AudioGen.Input' },
@@ -417,8 +425,8 @@ describe('convertTreeToGraph', () => {
     const root = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [],
-      producerImports: [{ name: 'AudioGen', producer: 'asset/text-to-audio' }],
-      artefacts: [{ name: 'FinalAudio', type: 'audio' }],
+      imports: [{ name: 'AudioGen', producer: 'asset/text-to-audio' }],
+      outputs: [{ name: 'FinalAudio', type: 'audio' }],
       edges: [
         { from: 'Duration', to: 'AudioGen.Duration' },
         { from: 'AudioGen.Output', to: 'FinalAudio' },
@@ -449,8 +457,8 @@ describe('convertTreeToGraph', () => {
     const root = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [],
-      producerImports: [{ name: 'VideoGen', producer: 'asset/text-to-video' }],
-      artefacts: [{ name: 'FinalVideo', type: 'video' }],
+      imports: [{ name: 'VideoGen', producer: 'asset/text-to-video' }],
+      outputs: [{ name: 'FinalVideo', type: 'video' }],
       edges: [
         { from: 'SegmentDuration', to: 'VideoGen.Duration' },
         { from: 'VideoGen.Output', to: 'FinalVideo' },
@@ -474,10 +482,10 @@ describe('convertTreeToGraph', () => {
     const root = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
-      producerImports: [
+      imports: [
         { name: 'ImageGen', producer: 'asset/text-to-image', loop: 'scene' },
       ],
-      artefacts: [
+      outputs: [
         {
           name: 'SceneImages',
           type: 'array',

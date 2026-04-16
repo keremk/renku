@@ -48,7 +48,7 @@ inputs:
     type: string
     required: false
 
-artifacts:
+outputs:
   - name: SegmentImage
     description: The narrated image segments for the movie.
     type: multiDimArray
@@ -70,7 +70,7 @@ loops:
     parent: segment
     countInput: NumOfImagesPerNarrative
 
-producers:
+imports:
   - name: ScriptProducer
     path: ../../_shared/script/script.yaml
   - name: ImagePromptProducer

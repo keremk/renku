@@ -60,10 +60,10 @@ inputs:
   #   type: string
   #   required: true
 
-artifacts:
-  # Define your blueprint artifacts (outputs) here
-  # - name: ArtifactName
-  #   description: Description of the artifact
+outputs:
+  # Define your blueprint outputs here
+  # - name: OutputName
+  #   description: Description of the output
   #   type: image
 
 loops:
@@ -71,8 +71,8 @@ loops:
   # - name: segment
   #   countInput: NumOfSegments
 
-producers:
-  # Define producers here
+imports:
+  # Define imported blueprints here
   # - name: ProducerName
   #   producer: image/text-to-image
 

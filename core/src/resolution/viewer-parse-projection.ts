@@ -10,7 +10,7 @@ import {
 } from '../parsing/dimension-selectors.js';
 import { computeTopologyLayers } from '../topology/index.js';
 import type {
-  BlueprintArtefactDefinition,
+  BlueprintOutputDefinition,
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
   BlueprintTreeNode,
@@ -181,8 +181,8 @@ export function buildBlueprintParseGraphProjection(
     ),
   ];
 
-  const outputs = root.document.artefacts.map(
-    (artifact: BlueprintArtefactDefinition) => ({
+  const outputs = root.document.outputs.map(
+    (artifact: BlueprintOutputDefinition) => ({
       name: artifact.name,
       type: artifact.type,
       description: artifact.description,
@@ -254,8 +254,8 @@ export function collectNodesAndEdges(
   for (const systemInputName of collectReferencedSystemInputs(node)) {
     inputNames.add(systemInputName);
   }
-  const producerNames = new Set(doc.producerImports.map((producer) => producer.name));
-  const artifactNames = new Set(doc.artefacts.map((artifact) => artifact.name));
+  const producerNames = new Set(doc.imports.map((producer) => producer.name));
+  const outputNames = new Set(doc.outputs.map((output) => output.name));
 
   nodes.push({
     id: 'Inputs',
@@ -264,7 +264,7 @@ export function collectNodesAndEdges(
     description: `${inputNames.size} input${inputNames.size !== 1 ? 's' : ''}`,
   });
 
-  for (const producerImport of doc.producerImports) {
+  for (const producerImport of doc.imports) {
     const childNode = node.children.get(producerImport.name);
     nodes.push({
       id: `Producer:${producerImport.name}`,
@@ -290,7 +290,7 @@ export function collectNodesAndEdges(
     id: 'Outputs',
     type: 'output',
     label: 'Outputs',
-    description: `${doc.artefacts.length} artifact${doc.artefacts.length !== 1 ? 's' : ''}`,
+    description: `${doc.outputs.length} output${doc.outputs.length !== 1 ? 's' : ''}`,
   });
 
   const producersWithInputDeps = new Set<string>();
@@ -305,7 +305,7 @@ export function collectNodesAndEdges(
         edge.to,
         inputNames,
         producerNames,
-        artifactNames
+        outputNames
       );
 
     if (sourceType === 'unknown' || targetType === 'unknown') {
@@ -567,7 +567,7 @@ function collectReferencedSystemInputs(root: BlueprintTreeNode): SystemInputName
     }
   }
 
-  for (const artifact of root.document.artefacts) {
+  for (const artifact of root.document.outputs) {
     if (!artifact.countInput) {
       continue;
     }

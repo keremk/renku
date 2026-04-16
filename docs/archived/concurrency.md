@@ -17,7 +17,7 @@ Yes—the current architecture still supports pushing concurrency, rate limiting
 - The CLI now schedules jobs per layer through `executePlanWithConcurrency` (`cli/src/lib/plan-runner.ts`), which wraps `runner.executeJob` in a `p-limit` pool. The `--concurrency` flag (persisted to `cli-config.json`, default `1`) feeds that pool so users can raise or lower parallelism without changing core.
 
 ### Cloud workflow fits the same mold
-- A cloud worker can initialize storage + registry, call `runner.executeJob` in each Vercel Workflow step, and rely on durable storage for the event log. Because every job is identified by `(movieId, revision, jobId)`, repeated or retried steps won't break invariants; at worst you'll append duplicate artefact events, which manifest building overwrites by latest revision.
+- A cloud worker can initialize storage + registry, call `runner.executeJob` in each Vercel Workflow step, and rely on durable storage for the event log. Because every job is identified by `(movieId, revision, jobId)`, repeated or retried steps won't break invariants; at worst you'll append duplicate artifact events, which manifest building overwrites by latest revision.
 
 ## What You'll Need To Add (When You Get There)
 

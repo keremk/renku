@@ -39,7 +39,7 @@ describe('getStoryboardProjection', () => {
         '    type: int',
         '    required: true',
         '',
-        'artifacts:',
+        'outputs:',
         '  - name: StoryboardImage',
         '    type: array',
         '    itemType: image',
@@ -53,7 +53,7 @@ describe('getStoryboardProjection', () => {
         '  - name: scene',
         '    countInput: NumOfSegments',
         '',
-        'producers:',
+        'imports:',
         '  - name: StoryboardProducer',
         '    producer: image/text-to-image',
         '    loop: scene',
@@ -118,7 +118,7 @@ describe('getStoryboardProjection', () => {
             'Input:SharedStyleImage': { payloadDigest: '"file:./input-files/style.png"' },
             'Input:NumOfSegments': { payloadDigest: '1' },
           },
-        artefacts: {
+        artifacts: {
           'Artifact:SceneVideo[0]': {
             blob: { hash: 'video-hash', size: 10, mimeType: 'video/mp4' },
             status: 'succeeded',
@@ -221,7 +221,7 @@ describe('getStoryboardProjection', () => {
         '    type: int',
         '    required: true',
         '',
-        'artifacts:',
+        'outputs:',
         '  - name: Storyboard',
         '    type: json',
         '    arrays:',
@@ -245,7 +245,7 @@ describe('getStoryboardProjection', () => {
         '    required: true',
         '    storyboard: main',
         '',
-        'artifacts:',
+        'outputs:',
         '  - name: GeneratedVideo',
         '    type: video',
         '',
@@ -264,7 +264,7 @@ describe('getStoryboardProjection', () => {
         '    type: int',
         '    required: true',
         '',
-        'artifacts:',
+        'outputs:',
         '  - name: SceneVideo',
         '    type: array',
         '    itemType: video',
@@ -274,7 +274,7 @@ describe('getStoryboardProjection', () => {
         '  - name: scene',
         '    countInput: NumOfSegments',
         '',
-        'producers:',
+        'imports:',
         '  - name: StoryProducer',
         '    path: ./story-producer.yaml',
         '  - name: VideoProducer',
@@ -323,7 +323,7 @@ describe('getStoryboardProjection', () => {
         inputs: {
           'Input:NumOfSegments': { payloadDigest: '1' },
         },
-        artefacts: {
+        artifacts: {
           'Artifact:StoryProducer.Storyboard.Scenes[0].VideoPrompt': {
             hash: promptHash,
             blob: {

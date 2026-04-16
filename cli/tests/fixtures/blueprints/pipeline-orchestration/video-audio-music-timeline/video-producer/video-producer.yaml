@@ -25,7 +25,7 @@ inputs:
     description: Intended audience for tailoring details. Model default varies.
     type: string
 
-artifacts:
+outputs:
   - name: VideoPrompt
     description: Generated video prompts for the downstream video generation.
     type: string
