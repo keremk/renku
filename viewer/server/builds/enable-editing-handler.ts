@@ -6,9 +6,9 @@ import { existsSync } from "node:fs";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
-  createRunLifecycleService,
   createRuntimeError,
   createStorageContext,
+  resolveCurrentBuildContext,
   RuntimeErrorCode,
 } from "@gorenku/core";
 
@@ -33,25 +33,27 @@ export async function enableBuildEditing(
     rootDir: blueprintFolder,
     basePath: "builds",
   });
-  const runLifecycleService = createRunLifecycleService(storage);
-  const latestRun = await runLifecycleService.loadLatest(movieId);
+  const { snapshotSourceRun } = await resolveCurrentBuildContext({
+    storage,
+    movieId,
+  });
 
-  if (!latestRun) {
+  if (!snapshotSourceRun) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_REQUIRED_INPUT,
       `Build "${movieId}" has no editable inputs.yaml and no saved input snapshot.`,
       {
         suggestion:
-          `Expected either "${inputsPath}" or a latest run lifecycle entry with a valid input snapshot.`,
+          `Expected either "${inputsPath}" or a persisted run snapshot for the current build.`,
       },
     );
   }
 
-  const snapshotPath = path.join(buildDir, latestRun.inputSnapshotPath);
+  const snapshotPath = path.join(buildDir, snapshotSourceRun.inputSnapshotPath);
   if (!existsSync(snapshotPath)) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_REQUIRED_INPUT,
-      `Build "${movieId}" is missing its saved input snapshot for revision "${latestRun.revision}".`,
+      `Build "${movieId}" is missing its saved input snapshot for revision "${snapshotSourceRun.revision}".`,
       {
         suggestion:
           `Expected snapshot at "${snapshotPath}". Re-run the build or restore its run snapshot before enabling editing.`,

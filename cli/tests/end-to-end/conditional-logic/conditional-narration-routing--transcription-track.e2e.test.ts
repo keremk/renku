@@ -128,7 +128,7 @@ describe('end-to-end: TimelineComposer with Transcription track', () => {
 			notifications: undefined,
 		});
 
-		await planResult.persist();
+		await planResult.persist({ runConfig: {} });
 
 		// ============================================================
 		// PHASE 2: Setup storage and registry

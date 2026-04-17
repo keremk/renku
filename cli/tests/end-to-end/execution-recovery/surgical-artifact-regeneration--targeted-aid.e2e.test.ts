@@ -65,10 +65,10 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
 
     // Persist the plan
-    await planResult.persist();
+    const committedPlan = await planResult.persist({ runConfig: {} });
 
     // Verify initial plan structure
-    const initialPlan = await readPlan(planResult.planPath);
+    const initialPlan = await readPlan(committedPlan.planPath);
     const initialJobs = initialPlan.layers.flat();
     expect(initialJobs.length).toBeGreaterThanOrEqual(4); // 1 script + 3 audio
 
@@ -222,7 +222,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       logger,
       notifications: undefined,
     });
-    await planResult.persist();
+    const committedPlan = await planResult.persist({ runConfig: {} });
 
     // Create storage and run to derive build state
     const storage = createStorageContext({
@@ -294,7 +294,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       logger,
       notifications: undefined,
     });
-    await planResult.persist();
+    const committedPlan = await planResult.persist({ runConfig: {} });
 
     // Create storage and run to derive build state
     const storage = createStorageContext({
@@ -331,7 +331,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const buildState = await runResult.buildStateSnapshot();
 
     // Find the ScriptProducer artifact (layer 0) to target for surgical regeneration
-    const initialPlan = await readPlan(planResult.planPath);
+    const initialPlan = await readPlan(committedPlan.planPath);
     const scriptJob = initialPlan.layers.flat().find((j: any) => j.producer === 'ScriptProducer');
     expect(scriptJob).toBeDefined();
     const targetArtifactId = scriptJob!.produces.find((id: string) => id.startsWith('Artifact:'));
@@ -394,7 +394,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       logger,
       notifications: undefined,
     });
-    await planResult.persist();
+    const committedPlan = await planResult.persist({ runConfig: {} });
 
     // Create storage and run to derive build state
     const storage = createStorageContext({
@@ -478,10 +478,10 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
 
     // Persist the plan
-    await planResult.persist();
+    const committedPlan = await planResult.persist({ runConfig: {} });
 
     // Verify initial plan structure
-    const initialPlan = await readPlan(planResult.planPath);
+    const initialPlan = await readPlan(committedPlan.planPath);
     const initialJobs = initialPlan.layers.flat();
 
     const audioJobs = initialJobs.filter((j: any) => j.producer === 'AudioProducer');
@@ -621,7 +621,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       logger,
       notifications: undefined,
     });
-    await planResult.persist();
+    const committedPlan = await planResult.persist({ runConfig: {} });
 
     // Create storage and run to derive build state
     const storage = createStorageContext({
@@ -658,7 +658,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const buildState = await runResult.buildStateSnapshot();
 
     // Find a valid artifact
-    const initialPlan = await readPlan(planResult.planPath);
+    const initialPlan = await readPlan(committedPlan.planPath);
     const audioJobs = initialPlan.layers.flat().filter((j: any) => j.producer === 'AudioProducer');
     const validArtifact = audioJobs[0]?.produces.find((id: string) => id.startsWith('Artifact:'));
     expect(validArtifact).toBeDefined();

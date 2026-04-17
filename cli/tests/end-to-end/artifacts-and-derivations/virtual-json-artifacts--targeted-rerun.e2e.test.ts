@@ -187,10 +187,10 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		});
 
 		// Persist the plan to disk
-		await planResult.persist();
+		const committedPlan = await planResult.persist({ runConfig: {} });
 
 		// Verify initial plan structure
-		const initialPlan = await readPlan(planResult.planPath);
+		const initialPlan = await readPlan(committedPlan.planPath);
 		const initialJobs = initialPlan.layers.flat();
 		expect(initialJobs).toHaveLength(6); // 1 DocProducer + 4 ImageProducers + 1 TimelineComposer
 
@@ -418,7 +418,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 			logger,
 			notifications: undefined,
 		});
-		await planResult.persist();
+		await planResult.persist({ runConfig: {} });
 
 		const storage = createStorageContext({
 			kind: 'local',

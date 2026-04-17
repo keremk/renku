@@ -17,10 +17,10 @@ describe('buildRunResultBuildStateSnapshot', () => {
     const eventLog = createEventLog(ctx);
     const runLifecycleService = createRunLifecycleService(ctx);
 
-    await runLifecycleService.appendPlanned('demo', {
-      type: 'run-planned',
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
       revision: 'rev-0001',
-      createdAt: '2025-01-01T00:00:00.000Z',
+      startedAt: '2025-01-01T00:00:00.000Z',
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash',
       planPath: 'runs/rev-0001-plan.json',
@@ -76,23 +76,15 @@ describe('buildRunResultBuildStateSnapshot', () => {
     const eventLog = createEventLog(ctx);
     const runLifecycleService = createRunLifecycleService(ctx);
 
-    await runLifecycleService.appendPlanned('demo', {
-      type: 'run-planned',
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
       revision: 'rev-0001',
-      createdAt: '2025-01-01T00:00:00.000Z',
+      startedAt: '2025-01-01T00:01:00.000Z',
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash',
       planPath: 'runs/rev-0001-plan.json',
       runConfig: {
         regenerateIds: ['Artifact:SceneImage[0]'],
-        concurrency: 2,
-      },
-    });
-    await runLifecycleService.appendStarted('demo', {
-      type: 'run-started',
-      revision: 'rev-0001',
-      startedAt: '2025-01-01T00:01:00.000Z',
-      runConfig: {
         concurrency: 8,
         upToLayer: 1,
       },

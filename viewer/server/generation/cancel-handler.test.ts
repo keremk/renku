@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { BuildState, ExecutionPlan, ExecutionState } from '@gorenku/core';
+import { createStorageContext } from '@gorenku/core';
 import type { PlanCostSummary } from '@gorenku/providers';
 import { handleCancelRequest } from './cancel-handler.js';
 import { getJobManager, resetJobManager } from './job-manager.js';
@@ -30,7 +31,15 @@ function createMockPlanData(): Omit<CachedPlan, 'planId' | 'createdAt'> {
     blueprintPath: '/test/blueprint.yaml',
     basePath: 'test-project/builds',
     costSummary: { totalCost: 10 } as PlanCostSummary,
-    persist: vi.fn().mockResolvedValue(undefined),
+    planningStorage: createStorageContext({
+      kind: 'memory',
+      basePath: 'test-project/builds',
+    }),
+    persist: vi.fn().mockResolvedValue({
+      planPath: 'plans/rev-0001.plan.json',
+      targetRevision: 'rev-0001',
+      plan: { layers: [] } as unknown as ExecutionPlan,
+    }),
   };
 }
 

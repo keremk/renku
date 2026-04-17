@@ -101,7 +101,15 @@ function createMockCachedPlan(
     basePath: 'test/builds',
     costSummary,
     createdAt: new Date(),
-    persist: async () => {},
+    planningStorage: createStorageContext({
+      kind: 'memory',
+      basePath: 'test/builds',
+    }),
+    persist: async () => ({
+      planPath: 'plans/rev-test.plan.json',
+      targetRevision: 'rev-test',
+      plan,
+    }),
   };
 
   return { cachedPlan, plan };
@@ -490,10 +498,10 @@ describe('resolveExistingBuildInputsPath', () => {
         'rev-0007',
         Buffer.from('Prompt: snapshot\n', 'utf8')
       );
-      await runLifecycleService.appendPlanned(movieId, {
-        type: 'run-planned',
+      await runLifecycleService.appendStarted(movieId, {
+        type: 'run-started',
         revision: 'rev-0007',
-        createdAt: '2026-01-01T00:00:00.000Z',
+        startedAt: '2026-01-01T00:00:00.000Z',
         inputSnapshotPath: snapshot.path,
         inputSnapshotHash: snapshot.hash,
         planPath: 'runs/rev-0007-plan.json',

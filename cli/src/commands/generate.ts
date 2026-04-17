@@ -77,8 +77,8 @@ export interface GenerateOptions {
 export interface GenerateResult {
 	movieId: string;
 	storageMovieId: string;
-	planPath: string;
-	targetRevision: string;
+	planPath?: string;
+	targetRevision?: string;
 	/** Build summary (available for both dry-run and live execution) */
 	build?: ExecuteResult['build'];
 	/** Whether this was a dry-run execution */

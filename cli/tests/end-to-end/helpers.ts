@@ -95,17 +95,24 @@ export function createLoggerRecorder(): LoggerRecorder {
   };
 }
 
-export function expectFileExists(path: string): Promise<void> {
-  return stat(path).then(() => {});
+function requirePath(path: string | undefined, label: string): string {
+  if (!path) {
+    throw new Error(`Expected ${label} to be defined.`);
+  }
+  return path;
 }
 
-export async function readPlan(planPath: string): Promise<any> {
-  const contents = await readFile(planPath, 'utf8');
+export function expectFileExists(path: string | undefined): Promise<void> {
+  return stat(requirePath(path, 'file path')).then(() => {});
+}
+
+export async function readPlan(planPath: string | undefined): Promise<any> {
+  const contents = await readFile(requirePath(planPath, 'plan path'), 'utf8');
   return JSON.parse(contents);
 }
 
-export async function readJsonFile(filePath: string): Promise<any> {
-  const contents = await readFile(filePath, 'utf8');
+export async function readJsonFile(filePath: string | undefined): Promise<any> {
+  const contents = await readFile(requirePath(filePath, 'JSON file path'), 'utf8');
   return JSON.parse(contents);
 }
 

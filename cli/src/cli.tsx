@@ -783,7 +783,9 @@ function printGenerateSummary(
 
 	logger.info('');
 	logger.info(chalk.bold(`${modeLabel}: ${chalk.blue(result.storageMovieId)}`));
-	logger.info(chalk.dim(`Revision ${result.targetRevision}`));
+	if (result.targetRevision) {
+		logger.info(chalk.dim(`Revision ${result.targetRevision}`));
+	}
 	if (statusInfo) {
 		logger.info(
 			colorizeStatus(`${statusInfo.label}: ${statusInfo.status}${jobsLabel}\n`)
@@ -798,7 +800,9 @@ function printGenerateSummary(
 	}
 
 	const detailLines: Array<[string, string]> = [
-		[`${chalk.bold('Plan')}`, result.planPath],
+		...(result.planPath
+			? [[`${chalk.bold('Plan')}`, result.planPath] as [string, string]]
+			: []),
 		[`${chalk.bold('Builds')}`, result.storagePath],
 		...(result.artifactsRoot
 			? [

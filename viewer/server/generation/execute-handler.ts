@@ -212,14 +212,21 @@ async function executeJobAsync(
     blueprintPath: string;
     basePath: string;
     catalogModelsDir?: string;
-    persist: () => Promise<void>;
+    planningStorage: import('@gorenku/core').StorageContext;
+    persist: (args: {
+      runConfig: import('@gorenku/core').RunConfig;
+    }) => Promise<{
+      planPath: string;
+      targetRevision: string;
+      plan: ExecutionPlan;
+    }>;
   },
   cliConfig: CliConfig,
   options: ExecuteOptions
 ): Promise<void> {
   const jobManager = getJobManager();
   const { dryRun = false } = options;
-  let runStartedAt: string | undefined;
+  let executionPlan = cachedPlan.plan;
   const persistedRunLifecycleService = createPersistedRunLifecycleService({
     cliConfig,
     basePath: cachedPlan.basePath,
@@ -265,46 +272,46 @@ async function executeJobAsync(
       return;
     }
 
-    // Persist the plan to disk (this was deferred during planning)
-    await cachedPlan.persist();
-
-    // Remove plan from cache (it's been used)
-    jobManager.removePlan(cachedPlan.planId);
-
-    if (jobManager.isJobCancelled(jobId)) {
-      await finalizeCancelledRun({
-        cliConfig,
-        cachedPlan,
-      });
-      jobManager.finalizeCancelledJob(jobId);
-      return;
-    }
-
     // Update status to running
     jobManager.updateJobStatus(jobId, 'running');
-    runStartedAt = new Date().toISOString();
     const concurrency = normalizeConcurrency(
       options.concurrency ?? cliConfig.concurrency
     );
-    await persistedRunLifecycleService.appendStarted(cachedPlan.movieId, {
-      type: 'run-started',
-      revision: cachedPlan.plan.revision,
-      startedAt: runStartedAt,
-      runConfig: {
-        ...(options.upToLayer !== undefined
-          ? { upToLayer: options.upToLayer }
-          : {}),
-        ...(dryRun ? { dryRun: true } : {}),
-        ...(concurrency !== undefined ? { concurrency } : {}),
-      },
-    });
+    const runConfig = {
+      ...(options.upToLayer !== undefined
+        ? { upToLayer: options.upToLayer }
+        : {}),
+      ...(dryRun ? { dryRun: true } : {}),
+      ...(concurrency !== undefined ? { concurrency } : {}),
+    };
 
-    // Create storage context using the blueprint-relative basePath
-    const storage = createStorageContext({
-      kind: 'local',
-      rootDir: cliConfig.storage.root,
-      basePath: cachedPlan.basePath,
-    });
+    let executionStorage = cachedPlan.planningStorage;
+    if (!dryRun) {
+      const committed = await cachedPlan.persist({ runConfig });
+      executionPlan = committed.plan;
+      executionStorage = createStorageContext({
+        kind: 'local',
+        rootDir: cliConfig.storage.root,
+        basePath: cachedPlan.basePath,
+      });
+
+      // Remove plan from cache once it has become a committed execution.
+      jobManager.removePlan(cachedPlan.planId);
+
+      if (jobManager.isJobCancelled(jobId)) {
+        await finalizeCancelledRun({
+          cliConfig,
+          cachedPlan: {
+            ...cachedPlan,
+            plan: committed.plan,
+          },
+        });
+        jobManager.finalizeCancelledJob(jobId);
+        return;
+      }
+    }
+
+    const storage = executionStorage;
 
     await initializeMovieStorage(storage, cachedPlan.movieId);
 
@@ -330,7 +337,7 @@ async function executeJobAsync(
       cachedPlan.providerOptions as unknown as import('@gorenku/core').ProducerOptionsMap;
     const preResolved = prepareProviderHandlers(
       registry,
-      cachedPlan.plan,
+      executionPlan,
       providerOpts
     );
     await registry.warmStart?.(preResolved);
@@ -371,7 +378,7 @@ async function executeJobAsync(
 
     // Execute plan with progress tracking
     const run = await executePlanWithConcurrency(
-      cachedPlan.plan,
+      executionPlan,
       {
         movieId: cachedPlan.movieId,
         buildState: cachedPlan.buildState,
@@ -398,7 +405,7 @@ async function executeJobAsync(
             layerStats.set(layerIndex, { succeeded: 0, failed: 0, skipped: 0 });
             jobManager.updateJobProgress(
               jobId,
-              Math.round((layerIndex / cachedPlan.plan.layers.length) * 100),
+              Math.round((layerIndex / executionPlan.layers.length) * 100),
               layerIndex
             );
             broadcastEvent(jobId, {
@@ -501,29 +508,36 @@ async function executeJobAsync(
     }
 
     if (jobManager.isJobCancelled(jobId)) {
-      await finalizeCancelledRun({
-        cliConfig,
-        cachedPlan,
-      });
+      if (!dryRun) {
+        await finalizeCancelledRun({
+          cliConfig,
+          cachedPlan: {
+            ...cachedPlan,
+            plan: executionPlan,
+          },
+        });
+      }
       jobManager.finalizeCancelledJob(jobId);
       return;
     }
 
     // Build summary
     const summary = summarizeRun(run);
-    await persistedRunLifecycleService.appendCompleted(cachedPlan.movieId, {
-      type: 'run-completed',
-      revision: run.revision,
-      completedAt: run.completedAt,
-      status: run.status,
-      summary: {
-        jobCount: summary.jobCount,
-        counts: summary.counts,
-        layers: cachedPlan.plan.layers.length,
-      },
-    });
+    if (!dryRun) {
+      await persistedRunLifecycleService.appendCompleted(cachedPlan.movieId, {
+        type: 'run-completed',
+        revision: run.revision,
+        completedAt: run.completedAt,
+        status: run.status,
+        summary: {
+          jobCount: summary.jobCount,
+          counts: summary.counts,
+          layers: executionPlan.layers.length,
+        },
+      });
+    }
     jobManager.setJobSummary(jobId, summary);
-    jobManager.updateJobProgress(jobId, 100, cachedPlan.plan.layers.length);
+    jobManager.updateJobProgress(jobId, 100, executionPlan.layers.length);
     jobManager.updateJobStatus(
       jobId,
       run.status === 'failed' ? 'failed' : 'completed'
@@ -537,32 +551,39 @@ async function executeJobAsync(
     });
   } catch (error) {
     if (jobManager.isJobCancelled(jobId)) {
-      await finalizeCancelledRun({
-        cliConfig,
-        cachedPlan,
-      });
+      if (!dryRun) {
+        await finalizeCancelledRun({
+          cliConfig,
+          cachedPlan: {
+            ...cachedPlan,
+            plan: executionPlan,
+          },
+        });
+      }
       jobManager.finalizeCancelledJob(jobId);
       return;
     }
 
-    await persistedRunLifecycleService.appendCompleted(cachedPlan.movieId, {
-      type: 'run-completed',
-      revision: cachedPlan.plan.revision,
-      completedAt: new Date().toISOString(),
-      status: 'failed',
-      summary: {
-        jobCount: cachedPlan.plan.layers.reduce(
-          (total, layer) => total + layer.length,
-          0
-        ),
-        counts: {
-          succeeded: 0,
-          failed: 0,
-          skipped: 0,
+    if (!dryRun) {
+      await persistedRunLifecycleService.appendCompleted(cachedPlan.movieId, {
+        type: 'run-completed',
+        revision: executionPlan.revision,
+        completedAt: new Date().toISOString(),
+        status: 'failed',
+        summary: {
+          jobCount: executionPlan.layers.reduce(
+            (total, layer) => total + layer.length,
+            0
+          ),
+          counts: {
+            succeeded: 0,
+            failed: 0,
+            skipped: 0,
+          },
+          layers: executionPlan.layers.length,
         },
-        layers: cachedPlan.plan.layers.length,
-      },
-    });
+      });
+    }
 
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

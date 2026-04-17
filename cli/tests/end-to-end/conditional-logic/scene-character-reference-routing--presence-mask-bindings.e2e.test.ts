@@ -142,12 +142,12 @@ describe('end-to-end: scene character presence', () => {
 			logger,
 			notifications: undefined,
 		});
-		await planResult.persist();
+		const committedPlan = await planResult.persist({ runConfig: {} });
 
 		expect(warnings).toHaveLength(0);
 		expect(errors).toHaveLength(0);
 
-		const plan = await readPlan(planResult.planPath);
+		const plan = await readPlan(committedPlan.planPath);
 		const allPlanJobs = plan.layers.flat();
 
 		const storyJobs = allPlanJobs.filter(

@@ -61,11 +61,9 @@ export async function resolveDisplayedRevision(
 ): Promise<DisplayedRevisionResolution> {
   const runs = await args.runLifecycleService.list(args.movieId);
   const latestRunRevision = runs[runs.length - 1]?.revision ?? null;
-  const latestStartedOrCompletedRun =
-    [...runs].reverse().find((run) => run.status !== 'planned') ?? null;
   const latestArtifactRevision = await readLatestArtifactRevision(args.movieDir);
 
-  let displayedRevision = latestStartedOrCompletedRun?.revision ?? null;
+  let displayedRevision = latestRunRevision;
   if (
     latestArtifactRevision &&
     (!displayedRevision ||

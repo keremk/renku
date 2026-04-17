@@ -13,12 +13,12 @@ import {
   isRenkuError,
   loadYamlBlueprintTree,
   parseInputsForDisplay,
+  resolveCurrentBuildContext,
   RuntimeErrorCode,
   type RevisionId,
 } from '@gorenku/core';
 import type { ArtifactInfo, BuildStateResponse } from './types.js';
 import { normalizeNestedModelSelections } from './model-selection-normalizer.js';
-import { resolveDisplayedRevision } from './displayed-revision.js';
 
 const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
@@ -207,20 +207,14 @@ export async function getBuildState(
         throw error;
       }
     }
-    const { displayedRevision, latestRunRevision } =
-      await resolveDisplayedRevision({
-        movieDir,
+    const { currentBuildRevision, snapshotSourceRun } =
+      await resolveCurrentBuildContext({
+        storage,
         movieId,
-        runLifecycleService,
       });
-    const revision: RevisionId | null = displayedRevision;
+    const revision: RevisionId | null = currentBuildRevision;
     const displayedRun =
       revision ? await runLifecycleService.load(movieId, revision) : null;
-    const snapshotSourceRun = revision
-      ? await runLifecycleService.loadLatestAtOrBefore(movieId, revision)
-      : latestRunRevision
-        ? await runLifecycleService.loadLatestAtOrBefore(movieId, latestRunRevision)
-        : null;
 
     const { latestEvents, latestSucceededEvents } =
       await readArtifactHistoryState(movieDir);

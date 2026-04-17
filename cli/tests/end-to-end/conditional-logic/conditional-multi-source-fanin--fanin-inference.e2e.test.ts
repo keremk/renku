@@ -51,12 +51,12 @@ describe('end-to-end: conditional fan-in inference', () => {
 			notifications: undefined,
 		});
 
-		await planResult.persist();
+		const committedPlan = await planResult.persist({ runConfig: {} });
 		expect(warnings).toHaveLength(0);
 		expect(errors).toHaveLength(0);
-		await expectFileExists(planResult.planPath);
+		await expectFileExists(committedPlan.planPath);
 
-		const plan = await readPlan(planResult.planPath);
+		const plan = await readPlan(committedPlan.planPath);
 		const timelineJob = plan.layers
 			.flat()
 			.find((job: any) => job.producer === 'TimelineComposer');

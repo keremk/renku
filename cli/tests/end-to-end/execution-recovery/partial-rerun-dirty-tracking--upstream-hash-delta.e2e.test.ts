@@ -125,9 +125,9 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 			logger: logger1,
 			collectExplanation: true,
 		});
-		await planResult1.persist();
+		const committedPlan1 = await planResult1.persist({ runConfig: {} });
 
-		const plan1 = await readPlan(planResult1.planPath);
+		const plan1 = await readPlan(committedPlan1.planPath);
 		const allJobs1 = plan1.layers.flat();
 
 		// Verify initial plan has all producers:
@@ -204,7 +204,7 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 			},
 			collectExplanation: true,
 		});
-		await planResult2.persist();
+		await planResult2.persist({ runConfig: {} });
 
 		// Truncate the plan to layer 0 only — simulates --up-to-layer 0
 		// The generated plan includes downstream jobs too, but we only execute layer 0.
@@ -372,7 +372,7 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 			usingBlueprint: blueprintPath,
 			logger: logger1,
 		});
-		await planResult1.persist();
+		await planResult1.persist({ runConfig: {} });
 
 		const storage1 = createStorageContext({
 			kind: 'local',

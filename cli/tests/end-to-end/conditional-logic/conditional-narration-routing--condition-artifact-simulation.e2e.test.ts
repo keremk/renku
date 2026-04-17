@@ -74,10 +74,10 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		});
 
 		// Persist the plan to disk
-		await planResult.persist();
+		const committedPlan = await planResult.persist({ runConfig: {} });
 
 		// Read and verify plan structure
-		const plan = await readPlan(planResult.planPath);
+		const plan = await readPlan(committedPlan.planPath);
 		const allJobs = plan.layers.flat();
 
 		// Find DocProducer job (produces the decomposed JSON artifacts)

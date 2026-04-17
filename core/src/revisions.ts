@@ -1,6 +1,7 @@
 import type { RevisionId } from './types.js';
 
 const REVISION_ID_PATTERN = /^rev-(\d+)$/;
+export const DRAFT_REVISION_ID = 'rev-draft' as RevisionId;
 const revisionCollator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: 'base',
@@ -44,4 +45,10 @@ export function nextRevisionId(current: RevisionId | null | undefined): Revision
 function parseRevisionNumber(revision: RevisionId): number | null {
   const match = REVISION_ID_PATTERN.exec(revision);
   return match ? Number.parseInt(match[1], 10) : null;
+}
+
+export function isDraftRevisionId(
+  revision: RevisionId | string | null | undefined
+): boolean {
+  return revision === DRAFT_REVISION_ID;
 }

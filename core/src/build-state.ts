@@ -11,9 +11,10 @@ import {
   type ErrorSeverity,
   type RenkuError,
 } from './errors/index.js';
+import { latestRevisionId } from './revisions.js';
 import { createRunLifecycleService } from './run-lifecycle.js';
 import type { StorageContext } from './storage.js';
-import type { BuildState, Clock, RevisionId } from './types.js';
+import type { BuildState, Clock, RevisionId, RunProjection } from './types.js';
 
 export class BuildStateNotFoundError extends Error implements RenkuError {
   code = RuntimeErrorCode.BUILD_STATE_NOT_FOUND;
@@ -35,6 +36,12 @@ export interface BuildStateService {
     baseRevision?: RevisionId | null;
     clock?: Clock;
   }): Promise<BuildState>;
+}
+
+export interface CurrentBuildContext {
+  currentBuildRevision: RevisionId | null;
+  latestRunRevision: RevisionId | null;
+  snapshotSourceRun: RunProjection | null;
 }
 
 export function createBuildStateService(
@@ -113,4 +120,33 @@ export function createBuildStateService(
 
 function hashBuildState(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');
+}
+
+export async function resolveCurrentBuildContext(args: {
+  storage: StorageContext;
+  movieId: string;
+}): Promise<CurrentBuildContext> {
+  const eventLog = createEventLog(args.storage);
+  const runLifecycleService = createRunLifecycleService(args.storage);
+  const eventLogState = await readEventLogState({
+    eventLog,
+    movieId: args.movieId,
+  });
+  const latestRun = await runLifecycleService.loadLatest(args.movieId);
+  let currentBuildRevision: RevisionId | null = null;
+  for (const event of eventLogState.latestArtifactsById.values()) {
+    currentBuildRevision = latestRevisionId(currentBuildRevision, event.revision);
+  }
+  const snapshotSourceRun = currentBuildRevision
+    ? await runLifecycleService.loadLatestAtOrBefore(
+        args.movieId,
+        currentBuildRevision
+      )
+    : latestRun;
+
+  return {
+    currentBuildRevision,
+    latestRunRevision: latestRun?.revision ?? null,
+    snapshotSourceRun,
+  };
 }

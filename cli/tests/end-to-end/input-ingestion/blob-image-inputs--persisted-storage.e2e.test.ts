@@ -150,7 +150,7 @@ describe('end-to-end: image-to-video with blob input', () => {
 		expect(blobRef.size).toBe(imageContent.length);
 
 		// Persist the plan to disk
-		await planResult.persist();
+		await planResult.persist({ runConfig: {} });
 
 		// Verify blob was persisted to local storage
 		const blobsDir = resolve(
@@ -296,7 +296,7 @@ describe('end-to-end: image-to-video with blob input', () => {
 		expect(blobRef1.hash).not.toBe(blobRef2.hash);
 
 		// Persist and verify both blobs are stored
-		await planResult.persist();
+		await planResult.persist({ runConfig: {} });
 
 		const blobsDir = resolve(
 			cliConfig.storage.root,

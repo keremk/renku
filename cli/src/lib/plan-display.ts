@@ -1,3 +1,6 @@
+import {
+	isDraftRevisionId,
+} from '@gorenku/core';
 import type {
 	ExecutionPlan,
 	InputEvent,
@@ -94,7 +97,9 @@ export function displayPlanSummary(plan: ExecutionPlan, logger: Logger): void {
 	}
 
 	logger.info(`\n${chalk.bold('=== Execution Plan Summary ===')}`);
-	logger.info(`${chalk.bold('Revision')}: ${plan.revision}`);
+	if (!isDraftRevisionId(plan.revision)) {
+		logger.info(`${chalk.bold('Revision')}: ${plan.revision}`);
+	}
 	logger.info(`${chalk.bold('Total Jobs')}: ${allJobs.length}`);
 	logger.info(`${chalk.bold('Layers')}: ${plan.layers.length}`);
 	logger.info(`${chalk.bold('Jobs by Producer:')}`);
@@ -164,7 +169,9 @@ export function displaySurgicalPlanSummary(
 		}
 	}
 
-	logger.info(`${chalk.bold('Revision')}: ${options.plan.revision}`);
+	if (!isDraftRevisionId(options.plan.revision)) {
+		logger.info(`${chalk.bold('Revision')}: ${options.plan.revision}`);
+	}
 	logger.info(`${chalk.bold('Total Jobs')}: ${allJobs.length}`);
 
 	// List all jobs that will be run
@@ -286,7 +293,9 @@ export function displayPlanExplanation(
 
 	logger.info(`\n${chalk.bold('=== Plan Explanation ===')}`);
 	logger.info(`${chalk.bold('Movie ID')}: ${explanation.movieId}`);
-	logger.info(`${chalk.bold('Revision')}: ${explanation.revision}`);
+	if (explanation.revision && !isDraftRevisionId(explanation.revision)) {
+		logger.info(`${chalk.bold('Revision')}: ${explanation.revision}`);
+	}
 	logger.info('');
 
 	displayRecoverySummary(options.recoverySummary, logger);

@@ -735,27 +735,19 @@ export interface RunSummary {
 }
 
 export type RunLifecycleStatus =
-  | 'planned'
   | 'started'
   | 'succeeded'
   | 'failed'
   | 'cancelled';
 
-export interface RunPlannedEvent {
-  type: 'run-planned';
-  revision: RevisionId;
-  createdAt: IsoDatetime;
-  runConfig: RunConfig;
-  inputSnapshotPath: string;
-  inputSnapshotHash: string;
-  planPath: string;
-}
-
 export interface RunStartedEvent {
   type: 'run-started';
   revision: RevisionId;
   startedAt: IsoDatetime;
-  runConfig?: RunConfig;
+  inputSnapshotPath: string;
+  inputSnapshotHash: string;
+  planPath: string;
+  runConfig: RunConfig;
 }
 
 export interface RunCompletedEvent {
@@ -772,11 +764,7 @@ export interface RunCancelledEvent {
   completedAt: IsoDatetime;
 }
 
-export type RunLifecycleEvent =
-  | RunPlannedEvent
-  | RunStartedEvent
-  | RunCompletedEvent
-  | RunCancelledEvent;
+export type RunLifecycleEvent = RunStartedEvent | RunCompletedEvent | RunCancelledEvent;
 
 export interface RunProjection {
   revision: RevisionId;

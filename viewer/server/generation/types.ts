@@ -7,6 +7,7 @@ import type {
   BuildState,
   ExecutionPlan,
   ExecutionState,
+  StorageContext,
   PlanningUserControls,
   PlanningWarning,
   ProducerSchedulingSummary,
@@ -97,7 +98,7 @@ export interface SerializablePlanCostSummary {
 export interface PlanResponse {
   planId: string;
   movieId: string;
-  revision: string;
+  revision: string | null;
   blueprintPath: string;
   /** Number of layers in the execution plan (scheduled work only) */
   layers: number;
@@ -395,10 +396,17 @@ export interface CachedPlan {
   surgicalInfo?: SurgicalInfo[];
   producerScheduling?: ProducerSchedulingSummary[];
   warnings?: PlanningWarning[];
+  planningStorage: StorageContext;
   /** When this plan was created */
   createdAt: Date;
   /** Async persist function from planner */
-  persist: () => Promise<void>;
+  persist: (args: {
+    runConfig: import('@gorenku/core').RunConfig;
+  }) => Promise<{
+    planPath: string;
+    targetRevision: string;
+    plan: ExecutionPlan;
+  }>;
 }
 
 /**

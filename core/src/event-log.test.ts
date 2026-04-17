@@ -114,18 +114,13 @@ describe('EventLog', () => {
 
     const runEvents: RunLifecycleEvent[] = [
       {
-        type: 'run-planned',
+        type: 'run-started',
         revision: 'rev-0004',
-        createdAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
         runConfig: { concurrency: 2 },
         inputSnapshotPath: 'runs/rev-0004-inputs.yaml',
         inputSnapshotHash: 'snapshot-hash',
         planPath: 'runs/rev-0004-plan.json',
-      },
-      {
-        type: 'run-started',
-        revision: 'rev-0004',
-        startedAt: new Date().toISOString(),
       },
     ];
 

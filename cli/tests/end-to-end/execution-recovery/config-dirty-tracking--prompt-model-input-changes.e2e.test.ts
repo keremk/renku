@@ -96,9 +96,9 @@ describe('end-to-end: config dirty tracking', () => {
 			logger,
 			collectExplanation: true,
 		});
-		await planResult.persist();
+		const committedPlan = await planResult.persist({ runConfig: {} });
 
-		const plan = await readPlan(planResult.planPath);
+		const plan = await readPlan(committedPlan.planPath);
 		const allJobs = plan.layers.flat();
 
 		// Execute the plan

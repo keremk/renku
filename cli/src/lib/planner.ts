@@ -6,8 +6,8 @@ import {
 	createBuildStateService,
 	createEventLog,
 	createPlanningService,
+	commitExecutionDraft,
 	createMovieMetadataService,
-	planStore,
 	validatePreparedBlueprintTree,
 	buildProducerCatalog,
 	copyRunArchivesToMemory,
@@ -27,6 +27,7 @@ import {
 	type RecoveryPrepassSummary,
 	type RecoveryPrepassDependencies,
 	type BuildState,
+	type ArtifactEvent,
 	type ExecutionState,
 	type InputEvent,
 	type ExecutionPlan,
@@ -79,9 +80,8 @@ export interface GeneratePlanOptions {
 }
 
 export interface GeneratePlanResult {
-	planPath: string;
-	targetRevision: string;
 	inputEvents: InputEvent[];
+	artifactEvents: ArtifactEvent[];
 	buildState: BuildState;
 	executionState: ExecutionState;
 	plan: ExecutionPlan;
@@ -94,8 +94,18 @@ export interface GeneratePlanResult {
 	modelCatalog?: LoadedModelCatalog;
 	/** Path to the catalog models directory. Required for schema loading in delegation. */
 	catalogModelsDir?: string;
-	/** Persist the plan to local storage. Call after confirmation. */
-	persist: () => Promise<void>;
+	/** Planning storage context for transient dry-run execution. */
+	planningStorage: ReturnType<typeof createStorageContext>;
+	/** Commit the transient draft into a real execution-backed revision. */
+	persist: (args: {
+		runConfig: import('@gorenku/core').RunConfig;
+	}) => Promise<{
+		planPath: string;
+		targetRevision: string;
+		plan: ExecutionPlan;
+		inputEvents: InputEvent[];
+		artifactEvents: ArtifactEvent[];
+	}>;
 	/** Surgical regeneration info when artifact regeneration targets are provided. */
 	surgicalInfo?: SurgicalInfo[];
 	/** Effective producer-level scheduling metadata. */
@@ -297,14 +307,6 @@ export async function generatePlan(
 	logger.debug('[planner] resolved inputs', {
 		inputs: Object.keys(planResult.resolvedInputs),
 	});
-	const absolutePlanPath = resolve(
-		storageRoot,
-		basePath,
-		movieId,
-		'runs',
-		`${planResult.targetRevision}-plan.json`
-	);
-
 	// Load pricing catalog and estimate costs
 	const pricingCatalog = catalogModelsDir
 		? await loadPricingCatalog(catalogModelsDir)
@@ -325,9 +327,8 @@ export async function generatePlan(
 		: undefined;
 
 	return {
-		planPath: absolutePlanPath,
-		targetRevision: planResult.targetRevision,
 		inputEvents: planResult.inputEvents,
+		artifactEvents: planResult.artifactEvents,
 		buildState: planResult.buildState,
 		executionState: planResult.executionState,
 		plan: planResult.plan,
@@ -338,6 +339,7 @@ export async function generatePlan(
 		costSummary,
 		modelCatalog,
 		catalogModelsDir: catalogModelsDir ?? undefined,
+		planningStorage: memoryStorageContext,
 		surgicalInfo,
 		producerScheduling: planResult.producerScheduling,
 		warnings: planResult.warnings,
@@ -345,7 +347,7 @@ export async function generatePlan(
 		conditionAnalysis: conditionAnalysisResult,
 		conditionHints,
 		recoverySummary,
-		persist: async () => {
+		persist: async ({ runConfig }) => {
 			// Create LOCAL storage and write everything
 			const localStorageContext = createStorageContext({
 				kind: 'local',
@@ -367,42 +369,29 @@ export async function generatePlan(
 				movieId
 			);
 
-			// Write input events to local event log
-			const localEventLog = createEventLog(localStorageContext);
-			for (const event of planResult.inputEvents) {
-				await localEventLog.appendInput(movieId, event);
-			}
-
-			// Write plan to local storage
-			await planStore.save(planResult.plan, {
+			const inputSnapshotBytes = await readFile(options.inputsPath);
+			const committed = await commitExecutionDraft({
 				movieId,
 				storage: localStorageContext,
+				draftPlan: planResult.plan,
+				draftInputEvents: planResult.inputEvents,
+				draftArtifactEvents: planResult.artifactEvents,
+				inputSnapshotContents: inputSnapshotBytes,
+				runConfig,
 			});
 
-			const inputSnapshotBytes = await readFile(options.inputsPath);
-			const runLifecycleService = createRunLifecycleService(localStorageContext);
-			const { path: inputSnapshotPath, hash: inputSnapshotHash } =
-				await runLifecycleService.writeInputSnapshot(
+			return {
+				planPath: resolve(
+					storageRoot,
+					basePath,
 					movieId,
-					planResult.targetRevision,
-					inputSnapshotBytes
-				);
-			await runLifecycleService.appendPlanned(movieId, {
-				type: 'run-planned',
-				revision: planResult.targetRevision,
-				createdAt: planResult.plan.createdAt,
-				inputSnapshotPath,
-				inputSnapshotHash,
-				planPath: `runs/${planResult.targetRevision}-plan.json`,
-				runConfig: {
-					...(planningControls?.scope?.upToLayer !== undefined
-						? { upToLayer: planningControls.scope.upToLayer }
-						: {}),
-					...(planningControls?.surgical?.regenerateIds?.length
-						? { regenerateIds: planningControls.surgical.regenerateIds }
-						: {}),
-				},
-			});
+					committed.planPath
+				),
+				targetRevision: committed.revision,
+				plan: committed.plan,
+				inputEvents: committed.inputEvents,
+				artifactEvents: committed.artifactEvents,
+			};
 		},
 	};
 }

@@ -1,5 +1,6 @@
-import { dirname, isAbsolute, resolve } from 'node:path';
-import { readFile } from 'node:fs/promises';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import {
 	getDefaultCliConfigPath,
 	readCliConfig,
@@ -24,8 +25,11 @@ import {
 	runBlueprintDryRunValidation,
 	type BlueprintValidationScenarioFile,
 	type BlueprintDryRunValidationResult,
+	copyBlobsFromMemoryToLocal,
 	createStorageContext,
 	createMovieMetadataService,
+	initializeMovieStorage,
+	type ExecutionPlan,
 	type Logger,
 	type RootOutputBinding,
 } from '@gorenku/core';
@@ -94,11 +98,11 @@ export interface ExecuteResult {
 	/** Storage movie ID (with "movie-" prefix) */
 	storageMovieId: string;
 
-	/** Path to saved plan JSON */
-	planPath: string;
+	/** Path to saved plan JSON for a committed execution. */
+	planPath?: string;
 
-	/** Plan revision string */
-	targetRevision: string;
+	/** Plan revision string for a committed execution. */
+	targetRevision?: string;
 
 	/** Build summary (available for both dry-run and live execution) */
 	build?: BuildSummary;
@@ -236,14 +240,8 @@ export async function runExecute(
 		});
 	}
 
-	// Determine if we should persist now or after confirmation
 	// For edits with no jobs, skip confirmation entirely
-	const skipConfirmation =
-		options.dryRun || nonInteractive || (!isNew && !hasJobs);
-
-	if (skipConfirmation) {
-		await planResult.persist();
-	}
+	const skipConfirmation = nonInteractive || options.dryRun || (!isNew && !hasJobs);
 
 	// Interactive confirmation
 	if (!skipConfirmation) {
@@ -269,8 +267,22 @@ export async function runExecute(
 			});
 		}
 
-		// User confirmed - persist now before execution
-		await planResult.persist();
+	}
+
+	const runConfig = {
+		...(upToLayer !== undefined ? { upToLayer } : {}),
+		...(regenerateIds && regenerateIds.length > 0
+			? { regenerateIds }
+			: {}),
+		...(options.dryRun ? { dryRun: true } : {}),
+		...(concurrency !== undefined ? { concurrency } : {}),
+	};
+
+	let committedPlan:
+		| Awaited<ReturnType<typeof planResult.persist>>
+		| undefined;
+	if (!options.dryRun) {
+		committedPlan = await planResult.persist({ runConfig });
 	}
 
 	const { buildResult, dryRunValidation } = options.dryRun
@@ -290,7 +302,7 @@ export async function runExecute(
 				buildResult: await executeBuild({
 					cliConfig,
 					movieId: storageMovieId,
-					plan: planResult.plan,
+					plan: committedPlan!.plan,
 					buildState: planResult.buildState,
 					baselineHash: planResult.baselineHash,
 					executionState: planResult.executionState,
@@ -307,11 +319,18 @@ export async function runExecute(
 				dryRunValidation: undefined,
 			};
 
+	const transientPlanPath = options.dryRun
+		? await writeTransientPlanFile({
+				movieId: storageMovieId,
+				plan: planResult.plan,
+			})
+		: undefined;
+
 	return {
 		movieId: options.movieId ?? normalizePublicId(storageMovieId),
 		storageMovieId,
-		planPath: planResult.planPath,
-		targetRevision: planResult.targetRevision,
+		planPath: committedPlan?.planPath ?? transientPlanPath,
+		targetRevision: committedPlan?.targetRevision,
 		build: buildResult.summary,
 		isDryRun: buildResult.dryRun,
 		dryRunValidation,
@@ -320,6 +339,16 @@ export async function runExecute(
 		finalStageProducerJobIds: planResult.plan.finalStageProducerJobIds,
 		resolvedInputs: planResult.resolvedInputs,
 	};
+}
+
+async function writeTransientPlanFile(args: {
+	movieId: string;
+	plan: ExecutionPlan;
+}): Promise<string> {
+	const tempDir = await mkdtemp(join(tmpdir(), 'renku-plan-'));
+	const planPath = join(tempDir, `${args.movieId}-plan.json`);
+	await writeFile(planPath, JSON.stringify(args.plan, null, 2), 'utf8');
+	return planPath;
 }
 
 async function executeDryRunWithValidation(args: {
@@ -337,6 +366,13 @@ async function executeDryRunWithValidation(args: {
 	buildResult: Awaited<ReturnType<typeof executeBuild>>;
 	dryRunValidation: BlueprintDryRunValidationResult;
 }> {
+	const silentValidationLogger: Logger = {
+		debug: () => {},
+		info: () => {},
+		warn: () => {},
+		error: () => {},
+	};
+
 	const conditionAnalysis = args.planResult.conditionAnalysis;
 	if (!conditionAnalysis) {
 		throw new Error(
@@ -381,32 +417,32 @@ async function executeDryRunWithValidation(args: {
 	let baselineHashCursor = args.planResult.baselineHash;
 	let primaryBuildResult: Awaited<ReturnType<typeof executeBuild>> | undefined;
 
-	const storage = createStorageContext({
-		kind: 'local',
-		rootDir: args.cliConfig.storage.root,
-		basePath: args.cliConfig.storage.basePath,
-	});
+	const storage = args.planResult.planningStorage;
 
 	const executeDryRunBuild = async (
-		conditionHints = args.planResult.conditionHints
+		conditionHints = args.planResult.conditionHints,
+		storageContext = args.planResult.planningStorage,
+		baselineHash = baselineHashCursor,
+		logger = args.logger
 	) =>
 		executeBuild({
 			cliConfig: args.cliConfig,
 			movieId: args.storageMovieId,
 			plan: args.planResult.plan,
 			buildState: args.planResult.buildState,
-			baselineHash: baselineHashCursor,
+			baselineHash,
 			executionState: args.planResult.executionState,
 			providerOptions: args.planResult.providerOptions,
 			resolvedInputs: args.planResult.resolvedInputs,
 			catalog: args.planResult.modelCatalog,
 			catalogModelsDir: args.planResult.catalogModelsDir,
-			logger: args.logger,
+			logger,
 			concurrency: args.concurrency,
 			upToLayer: args.upToLayer,
 			regenerateIds: args.regenerateIds,
 			dryRun: true,
 			persistRunLifecycle: false,
+			storageContext,
 			conditionHints,
 		});
 
@@ -416,7 +452,10 @@ async function executeDryRunWithValidation(args: {
 		sourceTestFilePath: loadedScenario?.path,
 		executeCase: async ({ caseDefinition, caseIndex }) => {
 			const buildResult = await executeDryRunBuild(
-				caseDefinition.conditionHints ?? args.planResult.conditionHints
+				caseDefinition.conditionHints ?? args.planResult.conditionHints,
+				args.planResult.planningStorage,
+				baselineHashCursor,
+				silentValidationLogger
 			);
 
 			baselineHashCursor = buildResult.baselineHash;
@@ -455,7 +494,10 @@ async function executeDryRunWithValidation(args: {
 	if (cases.length > 1) {
 		const baselineCase = cases[0]!;
 		const baselineBuildResult = await executeDryRunBuild(
-			baselineCase.conditionHints ?? args.planResult.conditionHints
+			baselineCase.conditionHints ?? args.planResult.conditionHints,
+			args.planResult.planningStorage,
+			baselineHashCursor,
+			silentValidationLogger
 		);
 
 		baselineHashCursor = baselineBuildResult.baselineHash;
@@ -466,15 +508,30 @@ async function executeDryRunWithValidation(args: {
 		throw new Error('Dry-run validation did not execute a primary case.');
 	}
 
-	if (
-		dryRunValidation.failures.length > 0 ||
-		dryRunValidation.failedCases > 0
-	) {
-		primaryBuildResult.summary.status = 'failed';
-	}
-
+	const localStorageContext = createStorageContext({
+		kind: 'local',
+		rootDir: args.cliConfig.storage.root,
+		basePath: args.cliConfig.storage.basePath ?? 'builds',
+	});
+	await initializeMovieStorage(localStorageContext, args.storageMovieId);
+	const metadataService = createMovieMetadataService(localStorageContext);
+	await metadataService.merge(args.storageMovieId, {
+		blueprintPath: args.blueprintPath,
+	});
+	await copyBlobsFromMemoryToLocal(
+		args.planResult.planningStorage,
+		localStorageContext,
+		args.storageMovieId
+	);
+	const primaryConditionHints =
+		cases[0]?.conditionHints ?? args.planResult.conditionHints;
+	const materializedBuildResult = await executeDryRunBuild(
+		primaryConditionHints,
+		localStorageContext,
+		args.planResult.baselineHash
+	);
 	return {
-		buildResult: primaryBuildResult,
+		buildResult: materializedBuildResult,
 		dryRunValidation,
 	};
 }
@@ -618,8 +675,6 @@ async function handleCostsOnly(args: {
 	return {
 		movieId: args.movieId ?? normalizePublicId(storageMovieId),
 		storageMovieId,
-		planPath: planResult.planPath,
-		targetRevision: planResult.targetRevision,
 		build: undefined,
 		isDryRun: undefined,
 		storagePath: movieDir,
@@ -682,8 +737,6 @@ async function handleExplain(args: {
 	return {
 		movieId: args.movieId ?? normalizePublicId(storageMovieId),
 		storageMovieId,
-		planPath: planResult.planPath,
-		targetRevision: planResult.targetRevision,
 		build: undefined,
 		isDryRun: undefined,
 		storagePath: movieDir,
@@ -730,8 +783,6 @@ async function handleCancellation(args: {
 	return {
 		movieId: args.movieId ?? normalizePublicId(storageMovieId),
 		storageMovieId,
-		planPath: planResult.planPath,
-		targetRevision: planResult.targetRevision,
 		build: undefined,
 		isDryRun: undefined,
 		storagePath: movieDir,

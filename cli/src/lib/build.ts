@@ -15,6 +15,7 @@ import {
 	type RunResult,
 	type Logger,
 	type ProducerOptionsMap,
+	type StorageContext,
 } from '@gorenku/core';
 import {
 	createProviderRegistry,
@@ -49,6 +50,8 @@ export interface ExecuteBuildOptions {
 	dryRun?: boolean;
 	/** Persist run lifecycle events for this execution attempt. */
 	persistRunLifecycle?: boolean;
+	/** Override storage context (used for transient dry-runs). */
+	storageContext?: StorageContext;
 	/** Condition hints for dry-run simulation (controls value alternation). */
 	conditionHints?: ConditionHints;
 	logger?: Logger;
@@ -76,13 +79,13 @@ export interface BuildSummary {
 	/** Job-level details for display (optional) */
 	jobs?: JobSummary[];
 	revision: string;
-	runLogPath: string;
+	runLogPath: string | null;
 }
 
 export interface ExecuteBuildResult {
 	run: RunResult;
 	buildState: BuildState;
-	runLogPath: string;
+	runLogPath: string | null;
 	baselineHash: string;
 	summary: BuildSummary;
 	/** True if this was a dry-run (simulated execution). */
@@ -96,11 +99,13 @@ export async function executeBuild(
 	const persistRunLifecycle = options.persistRunLifecycle ?? true;
 	const logger = options.logger ?? globalThis.console;
 	const notifications = options.notifications;
-	const storage = createStorageContext({
-		kind: 'local',
-		rootDir: options.cliConfig.storage.root,
-		basePath: options.cliConfig.storage.basePath,
-	});
+	const storage =
+		options.storageContext ??
+		createStorageContext({
+			kind: 'local',
+			rootDir: options.cliConfig.storage.root,
+			basePath: options.cliConfig.storage.basePath,
+		});
 	const concurrency = normalizeConcurrency(options.concurrency);
 
 	await initializeMovieStorage(storage, options.movieId);
@@ -108,24 +113,6 @@ export async function executeBuild(
 	const eventLog = createEventLog(storage);
 	const buildStateService = createBuildStateService(storage);
 	const runLifecycleService = createRunLifecycleService(storage);
-	const executionStartedAt = new Date().toISOString();
-	if (persistRunLifecycle) {
-		await runLifecycleService.appendStarted(options.movieId, {
-			type: 'run-started',
-			revision: options.plan.revision,
-			startedAt: executionStartedAt,
-			runConfig: {
-				...(options.upToLayer !== undefined
-					? { upToLayer: options.upToLayer }
-					: {}),
-				...(options.regenerateIds && options.regenerateIds.length > 0
-					? { regenerateIds: options.regenerateIds }
-					: {}),
-				...(dryRun ? { dryRun: true } : {}),
-				...(concurrency !== undefined ? { concurrency } : {}),
-			},
-		});
-	}
 
 	try {
 		// Provider registry: mode differs based on dryRun flag
@@ -204,10 +191,13 @@ export async function executeBuild(
 			baseRevision: options.buildState.revision,
 		});
 
-		const runLogPath = resolvePath(
-			options.cliConfig.storage.root,
-			storage.resolve(options.movieId, 'events', 'runs.log')
-		);
+		const runLogPath =
+			storage === options.storageContext
+				? null
+				: resolvePath(
+						options.cliConfig.storage.root,
+						storage.resolve(options.movieId, 'events', 'runs.log')
+				  );
 		const summary = summarizeRun(run, runLogPath, options.plan);
 		if (persistRunLifecycle) {
 			await runLifecycleService.appendCompleted(options.movieId, {
@@ -224,7 +214,7 @@ export async function executeBuild(
 		}
 
 		// Log warning if build had failures
-		if (run.status === 'failed') {
+		if (!dryRun && run.status === 'failed') {
 			const failedJobs = run.jobs.filter((j) => j.status === 'failed');
 			logger.warn?.(
 				`Build completed with ${failedJobs.length} failed job(s). ` +
@@ -269,7 +259,7 @@ export async function executeBuild(
 
 function summarizeRun(
 	run: RunResult,
-	runLogPath: string,
+	runLogPath: string | null,
 	plan: ExecutionPlan
 ): BuildSummary {
 	const counts = {

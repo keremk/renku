@@ -177,17 +177,8 @@ describe('end-to-end: video-audio-music dry runs', () => {
 				?.length
 		).toBe(1);
 
-		// Ensure plan artifacts stored under storage root
-		await expectFileExists(
-			resolve(
-				queryResult.storagePath,
-				'runs',
-				`${queryResult.targetRevision}-plan.json`
-			)
-		);
-		await expectFileExists(
-			resolve(queryResult.storagePath, 'events', 'inputs.log')
-		);
+		// Dry-run plans are transient now, so the debug plan is available through
+		// result.planPath instead of being recorded under the movie workspace.
 
 		// Prepare edited inputs to force re-run
 		const editedInputsPath = join(tempRoot, 'edited-inputs.yaml');

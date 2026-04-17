@@ -62,7 +62,7 @@ describe('getBuildState', () => {
   it('surfaces malformed run lifecycle JSON instead of returning an empty response', async () => {
     await fs.writeFile(
       path.join(movieDir, 'events', 'runs.log'),
-      '{"type":"run-planned"',
+      '{"type":"run-started"',
       'utf8'
     );
 
@@ -138,9 +138,9 @@ describe('getBuildState', () => {
       path.join(movieDir, 'events', 'runs.log'),
       [
         JSON.stringify({
-          type: 'run-planned',
+          type: 'run-started',
           revision: 'rev-0001',
-          createdAt: '2024-01-01T00:00:00Z',
+          startedAt: '2024-01-01T00:00:00Z',
           inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
           inputSnapshotHash: 'snapshot-hash-1',
           planPath: 'runs/rev-0001-plan.json',
@@ -186,7 +186,7 @@ describe('getBuildState', () => {
     });
   });
 
-  it('keeps planned-only revisions out of the displayed build state', async () => {
+  it('keeps draft-only revisions out of the displayed build state', async () => {
     const storage = createStorageContext({
       kind: 'local',
       rootDir: blueprintFolder,
@@ -212,17 +212,6 @@ describe('getBuildState', () => {
       createdAt: '2024-01-03T00:00:00Z',
     });
 
-    const runLifecycleService = createRunLifecycleService(storage);
-    await runLifecycleService.appendPlanned(movieId, {
-      type: 'run-planned',
-      revision: 'rev-0003',
-      createdAt: '2024-01-03T00:00:00Z',
-      inputSnapshotPath: 'runs/rev-0003-inputs.yaml',
-      inputSnapshotHash: 'snapshot-hash-3',
-      planPath: 'runs/rev-0003-plan.json',
-      runConfig: {},
-    });
-
     const result = await getBuildState(blueprintFolder, movieId);
 
     expect(result.revision).toBeNull();
@@ -238,18 +227,18 @@ describe('getBuildState', () => {
       path.join(movieDir, 'events', 'runs.log'),
       [
         JSON.stringify({
-          type: 'run-planned',
+          type: 'run-started',
           revision: 'rev-0001',
-          createdAt: '2024-01-01T00:00:00Z',
+          startedAt: '2024-01-01T00:00:00Z',
           inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
           inputSnapshotHash: 'snapshot-hash-1',
           planPath: 'runs/rev-0001-plan.json',
           runConfig: {},
         }),
         JSON.stringify({
-          type: 'run-planned',
+          type: 'run-started',
           revision: 'rev-0003',
-          createdAt: '2024-01-03T00:00:00Z',
+          startedAt: '2024-01-03T00:00:00Z',
           inputSnapshotPath: 'runs/rev-0003-inputs.yaml',
           inputSnapshotHash: 'snapshot-hash-3',
           planPath: 'runs/rev-0003-plan.json',
@@ -300,7 +289,7 @@ describe('getBuildState', () => {
     });
   });
 
-  it('does not advance the displayed revision when a newer plan only records input events', async () => {
+  it('does not advance the displayed revision when a newer draft only records input events', async () => {
     const storage = createStorageContext({
       kind: 'local',
       rootDir: blueprintFolder,
@@ -341,21 +330,10 @@ describe('getBuildState', () => {
         'utf8'
       )
     );
-    const futureSnapshot = await runLifecycleService.writeInputSnapshot(
-      movieId,
-      'rev-0003',
-      Buffer.from(
-        ['inputs:', '  InquiryPrompt: "Future snapshot"', '  Duration: 90', ''].join(
-          '\n'
-        ),
-        'utf8'
-      )
-    );
-
-    await runLifecycleService.appendPlanned(movieId, {
-      type: 'run-planned',
+    await runLifecycleService.appendStarted(movieId, {
+      type: 'run-started',
       revision: 'rev-0002',
-      createdAt: '2024-01-02T00:00:00Z',
+      startedAt: '2024-01-02T00:00:00Z',
       inputSnapshotPath: olderSnapshot.path,
       inputSnapshotHash: olderSnapshot.hash,
       planPath: 'runs/rev-0002-plan.json',
@@ -372,16 +350,6 @@ describe('getBuildState', () => {
         layers: 1,
       },
     });
-    await runLifecycleService.appendPlanned(movieId, {
-      type: 'run-planned',
-      revision: 'rev-0003',
-      createdAt: '2024-01-03T00:00:00Z',
-      inputSnapshotPath: futureSnapshot.path,
-      inputSnapshotHash: futureSnapshot.hash,
-      planPath: 'runs/rev-0003-plan.json',
-      runConfig: {},
-    });
-
     const result = await getBuildState(blueprintFolder, movieId);
 
     expect(result.revision).toBe('rev-0002');

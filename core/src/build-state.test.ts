@@ -3,6 +3,7 @@ import { createEventLog, hashInputPayload } from './event-log.js';
 import {
   createBuildStateService,
   BuildStateNotFoundError,
+  resolveCurrentBuildContext,
 } from './build-state.js';
 import { isRenkuError, RuntimeErrorCode } from './errors/index.js';
 import { createRunLifecycleService } from './run-lifecycle.js';
@@ -53,10 +54,10 @@ describe('BuildStateService', () => {
       producerId: 'Producer:ScriptProducer',
       createdAt: clock.now(),
     });
-    await runLifecycleService.appendPlanned('demo', {
-      type: 'run-planned',
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
       revision: 'rev-0001',
-      createdAt: clock.now(),
+      startedAt: clock.now(),
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash',
       planPath: 'runs/rev-0001-plan.json',
@@ -100,10 +101,10 @@ describe('BuildStateService', () => {
       producerId: 'Producer:ScriptProducer',
       createdAt: '2025-01-01T00:00:00.000Z',
     });
-    await runLifecycleService.appendPlanned('demo', {
-      type: 'run-planned',
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
       revision: 'rev-0001',
-      createdAt: '2025-01-01T00:00:00.000Z',
+      startedAt: '2025-01-01T00:00:00.000Z',
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash',
       planPath: 'runs/rev-0001-plan.json',
@@ -168,10 +169,10 @@ describe('BuildStateService', () => {
       producerId: 'Producer:ScriptProducer',
       createdAt: clock.now(),
     });
-    await runLifecycleService.appendPlanned('demo', {
-      type: 'run-planned',
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
       revision: 'rev-0001',
-      createdAt: clock.now(),
+      startedAt: clock.now(),
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash',
       planPath: 'runs/rev-0001-plan.json',
@@ -203,19 +204,19 @@ describe('BuildStateService', () => {
       editedBy: 'user',
       createdAt: clock.now(),
     });
-    await runLifecycleService.appendPlanned('demo', {
-      type: 'run-planned',
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
       revision: 'rev-9999',
-      createdAt: clock.now(),
+      startedAt: clock.now(),
       inputSnapshotPath: 'runs/rev-9999-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash-9999',
       planPath: 'runs/rev-9999-plan.json',
       runConfig: {},
     });
-    await runLifecycleService.appendPlanned('demo', {
-      type: 'run-planned',
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
       revision: 'rev-10000',
-      createdAt: clock.now(),
+      startedAt: clock.now(),
       inputSnapshotPath: 'runs/rev-10000-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash-10000',
       planPath: 'runs/rev-10000-plan.json',
@@ -544,7 +545,7 @@ describe('BuildStateService', () => {
     await initializeMovieStorage(ctx, 'demo', { seedCurrentJson: false });
     await ctx.storage.write(
       ctx.resolve('demo', 'events', 'runs.log'),
-      '{"type":"run-planned"',
+      '{"type":"run-started"',
       { mimeType: 'application/x-ndjson' }
     );
 
@@ -559,5 +560,97 @@ describe('BuildStateService', () => {
         expect(error.code).toBe(RuntimeErrorCode.INVALID_BUILD_HISTORY_JSON);
       }
     }
+  });
+
+  it('anchors editable snapshots to the current event-backed build revision', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const runLifecycleService = createRunLifecycleService(ctx);
+
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:ScriptProducer.GeneratedScript[0]',
+      revision: 'rev-0003',
+      inputsHash: 'inputs:hash',
+      output: {
+        blob: {
+          hash: 'script-v3-hash',
+          size: 8,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:ScriptProducer[0]',
+      producerId: 'Producer:ScriptProducer',
+      createdAt: '2025-01-03T00:00:00.000Z',
+    });
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
+      revision: 'rev-0003',
+      startedAt: '2025-01-03T00:00:00.000Z',
+      inputSnapshotPath: 'runs/rev-0003-inputs.yaml',
+      inputSnapshotHash: 'snapshot-hash-3',
+      planPath: 'runs/rev-0003-plan.json',
+      runConfig: {},
+    });
+    await runLifecycleService.appendCompleted('demo', {
+      type: 'run-completed',
+      revision: 'rev-0003',
+      completedAt: '2025-01-03T00:05:00.000Z',
+      status: 'succeeded',
+      summary: {
+        jobCount: 1,
+        counts: { succeeded: 1, failed: 0, skipped: 0 },
+        layers: 1,
+      },
+    });
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
+      revision: 'rev-0004',
+      startedAt: '2025-01-04T00:00:00.000Z',
+      inputSnapshotPath: 'runs/rev-0004-inputs.yaml',
+      inputSnapshotHash: 'snapshot-hash-4',
+      planPath: 'runs/rev-0004-plan.json',
+      runConfig: {},
+    });
+    await runLifecycleService.appendCancelled('demo', {
+      type: 'run-cancelled',
+      revision: 'rev-0004',
+      completedAt: '2025-01-04T00:01:00.000Z',
+    });
+
+    const context = await resolveCurrentBuildContext({
+      storage: ctx,
+      movieId: 'demo',
+    });
+
+    expect(context.currentBuildRevision).toBe('rev-0003');
+    expect(context.latestRunRevision).toBe('rev-0004');
+    expect(context.snapshotSourceRun?.revision).toBe('rev-0003');
+  });
+
+  it('falls back to the latest started run when no event-backed build exists', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const runLifecycleService = createRunLifecycleService(ctx);
+
+    await runLifecycleService.appendStarted('demo', {
+      type: 'run-started',
+      revision: 'rev-0001',
+      startedAt: '2025-01-01T00:00:00.000Z',
+      inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
+      inputSnapshotHash: 'snapshot-hash-1',
+      planPath: 'runs/rev-0001-plan.json',
+      runConfig: {},
+    });
+
+    const context = await resolveCurrentBuildContext({
+      storage: ctx,
+      movieId: 'demo',
+    });
+
+    expect(context.currentBuildRevision).toBeNull();
+    expect(context.latestRunRevision).toBe('rev-0001');
+    expect(context.snapshotSourceRun?.revision).toBe('rev-0001');
   });
 });

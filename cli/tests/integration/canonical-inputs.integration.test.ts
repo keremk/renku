@@ -73,7 +73,7 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		});
 
 		// Persist the plan to disk (now required after in-memory planning)
-		await planResult.persist();
+		await planResult.persist({ runConfig: {} });
 
 		// Verify inputs were persisted to events/inputs.log
 		const inputsLogPath = resolve(

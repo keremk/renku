@@ -68,10 +68,10 @@ describe('handleExecuteRequest', () => {
       await initializeMovieStorage(storage, movieId);
 
       const runLifecycle = createRunLifecycleService(storage);
-      await runLifecycle.appendPlanned(movieId, {
-        type: 'run-planned',
+      await runLifecycle.appendStarted(movieId, {
+        type: 'run-started',
         revision,
-        createdAt: '2026-01-01T00:00:00.000Z',
+        startedAt: '2026-01-01T00:00:00.000Z',
         inputSnapshotPath: `runs/${revision}-inputs.yaml`,
         inputSnapshotHash: 'snapshot-hash',
         planPath: `runs/${revision}-plan.json`,

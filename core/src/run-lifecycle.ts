@@ -11,14 +11,12 @@ import type {
   RunCancelledEvent,
   RunCompletedEvent,
   RunLifecycleEvent,
-  RunPlannedEvent,
   RunProjection,
   RunStartedEvent,
 } from './types.js';
 
 /* eslint-disable no-unused-vars */
 export interface RunLifecycleService {
-  appendPlanned(movieId: string, event: RunPlannedEvent): Promise<void>;
   appendStarted(movieId: string, event: RunStartedEvent): Promise<void>;
   appendCompleted(movieId: string, event: RunCompletedEvent): Promise<void>;
   appendCancelled(movieId: string, event: RunCancelledEvent): Promise<void>;
@@ -42,10 +40,6 @@ export function createRunLifecycleService(
   const eventLog = createEventLog(storage);
 
   return {
-    async appendPlanned(movieId, event) {
-      await eventLog.appendRun(movieId, event);
-    },
-
     async appendStarted(movieId, event) {
       await eventLog.appendRun(movieId, event);
     },
@@ -133,49 +127,19 @@ function applyRunLifecycleEvent(
   const existing = projections.get(event.revision);
 
   switch (event.type) {
-    case 'run-planned': {
+    case 'run-started': {
       if (existing) {
-        throw invalidRunEvent(movieId, event, 'Duplicate run-planned event.');
+        throw invalidRunEvent(movieId, event, 'Duplicate run-started event.');
       }
       projections.set(event.revision, {
         revision: event.revision,
-        createdAt: event.createdAt,
+        createdAt: event.startedAt,
         inputSnapshotPath: event.inputSnapshotPath,
         inputSnapshotHash: event.inputSnapshotHash,
         planPath: event.planPath,
         runConfig: event.runConfig,
-        status: 'planned',
-      });
-      return;
-    }
-
-    case 'run-started': {
-      if (!existing) {
-        throw invalidRunEvent(
-          movieId,
-          event,
-          'run-started requires a prior run-planned event.'
-        );
-      }
-      if (existing.status !== 'planned') {
-        throw invalidRunEvent(
-          movieId,
-          event,
-          `run-started cannot follow status "${existing.status}".`
-        );
-      }
-      projections.set(event.revision, {
-        ...existing,
         status: 'started',
         startedAt: event.startedAt,
-        ...(event.runConfig
-          ? {
-              runConfig: {
-                ...existing.runConfig,
-                ...event.runConfig,
-              },
-            }
-          : {}),
       });
       return;
     }
@@ -185,10 +149,10 @@ function applyRunLifecycleEvent(
         throw invalidRunEvent(
           movieId,
           event,
-          'run-completed requires a prior run-planned event.'
+          'run-completed requires a prior run-started event.'
         );
       }
-      if (existing.status !== 'planned' && existing.status !== 'started') {
+      if (existing.status !== 'started') {
         throw invalidRunEvent(
           movieId,
           event,
@@ -209,10 +173,10 @@ function applyRunLifecycleEvent(
         throw invalidRunEvent(
           movieId,
           event,
-          'run-cancelled requires a prior run-planned event.'
+          'run-cancelled requires a prior run-started event.'
         );
       }
-      if (existing.status !== 'planned' && existing.status !== 'started') {
+      if (existing.status !== 'started') {
         throw invalidRunEvent(
           movieId,
           event,

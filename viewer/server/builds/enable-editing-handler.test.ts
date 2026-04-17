@@ -32,10 +32,10 @@ describe("enableBuildEditing", () => {
         "rev-0001",
         Buffer.from("Prompt: snapshot-value\n", "utf8"),
       );
-      await runLifecycleService.appendPlanned(movieId, {
-        type: "run-planned",
+      await runLifecycleService.appendStarted(movieId, {
+        type: "run-started",
         revision: "rev-0001",
-        createdAt: "2026-01-01T00:00:00.000Z",
+        startedAt: "2026-01-01T00:00:00.000Z",
         inputSnapshotPath: snapshot.path,
         inputSnapshotHash: snapshot.hash,
         planPath: "runs/rev-0001-plan.json",
@@ -82,10 +82,10 @@ describe("enableBuildEditing", () => {
         "rev-0002",
         Buffer.from("Prompt: snapshot-value\n", "utf8"),
       );
-      await runLifecycleService.appendPlanned(movieId, {
-        type: "run-planned",
+      await runLifecycleService.appendStarted(movieId, {
+        type: "run-started",
         revision: "rev-0002",
-        createdAt: "2026-01-01T00:00:00.000Z",
+        startedAt: "2026-01-01T00:00:00.000Z",
         inputSnapshotPath: snapshot.path,
         inputSnapshotHash: snapshot.hash,
         planPath: "runs/rev-0002-plan.json",
@@ -141,10 +141,10 @@ describe("enableBuildEditing", () => {
       await initializeMovieStorage(storage, movieId);
 
       const runLifecycleService = createRunLifecycleService(storage);
-      await runLifecycleService.appendPlanned(movieId, {
-        type: "run-planned",
+      await runLifecycleService.appendStarted(movieId, {
+        type: "run-started",
         revision: "rev-0003",
-        createdAt: "2026-01-01T00:00:00.000Z",
+        startedAt: "2026-01-01T00:00:00.000Z",
         inputSnapshotPath: "runs/rev-0003-inputs.yaml",
         inputSnapshotHash: "snapshot-hash",
         planPath: "runs/rev-0003-plan.json",

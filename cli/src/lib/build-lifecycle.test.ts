@@ -83,7 +83,7 @@ describe('executeBuild run lifecycle', () => {
 		});
 	});
 
-	it('appends a failed terminal event when setup fails after run-started', async () => {
+	it('appends a failed terminal event when setup fails after execution commit', async () => {
 		const warmStartError = new Error('Provider warm start failed.');
 		warmStartMock.mockRejectedValue(warmStartError);
 
@@ -109,7 +109,7 @@ describe('executeBuild run lifecycle', () => {
 			})
 		).rejects.toThrow('Provider warm start failed.');
 
-		expect(appendStartedMock).toHaveBeenCalledTimes(1);
+		expect(appendStartedMock).not.toHaveBeenCalled();
 		expect(appendCompletedMock).toHaveBeenCalledTimes(1);
 		expect(appendCompletedMock).toHaveBeenCalledWith('movie-test', {
 			type: 'run-completed',

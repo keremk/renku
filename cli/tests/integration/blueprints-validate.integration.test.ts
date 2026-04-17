@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -301,10 +301,14 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 			expect(result.dryRunValidation?.failures).toHaveLength(0);
 			expect(result.dryRunValidation?.totalCases).toBeGreaterThan(0);
 
-			const runLifecycleLog = await readFile(
-				resolve(result.storagePath, 'events', 'runs.log'),
-				'utf8'
-			);
+			const runLifecycleLogPath = resolve(result.storagePath, 'events', 'runs.log');
+			let runLifecycleLog = '';
+			try {
+				await access(runLifecycleLogPath);
+				runLifecycleLog = await readFile(runLifecycleLogPath, 'utf8');
+			} catch {
+				runLifecycleLog = '';
+			}
 			expect(runLifecycleLog).not.toContain('"type":"run-started"');
 			expect(runLifecycleLog).not.toContain('"type":"run-completed"');
 

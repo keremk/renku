@@ -7,12 +7,11 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
   createBuildStateService,
-  createRunLifecycleService,
   createStorageContext,
   createMovieMetadataService,
+  resolveCurrentBuildContext,
 } from "@gorenku/core";
 import type { BuildInfo, BuildsListResponse } from "./types.js";
-import { resolveDisplayedRevision } from "./displayed-revision.js";
 
 /**
  * Lists all builds in the builds/ subfolder of the blueprint folder.
@@ -35,7 +34,6 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
       basePath: "builds",
     });
     const metadataService = createMovieMetadataService(storageContext);
-    const runLifecycleService = createRunLifecycleService(storageContext);
     const buildStateService = createBuildStateService(storageContext);
 
     const entries = await fs.readdir(buildsDir, { withFileTypes: true });
@@ -52,13 +50,12 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
         const stat = await fs.stat(movieDir);
         const updatedAt = stat.mtime.toISOString();
 
-        const { displayedRevision, latestRunRevision } =
-          await resolveDisplayedRevision({
-            movieDir,
+        const { currentBuildRevision, snapshotSourceRun } =
+          await resolveCurrentBuildContext({
+            storage: storageContext,
             movieId,
-            runLifecycleService,
           });
-        const revision = displayedRevision;
+        const revision = currentBuildRevision;
         let hasBuildState = false;
         if (revision) {
           const buildState = await buildStateService.buildFromEvents({
@@ -68,12 +65,8 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
           hasBuildState = Object.keys(buildState.artifacts).length > 0;
         }
 
-        const snapshotRevision = revision ?? latestRunRevision;
-        const snapshotRun = snapshotRevision
-          ? await runLifecycleService.loadLatestAtOrBefore(movieId, snapshotRevision)
-          : null;
-        const snapshotInputsPath = snapshotRun
-          ? path.join(movieDir, snapshotRun.inputSnapshotPath)
+        const snapshotInputsPath = snapshotSourceRun
+          ? path.join(movieDir, snapshotSourceRun.inputSnapshotPath)
           : null;
         const hasInputsFile = existsSync(inputsPath);
         const hasInputSnapshot = snapshotInputsPath

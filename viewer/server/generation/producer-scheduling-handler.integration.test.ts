@@ -27,12 +27,15 @@ vi.mock('@gorenku/core', () => ({
   createMovieMetadataService: vi.fn(() => ({
     merge: vi.fn(async () => {}),
   })),
-  createRunLifecycleService: vi.fn(() => ({
-    writeInputSnapshot: vi.fn(async () => ({
-      path: 'runs/rev-0001-inputs.yaml',
-      hash: 'input-snapshot-hash',
-    })),
-    appendPlanned: vi.fn(async () => {}),
+  commitExecutionDraft: vi.fn(async () => ({
+    planPath: 'runs/rev-0001-plan.json',
+    targetRevision: 'rev-0001',
+    plan: { revision: 'rev-0001', layers: [], createdAt: '2026-01-01T00:00:00.000Z' },
+  })),
+  resolveCurrentBuildContext: vi.fn(async () => ({
+    currentBuildRevision: null,
+    latestRunRevision: null,
+    snapshotSourceRun: null,
   })),
   validatePreparedBlueprintTree: vi.fn(async () => ({
     context: { graph: { nodes: [], edges: [] } },

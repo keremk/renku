@@ -13,21 +13,16 @@ describe('RunLifecycleService', () => {
     await initializeMovieStorage(storage, 'movie-test');
 
     const service = createRunLifecycleService(storage);
-    await service.appendPlanned('movie-test', {
-      type: 'run-planned',
+    await service.appendStarted('movie-test', {
+      type: 'run-started',
       revision: 'rev-0001',
-      createdAt: '2026-01-01T00:00:00.000Z',
+      startedAt: '2026-01-01T00:01:00.000Z',
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash',
       planPath: 'runs/rev-0001-plan.json',
       runConfig: {
         regenerateIds: ['Artifact:SceneImage[0]'],
       },
-    });
-    await service.appendStarted('movie-test', {
-      type: 'run-started',
-      revision: 'rev-0001',
-      startedAt: '2026-01-01T00:01:00.000Z',
     });
     await service.appendCompleted('movie-test', {
       type: 'run-completed',
@@ -48,7 +43,7 @@ describe('RunLifecycleService', () => {
     const projection = await service.load('movie-test', 'rev-0001');
     expect(projection).toEqual({
       revision: 'rev-0001',
-      createdAt: '2026-01-01T00:00:00.000Z',
+      createdAt: '2026-01-01T00:01:00.000Z',
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash',
       planPath: 'runs/rev-0001-plan.json',
@@ -75,19 +70,19 @@ describe('RunLifecycleService', () => {
     await initializeMovieStorage(storage, 'movie-test');
 
     const service = createRunLifecycleService(storage);
-    await service.appendPlanned('movie-test', {
-      type: 'run-planned',
+    await service.appendStarted('movie-test', {
+      type: 'run-started',
       revision: 'rev-9999',
-      createdAt: '2026-01-01T00:00:00.000Z',
+      startedAt: '2026-01-01T00:00:00.000Z',
       inputSnapshotPath: 'runs/rev-9999-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash-1',
       planPath: 'runs/rev-9999-plan.json',
       runConfig: {},
     });
-    await service.appendPlanned('movie-test', {
-      type: 'run-planned',
+    await service.appendStarted('movie-test', {
+      type: 'run-started',
       revision: 'rev-10000',
-      createdAt: '2026-01-02T00:00:00.000Z',
+      startedAt: '2026-01-02T00:00:00.000Z',
       inputSnapshotPath: 'runs/rev-10000-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash-2',
       planPath: 'runs/rev-10000-plan.json',
@@ -103,19 +98,19 @@ describe('RunLifecycleService', () => {
     await initializeMovieStorage(storage, 'movie-test');
 
     const service = createRunLifecycleService(storage);
-    await service.appendPlanned('movie-test', {
-      type: 'run-planned',
+    await service.appendStarted('movie-test', {
+      type: 'run-started',
       revision: 'rev-0001',
-      createdAt: '2026-01-01T00:00:00.000Z',
+      startedAt: '2026-01-01T00:00:00.000Z',
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash-1',
       planPath: 'runs/rev-0001-plan.json',
       runConfig: {},
     });
-    await service.appendPlanned('movie-test', {
-      type: 'run-planned',
+    await service.appendStarted('movie-test', {
+      type: 'run-started',
       revision: 'rev-0003',
-      createdAt: '2026-01-03T00:00:00.000Z',
+      startedAt: '2026-01-03T00:00:00.000Z',
       inputSnapshotPath: 'runs/rev-0003-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash-3',
       planPath: 'runs/rev-0003-plan.json',
@@ -150,6 +145,26 @@ describe('RunLifecycleService', () => {
         },
         layers: 1,
       },
+    });
+
+    await expect(service.list('movie-test')).rejects.toSatisfy((error) => {
+      expect(isRenkuError(error)).toBe(true);
+      if (isRenkuError(error)) {
+        expect(error.code).toBe(RuntimeErrorCode.INVALID_RUN_LIFECYCLE_EVENT);
+      }
+      return true;
+    });
+  });
+
+  it('requires a started run before terminal lifecycle events', async () => {
+    const storage = memoryContext();
+    await initializeMovieStorage(storage, 'movie-test');
+
+    const service = createRunLifecycleService(storage);
+    await service.appendCancelled('movie-test', {
+      type: 'run-cancelled',
+      revision: 'rev-0001',
+      completedAt: '2026-01-01T00:02:00.000Z',
     });
 
     await expect(service.list('movie-test')).rejects.toSatisfy((error) => {

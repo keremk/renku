@@ -22,6 +22,7 @@ import { createBuildStateService } from '../build-state.js';
 import { createEventLog } from '../event-log.js';
 import { RuntimeErrorCode } from '../errors/index.js';
 import { hashInputContents } from '../hashing.js';
+import { DRAFT_REVISION_ID } from '../revisions.js';
 
 describe('applyOutputSchemasToBlueprintTree', () => {
   it('applies outputSchema from providerOptions to JSON artifacts with arrays', () => {
@@ -744,7 +745,7 @@ describe('createPlanningService', () => {
 
       expect(result.plan).toBeDefined();
       expect(result.plan.layers.length).toBeGreaterThan(0);
-      expect(result.targetRevision).toBe('rev-0001');
+      expect(result.plan.revision).toBe(DRAFT_REVISION_ID);
       expect(result.buildState.revision).toBe('rev-0000');
       expect(result.baselineHash).toBeNull();
       expect(result.inputEvents).toHaveLength(1);
@@ -927,7 +928,7 @@ describe('createPlanningService', () => {
         eventLog,
       });
 
-      expect(firstResult.targetRevision).toBe('rev-0001');
+      expect(firstResult.plan.revision).toBe(DRAFT_REVISION_ID);
 
       // Second plan
       const secondResult = await service.generatePlan({
@@ -941,7 +942,7 @@ describe('createPlanningService', () => {
         eventLog,
       });
 
-      expect(secondResult.targetRevision).toBe('rev-0002');
+      expect(secondResult.plan.revision).toBe(DRAFT_REVISION_ID);
     });
 
     it('appends input events to event log', async () => {
@@ -1092,7 +1093,7 @@ describe('createPlanningService', () => {
       expect(result.inputEvents[0]?.createdAt).toBe(fixedTime);
     });
 
-    it('saves the plan to storage', async () => {
+    it('keeps the plan transient during planning', async () => {
       const service = createPlanningService();
       const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
@@ -1108,9 +1109,10 @@ describe('createPlanningService', () => {
         eventLog,
       });
 
-      // Verify plan file exists
-      const planExists = await storage.storage.fileExists(result.planPath);
-      expect(planExists).toBe(true);
+      const planExists = await storage.storage.fileExists(
+        storage.resolve(movieId, 'runs', `${DRAFT_REVISION_ID}-plan.json`)
+      );
+      expect(planExists).toBe(false);
     });
 
     it('resolves surgical targets for failed artifacts from latest event-log metadata because build state only retains succeeded artifacts', async () => {
@@ -1847,7 +1849,7 @@ describe('createPlanningService', () => {
   });
 
   describe('revision uniqueness', () => {
-    it('increments revision when plan file already exists', async () => {
+    it('does not let existing persisted plan files change the draft planning revision', async () => {
       const service = createPlanningService();
       const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
@@ -1864,7 +1866,7 @@ describe('createPlanningService', () => {
         eventLog,
       });
 
-      expect(firstResult.targetRevision).toBe('rev-0001');
+      expect(firstResult.plan.revision).toBe(DRAFT_REVISION_ID);
 
       // Manually create a plan file for rev-0002 to simulate conflict
       const rev2Path = storage.resolve(movieId, 'runs', 'rev-0002-plan.json');
@@ -1872,7 +1874,7 @@ describe('createPlanningService', () => {
         mimeType: 'application/json',
       });
 
-      // Create second plan - should skip to rev-0003
+      // Create second plan - draft revision should stay transient and unchanged.
       const secondResult = await service.generatePlan({
         movieId,
         blueprintTree: createSimpleBlueprint(),
@@ -1884,7 +1886,7 @@ describe('createPlanningService', () => {
         eventLog,
       });
 
-      expect(secondResult.targetRevision).toBe('rev-0003');
+      expect(secondResult.plan.revision).toBe(DRAFT_REVISION_ID);
     });
   });
 });

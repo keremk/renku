@@ -11,7 +11,7 @@ import {
 import { listBuilds } from "./list-handler.js";
 
 describe("listBuilds", () => {
-  it("keeps planned builds in the inputs-only state", async () => {
+  it("keeps draft-only builds in the inputs-only state", async () => {
     const blueprintFolder = await mkdtemp(
       path.join(tmpdir(), "viewer-build-list-")
     );
@@ -39,17 +39,6 @@ describe("listBuilds", () => {
         payload: "hello",
         editedBy: "user",
         createdAt: "2026-01-01T00:00:00.000Z",
-      });
-
-      const runLifecycle = createRunLifecycleService(storage);
-      await runLifecycle.appendPlanned(movieId, {
-        type: "run-planned",
-        revision: "rev-0001",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        inputSnapshotPath: "runs/rev-0001-inputs.yaml",
-        inputSnapshotHash: "snapshot-hash",
-        planPath: "runs/rev-0001-plan.json",
-        runConfig: {},
       });
 
       const result = await listBuilds(blueprintFolder);
@@ -99,10 +88,10 @@ describe("listBuilds", () => {
       });
 
       const runLifecycle = createRunLifecycleService(storage);
-      await runLifecycle.appendPlanned(movieId, {
-        type: "run-planned",
+      await runLifecycle.appendStarted(movieId, {
+        type: "run-started",
         revision: "rev-0002",
-        createdAt: "2026-01-01T00:00:00.000Z",
+        startedAt: "2026-01-01T00:00:00.000Z",
         inputSnapshotPath: "runs/rev-0002-inputs.yaml",
         inputSnapshotHash: "snapshot-hash",
         planPath: "runs/rev-0002-plan.json",
@@ -154,10 +143,10 @@ describe("listBuilds", () => {
         "rev-0003",
         Buffer.from("Prompt: archived\n", "utf8")
       );
-      await runLifecycle.appendPlanned(movieId, {
-        type: "run-planned",
+      await runLifecycle.appendStarted(movieId, {
+        type: "run-started",
         revision: "rev-0003",
-        createdAt: "2026-01-01T00:00:00.000Z",
+        startedAt: "2026-01-01T00:00:00.000Z",
         inputSnapshotPath: "runs/rev-0003-inputs.yaml",
         inputSnapshotHash: "snapshot-hash",
         planPath: "runs/rev-0003-plan.json",
@@ -179,7 +168,7 @@ describe("listBuilds", () => {
       expect(result.builds).toHaveLength(1);
       expect(result.builds[0]).toMatchObject({
         movieId,
-        revision: "rev-0003",
+        revision: null,
         hasBuildState: false,
         hasInputSnapshot: true,
         hasInputsFile: false,
@@ -189,7 +178,7 @@ describe("listBuilds", () => {
     }
   });
 
-  it("keeps the displayed revision pinned to the latest executed run when a newer plan exists", async () => {
+  it("keeps the displayed revision pinned to the latest executed run when a newer draft exists", async () => {
     const blueprintFolder = await mkdtemp(
       path.join(tmpdir(), "viewer-build-list-")
     );
@@ -230,10 +219,10 @@ describe("listBuilds", () => {
       });
 
       const runLifecycle = createRunLifecycleService(storage);
-      await runLifecycle.appendPlanned(movieId, {
-        type: "run-planned",
+      await runLifecycle.appendStarted(movieId, {
+        type: "run-started",
         revision: "rev-0002",
-        createdAt: "2026-01-01T00:00:00.000Z",
+        startedAt: "2026-01-01T00:00:00.000Z",
         inputSnapshotPath: "runs/rev-0002-inputs.yaml",
         inputSnapshotHash: "snapshot-hash-2",
         planPath: "runs/rev-0002-plan.json",
@@ -250,16 +239,6 @@ describe("listBuilds", () => {
           layers: 1,
         },
       });
-      await runLifecycle.appendPlanned(movieId, {
-        type: "run-planned",
-        revision: "rev-0003",
-        createdAt: "2026-01-02T00:00:00.000Z",
-        inputSnapshotPath: "runs/rev-0003-inputs.yaml",
-        inputSnapshotHash: "snapshot-hash-3",
-        planPath: "runs/rev-0003-plan.json",
-        runConfig: {},
-      });
-
       const result = await listBuilds(blueprintFolder);
       expect(result.builds).toHaveLength(1);
       expect(result.builds[0]).toMatchObject({

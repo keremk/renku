@@ -30,8 +30,8 @@ import {
   BuildStateNotFoundError,
   type BuildStateService,
 } from '../build-state.js';
-import { nextRevisionId } from '../revisions.js';
-import { planStore, type StorageContext } from '../storage.js';
+import { DRAFT_REVISION_ID } from '../revisions.js';
+import { type StorageContext } from '../storage.js';
 import { computeTopologyLayers } from '../topology/index.js';
 import type { Clock } from '../types.js';
 import {
@@ -110,12 +110,11 @@ export interface GeneratePlanArgs {
 
 export interface GeneratePlanResult {
   plan: ExecutionPlan;
-  planPath: string;
-  targetRevision: RevisionId;
   buildState: BuildState;
   baselineHash: string | null;
   executionState: ExecutionState;
   inputEvents: InputEvent[];
+  artifactEvents: ArtifactEvent[];
   resolvedInputs: Record<string, unknown>;
   /** Explanation of why jobs were scheduled (only if collectExplanation was true) */
   explanation?: PlanExplanation;
@@ -154,13 +153,6 @@ export function createPlanningService(
         now
       );
 
-      let targetRevision = nextRevisionId(buildState.revision ?? null);
-      targetRevision = await ensureUniquePlanRevision(
-        args.storage,
-        args.movieId,
-        targetRevision
-      );
-
       const context =
         args.resolutionContext ??
         (await prepareBlueprintResolutionContext({
@@ -193,7 +185,7 @@ export function createPlanningService(
 
       const inputEvents = createInputEvents(
         inputsWithDerived,
-        targetRevision,
+        DRAFT_REVISION_ID,
         args.inputSource ?? 'user',
         now()
       );
@@ -204,7 +196,7 @@ export function createPlanningService(
       // Note: Blueprint defaults are no longer applied - model JSON schemas are the source of truth
 
       const artifactEvents = (args.pendingArtifacts ?? []).map((draft) =>
-        makeArtifactEvent(draft, targetRevision, now())
+        makeArtifactEvent(draft, DRAFT_REVISION_ID, now())
       );
       for (const artifactEvent of artifactEvents) {
         await args.eventLog.appendArtifact(args.movieId, artifactEvent);
@@ -254,7 +246,7 @@ export function createPlanningService(
         buildState,
         eventLog: args.eventLog,
         blueprint: producerGraph,
-        targetRevision,
+        targetRevision: DRAFT_REVISION_ID,
         pendingEdits: inputEvents,
         resolvedConditionArtifacts,
         artifactRegenerations: resolvedControls.artifactRegenerations,
@@ -301,16 +293,6 @@ export function createPlanningService(
         plan.finalStageProducerJobIds = finalStageProducerJobIds;
       }
 
-      await planStore.save(plan, {
-        movieId: args.movieId,
-        storage: args.storage,
-      });
-      const planPath = args.storage.resolve(
-        args.movieId,
-        'runs',
-        `${targetRevision}-plan.json`
-      );
-
       const baseExecutionState = createExecutionState({
         buildState,
         inputEvents,
@@ -322,12 +304,11 @@ export function createPlanningService(
 
       return {
         plan,
-        planPath,
-        targetRevision,
         buildState,
         baselineHash,
         executionState,
         inputEvents,
+        artifactEvents,
         resolvedInputs,
         explanation,
         producerScheduling,
@@ -480,27 +461,6 @@ function makeArtifactEvent(
     diagnostics: draft.diagnostics,
     createdAt,
   };
-}
-
-async function ensureUniquePlanRevision(
-  storage: StorageContext,
-  movieId: string,
-  initial: RevisionId
-): Promise<RevisionId> {
-  let candidate = initial;
-  while (await planExists(storage, movieId, candidate)) {
-    candidate = nextRevisionId(candidate);
-  }
-  return candidate;
-}
-
-async function planExists(
-  storage: StorageContext,
-  movieId: string,
-  revision: RevisionId
-): Promise<boolean> {
-  const planPath = storage.resolve(movieId, 'runs', `${revision}-plan.json`);
-  return storage.storage.fileExists(planPath);
 }
 
 async function transformInputBlobsToRefs(

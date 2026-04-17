@@ -108,10 +108,10 @@ describe('end-to-end: conditional edge execution', () => {
 		});
 
 		// Persist the plan to disk
-		await planResult.persist();
+		const committedPlan = await planResult.persist({ runConfig: {} });
 
 		// Verify initial plan structure
-		const initialPlan = await readPlan(planResult.planPath);
+		const initialPlan = await readPlan(committedPlan.planPath);
 		const initialJobs = initialPlan.layers.flat();
 
 		// Should have:

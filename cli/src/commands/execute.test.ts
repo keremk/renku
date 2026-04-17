@@ -122,8 +122,12 @@ describe('runExecute (edit flow)', () => {
 		expect(editResult.targetRevision).toBe('rev-0002');
 		expect(editResult.isDryRun).toBeFalsy();
 		expect(editResult.build?.status).toBe('succeeded');
-		expect(editResult.build?.runLogPath).toBeDefined();
-		const runLogStats = await stat(editResult.build!.runLogPath);
+		const runLogPath = editResult.build?.runLogPath;
+		expect(runLogPath).toBeDefined();
+		if (!runLogPath) {
+			throw new Error('Expected edit execution to persist a run log path.');
+		}
+		const runLogStats = await stat(runLogPath);
 		expect(runLogStats.isFile()).toBe(true);
 	});
 

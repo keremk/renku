@@ -45,10 +45,10 @@ describe('end-to-end: cli planner forwards up-to-layer', () => {
       },
     });
 
-    await planResult.persist();
-    await expectFileExists(planResult.planPath);
+    const committedPlan = await planResult.persist({ runConfig: {} });
+    await expectFileExists(committedPlan.planPath);
 
-    const plan = await readPlan(planResult.planPath);
+    const plan = await readPlan(committedPlan.planPath);
     expect(plan.layers).toHaveLength(1);
     const jobs = plan.layers.flat();
     expect(jobs.length).toBeGreaterThan(0);

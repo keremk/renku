@@ -106,10 +106,10 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 		expect(planResult.plan).toBeDefined();
 
 		// Persist the plan to disk
-		await planResult.persist();
+		const committedPlan = await planResult.persist({ runConfig: {} });
 
 		// Verify plan structure
-		const plan = await readPlan(planResult.planPath);
+		const plan = await readPlan(committedPlan.planPath);
 		const allJobs = plan.layers.flat();
 
 		// Should have:
@@ -198,7 +198,7 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 			notifications: undefined,
 		});
 
-		await planResult.persist();
+		await planResult.persist({ runConfig: {} });
 
 		// ============================================================
 		// PHASE 2: Execute with mocked producers

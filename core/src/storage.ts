@@ -7,6 +7,7 @@ import { promises as fs } from 'node:fs';
 import * as nodePath from 'node:path';
 import { posix as path } from 'node:path';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
+import { isDraftRevisionId } from './revisions.js';
 import type { ExecutionPlan, RevisionId } from './types.js';
 
 export type StorageConfig =
@@ -183,6 +184,12 @@ export const planStore = {
     plan: ExecutionPlan,
     ctx: { movieId: string; storage: StorageContext }
   ): Promise<void> {
+    if (isDraftRevisionId(plan.revision)) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_RUN_LIFECYCLE_EVENT,
+        'Cannot persist a draft execution plan before a real revision is committed.'
+      );
+    }
     const fileName = `${plan.revision}-plan.json`;
     const runsDir = ctx.storage.resolve(ctx.movieId, 'runs');
     await ensureDirectoryChain(ctx.storage.storage, runsDir);

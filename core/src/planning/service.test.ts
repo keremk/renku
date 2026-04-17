@@ -8,6 +8,7 @@ import { createStorageContext, initializeMovieStorage, planStore } from '../stor
 import { createBuildStateService } from '../build-state.js';
 import { createEventLog } from '../event-log.js';
 import type { BlueprintTreeNode, ProducerCatalog } from '../types.js';
+import { DRAFT_REVISION_ID } from '../revisions.js';
 
 function buildTestBlueprint(): BlueprintTreeNode {
   return {
@@ -78,7 +79,7 @@ describe('planning service', () => {
     await initializeMovieStorage(storage, movieId);
   });
 
-  it('generates a plan and persists it to storage', async () => {
+  it('generates a transient draft plan without persisting it to storage', async () => {
     const buildStateService = createBuildStateService(storage);
     const eventLog = createEventLog(storage);
     const planningService = createPlanningService();
@@ -98,14 +99,12 @@ describe('planning service', () => {
     });
 
     expect(result.plan.layers.length).toBeGreaterThan(0);
-    expect(result.planPath).toBe(
-      storage.resolve(movieId, 'runs', `${result.targetRevision}-plan.json`),
-    );
+    expect(result.plan.revision).toBe(DRAFT_REVISION_ID);
     expect(result.resolvedInputs['Input:InquiryPrompt']).toBe('Tell me a story');
     expect(result.buildState.revision).toBe('rev-0000');
 
-    const stored = await planStore.load(movieId, result.targetRevision, storage);
-    expect(stored).not.toBeNull();
+    const stored = await planStore.load(movieId, DRAFT_REVISION_ID, storage);
+    expect(stored).toBeNull();
   });
 
   it('records pending artifact drafts in the event log', async () => {

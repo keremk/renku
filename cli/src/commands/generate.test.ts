@@ -157,8 +157,12 @@ describe('runGenerate (new runs)', () => {
 		).toBe(true);
 
 		expect(result.build?.status).toBe('succeeded');
-		expect(result.build?.runLogPath).toBeDefined();
-		const runLogStats = await stat(result.build!.runLogPath);
+		const runLogPath = result.build?.runLogPath;
+		expect(runLogPath).toBeDefined();
+		if (!runLogPath) {
+			throw new Error('Expected generated build to persist a run log path.');
+		}
+		const runLogStats = await stat(runLogPath);
 		expect(runLogStats.isFile()).toBe(true);
 		const artifactsStats = await stat(result.artifactsRoot ?? '');
 		expect(artifactsStats.isDirectory()).toBe(true);
@@ -369,7 +373,6 @@ describe('runGenerate (new runs)', () => {
 		const first = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath: baselineInputsPath,
-			dryRun: true,
 			nonInteractive: true,
 			blueprint: IMAGE_AUDIO_BLUEPRINT_PATH,
 			storageOverride: { root, basePath: 'builds' },
@@ -399,7 +402,10 @@ describe('runGenerate (new runs)', () => {
 			dryRun: true,
 			storageOverride: { root, basePath: 'builds' },
 		});
-		expect(second.build?.status).toBe('succeeded');
+		expect(second.planPath).toBeDefined();
+		if (!second.planPath) {
+			throw new Error('Expected dry-run generate result to include a transient plan path.');
+		}
 
 		const plan = JSON.parse(await readFile(second.planPath, 'utf8')) as {
 			layers: Array<unknown[]>;
@@ -714,6 +720,9 @@ describe('runGenerate (new runs)', () => {
 			producerIds: ['Producer:AudioProducer:1'],
 			storageOverride: { root, basePath: 'builds' },
 		});
+		if (!result.planPath) {
+			throw new Error('Expected dry-run generate result to include a transient plan path.');
+		}
 
 		const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
 			layers: Array<Array<{ jobId: string }>>;
@@ -750,6 +759,9 @@ describe('runGenerate (new runs)', () => {
 			producerIds: ['Producer:AudioProducer:0'],
 			storageOverride: { root, basePath: 'builds' },
 		});
+		if (!result.planPath) {
+			throw new Error('Expected dry-run generate result to include a transient plan path.');
+		}
 
 		const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
 			layers: Array<Array<{ jobId: string }>>;
@@ -795,6 +807,9 @@ describe('runGenerate (new runs)', () => {
 			pinIds: ['Producer:ScriptProducer'],
 			storageOverride: { root, basePath: 'builds' },
 		});
+		if (!result.planPath) {
+			throw new Error('Expected dry-run generate result to include a transient plan path.');
+		}
 
 		const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
 			layers: Array<Array<{ jobId: string }>>;
@@ -849,6 +864,9 @@ describe('runGenerate (new runs)', () => {
 			producerIds: ['Producer:AudioProducer:1'],
 			storageOverride: { root, basePath: 'builds' },
 		});
+		if (!result.planPath) {
+			throw new Error('Expected dry-run generate result to include a transient plan path.');
+		}
 
 		const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
 			layers: Array<Array<{ jobId: string }>>;

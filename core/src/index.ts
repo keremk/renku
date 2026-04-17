@@ -15,6 +15,7 @@ export * from './hashing.js';
 export * from './planning/planner.js';
 export * from './planning/explanation.js';
 export * from './orchestration/planning-service.js';
+export * from './orchestration/execution-commit.js';
 export {
   hydrateOutputSchemasFromProducerMetadata,
   loadOutputSchemasFromProducerMetadata,

@@ -13,6 +13,7 @@ import {
   createBuildStateService,
   createEventLog,
   createPlanningService,
+  commitExecutionDraft,
   createMovieMetadataService,
   validatePreparedBlueprintTree,
   loadYamlBlueprintTree,
@@ -29,10 +30,12 @@ import {
   buildProviderMetadata,
   convertArtifactOverridesToDrafts,
   persistArtifactOverrideBlobs,
+  isDraftRevisionId,
   deriveSurgicalInfoArray,
-  createRunLifecycleService,
   createRuntimeError,
+  resolveCurrentBuildContext,
   type BuildState,
+  type ArtifactEvent,
   type ExecutionPlan,
   type ExecutionState,
   type ProducerOptionsMap,
@@ -96,17 +99,19 @@ export async function resolveExistingBuildInputsPath(
     rootDir: blueprintFolder,
     basePath: 'builds',
   });
-  const runLifecycleService = createRunLifecycleService(storage);
-  const latestRun = await runLifecycleService.loadLatest(movieId);
+  const { snapshotSourceRun } = await resolveCurrentBuildContext({
+    storage,
+    movieId,
+  });
 
-  if (!latestRun) {
+  if (!snapshotSourceRun) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_REQUIRED_INPUT,
       `Build "${movieId}" has no editable inputs.yaml and no saved input snapshot.`,
       {
         suggestion:
           `Expected either "${blueprintFolder}/builds/${movieId}/inputs.yaml" ` +
-          `or a latest run lifecycle entry with a valid input snapshot.`,
+          `or a persisted run snapshot for the current build.`,
       }
     );
   }
@@ -115,13 +120,13 @@ export async function resolveExistingBuildInputsPath(
     blueprintFolder,
     'builds',
     movieId,
-    latestRun.inputSnapshotPath
+    snapshotSourceRun.inputSnapshotPath
   );
 
   if (!existsSync(snapshotInputsPath)) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_REQUIRED_INPUT,
-      `Build "${movieId}" is missing its saved input snapshot for revision "${latestRun.revision}".`,
+      `Build "${movieId}" is missing its saved input snapshot for revision "${snapshotSourceRun.revision}".`,
       {
         suggestion:
           `Expected snapshot at "${snapshotInputsPath}". Re-enable editing for the build ` +
@@ -331,6 +336,7 @@ export async function handlePlanRequest(
       surgicalInfo: planResult.surgicalInfo,
       producerScheduling: planResult.producerScheduling,
       warnings: planResult.warnings,
+      planningStorage: planResult.planningStorage,
       persist: planResult.persist,
     });
 
@@ -388,6 +394,7 @@ interface GeneratePlanResult {
   buildState: BuildState;
   executionState: ExecutionState;
   baselineHash: string | null;
+  artifactEvents: ArtifactEvent[];
   resolvedInputs: Record<string, unknown>;
   providerOptions: ProducerOptionsMap;
   blueprintPath: string;
@@ -396,7 +403,14 @@ interface GeneratePlanResult {
   surgicalInfo?: SurgicalInfo[];
   producerScheduling?: import('@gorenku/core').ProducerSchedulingSummary[];
   warnings?: import('@gorenku/core').PlanningWarning[];
-  persist: () => Promise<void>;
+  planningStorage: ReturnType<typeof createStorageContext>;
+  persist: (args: {
+    runConfig: import('@gorenku/core').RunConfig;
+  }) => Promise<{
+    planPath: string;
+    targetRevision: string;
+    plan: ExecutionPlan;
+  }>;
 }
 
 /**
@@ -563,15 +577,17 @@ async function generatePlan(
     buildState: planResult.buildState,
     executionState: planResult.executionState,
     baselineHash: planResult.baselineHash,
+    artifactEvents: planResult.artifactEvents,
     resolvedInputs: planResult.resolvedInputs,
     providerOptions,
     blueprintPath,
     costSummary,
     catalogModelsDir: catalogModelsDir ?? undefined,
+    planningStorage: memoryStorageContext,
     surgicalInfo,
     producerScheduling: planResult.producerScheduling,
     warnings: planResult.warnings,
-    persist: async () => {
+    persist: async ({ runConfig }) => {
       // Create LOCAL storage and write everything
       const localStorageContext = createStorageContext({
         kind: 'local',
@@ -593,43 +609,21 @@ async function generatePlan(
         movieId
       );
 
-      // Write input events to local event log
-      const localEventLog = createEventLog(localStorageContext);
-      for (const event of planResult.inputEvents) {
-        await localEventLog.appendInput(movieId, event);
-      }
-
-      // Write plan to local storage
-      const { planStore } = await import('@gorenku/core');
-      await planStore.save(planResult.plan, {
+      const inputSnapshotBytes = await readFile(inputsPath);
+      const committed = await commitExecutionDraft({
         movieId,
         storage: localStorageContext,
+        draftPlan: planResult.plan,
+        draftInputEvents: planResult.inputEvents,
+        draftArtifactEvents: planResult.artifactEvents,
+        inputSnapshotContents: inputSnapshotBytes,
+        runConfig,
       });
-
-      const inputSnapshotBytes = await readFile(inputsPath);
-      const runLifecycleService = createRunLifecycleService(localStorageContext);
-      const { path: inputSnapshotPath, hash: inputSnapshotHash } =
-        await runLifecycleService.writeInputSnapshot(
-          movieId,
-          planResult.plan.revision,
-          inputSnapshotBytes
-        );
-      await runLifecycleService.appendPlanned(movieId, {
-        type: 'run-planned',
-        revision: planResult.plan.revision,
-        createdAt: planResult.plan.createdAt,
-        inputSnapshotPath,
-        inputSnapshotHash,
-        planPath: `runs/${planResult.plan.revision}-plan.json`,
-        runConfig: {
-          ...(planningControls?.scope?.upToLayer !== undefined
-            ? { upToLayer: planningControls.scope.upToLayer }
-            : {}),
-          ...(planningControls?.surgical?.regenerateIds?.length
-            ? { regenerateIds: planningControls.surgical.regenerateIds }
-            : {}),
-        },
-      });
+      return {
+        planPath: committed.planPath,
+        targetRevision: committed.revision,
+        plan: committed.plan,
+      };
     },
   };
 }
@@ -824,7 +818,7 @@ export function buildPlanResponse(
   return {
     planId: cachedPlan.planId,
     movieId: cachedPlan.movieId,
-    revision: plan.revision,
+    revision: isDraftRevisionId(plan.revision) ? null : plan.revision,
     blueprintPath: cachedPlan.blueprintPath,
     // Only count layers that have jobs to execute (layerBreakdown already filtered)
     layers: layerBreakdown.length,
