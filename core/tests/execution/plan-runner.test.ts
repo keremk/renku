@@ -18,14 +18,14 @@ async function createRunnerContext() {
   const storage = createStorageContext({ kind: 'memory' });
   await initializeMovieStorage(storage, movieId);
   const eventLog = createEventLog(storage);
-  const manifest: BuildState = {
+  const buildState: BuildState = {
     revision: 'rev-0000',
     baseRevision: null,
     createdAt: new Date().toISOString(),
     inputs: {},
     artifacts: {},
   };
-  return { movieId, storage, eventLog, manifest };
+  return { movieId, storage, eventLog, buildState };
 }
 
 const makeJob = (jobId: string): JobDescriptor => ({
@@ -40,7 +40,7 @@ const makeJob = (jobId: string): JobDescriptor => ({
 
 describe('executePlanWithConcurrency', () => {
   it('runs layer jobs in parallel up to the limit and keeps layers sequential', async () => {
-    const { movieId, storage, eventLog, manifest } =
+    const { movieId, storage, eventLog, buildState } =
       await createRunnerContext();
 
     const layerOne = ['job-1', 'job-2', 'job-3'].map(makeJob);
@@ -85,7 +85,7 @@ describe('executePlanWithConcurrency', () => {
       plan,
       {
         movieId,
-        buildState: manifest,
+        buildState: buildState,
         storage,
         eventLog,
         produce,
@@ -103,7 +103,7 @@ describe('executePlanWithConcurrency', () => {
   });
 
   it('stops executing after reaching the requested layer', async () => {
-    const { movieId, storage, eventLog, manifest } =
+    const { movieId, storage, eventLog, buildState } =
       await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
@@ -125,7 +125,7 @@ describe('executePlanWithConcurrency', () => {
 
     const result = await executePlanWithConcurrency(
       plan,
-      { movieId, buildState: manifest, storage, eventLog, produce },
+      { movieId, buildState: buildState, storage, eventLog, produce },
       { concurrency: 2, upToLayer: 1 }
     );
 
@@ -134,7 +134,7 @@ describe('executePlanWithConcurrency', () => {
   });
 
   it('rejects negative upToLayer values', async () => {
-    const { movieId, storage, eventLog, manifest } =
+    const { movieId, storage, eventLog, buildState } =
       await createRunnerContext();
     const plan: ExecutionPlan = {
       revision: 'rev-0003',
@@ -152,14 +152,14 @@ describe('executePlanWithConcurrency', () => {
     await expect(
       executePlanWithConcurrency(
         plan,
-        { movieId, buildState: manifest, storage, eventLog, produce },
+        { movieId, buildState: buildState, storage, eventLog, produce },
         { concurrency: 1, upToLayer: -1 }
       )
     ).rejects.toThrow(/upToLayer/);
   });
 
   it('emits progress events during execution', async () => {
-    const { movieId, storage, eventLog, manifest } =
+    const { movieId, storage, eventLog, buildState } =
       await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
@@ -182,7 +182,7 @@ describe('executePlanWithConcurrency', () => {
 
     await executePlanWithConcurrency(
       plan,
-      { movieId, buildState: manifest, storage, eventLog, produce },
+      { movieId, buildState: buildState, storage, eventLog, produce },
       {
         concurrency: 1,
         onProgress: (event) => {
@@ -262,7 +262,7 @@ describe('executePlanWithConcurrency', () => {
   });
 
   it('supports cancellation via AbortSignal', async () => {
-    const { movieId, storage, eventLog, manifest } =
+    const { movieId, storage, eventLog, buildState } =
       await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
@@ -295,7 +295,7 @@ describe('executePlanWithConcurrency', () => {
 
     const result = await executePlanWithConcurrency(
       plan,
-      { movieId, buildState: manifest, storage, eventLog, produce },
+      { movieId, buildState: buildState, storage, eventLog, produce },
       { concurrency: 1, signal: abortController.signal }
     );
 

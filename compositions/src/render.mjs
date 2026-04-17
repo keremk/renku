@@ -22,47 +22,6 @@ function parseArgs() {
   return out;
 }
 
-async function loadManifest(manifestPath) {
-  const data = await readFile(manifestPath, "utf8");
-  return JSON.parse(data);
-}
-
-function inferBlobExtension(mimeType) {
-  const EXTENSION_MAP = {
-    'audio/mpeg': 'mp3',
-    'audio/mp3': 'mp3',
-    'audio/wav': 'wav',
-    'video/mp4': 'mp4',
-    'image/png': 'png',
-    'image/jpeg': 'jpg',
-    'text/plain': 'txt',
-    'application/json': 'json',
-  };
-  if (!mimeType) return null;
-  const normalized = mimeType.toLowerCase();
-  if (EXTENSION_MAP[normalized]) {
-    return EXTENSION_MAP[normalized];
-  }
-  // Handle audio/, video/, image/ prefixes
-  if (normalized.startsWith('audio/')) return normalized.slice(6);
-  if (normalized.startsWith('video/')) return normalized.slice(6);
-  if (normalized.startsWith('image/')) return normalized.slice(6);
-  return null;
-}
-
-function formatBlobFileName(hash, mimeType) {
-  const extension = inferBlobExtension(mimeType);
-  if (!extension) return hash;
-  if (hash.endsWith(`.${extension}`)) return hash;
-  return `${hash}.${extension}`;
-}
-
-function resolveBlobPath(root, basePath, movieId, blobRef, mimeType) {
-  const prefix = blobRef.slice(0, 2);
-  const fileName = formatBlobFileName(blobRef, mimeType);
-  return path.join(root, basePath, movieId, "blobs", prefix, fileName);
-}
-
 async function startStaticServer(directory, port = 8080) {
   const server = http.createServer((request, response) => {
     return handler(request, response, {
@@ -88,6 +47,7 @@ async function main() {
   const storageRoot = args.root ?? process.env.STORAGE_ROOT ?? "/data";
   const basePath = args.basePath ?? process.env.STORAGE_BASE_PATH ?? "builds";
   const outputName = args.output ?? process.env.OUTPUT_NAME ?? "FinalVideo.mp4";
+  const payloadPath = args.payload ?? process.env.RENDER_INPUT_PATH;
   const width = args.width ? Number(args.width) : 1920;
   const height = args.height ? Number(args.height) : 1080;
   const fps = args.fps ? Number(args.fps) : 30;
@@ -95,38 +55,46 @@ async function main() {
   if (!movieId) {
     throw new Error("movieId is required (via --movieId or MOVIE_ID)");
   }
+  if (!payloadPath) {
+    throw new Error("render payload path is required (via --payload or RENDER_INPUT_PATH)");
+  }
 
   // Start static file server for serving external assets
   const staticServer = await startStaticServer(storageRoot);
 
   try {
-    const manifestPath = path.join(storageRoot, basePath, movieId, "manifests");
-    const pointerRaw = await readFile(path.join(manifestPath, "..", "current.json"), "utf8");
-    const pointer = JSON.parse(pointerRaw);
-    if (!pointer.manifestPath) {
-      throw new Error("Manifest pointer missing manifestPath");
+    const payload = JSON.parse(await readFile(payloadPath, "utf8"));
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Render payload must be a JSON object");
     }
-    const manifest = await loadManifest(path.join(storageRoot, basePath, movieId, pointer.manifestPath));
-
-    const timelineArtifact = manifest.artifacts?.["Artifact:TimelineComposer.Timeline"];
-    if (!timelineArtifact || !timelineArtifact.blob?.hash) {
-      throw new Error("Timeline artifact missing blob payload in manifest");
+    const timeline = payload.timeline;
+    if (
+      typeof timeline !== "object" ||
+      timeline === null ||
+      Array.isArray(timeline) ||
+      typeof timeline.id !== "string" ||
+      typeof timeline.duration !== "number" ||
+      !Array.isArray(timeline.tracks)
+    ) {
+      throw new Error("Render payload timeline is invalid");
     }
-    const timelineBlobPath = resolveBlobPath(
-      storageRoot,
-      basePath,
-      movieId,
-      timelineArtifact.blob.hash,
-      timelineArtifact.blob.mimeType
-    );
-    const timeline = JSON.parse(await readFile(timelineBlobPath, "utf8"));
+    const assetPaths = payload.assetPaths;
+    if (
+      typeof assetPaths !== "object" ||
+      assetPaths === null ||
+      Array.isArray(assetPaths)
+    ) {
+      throw new Error("Render payload assetPaths is invalid");
+    }
 
     const assets = {};
-    for (const [artifactId, entry] of Object.entries(manifest.artifacts ?? {})) {
-      if (!entry.blob?.hash) continue;
-      const filePath = resolveBlobPath(storageRoot, basePath, movieId, entry.blob.hash, entry.blob.mimeType);
-      // Convert absolute path to HTTP URL served by our static server
-      const relativePath = path.relative(storageRoot, filePath);
+    for (const [artifactId, assetPath] of Object.entries(assetPaths)) {
+      if (typeof assetPath !== "string" || !assetPath) {
+        throw new Error(`Render payload asset path for ${artifactId} is invalid`);
+      }
+      const relativePath = path.isAbsolute(assetPath)
+        ? path.relative(storageRoot, assetPath)
+        : assetPath;
       assets[artifactId] = `http://localhost:8080/${relativePath}`;
     }
 

@@ -7,7 +7,8 @@ export interface BuildInfo {
   updatedAt: string;
   revision: string | null;
   hasBuildState: boolean;
-  hasInputsFile: boolean;     // Has builds/{movieId}/inputs.yaml
+  hasInputSnapshot: boolean;  // Has a saved run snapshot under runs/<revision>-inputs.yaml
+  hasInputsFile: boolean;     // Has editable builds/<movieId>/inputs.yaml
   displayName: string | null; // User-friendly name from movie-metadata.json
 }
 
@@ -52,6 +53,11 @@ export interface ArtifactInfo {
   provider?: string;
   /** Model name (e.g., 'kling-video') */
   model?: string;
+  /**
+   * True when the latest attempt failed/skipped but the viewer is still
+   * showing the last succeeded output from an earlier run.
+   */
+  showingPreviousOutput?: boolean;
 }
 
 /**

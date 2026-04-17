@@ -812,18 +812,18 @@ describe('ffmpeg-exporter', () => {
       ).rejects.toThrow(/must match pattern/);
     });
 
-    it('prefers inline timeline over manifest timeline in live mode', async () => {
-      const manifestTimeline: TimelineDocument = {
-        id: 'manifest-audio-only',
+    it('prefers inline timeline over the stored timeline artifact in live mode', async () => {
+      const persistedTimeline: TimelineDocument = {
+        id: 'persisted-audio-only',
         duration: 1,
         tracks: [
-          { id: 'manifest-audio', kind: 'Audio', clips: [] },
-          { id: 'manifest-music', kind: 'Music', clips: [] },
+          { id: 'persisted-audio', kind: 'Audio', clips: [] },
+          { id: 'persisted-music', kind: 'Music', clips: [] },
         ],
       };
       await writeFile(
         path.join(tempRoot, 'builds', movieId, 'blobs', 'ab', 'ab123.json'),
-        JSON.stringify(manifestTimeline)
+        JSON.stringify(persistedTimeline)
       );
 
       const inlineTimeline: TimelineDocument = {

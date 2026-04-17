@@ -232,16 +232,16 @@ describe('end-to-end: transcription audio path resolution', () => {
       expect(assetId).toMatch(/^Artifact:AudioProducer\.GeneratedAudio\[\d+\]$/);
     }
 
-    const manifest = await result.run.buildStateSnapshot();
-    const audioArtifactIds = Object.keys(manifest.artifacts).filter((artifactId) =>
+    const buildState = await result.run.buildStateSnapshot();
+    const audioArtifactIds = Object.keys(buildState.artifacts).filter((artifactId) =>
       artifactId.startsWith('Artifact:AudioProducer.GeneratedAudio['),
     );
     expect(audioArtifactIds).toHaveLength(3);
     for (const artifactId of audioArtifactIds) {
-      expect(manifest.artifacts[artifactId]?.blob?.mimeType).toBe('audio/mpeg');
+      expect(buildState.artifacts[artifactId]?.blob?.mimeType).toBe('audio/mpeg');
     }
 
-    const timelineArtifact = manifest.artifacts['Artifact:TimelineComposer.Timeline'];
+    const timelineArtifact = buildState.artifacts['Artifact:TimelineComposer.Timeline'];
     expect(timelineArtifact?.blob?.mimeType).toBe('application/json');
     if (!timelineArtifact?.blob) {
       throw new Error('Timeline artifact blob missing');
@@ -289,7 +289,7 @@ describe('end-to-end: transcription audio path resolution', () => {
       expect(transcriptionClip?.duration).toBeGreaterThan(0);
     }
 
-    const transcriptionArtifact = manifest.artifacts['Artifact:TranscriptionProducer.Transcription'];
+    const transcriptionArtifact = buildState.artifacts['Artifact:TranscriptionProducer.Transcription'];
     expect(transcriptionArtifact?.blob?.mimeType).toBe('application/json');
     if (!transcriptionArtifact?.blob) {
       throw new Error('Transcription artifact blob missing');

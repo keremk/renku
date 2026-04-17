@@ -168,7 +168,7 @@ function buildConditionArtifactGraph(): ProducerGraph {
   return { nodes, edges };
 }
 
-async function loadManifest(
+async function loadBuildState(
   ctx: ReturnType<typeof memoryContext>
 ): Promise<BuildState> {
   const svc = createBuildStateService(ctx);
@@ -228,10 +228,10 @@ function createInputEvents(
 }
 
 /**
- * Creates a manifest with all artifacts in succeeded status.
+ * Creates derived build-state data with all artifacts in succeeded status.
  * Useful for testing scenarios where a full run has completed.
  */
-function createSucceededManifest(
+function createSucceededBuildState(
   baseline: InputEvent[],
   options?: {
     revision?: RevisionId;
@@ -303,11 +303,11 @@ describe('planner', () => {
     const eventLog = createEventLog(ctx);
     const graph = buildProducerGraph();
     const planner = createPlanner();
-    const manifest = await loadManifest(ctx);
+    const buildState = await loadBuildState(ctx);
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: 'rev-0001',
@@ -334,7 +334,7 @@ describe('planner', () => {
     }
 
     const artifactCreatedAt = new Date().toISOString();
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: artifactCreatedAt,
@@ -385,7 +385,7 @@ describe('planner', () => {
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: 'rev-0002',
@@ -411,7 +411,7 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const manifest = createSucceededManifest(baseline, {
+    const buildState = createSucceededBuildState(baseline, {
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
@@ -426,7 +426,7 @@ describe('planner', () => {
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: 'rev-0002',
@@ -452,7 +452,7 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const manifest = createSucceededManifest(baseline, {
+    const buildState = createSucceededBuildState(baseline, {
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
@@ -471,7 +471,7 @@ describe('planner', () => {
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: 'rev-0002',
@@ -496,7 +496,7 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const manifest = createSucceededManifest(baseline, {
+    const buildState = createSucceededBuildState(baseline, {
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
@@ -511,7 +511,7 @@ describe('planner', () => {
 
     const { plan, explanation } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: 'rev-0002',
@@ -542,7 +542,7 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const manifest = createSucceededManifest(baseline, {
+    const buildState = createSucceededBuildState(baseline, {
       revision: baseRevision as RevisionId,
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
@@ -563,7 +563,7 @@ describe('planner', () => {
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: 'rev-0002',
@@ -578,7 +578,7 @@ describe('planner', () => {
     expect(jobs).not.toContain('Producer:TransitionVideoProducer[0]');
   });
 
-  it('treats canonical condition artifacts in event log as available even when manifest is stale', async () => {
+  it('treats canonical condition artifacts in the event log as available even when persisted succeeded build state is stale', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
     const eventLog = createEventLog(ctx);
@@ -593,7 +593,7 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const manifest = createSucceededManifest(baseline, {
+    const buildState = createSucceededBuildState(baseline, {
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
@@ -625,7 +625,7 @@ describe('planner', () => {
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: 'rev-0002',
@@ -651,7 +651,7 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: baseRevision,
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -677,7 +677,7 @@ describe('planner', () => {
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: nextRevision,
@@ -728,7 +728,7 @@ describe('planner', () => {
     });
     const baselineArtifactTimestamp = new Date().toISOString();
 
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: baseRevision,
       baseRevision: null,
       createdAt: baselineArtifactTimestamp,
@@ -795,7 +795,7 @@ describe('planner', () => {
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: nextRevisionId(baseRevision),
@@ -808,7 +808,7 @@ describe('planner', () => {
     expect(jobs.some((job) => job.producer === 'ScriptProducer')).toBe(false);
   });
 
-  it('automatically re-plans producer when latest artifact attempt failed despite stale manifest success', async () => {
+  it('re-plans from the latest failed attempt even when an older success still exists for viewer display', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
     const eventLog = createEventLog(ctx);
@@ -824,8 +824,24 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const manifest = createSucceededManifest(baseline, {
+    const buildState = createSucceededBuildState(baseline, {
       revision: baseRevision as RevisionId,
+    });
+
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:SegmentAudio[0]',
+      revision: baseRevision as RevisionId,
+      inputsHash: 'success-before-failure',
+      output: {
+        blob: {
+          hash: 'segment-audio-0-success-hash',
+          size: 128,
+          mimeType: 'audio/mpeg',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:AudioProducer[0]',
+      createdAt: new Date(Date.now() - 1_000).toISOString(),
     });
 
     await eventLog.appendArtifact('demo', {
@@ -846,7 +862,7 @@ describe('planner', () => {
 
     const { plan, explanation } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: nextRevisionId(baseRevision),
@@ -942,7 +958,7 @@ describe('planner', () => {
       createdAt: artifactCreatedAt,
     });
 
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: artifactCreatedAt,
@@ -980,7 +996,7 @@ describe('planner', () => {
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: 'rev-0002' as RevisionId,
@@ -1068,7 +1084,7 @@ describe('planner', () => {
       createdAt: artifactCreatedAt,
     });
 
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: artifactCreatedAt,
@@ -1106,7 +1122,7 @@ describe('planner', () => {
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
-      manifest,
+      buildState,
       eventLog,
       blueprint: graph,
       targetRevision: 'rev-0002' as RevisionId,
@@ -1125,7 +1141,7 @@ describe('planner', () => {
     await initializeMovieStorage(ctx, 'demo');
     const eventLog = createEventLog(ctx);
     const planner = createPlanner();
-    const manifest = await loadManifest(ctx);
+    const buildState = await loadBuildState(ctx);
 
     const cyclicGraph: ProducerGraph = {
       nodes: [
@@ -1171,7 +1187,7 @@ describe('planner', () => {
     await expect(
       planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: cyclicGraph,
         targetRevision: 'rev-0001',
@@ -1433,14 +1449,14 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: baseRevision,
       });
 
       // Surgical regeneration of AudioProducer[0]
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -1490,14 +1506,14 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: baseRevision,
       });
 
       // Surgical regeneration of BOTH AudioProducer[0] and AudioProducer[1]
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -1552,10 +1568,10 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      // Create a manifest where AudioProducer[1] artifact is MISSING (simulating a failed run).
+      // Create derived build-state data where AudioProducer[1] is missing (simulating a failed run).
       // Only AudioProducer[0]'s artifact and ScriptProducer's artifacts exist.
       const artifactCreatedAt = new Date().toISOString();
-      const manifest: BuildState = {
+      const buildState: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -1597,7 +1613,7 @@ describe('planner', () => {
       // Surgical regeneration targets AudioProducer[0] (e.g., user wants to regenerate SegmentAudio[0])
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -1646,7 +1662,7 @@ describe('planner', () => {
 
       // Ambient dirty state: SegmentAudio[1] is missing.
       const artifactCreatedAt = new Date().toISOString();
-      const manifest: BuildState = {
+      const buildState: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -1686,7 +1702,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -1732,7 +1748,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: baseRevision,
       });
       const edits = createInputEvents(
@@ -1743,7 +1759,7 @@ describe('planner', () => {
       // upToLayer=1 should exclude layer 2 jobs
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -1788,7 +1804,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: baseRevision,
       });
       const edits = createInputEvents(
@@ -1798,7 +1814,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -1829,7 +1845,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: baseRevision,
       });
 
@@ -1837,7 +1853,7 @@ describe('planner', () => {
       // But upToLayer=0 should limit to only layer 0
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -1888,7 +1904,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: baseRevision,
       });
       const edits = createInputEvents(
@@ -1899,7 +1915,7 @@ describe('planner', () => {
       // upToLayer=10 is beyond max layer (2), so all jobs should be included
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -2113,7 +2129,7 @@ describe('planner', () => {
       }
 
       const artifactCreatedAt = new Date().toISOString();
-      const manifest: BuildState = {
+      const buildState: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -2134,7 +2150,7 @@ describe('planner', () => {
       // Plan with upToLayer=0, so only layer 0 is scheduled
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -2163,12 +2179,12 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
 
       // All artifacts succeeded, nothing dirty -> NOOP plan
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -2200,7 +2216,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: baseRevision,
       });
       const edits = createInputEvents(
@@ -2211,7 +2227,7 @@ describe('planner', () => {
       // upToLayer=0 limits this plan to only layer 0
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -2242,12 +2258,12 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
 
       // Nothing dirty and no surgical controls -> empty plan
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -2319,19 +2335,19 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: 'rev-0001',
         artifacts: {
           'Artifact:A': { hash: 'ha', producedBy: 'Producer:A' },
           'Artifact:B': { hash: 'hb', producedBy: 'Producer:B' },
         },
       });
-      return { ctx, eventLog, manifest, graph };
+      return { ctx, eventLog, buildState, graph };
     }
 
     it('provider change triggers re-run of producer and downstream', async () => {
       const graph = buildTwoNodeGraph();
-      const { eventLog, manifest } = await setupBaselineRun(
+      const { eventLog, buildState } = await setupBaselineRun(
         {
           'Input:Prompt': 'hello',
           'Input:ProducerA.provider': 'openai',
@@ -2349,7 +2365,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002' as RevisionId,
@@ -2366,7 +2382,7 @@ describe('planner', () => {
         'Input:Prompt',
         'Input:ProducerA.systemPrompt',
       ]);
-      const { eventLog, manifest } = await setupBaselineRun(
+      const { eventLog, buildState } = await setupBaselineRun(
         {
           'Input:Prompt': 'hello',
           'Input:ProducerA.systemPrompt': 'old system prompt',
@@ -2383,7 +2399,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002' as RevisionId,
@@ -2400,7 +2416,7 @@ describe('planner', () => {
         'Input:Prompt',
         'Input:ProducerA.userPrompt',
       ]);
-      const { eventLog, manifest } = await setupBaselineRun(
+      const { eventLog, buildState } = await setupBaselineRun(
         {
           'Input:Prompt': 'hello',
           'Input:ProducerA.userPrompt': 'old user prompt',
@@ -2417,7 +2433,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002' as RevisionId,
@@ -2434,7 +2450,7 @@ describe('planner', () => {
         ['Input:Prompt'],
         ['Artifact:A', 'Input:ProducerB.volume', 'Input:ProducerB.speed']
       );
-      const { eventLog, manifest } = await setupBaselineRun(
+      const { eventLog, buildState } = await setupBaselineRun(
         {
           'Input:Prompt': 'hello',
           'Input:ProducerB.volume': 0.5,
@@ -2454,7 +2470,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002' as RevisionId,
@@ -2469,7 +2485,7 @@ describe('planner', () => {
 
     it('unchanged config produces empty plan', async () => {
       const graph = buildTwoNodeGraph();
-      const { eventLog, manifest } = await setupBaselineRun(
+      const { eventLog, buildState } = await setupBaselineRun(
         {
           'Input:Prompt': 'hello',
           'Input:ProducerA.provider': 'openai',
@@ -2482,7 +2498,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002' as RevisionId,
@@ -2550,7 +2566,7 @@ describe('planner', () => {
         }
       );
 
-      const manifest: BuildState = {
+      const buildState: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -2623,8 +2639,8 @@ describe('planner', () => {
         createdAt: new Date().toISOString(),
       });
 
-      // Update manifest to reflect the new artifact hash (as if manifest was rebuilt from events)
-      manifest.artifacts['Artifact:NarrationScript[0]'] = {
+      // Update build state to reflect the new artifact hash (as if it was rebuilt from events)
+      buildState.artifacts['Artifact:NarrationScript[0]'] = {
         hash: 'NEW-hash-script-0',
         producedBy: 'Producer:ScriptProducer',
         status: 'succeeded',
@@ -2637,7 +2653,7 @@ describe('planner', () => {
       // was computed with the old hash 'hash-script-0'
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0003' as RevisionId,
@@ -2675,7 +2691,7 @@ describe('planner', () => {
       const artifactCreatedAt = new Date().toISOString();
 
       // Compute correct content-aware hashes for all artifacts
-      const manifestData = {
+      const buildStateData = {
         inputs: Object.fromEntries(
           baseline.map((e) => [e.id, { hash: e.hash }])
         ),
@@ -2688,7 +2704,7 @@ describe('planner', () => {
         },
       };
 
-      const manifest: BuildState = {
+      const buildState: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -2710,7 +2726,7 @@ describe('planner', () => {
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Input:InquiryPrompt'],
-              manifestData
+              buildStateData
             ),
           },
           'Artifact:NarrationScript[1]': {
@@ -2720,7 +2736,7 @@ describe('planner', () => {
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Input:InquiryPrompt'],
-              manifestData
+              buildStateData
             ),
           },
           'Artifact:SegmentAudio[0]': {
@@ -2730,7 +2746,7 @@ describe('planner', () => {
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Artifact:NarrationScript[0]'],
-              manifestData
+              buildStateData
             ),
           },
           'Artifact:SegmentAudio[1]': {
@@ -2740,7 +2756,7 @@ describe('planner', () => {
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Artifact:NarrationScript[1]'],
-              manifestData
+              buildStateData
             ),
           },
           'Artifact:FinalVideo': {
@@ -2750,7 +2766,7 @@ describe('planner', () => {
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
               ['Artifact:SegmentAudio[0]', 'Artifact:SegmentAudio[1]'],
-              manifestData
+              buildStateData
             ),
           },
         },
@@ -2759,7 +2775,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002' as RevisionId,
@@ -2770,7 +2786,7 @@ describe('planner', () => {
       expect(plan.layers.flat()).toHaveLength(0);
     });
 
-    it('old manifests without inputsHash gracefully skip the check', async () => {
+    it('older derived build states without inputsHash gracefully skip the check', async () => {
       const ctx = memoryContext();
       await initializeMovieStorage(ctx, 'demo');
       const eventLog = createEventLog(ctx);
@@ -2786,15 +2802,15 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      // Old-style manifest: no inputsHash on any artifact
-      const manifest = createSucceededManifest(baseline, {
+      // Older derived build state: no inputsHash on any artifact
+      const buildState = createSucceededBuildState(baseline, {
         revision: baseRevision,
       });
 
       // Should produce empty plan (backward compatible — no inputsHash means no mismatch)
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002' as RevisionId,
@@ -2858,7 +2874,7 @@ describe('planner', () => {
       }
 
       const artifactCreatedAt = new Date().toISOString();
-      const manifestData = {
+      const buildStateData = {
         inputs: Object.fromEntries(
           baseline.map((e) => [e.id, { hash: e.hash }])
         ),
@@ -2868,7 +2884,7 @@ describe('planner', () => {
         },
       };
 
-      const manifest: BuildState = {
+      const buildState: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -2888,7 +2904,7 @@ describe('planner', () => {
             producedBy: 'Producer:A',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
-            inputsHash: hashInputContents(['Input:Prompt'], manifestData),
+            inputsHash: hashInputContents(['Input:Prompt'], buildStateData),
           },
           'Artifact:B': {
             hash: 'hash-b',
@@ -2896,7 +2912,7 @@ describe('planner', () => {
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             // inputsHash was computed with old Artifact:A hash
-            inputsHash: hashInputContents(['Artifact:A'], manifestData),
+            inputsHash: hashInputContents(['Artifact:A'], buildStateData),
           },
         },
         timeline: {},
@@ -2904,7 +2920,7 @@ describe('planner', () => {
 
       const { plan, explanation } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002' as RevisionId,
@@ -2937,7 +2953,7 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
 
       const edits = createInputEvents(
         { 'Input:InquiryPrompt': 'A different story' },
@@ -2946,7 +2962,7 @@ describe('planner', () => {
 
       const { plan, explanation } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -2979,13 +2995,13 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: 'rev-0001',
       });
 
       const { plan, explanation } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3033,13 +3049,13 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         revision: 'rev-0001',
       });
 
       const { plan, explanation } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3115,7 +3131,7 @@ describe('planner', () => {
       }
 
       const artifactCreatedAt = new Date().toISOString();
-      const oldManifestData = {
+      const oldBuildStateData = {
         inputs: Object.fromEntries(
           baseline.map((e) => [e.id, { hash: e.hash }])
         ),
@@ -3125,7 +3141,7 @@ describe('planner', () => {
         },
       };
 
-      const manifest: BuildState = {
+      const buildState: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -3145,7 +3161,7 @@ describe('planner', () => {
             producedBy: 'Producer:A',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
-            inputsHash: hashInputContents(['Input:Prompt'], oldManifestData),
+            inputsHash: hashInputContents(['Input:Prompt'], oldBuildStateData),
           },
           'Artifact:B': {
             hash: 'hash-b',
@@ -3155,7 +3171,7 @@ describe('planner', () => {
             // inputsHash was computed with old Artifact:A hash
             inputsHash: hashInputContents(
               ['Artifact:A', 'Input:ProducerB.config'],
-              oldManifestData
+              oldBuildStateData
             ),
           },
         },
@@ -3164,7 +3180,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002' as RevisionId,
@@ -3186,7 +3202,7 @@ describe('planner', () => {
       const eventLog = createEventLog(ctx);
       const graph = buildProducerGraph();
       const planner = createPlanner();
-      const manifest = await loadManifest(ctx);
+      const buildState = await loadBuildState(ctx);
 
       // Compute topology directly using the service
       const nodes = graph.nodes.map((n) => ({ id: n.jobId }));
@@ -3195,7 +3211,7 @@ describe('planner', () => {
       // Compute plan
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0001',
@@ -3212,7 +3228,7 @@ describe('planner', () => {
       const eventLog = createEventLog(ctx);
       const graph = buildProducerGraph();
       const planner = createPlanner();
-      const manifest = await loadManifest(ctx);
+      const buildState = await loadBuildState(ctx);
 
       // Compute topology directly
       const nodes = graph.nodes.map((n) => ({ id: n.jobId }));
@@ -3221,7 +3237,7 @@ describe('planner', () => {
       // Compute plan with all jobs (initial run)
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0001',
@@ -3254,7 +3270,7 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
 
       // Change input to make everything dirty
       const edits = createInputEvents(
@@ -3265,7 +3281,7 @@ describe('planner', () => {
       // Pin ALL artifacts from ScriptProducer
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3296,7 +3312,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
@@ -3319,7 +3335,7 @@ describe('planner', () => {
 
       const { plan, explanation } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3355,7 +3371,7 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
       const edits = createInputEvents(
         { 'Input:InquiryPrompt': 'New story' },
         'rev-0002'
@@ -3364,7 +3380,7 @@ describe('planner', () => {
       // Pin all ScriptProducer + AudioProducer outputs
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3383,7 +3399,7 @@ describe('planner', () => {
       expect(allJobIds).not.toContain('Producer:ScriptProducer');
       expect(allJobIds).not.toContain('Producer:AudioProducer[0]');
       expect(allJobIds).not.toContain('Producer:AudioProducer[1]');
-      // TimelineAssembler stays because its inputs (SegmentAudio) are dirty artifacts in the manifest
+      // TimelineAssembler stays because its inputs (SegmentAudio) are dirty artifacts in the derived build state
       // but the jobs that PRODUCE those artifacts are pinned, so it remains dirty via touchesDirtyArtifact
       // This is correct: pinning protects the artifact from being RE-GENERATED, but downstream
       // jobs that depend on dirty-flagged artifacts are still scheduled.
@@ -3403,7 +3419,7 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
       const edits = createInputEvents(
         { 'Input:InquiryPrompt': 'New story' },
         'rev-0002'
@@ -3412,7 +3428,7 @@ describe('planner', () => {
       // Only pin ONE artifact from ScriptProducer (produces 2)
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3439,7 +3455,7 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
       const edits = createInputEvents(
         { 'Input:InquiryPrompt': 'New story' },
         'rev-0002'
@@ -3447,7 +3463,7 @@ describe('planner', () => {
 
       const { plan: planWithout } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3456,7 +3472,7 @@ describe('planner', () => {
 
       const { plan: planWith } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3489,7 +3505,7 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
       const edits = createInputEvents(
         { 'Input:InquiryPrompt': 'New story' },
         'rev-0002'
@@ -3497,7 +3513,7 @@ describe('planner', () => {
 
       const { plan: planWithout } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3506,7 +3522,7 @@ describe('planner', () => {
 
       const { plan: planWith } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3539,7 +3555,7 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
       const edits = createInputEvents(
         { 'Input:InquiryPrompt': 'New story' },
         'rev-0002'
@@ -3547,7 +3563,7 @@ describe('planner', () => {
 
       const { explanation } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3580,13 +3596,13 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
 
       // Surgical: regenerate AudioProducer[0]
       // Pinned: pin AudioProducer[1]'s output
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3623,7 +3639,7 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
@@ -3642,7 +3658,7 @@ describe('planner', () => {
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3669,11 +3685,11 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3697,11 +3713,11 @@ describe('planner', () => {
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
-      const manifest = createSucceededManifest(baseline);
+      const buildState = createSucceededBuildState(baseline);
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3728,7 +3744,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
@@ -3747,7 +3763,7 @@ describe('planner', () => {
 
       const { plan, prunedUnrunnableJobs } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
@@ -3782,7 +3798,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, {
+      const buildState = createSucceededBuildState(baseline, {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
@@ -3805,7 +3821,7 @@ describe('planner', () => {
 
       const { plan, prunedUnrunnableJobs } = await planner.computePlan({
         movieId: 'demo',
-        manifest,
+        buildState,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',

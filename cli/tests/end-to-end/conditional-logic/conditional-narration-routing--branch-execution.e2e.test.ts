@@ -310,12 +310,12 @@ describe('end-to-end: conditional edge execution', () => {
 		expect(skippedImageJobIds.some((id) => id.includes('[1][1]'))).toBe(true);
 
 		// ============================================================
-		// PHASE 4: Verify artifact presence/absence in manifest
+		// PHASE 4: Verify artifact presence/absence in build state
 		// ============================================================
 
-		// Build and verify manifest
-		const manifest = await result.buildStateSnapshot();
-		const artifactIds = Object.keys(manifest.artifacts);
+		// Build and verify build state
+		const buildState = await result.buildStateSnapshot();
+		const artifactIds = Object.keys(buildState.artifacts);
 
 		// GeneratedImage: [0][0], [0][1], [2][0], [2][1] EXIST; [1][*] DO NOT EXIST
 		expect(

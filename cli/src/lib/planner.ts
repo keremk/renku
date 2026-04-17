@@ -83,11 +83,9 @@ export interface GeneratePlanResult {
 	targetRevision: string;
 	inputEvents: InputEvent[];
 	buildState: BuildState;
-	manifest?: BuildState;
 	executionState: ExecutionState;
 	plan: ExecutionPlan;
 	baselineHash: string | null;
-	manifestHash?: string | null;
 	resolvedInputs: Record<string, unknown>;
 	providerOptions: ProducerOptionsMap;
 	blueprintPath: string;
@@ -331,11 +329,9 @@ export async function generatePlan(
 		targetRevision: planResult.targetRevision,
 		inputEvents: planResult.inputEvents,
 		buildState: planResult.buildState,
-		manifest: planResult.buildState,
 		executionState: planResult.executionState,
 		plan: planResult.plan,
 		baselineHash: planResult.baselineHash,
-		manifestHash: planResult.baselineHash,
 		resolvedInputs: planResult.resolvedInputs,
 		providerOptions,
 		blueprintPath,

@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
@@ -9,8 +9,10 @@ import type { ResolvedInputsAccessor } from '../../sdk/types.js';
 import {
   createEventLog,
   createStorageContext,
+  resolveArtifactBlobPaths,
   resolveArtifactsFromEventLog,
 } from '@gorenku/core';
+import type { TimelineDocument } from '@gorenku/compositions';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_DOCKER_IMAGE =
@@ -21,6 +23,12 @@ interface Mp4ExporterConfig {
   width?: number;
   height?: number;
   fps?: number;
+}
+
+interface Mp4RenderInput {
+  movieId: string;
+  timeline: TimelineDocument;
+  assetPaths: Record<string, string>;
 }
 
 const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
@@ -64,37 +72,15 @@ export function createMp4ExporterHandler(): HandlerFactory {
         basePath: storageBasePath,
       });
 
-      const inlineTimeline =
-        runtime.inputs.getByNodeId<unknown>(TIMELINE_ARTIFACT_ID);
-
-      // Ensure timeline exists; if manifest pointer is missing but an inline artifact is present,
-      // return it directly (useful for simulated/dry-run flows).
-      try {
-        await loadTimeline(storage, movieId);
-      } catch (error) {
-        if (inlineTimeline) {
-          const buffer = normalizeToBuffer(inlineTimeline);
-          return {
-            status: 'succeeded',
-            artifacts: [
-              {
-                artifactId: runtime.artifacts.expectBlob(produceId),
-                status: 'succeeded',
-                blob: {
-                  data: buffer,
-                  mimeType: 'video/mp4',
-                },
-              },
-            ],
-          };
-        }
-        throw error;
-      }
+      const timeline = await resolveTimelineDocument({
+        requestInputIds: request.inputs,
+        runtimeInputs: runtime.inputs,
+        storage,
+        movieId,
+      });
 
       if (runtime.mode === 'simulated') {
-        const buffer = inlineTimeline
-          ? normalizeToBuffer(inlineTimeline)
-          : Buffer.from('simulated-video');
+        const buffer = Buffer.from('simulated-video');
         return {
           status: 'succeeded',
           artifacts: [
@@ -111,17 +97,29 @@ export function createMp4ExporterHandler(): HandlerFactory {
       }
 
       const outputPath = storage.resolve(movieId, 'FinalVideo.mp4');
-
-      await runDockerExport({
+      const renderInputPath = await writeRenderInputFile({
         storageRoot,
         storageBasePath,
         movieId,
-        width: config.width,
-        height: config.height,
-        fps: config.fps,
-        outputName: 'FinalVideo.mp4',
-        signal: request.signal,
+        timeline,
+        storage,
       });
+
+      try {
+        await runDockerExport({
+          storageRoot,
+          storageBasePath,
+          movieId,
+          renderInputPath,
+          width: config.width,
+          height: config.height,
+          fps: config.fps,
+          outputName: 'FinalVideo.mp4',
+          signal: request.signal,
+        });
+      } finally {
+        await rm(renderInputPath, { force: true }).catch(() => {});
+      }
 
       const buffer = await readFile(path.resolve(storageRoot, outputPath));
 
@@ -199,7 +197,7 @@ function resolveStoragePaths(
 async function loadTimeline(
   storage: ReturnType<typeof createStorageContext>,
   movieId: string
-): Promise<void> {
+): Promise<TimelineDocument> {
   const artifacts = await resolveArtifactsFromEventLog({
     artifactIds: [TIMELINE_ARTIFACT_ID],
     eventLog: createEventLog(storage),
@@ -207,30 +205,135 @@ async function loadTimeline(
     movieId,
   });
   const artifact = artifacts[TIMELINE_ARTIFACT_ID];
-  if (!artifact) {
+  if (!isTimelineDocument(artifact)) {
     throw createProviderError(
       SdkErrorCode.MISSING_TIMELINE,
       `Timeline artifact not found for movie ${movieId}.`,
       { kind: 'user_input', causedByUser: true }
     );
   }
+  return artifact;
 }
 
-function normalizeToBuffer(value: unknown): Buffer {
-  if (value instanceof Uint8Array) {
-    return Buffer.from(value);
+function isTimelineDocument(value: unknown): value is TimelineDocument {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
   }
-  if (typeof value === 'string') {
-    return Buffer.from(value, 'utf8');
-  }
-  if (value && typeof value === 'object') {
-    return Buffer.from(JSON.stringify(value), 'utf8');
-  }
-  throw createProviderError(
-    SdkErrorCode.INVALID_TIMELINE_PAYLOAD,
-    'Timeline artifact payload is not readable as a buffer.',
-    { kind: 'user_input', causedByUser: true }
+
+  const candidate = value as {
+    id?: unknown;
+    duration?: unknown;
+    tracks?: unknown;
+  };
+
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.duration === 'number' &&
+    Array.isArray(candidate.tracks)
   );
+}
+
+async function resolveTimelineDocument(args: {
+  requestInputIds: string[];
+  runtimeInputs: ResolvedInputsAccessor;
+  storage: ReturnType<typeof createStorageContext>;
+  movieId: string;
+}): Promise<TimelineDocument> {
+  const inlineTimeline = args.runtimeInputs.getByNodeId<unknown>(
+    TIMELINE_ARTIFACT_ID
+  );
+  const expectsInlineTimeline = args.requestInputIds.includes(TIMELINE_ARTIFACT_ID);
+
+  if (isTimelineDocument(inlineTimeline)) {
+    return inlineTimeline;
+  }
+  if (expectsInlineTimeline) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_TIMELINE_PAYLOAD,
+      `MP4 exporter requires a valid Timeline payload for "${TIMELINE_ARTIFACT_ID}".`,
+      {
+        kind: 'user_input',
+        causedByUser: true,
+        metadata: {
+          timelineInputPresent: inlineTimeline !== undefined,
+        },
+      }
+    );
+  }
+  return loadTimeline(args.storage, args.movieId);
+}
+
+async function writeRenderInputFile(args: {
+  storageRoot: string;
+  storageBasePath: string;
+  movieId: string;
+  timeline: TimelineDocument;
+  storage: ReturnType<typeof createStorageContext>;
+}): Promise<string> {
+  const assetIds = Array.from(collectAssetIds(args.timeline));
+  const assetPaths = await resolveArtifactBlobPaths({
+    artifactIds: assetIds,
+    eventLog: createEventLog(args.storage),
+    storage: args.storage,
+    movieId: args.movieId,
+  });
+  const missingAssetIds = assetIds.filter((artifactId) => !assetPaths[artifactId]);
+  if (missingAssetIds.length > 0) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `MP4 exporter could not resolve asset blobs for: ${missingAssetIds.join(', ')}.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  const renderInput: Mp4RenderInput = {
+    movieId: args.movieId,
+    timeline: args.timeline,
+    assetPaths,
+  };
+  const uniqueSuffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const renderInputPath = path.resolve(
+    args.storageRoot,
+    args.storageBasePath,
+    args.movieId,
+    `render-input-${uniqueSuffix}.json`
+  );
+  await writeFile(renderInputPath, JSON.stringify(renderInput), 'utf8');
+  return renderInputPath;
+}
+
+function collectAssetIds(timeline: TimelineDocument): Set<string> {
+  const assetIds = new Set<string>();
+
+  for (const track of timeline.tracks) {
+    for (const clip of track.clips) {
+      const properties =
+        clip && typeof clip === 'object' && 'properties' in clip
+          ? (clip.properties as Record<string, unknown>)
+          : null;
+      if (!properties) {
+        continue;
+      }
+
+      if (typeof properties.assetId === 'string') {
+        assetIds.add(properties.assetId);
+      }
+      if (Array.isArray(properties.effects)) {
+        for (const effect of properties.effects) {
+          if (
+            effect &&
+            typeof effect === 'object' &&
+            'assetId' in effect &&
+            typeof effect.assetId === 'string'
+          ) {
+            assetIds.add(effect.assetId);
+          }
+        }
+      }
+    }
+  }
+
+  return assetIds;
 }
 
 export const __test__ = {
@@ -243,6 +346,7 @@ interface DockerRunOptions {
   storageRoot: string;
   storageBasePath: string;
   movieId: string;
+  renderInputPath: string;
   width?: number;
   height?: number;
   fps?: number;
@@ -255,6 +359,7 @@ async function runDockerExport(options: DockerRunOptions): Promise<void> {
     storageRoot,
     storageBasePath,
     movieId,
+    renderInputPath,
     width,
     height,
     fps,
@@ -270,6 +375,8 @@ async function runDockerExport(options: DockerRunOptions): Promise<void> {
     DEFAULT_DOCKER_IMAGE,
     'node',
     '/app/compositions/src/render.mjs',
+    '--payload',
+    path.posix.join('/data', path.relative(storageRoot, renderInputPath)),
     '--movieId',
     movieId,
     '--root',

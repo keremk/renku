@@ -691,30 +691,30 @@ function isOverlayPosition(value: unknown): value is OverlayPosition {
  * Returns undefined if both are undefined.
  */
 function mergeSubtitleConfigs(
-	manifestConfig: SubtitleConfig | undefined,
+	buildStateConfig: SubtitleConfig | undefined,
 	fileConfig: SubtitleConfig | undefined
 ): SubtitleConfig | undefined {
-	if (!manifestConfig && !fileConfig) {
+	if (!buildStateConfig && !fileConfig) {
 		return undefined;
 	}
 
 	// Config file values take priority over build-state values
 	return {
-		...manifestConfig,
+		...buildStateConfig,
 		...fileConfig,
 	};
 }
 
 function mergeTextConfigs(
-	manifestConfig: TextConfig | undefined,
+	buildStateConfig: TextConfig | undefined,
 	fileConfig: TextConfig | undefined
 ): TextConfig | undefined {
-	if (!manifestConfig && !fileConfig) {
+	if (!buildStateConfig && !fileConfig) {
 		return undefined;
 	}
 
 	return {
-		...manifestConfig,
+		...buildStateConfig,
 		...fileConfig,
 	};
 }

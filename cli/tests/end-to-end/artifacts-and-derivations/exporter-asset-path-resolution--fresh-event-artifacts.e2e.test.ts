@@ -155,12 +155,12 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
       createdAt: new Date().toISOString(),
     });
 
-    // Create a stale manifest with DIFFERENT (old) video hashes
-    // This simulates the bug scenario where manifest is stale during execution
+    // Create a stale build-state baseline with DIFFERENT (old) video hashes
+    // This simulates the bug scenario where the provided baseline lags behind fresh event-log state
     const staleVideoHash1 = '0001234567890abcdef1234567890abcdef1234567890abcdef12345678901234';
     const staleVideoHash2 = '0002234567890abcdef1234567890abcdef1234567890abcdef12345678901234';
 
-    const staleManifest: BuildState = {
+    const staleBuildState: BuildState = {
       revision: 'rev-0000' as RevisionId,
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -202,7 +202,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
       },
     };
 
-    // Save stale manifest and create current.json pointer
+    // Save stale build-state fixture
 
     // Track what assetBlobPaths are passed to the handler
     let capturedAssetBlobPaths: Record<string, string> | undefined;
@@ -259,7 +259,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     const runner = createRunner();
     const runResult = await runner.execute(plan, {
       movieId,
-      buildState: staleManifest, // Using stale manifest
+      buildState: staleBuildState, // Using stale build state
       storage,
       eventLog,
       produce,
@@ -271,7 +271,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
 
     // CRITICAL VERIFICATION:
     // The handler should receive assetBlobPaths with FRESH hashes from event log,
-    // NOT the stale hashes from the manifest
+    // NOT the stale hashes from the provided build-state baseline
     expect(capturedAssetBlobPaths).toBeDefined();
     expect(capturedAssetBlobPaths).toHaveProperty('Artifact:VideoProducer.GeneratedVideo[0]');
     expect(capturedAssetBlobPaths).toHaveProperty('Artifact:VideoProducer.GeneratedVideo[1]');
@@ -374,8 +374,8 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
       createdAt: new Date().toISOString(),
     });
 
-    // Create empty manifest
-    const manifest: BuildState = {
+    // Create empty build-state baseline
+    const buildState: BuildState = {
       revision: 'rev-0000' as RevisionId,
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -425,7 +425,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     const runner = createRunner();
     await runner.execute(plan, {
       movieId,
-      buildState: manifest,
+      buildState,
       storage,
       eventLog,
       produce,

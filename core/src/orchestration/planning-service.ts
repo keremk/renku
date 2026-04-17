@@ -113,9 +113,7 @@ export interface GeneratePlanResult {
   planPath: string;
   targetRevision: RevisionId;
   buildState: BuildState;
-  manifest?: BuildState;
   baselineHash: string | null;
-  manifestHash?: string | null;
   executionState: ExecutionState;
   inputEvents: InputEvent[];
   resolvedInputs: Record<string, unknown>;
@@ -327,9 +325,7 @@ export function createPlanningService(
         planPath,
         targetRevision,
         buildState,
-        manifest: buildState,
         baselineHash,
-        manifestHash: baselineHash,
         executionState,
         inputEvents,
         resolvedInputs,

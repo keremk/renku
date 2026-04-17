@@ -35,7 +35,7 @@ The app uses the **native `fetch` API** directly -- no axios, React Query, or SW
 **`data/blueprint-client.ts`** -- All blueprint-related API calls:
 - Blueprint resolution and fetching (graph, input template, models, config schemas)
 - Build lifecycle (list, create, delete, enable editing)
-- Build data (inputs, manifest, prompts)
+- Build data (inputs, build state, prompts)
 - Artifact operations (edit, restore, recheck)
 - File upload (via FormData)
 - URL builders for assets
@@ -53,7 +53,7 @@ The API is served by a custom Vite middleware defined in `server/viewer-api.ts`.
 
 ### SSE Real-Time Updates
 
-During execution, the `ExecutionContext` subscribes to SSE events. Named events include: `status`, `plan-ready`, `layer-start`, `layer-complete`, `job-start`, `job-progress`, `job-complete`, `execution-complete`, `execution-cancelled`, `error`. When artifacts are produced, a debounced callback triggers a manifest refetch.
+During execution, the `ExecutionContext` subscribes to SSE events. Named events include: `status`, `plan-ready`, `layer-start`, `layer-complete`, `job-start`, `job-progress`, `job-complete`, `execution-complete`, `execution-cancelled`, `error`. When artifacts are produced, a debounced callback triggers a build-state refetch.
 
 ## State Management
 
@@ -94,7 +94,7 @@ All hooks are barrel-exported from `hooks/index.ts`.
 |------|----------|---------|
 | `useBlueprintData` | `services/` | Resolves blueprint name, fetches graph + input template in parallel |
 | `useBuildsList` | `services/` | Fetches builds for a blueprint folder, returns `refetch()` |
-| `useBuildManifest` | `services/` | Fetches manifest for a specific build |
+| `useBuildState` | `services/` | Fetches build state for a specific build |
 | `useMovieTimeline` | `services/` | Fetches timeline data for a build |
 | `useProducerModels` | `hooks/` | Fetches available models per producer |
 | `useProducerConfigSchemas` | `hooks/` | Fetches JSON schemas for config properties |
@@ -229,7 +229,7 @@ components/
 ```
 hooks/          -- 12 custom hooks (UI state, business logic)
 contexts/       -- 2 React contexts (Theme, Execution)
-services/       -- 4 data-fetching hooks (blueprint, builds, manifest, timeline)
+services/       -- 4 data-fetching hooks (blueprint, builds, build-state, timeline)
 data/           -- 2 API client modules (blueprint, generation)
 lib/            -- 8 pure utilities (cn, panel-utils, input-utils, artifact-utils,
                    blueprint-layout, etc.)
@@ -419,7 +419,7 @@ Supports `hideSectionContainer` to skip the `CollapsibleSection` wrapper in mast
 
 ```
 URL params (useBlueprintRoute)
-  -> BlueprintApp fetches blueprint data + builds + manifest
+  -> BlueprintApp fetches blueprint data + builds + build state
     -> WorkspaceLayout receives all data as props
       -> WorkspaceLayout calls data hooks (models, schemas, inputs, prompts, timeline)
       -> WorkspaceLayout passes computed data down to panels via props

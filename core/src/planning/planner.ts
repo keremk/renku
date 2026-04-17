@@ -41,7 +41,6 @@ export interface PlannerOptions {
 interface ComputePlanArgs {
   movieId: string;
   buildState?: BuildState | null;
-  manifest?: BuildState | null;
   eventLog: EventLog;
   blueprint: ProducerGraph;
   targetRevision: RevisionId;
@@ -113,9 +112,7 @@ export function createPlanner(options: PlannerOptions = {}) {
     async computePlan(args: ComputePlanArgs): Promise<ComputePlanResult> {
       const collectExplanation =
         args.collectExplanation ?? defaultCollectExplanation;
-      const buildState =
-        args.buildState ??
-        ((args as { manifest?: BuildState }).manifest ?? createEmptyBuildState());
+      const buildState = args.buildState ?? createEmptyBuildState();
       const eventLog = args.eventLog;
       const pendingEdits = args.pendingEdits ?? [];
       const blueprint = args.blueprint;

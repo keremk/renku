@@ -145,11 +145,11 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
 		expect(firstRunResult.status).toBe('succeeded');
 		expect(firstRunResult.jobs).toHaveLength(4); // 1 script + 3 audio
 
-		// Build and save manifest after first run
-		const manifest1 = await firstRunResult.buildStateSnapshot();
+		// Recompute derived build state after first run
+		const buildState1 = await firstRunResult.buildStateSnapshot();
 
-		// Verify all artifacts are in manifest
-		expect(Object.keys(manifest1.artifacts).length).toBeGreaterThanOrEqual(4);
+		// Verify all artifacts are in build state
+		expect(Object.keys(buildState1.artifacts).length).toBeGreaterThanOrEqual(4);
 
 		// ============================================================
 		// PHASE 2: Create override inputs.yaml with artifact override

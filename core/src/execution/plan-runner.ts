@@ -2,7 +2,6 @@ import pLimit from 'p-limit';
 import { createRunner, accumulateArtifacts, hydrateExecutionState } from '../runner.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { MAX_CLI_CONCURRENCY, MIN_CLI_CONCURRENCY } from '../concurrency.js';
-import { createEmptyBuildState } from '../execution-state.js';
 import { buildRunResultBuildStateSnapshot } from '../run-result-build-state.js';
 import type {
   ExecutionPlan,
@@ -48,14 +47,8 @@ export async function executePlanWithConcurrency(
   const clock = context.clock ?? { now: () => new Date().toISOString() };
   const startedAt = clock.now();
   const jobs: JobResult[] = [];
-  const baselineHash =
-    plan.baselineHash ??
-    (plan as { manifestBaseHash?: string }).manifestBaseHash ??
-    '';
-  const buildState =
-    context.buildState ??
-    ((context as { manifest?: import('../types.js').BuildState }).manifest ??
-      createEmptyBuildState());
+  const baselineHash = plan.baselineHash ?? '';
+  const buildState = context.buildState;
 
   // Log layer limit info
   if (layerLimit !== undefined) {
@@ -225,7 +218,6 @@ export async function executePlanWithConcurrency(
     status,
     revision: plan.revision,
     baselineHash,
-    manifestBaseHash: baselineHash,
     jobs,
     startedAt,
     completedAt,

@@ -8,17 +8,16 @@
 
 ### Source of truth & filesystem
 - CLI `init` ensures `${root}/builds`. Each movie run writes under `builds/<movieId>` (see `core/src/storage.ts`).
-- `current.json` → `manifests/<revision>.json` (hash + pointer).
-- Timeline artifact (e.g. `Artifact:TimelineComposer.Timeline`) captures the JSON. Verified via `/home/keremk/tuto/builds/movie-6bc50f83`:
-  - Entry stores `inline` JSON **and** a blob reference (`blobs/02/<hash>`). We can parse the inline payload immediately and optionally fall back to blobs for very large files.
+- The current `BuildState` is reconstructed from `events/` plus the latest run record, not loaded from a persisted manifest snapshot.
+- Timeline artifact (e.g. `Artifact:TimelineComposer.Timeline`) is resolved from the latest succeeded artifact event and then loaded from `blobs/<prefix>/<hash>`.
 - Workspaces hold user edits but aren’t the source of truth; viewer always reads from `builds/`.
 
 ### Runtime configuration & routes
 1. **Configuration**
    - Env var `VITE_TUTOPANDA_ROOT=/absolute/path/to/root` (set by CLI or developer) tells the viewer where `builds/` lives.
-   - Vite `server.fs.allow` includes that root so middleware can read manifests/blobs during dev. For the production bundle we mount the same middleware inside a lightweight Node server.
+   - Vite `server.fs.allow` includes that root so middleware can read build-state inputs, run records, event logs, and blobs during dev. For the production bundle we mount the same middleware inside a lightweight Node server.
 2. **Routes**
-   - `/movies/:movieId` renders the viewer for a specific manifest/timeline.
+   - `/movies/:movieId` renders the viewer for a specific build/timeline.
    - `/` may later list movies; for now it can instruct users to navigate directly.
 
 ### Viewer server APIs
@@ -26,25 +25,25 @@ Browser code never touches the filesystem directly; Vite middleware exposes a sc
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /viewer-api/movies/:movieId/manifest` | Reads `current.json`, loads the manifest, returns relevant sections (artifacts, metadata). |
+| `GET /viewer-api/movies/:movieId/build-state` | Builds the current artifact/input view from event logs, run records, and authored inputs. |
 | `GET /viewer-api/movies/:movieId/timeline` | Convenience endpoint that pulls `Artifact:TimelineComposer.Timeline` (inline or blob) and returns parsed `TimelineDocument`. |
 | `GET /viewer-api/movies/:movieId/assets/:canonicalId` | Resolves canonical artifact IDs to either inline text (for prompts) or a streamed blob. |
-| `GET /viewer-api/movies/:movieId/files/:hash` | Direct blob access when we already know the hash (e.g., from manifest entry). |
+| `GET /viewer-api/movies/:movieId/files/:hash` | Direct blob access when we already know the artifact hash. |
 
 Guardrails:
 - All paths are resolved under `<rootFolder>/builds/<movieId>`; anything outside that tree is rejected.
-- Middleware handles canonical ID resolution once so the browser never needs to be aware of manifest internals.
+- Middleware handles canonical ID resolution once so the browser never needs to be aware of build-state internals.
 
 ### Layered architecture
 
 1. **Data layer (`viewer/src/data/`)**
-   - Pure functions for talking to the viewer API: `fetchManifest(movieId)`, `fetchTimeline(movieId)`, `fetchAsset(movieId, canonicalId)`, etc.
+   - Pure functions for talking to the viewer API: `fetchBuildState(movieId)`, `fetchTimeline(movieId)`, `fetchAsset(movieId, canonicalId)`, etc.
    - Defines domain types (`TimelineDocument`, `TimelineTrack`, `TimelineClip`, `ResolvedAsset`) that reflect the provider schema.
    - Handles canonical asset resolution: given `properties.assetId` or `properties.effects[].assetId`, map to blob URLs.
 
 2. **Services (`viewer/src/services/`)**
    - React hooks/context wrappers around the data layer.
-   - Example: `useMovieData(movieId)` returns `{ manifest, timeline, assets, status }`.
+   - Example: `useMovieData(movieId)` returns `{ buildState, timeline, assets, status }`.
    - `useAssetResolver()` exposes memoized lookups + preloading to Remotion components. Cleans up object URLs when clips change.
 
 3. **UI components (`viewer/src/components/`)**
@@ -60,7 +59,7 @@ Guardrails:
    - Composition only consumes normalized data (timeline + asset map) provided by services.
 
 ### Timeline schema alignment
-- According to `providers/docs/timeline-schema.md` & the manifest sample:
+- According to `providers/docs/timeline-schema.md` and current build-state artifact data:
   - `tracks` is an array. Each track has `kind` (e.g., `Image`, `Audio`, `Music`, `Video`, `Captions`).
   - Clips already include `startTime`/`duration`; we no longer compute offsets based on segments.
   - Image clip `properties` contain `effects: Array<{ assetId, startX, … }>`. Each effect corresponds to an image asset.
@@ -92,7 +91,7 @@ Guardrails:
 ### Incremental implementation plan
 1. **Data/model groundwork**
    - Replace legacy timeline types with provider schema equivalents.
-   - Build manifest/timeline fetcher + asset resolver services with caching and cleanup.
+   - Build build-state/timeline fetcher + asset resolver services with caching and cleanup.
 2. **Viewer API middleware**
    - Implement the FS-backed endpoints described above with strict path checking.
    - Expose helper utilities for canonical ID resolution (`formatResolvedKey`, etc.).

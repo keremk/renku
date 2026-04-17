@@ -8,6 +8,7 @@ function makeBuild(movieId: string): BuildInfo {
     updatedAt: '2026-01-01T00:00:00.000Z',
     revision: null,
     hasBuildState: true,
+    hasInputSnapshot: false,
     hasInputsFile: true,
     displayName: null,
   };

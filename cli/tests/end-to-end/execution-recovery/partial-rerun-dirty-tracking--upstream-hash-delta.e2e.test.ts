@@ -36,7 +36,7 @@ import {
  *   Layer 3: TimelineComposer
  *
  * Reproduces the real-world scenario:
- *   1. Full run (all layers complete, manifest saved)
+ *   1. Full run (all layers complete, derived build state available)
  *   2. Re-run layer 0 only (ScriptProducer produces NEW artifacts with different content)
  *   3. Request a plan → layer 1 jobs should be dirty because their upstream
  *      artifact content changed (inputsHash mismatch)
@@ -169,11 +169,11 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 
 		expect(result1.status).toBe('succeeded');
 
-		// Build and save manifest after Phase 1
-		const manifest1 = await result1.buildStateSnapshot();
+		// Recompute derived build state after Phase 1
+		const buildState1 = await result1.buildStateSnapshot();
 
-		// Verify manifest has artifacts from all layers
-		const layer1ArtifactKeys = Object.keys(manifest1.artifacts).filter(
+		// Verify build state has artifacts from all layers
+		const layer1ArtifactKeys = Object.keys(buildState1.artifacts).filter(
 			(id) => id.includes('ImagePromptProducer') || id.includes('AudioProducer')
 		);
 		expect(layer1ArtifactKeys.length).toBeGreaterThan(0);
@@ -181,7 +181,7 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		// Record inputsHash values for layer-1 artifacts (before re-run)
 		const inputsHashBefore: Record<string, string | undefined> = {};
 		for (const key of layer1ArtifactKeys) {
-			inputsHashBefore[key] = manifest1.artifacts[key]?.inputsHash;
+			inputsHashBefore[key] = buildState1.artifacts[key]?.inputsHash;
 		}
 
 		// ============================================================
@@ -239,37 +239,36 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 
 		expect(result2.status).toBe('succeeded');
 
-		// Build manifest from ALL events (Phase 1 + Phase 2)
+		// Recompute derived build state from ALL events (Phase 1 + Phase 2)
 		// Layer 0 artifacts will have NEW hashes (from Phase 2)
 		// Layer 1+ artifacts will have OLD hashes (from Phase 1, still latest)
-		const manifest2 = await result2.buildStateSnapshot();
+		const buildState2 = await result2.buildStateSnapshot();
 
-		// Save the updated manifest
-		// Load current manifest hash to use as previousHash
-		const { hash: currentManifestHash } =
+		// Load the current derived build-state hash to use as previousHash
+		const { hash: currentBuildStateHash } =
 			await buildStateService2.loadCurrent(storageMovieId);
 
 		// Verify layer 0 artifacts have CHANGED hashes
-		const scriptArtifactKeys = Object.keys(manifest2.artifacts).filter((id) =>
+		const scriptArtifactKeys = Object.keys(buildState2.artifacts).filter((id) =>
 			id.includes('ScriptProducer')
 		);
 		for (const key of scriptArtifactKeys) {
-			const oldHash = manifest1.artifacts[key]?.hash;
-			const newHash = manifest2.artifacts[key]?.hash;
+			const oldHash = buildState1.artifacts[key]?.hash;
+			const newHash = buildState2.artifacts[key]?.hash;
 			expect(newHash).toBeDefined();
 			expect(newHash).not.toBe(oldHash); // Phase 2 produced different data
 		}
 
 		// Verify layer 1 artifacts still have OLD hashes
 		for (const key of layer1ArtifactKeys) {
-			const oldHash = manifest1.artifacts[key]?.hash;
-			const newHash = manifest2.artifacts[key]?.hash;
+			const oldHash = buildState1.artifacts[key]?.hash;
+			const newHash = buildState2.artifacts[key]?.hash;
 			expect(newHash).toBe(oldHash); // Layer 1 was not re-run
 		}
 
 		// Verify inputsHash on layer-1 artifacts is still the OLD value
 		for (const key of layer1ArtifactKeys) {
-			expect(manifest2.artifacts[key]?.inputsHash).toBe(inputsHashBefore[key]);
+			expect(buildState2.artifacts[key]?.inputsHash).toBe(inputsHashBefore[key]);
 		}
 
 		// ============================================================
@@ -395,7 +394,7 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		});
 		expect(result1.status).toBe('succeeded');
 
-		const manifest1 = await result1.buildStateSnapshot();
+		const buildState1 = await result1.buildStateSnapshot();
 
 		// Phase 2: Request plan WITHOUT any changes — should be empty
 		const { logger: logger2 } = createLoggerRecorder();

@@ -32,7 +32,6 @@ export interface MaterializeBuildStateArtifactsOptions {
   movieId: string;
   artifactsMovieFolderName: string;
   buildState: BuildState;
-  manifest?: BuildState;
   mode: ArtifactMaterializationMode;
   logger?: Pick<Console, 'warn'>;
 }
@@ -40,7 +39,7 @@ export interface MaterializeBuildStateArtifactsOptions {
 export async function materializeBuildStateArtifacts(
   options: MaterializeBuildStateArtifactsOptions
 ): Promise<MaterializeBuildStateArtifactsResult> {
-  const buildState = options.buildState ?? options.manifest;
+  const buildState = options.buildState;
   const artifactsRoot = resolveArtifactsMovieRoot(
     options.storageRoot,
     options.storageBasePath,
@@ -98,8 +97,6 @@ export async function materializeBuildStateArtifacts(
 
   return { artifactsRoot, artifacts };
 }
-
-export const materializeManifestArtifacts = materializeBuildStateArtifacts;
 
 export async function materializeArtifactFile(args: {
   sourcePath: string;

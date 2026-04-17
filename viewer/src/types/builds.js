@@ -1,4 +1,4 @@
 /**
- * Types for builds list and manifest data.
+ * Types for builds list and build-state data.
  */
 export {};

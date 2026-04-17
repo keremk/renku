@@ -322,11 +322,11 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 		expect(produce).toHaveBeenCalledTimes(7); // 1 + 3 + 3
 
 		// ============================================================
-		// PHASE 4: Verify artifacts in manifest
+		// PHASE 4: Verify artifacts in build state
 		// ============================================================
 
-		const manifest = await result.buildStateSnapshot();
-		const artifactIds = Object.keys(manifest.artifacts);
+		const buildState = await result.buildStateSnapshot();
+		const artifactIds = Object.keys(buildState.artifacts);
 
 		// Verify we have the expected number of artifacts
 		// ContentGenerator.Script + 3 GeneratedImage + 3 FinalVideo

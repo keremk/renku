@@ -24,6 +24,7 @@ import {
   type BuildState,
   type ExecutionPlan,
   type ExecutionState,
+  type RevisionId,
   type RunConfig,
   type Logger,
   type NotificationBus,
@@ -145,6 +146,59 @@ interface ExecuteOptions {
   dryRun?: boolean;
 }
 
+function createPersistedRunRecordService(args: {
+  cliConfig: {
+    storage: {
+      root: string;
+    };
+  };
+  basePath: string;
+}) {
+  const storage = createStorageContext({
+    kind: 'local',
+    rootDir: args.cliConfig.storage.root,
+    basePath: args.basePath,
+  });
+
+  return createRunRecordService(storage);
+}
+
+export async function finalizeCancelledRunRecord(args: {
+  cliConfig: {
+    storage: {
+      root: string;
+    };
+  };
+  cachedPlan: {
+    movieId: string;
+    plan: {
+      revision: RevisionId;
+    };
+    basePath: string;
+  };
+  startedAt?: string;
+}): Promise<void> {
+  const runRecordService = createPersistedRunRecordService({
+    cliConfig: args.cliConfig,
+    basePath: args.cachedPlan.basePath,
+  });
+  const existing = await runRecordService.load(
+    args.cachedPlan.movieId,
+    args.cachedPlan.plan.revision
+  );
+  if (!existing) {
+    return;
+  }
+
+  await runRecordService.finalize({
+    movieId: args.cachedPlan.movieId,
+    revision: args.cachedPlan.plan.revision,
+    status: 'cancelled',
+    ...(args.startedAt ? { startedAt: args.startedAt } : {}),
+    completedAt: new Date().toISOString(),
+  });
+}
+
 /**
  * Executes a job asynchronously.
  * Updates job status and broadcasts SSE events during execution.
@@ -170,6 +224,7 @@ async function executeJobAsync(
 ): Promise<void> {
   const jobManager = getJobManager();
   const { dryRun = false } = options;
+  let runStartedAt: string | undefined;
 
   // Create logger and notifications for provider execution
   const logger: Logger = createLogger({
@@ -218,12 +273,17 @@ async function executeJobAsync(
     jobManager.removePlan(cachedPlan.planId);
 
     if (jobManager.isJobCancelled(jobId)) {
+      await finalizeCancelledRunRecord({
+        cliConfig,
+        cachedPlan,
+      });
       jobManager.finalizeCancelledJob(jobId);
       return;
     }
 
     // Update status to running
     jobManager.updateJobStatus(jobId, 'running');
+    runStartedAt = new Date().toISOString();
 
     // Create storage context using the blueprint-relative basePath
     const storage = createStorageContext({
@@ -443,6 +503,11 @@ async function executeJobAsync(
     }
 
     if (jobManager.isJobCancelled(jobId)) {
+      await finalizeCancelledRunRecord({
+        cliConfig,
+        cachedPlan,
+        startedAt: run.startedAt,
+      });
       jobManager.finalizeCancelledJob(jobId);
       return;
     }
@@ -477,6 +542,11 @@ async function executeJobAsync(
     });
   } catch (error) {
     if (jobManager.isJobCancelled(jobId)) {
+      await finalizeCancelledRunRecord({
+        cliConfig,
+        cachedPlan,
+        startedAt: runStartedAt,
+      });
       jobManager.finalizeCancelledJob(jobId);
       return;
     }

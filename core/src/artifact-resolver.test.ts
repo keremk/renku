@@ -1,7 +1,14 @@
 import { Buffer } from 'node:buffer';
 import { TextEncoder } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { extractArtifactKind, resolveArtifactsFromEventLog, resolveArtifactBlobPaths, findFailedArtifacts } from './artifact-resolver.js';
+import {
+  extractArtifactKind,
+  readLatestArtifactEvents,
+  readLatestSucceededArtifactEvents,
+  resolveArtifactsFromEventLog,
+  resolveArtifactBlobPaths,
+  findFailedArtifacts,
+} from './artifact-resolver.js';
 import type { EventLog } from './event-log.js';
 import type { StorageContext } from './storage.js';
 import type { ArtifactEvent, BlobRef, RevisionId } from './types.js';
@@ -290,6 +297,115 @@ describe('resolveArtifactsFromEventLog', () => {
       'Artifact:SegmentImage[segment=0]': 'image-url',
     });
     expect(result.SegmentAudio).toBeUndefined();
+  });
+});
+
+describe('readLatestSucceededArtifactEvents', () => {
+  it('keeps the latest succeeded event when a later rerun fails', async () => {
+    const events: ArtifactEvent[] = [
+      {
+        artifactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-1',
+        output: {
+          blob: { hash: 'old123', size: 2, mimeType: 'image/png' },
+        },
+        status: 'succeeded',
+        producedBy: 'job-1',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      {
+        artifactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-2' as RevisionId,
+        inputsHash: 'hash-2',
+        output: {},
+        status: 'failed',
+        producedBy: 'job-2',
+        createdAt: '2025-01-01T00:01:00Z',
+      },
+    ];
+
+    const latestEvents = await readLatestSucceededArtifactEvents({
+      artifactIds: ['Artifact:SegmentImage[segment=0]'],
+      eventLog: createMockEventLog(events),
+      movieId: 'test-movie',
+    });
+
+    expect(latestEvents.get('Artifact:SegmentImage[segment=0]')?.revision).toBe(
+      'rev-1'
+    );
+  });
+
+  it('keeps the latest succeeded event when a later rerun is skipped', async () => {
+    const events: ArtifactEvent[] = [
+      {
+        artifactId: 'Artifact:SegmentAudio[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-1',
+        output: {
+          blob: { hash: 'audio123', size: 2, mimeType: 'audio/mpeg' },
+        },
+        status: 'succeeded',
+        producedBy: 'job-1',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      {
+        artifactId: 'Artifact:SegmentAudio[segment=0]',
+        revision: 'rev-2' as RevisionId,
+        inputsHash: 'hash-2',
+        output: {},
+        status: 'skipped',
+        producedBy: 'job-2',
+        createdAt: '2025-01-01T00:01:00Z',
+      },
+    ];
+
+    const latestEvents = await readLatestSucceededArtifactEvents({
+      artifactIds: ['Artifact:SegmentAudio[segment=0]'],
+      eventLog: createMockEventLog(events),
+      movieId: 'test-movie',
+    });
+
+    expect(latestEvents.get('Artifact:SegmentAudio[segment=0]')?.revision).toBe(
+      'rev-1'
+    );
+  });
+});
+
+describe('readLatestArtifactEvents', () => {
+  it('tracks the latest event regardless of status', async () => {
+    const events: ArtifactEvent[] = [
+      {
+        artifactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-1',
+        output: {
+          blob: { hash: 'old123', size: 2, mimeType: 'image/png' },
+        },
+        status: 'succeeded',
+        producedBy: 'job-1',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      {
+        artifactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-2' as RevisionId,
+        inputsHash: 'hash-2',
+        output: {},
+        status: 'failed',
+        producedBy: 'job-2',
+        createdAt: '2025-01-01T00:01:00Z',
+      },
+    ];
+
+    const latestEvents = await readLatestArtifactEvents({
+      artifactIds: ['Artifact:SegmentImage[segment=0]'],
+      eventLog: createMockEventLog(events),
+      movieId: 'test-movie',
+    });
+
+    expect(latestEvents.get('Artifact:SegmentImage[segment=0]')?.revision).toBe(
+      'rev-2'
+    );
   });
 });
 

@@ -426,10 +426,15 @@ function BuildCard({
                 title='Has build state'
               />
             ) : null}
-            {build.hasInputsFile && !build.hasBuildState && (
+            {!build.hasBuildState &&
+              (build.hasInputsFile || build.hasInputSnapshot) && (
               <span
                 className='w-2 h-2 rounded-full bg-amber-500'
-                title='Has inputs (not run yet)'
+                title={
+                  build.hasInputsFile
+                    ? 'Has editable inputs'
+                    : 'Has saved input snapshot'
+                }
               />
             )}
           </div>

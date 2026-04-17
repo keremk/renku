@@ -61,6 +61,11 @@ interface ArtifactEvent {
   skipMessage?: string;
 }
 
+interface ArtifactHistoryState {
+  latestEvents: Map<string, ArtifactEvent>;
+  latestSucceededEvents: Map<string, ArtifactEvent>;
+}
+
 /**
  * Extract recovery info from an artifact event for the ArtifactInfo response.
  */
@@ -108,14 +113,18 @@ function extractRecoveryInfo(event?: ArtifactEvent): Partial<ArtifactInfo> {
  * Returns a map of artifactId -> latest event info.
  * Includes succeeded, failed, and skipped events (latest state wins).
  */
-async function readLatestArtifactEvents(
+async function readArtifactHistoryState(
   movieDir: string
-): Promise<Map<string, ArtifactEvent>> {
+): Promise<ArtifactHistoryState> {
   const logPath = path.join(movieDir, 'events', 'artifacts.log');
-  const latest = new Map<string, ArtifactEvent>();
+  const latestEvents = new Map<string, ArtifactEvent>();
+  const latestSucceededEvents = new Map<string, ArtifactEvent>();
 
   if (!existsSync(logPath)) {
-    return latest;
+    return {
+      latestEvents,
+      latestSucceededEvents,
+    };
   }
 
   try {
@@ -125,9 +134,10 @@ async function readLatestArtifactEvents(
     for (const line of lines) {
       try {
         const event = JSON.parse(line) as ArtifactEvent;
-        // Keep all statuses - the latest event for each artifact wins
-        // This allows us to track failed/skipped artifacts for recovery
-        latest.set(event.artifactId, event);
+        latestEvents.set(event.artifactId, event);
+        if (event.status === 'succeeded') {
+          latestSucceededEvents.set(event.artifactId, event);
+        }
       } catch {
         // Skip malformed lines
       }
@@ -136,7 +146,10 @@ async function readLatestArtifactEvents(
     // Return empty map on error
   }
 
-  return latest;
+  return {
+    latestEvents,
+    latestSucceededEvents,
+  };
 }
 
 function resolveProducerNodeId(args: {
@@ -195,7 +208,8 @@ export async function getBuildState(
     const latestRunRecord = await runRecordService.loadLatest(movieId);
     const revision = buildState?.revision ?? latestRunRecord?.revision ?? null;
 
-    const latestEvents = await readLatestArtifactEvents(movieDir);
+    const { latestEvents, latestSucceededEvents } =
+      await readArtifactHistoryState(movieDir);
 
     let parsedInputs: Record<string, unknown> = {};
     let modelSelections: NonNullable<BuildStateResponse['models']> = [];
@@ -228,7 +242,11 @@ export async function getBuildState(
     const parsedArtifacts: ArtifactInfo[] = [];
     for (const [artifactId, event] of latestEvents) {
       const cleanName = stripCanonicalArtifactPrefix(artifactId);
-      if (event.status === 'succeeded' && !event.output?.blob?.hash) {
+      const latestSucceededEvent = latestSucceededEvents.get(artifactId);
+      const displayEvent =
+        event.status === 'succeeded' ? event : latestSucceededEvent;
+
+      if (!displayEvent?.output?.blob?.hash && event.status === 'succeeded') {
         continue;
       }
 
@@ -240,13 +258,17 @@ export async function getBuildState(
         name: cleanName,
         producedBy: event.producedBy,
         ...(producerNodeId ? { producerNodeId } : {}),
-        hash: event.output?.blob?.hash ?? '',
-        size: event.output?.blob?.size ?? 0,
-        mimeType: event.output?.blob?.mimeType ?? 'application/octet-stream',
+        hash: displayEvent?.output?.blob?.hash ?? '',
+        size: displayEvent?.output?.blob?.size ?? 0,
+        mimeType:
+          displayEvent?.output?.blob?.mimeType ?? 'application/octet-stream',
         status: event.status,
         createdAt: event.createdAt ?? null,
-        editedBy: event.editedBy,
-        originalHash: event.originalHash,
+        editedBy: displayEvent?.editedBy,
+        originalHash: displayEvent?.originalHash,
+        ...(event.status !== 'succeeded' && displayEvent?.output?.blob?.hash
+          ? { showingPreviousOutput: true }
+          : {}),
         // Include recovery info from diagnostics
         ...extractRecoveryInfo(event),
       });
@@ -311,8 +333,8 @@ export async function getBuildTimeline(
   movieId: string
 ): Promise<unknown | null> {
   const movieDir = path.join(blueprintFolder, 'builds', movieId);
-  const latestEvents = await readLatestArtifactEvents(movieDir);
-  const artifact = latestEvents.get(TIMELINE_ARTIFACT_ID);
+  const { latestSucceededEvents } = await readArtifactHistoryState(movieDir);
+  const artifact = latestSucceededEvents.get(TIMELINE_ARTIFACT_ID);
   const blob = artifact?.output?.blob;
   if (!blob?.hash) {
     return null;

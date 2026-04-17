@@ -171,7 +171,7 @@ All server-side logic is in `viewer/server/`. In production it runs as a Node.js
 |---|---|
 | Blueprints | list, parse, resolve, templates, create from template |
 | Producer config | models, config schemas, input schemas |
-| Builds | list, create, inputs, manifest, timeline, metadata |
+| Builds | list, create, inputs, build-state, timeline, metadata |
 | Artifacts | blob streaming, edit, restore, preview, open folder |
 | Generation | plan, execute, job status, SSE stream, cancel |
 | Settings | storage root, API tokens, artifact mode, concurrency |

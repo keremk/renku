@@ -214,25 +214,25 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		);
 
 		// ============================================================
-		// VERIFY: Manifest contains all artifacts
+		// VERIFY: Build state contains all artifacts
 		// ============================================================
-		const manifest = await readCurrentBuildState(queryResult.storagePath);
-		expect(manifest).toBeDefined();
-		expect(manifest.artifacts).toBeDefined();
+		const buildState = await readCurrentBuildState(queryResult.storagePath);
+		expect(buildState).toBeDefined();
+		expect(buildState.artifacts).toBeDefined();
 
-		const artifactIds = Object.keys(manifest.artifacts);
+		const artifactIds = Object.keys(buildState.artifacts);
 
-		// Verify boolean artifacts exist in manifest
-		const booleanManifestIds = artifactIds.filter((id) =>
+		// Verify boolean artifacts exist in build state
+		const booleanBuildStateIds = artifactIds.filter((id) =>
 			id.includes('UseNarrationAudio')
 		);
-		expect(booleanManifestIds).toHaveLength(3);
+		expect(booleanBuildStateIds).toHaveLength(3);
 
-		// Verify enum artifacts exist in manifest
-		const enumManifestIds = artifactIds.filter((id) =>
+		// Verify enum artifacts exist in build state
+		const enumBuildStateIds = artifactIds.filter((id) =>
 			id.includes('NarrationType')
 		);
-		expect(enumManifestIds).toHaveLength(3);
+		expect(enumBuildStateIds).toHaveLength(3);
 
 		// ============================================================
 		// VERIFY: Boolean blob content is actual boolean values
@@ -240,8 +240,8 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		const blobsDir = resolve(queryResult.storagePath, 'blobs');
 		const booleanValues: boolean[] = [];
 
-		for (const artifactId of booleanManifestIds.sort()) {
-			const artifact = manifest.artifacts[artifactId];
+		for (const artifactId of booleanBuildStateIds.sort()) {
+			const artifact = buildState.artifacts[artifactId];
 			expect(artifact).toBeDefined();
 			expect(artifact.blob).toBeDefined();
 			expect(artifact.blob!.mimeType).toBe('text/plain');
@@ -278,8 +278,8 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 			'MapNarration',
 		];
 
-		for (const artifactId of enumManifestIds.sort()) {
-			const artifact = manifest.artifacts[artifactId];
+		for (const artifactId of enumBuildStateIds.sort()) {
+			const artifact = buildState.artifacts[artifactId];
 			expect(artifact).toBeDefined();
 			expect(artifact.blob).toBeDefined();
 			expect(artifact.blob!.mimeType).toBe('text/plain');
@@ -419,8 +419,8 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		// Without this fix, the evaluator would look for "Artifact:DocProducer.VideoScript"
 		// and try to navigate the field path, but that nested artifact doesn't exist.
 
-		// Read manifest to verify blob content
-		const manifest = await readCurrentBuildState(queryResult.storagePath);
+		// Read build state to verify blob content
+		const buildState = await readCurrentBuildState(queryResult.storagePath);
 
 		// Check which boolean values were generated
 		const blobsDir = resolve(queryResult.storagePath, 'blobs');
@@ -433,7 +433,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		const booleanValuesByIndex: Record<number, boolean> = {};
 		for (let i = 0; i < 3; i++) {
 			const artifactId = booleanArtifactIds[i];
-			const artifact = manifest.artifacts[artifactId!];
+			const artifact = buildState.artifacts[artifactId!];
 			const prefix = artifact.blob!.hash.slice(0, 2);
 			const blobPath = resolve(blobsDir, prefix, `${artifact.blob!.hash}.txt`);
 			const content = await readFile(blobPath, 'utf8');

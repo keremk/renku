@@ -15,7 +15,7 @@ import { createStorageContext, initializeMovieStorage } from './storage.js';
 import type { BuildState } from './types.js';
 import {
   deriveArtifactsMovieFolderName,
-  materializeManifestArtifacts,
+  materializeBuildStateArtifacts,
   resolveArtifactsBaseRoot,
   resolveArtifactsMovieFolderName,
 } from './artifact-materialization.js';
@@ -65,7 +65,7 @@ describe('artifact materialization', () => {
     ).toBe('/workspace/simple-documentary/artifacts');
   });
 
-  it('materializes manifest artifacts in copy mode', async () => {
+  it('materializes build-state artifacts in copy mode', async () => {
     const rootDir = await makeTempDir();
     try {
       const movieId = 'movie-test';
@@ -83,7 +83,7 @@ describe('artifact materialization', () => {
       await mkdir(resolve(blobPath, '..'), { recursive: true });
       await writeFile(blobPath, Buffer.from('image-data'));
 
-      const manifest: BuildState = {
+      const buildState: BuildState = {
         revision: 'rev-1',
         baseRevision: null,
         createdAt: '2026-01-01T00:00:00.000Z',
@@ -103,12 +103,12 @@ describe('artifact materialization', () => {
         },
       };
 
-      const result = await materializeManifestArtifacts({
+      const result = await materializeBuildStateArtifacts({
         storageRoot: rootDir,
         storageBasePath: 'builds',
         movieId,
         artifactsMovieFolderName: 'my-movie',
-        buildState: manifest,
+        buildState,
         mode: 'copy',
       });
 
@@ -124,7 +124,7 @@ describe('artifact materialization', () => {
     }
   });
 
-  it('materializes manifest artifacts in symlink mode', async () => {
+  it('materializes build-state artifacts in symlink mode', async () => {
     const rootDir = await makeTempDir();
     try {
       const movieId = 'movie-test';
@@ -142,7 +142,7 @@ describe('artifact materialization', () => {
       await mkdir(resolve(blobPath, '..'), { recursive: true });
       await writeFile(blobPath, Buffer.from('audio-data'));
 
-      const manifest: BuildState = {
+      const buildState: BuildState = {
         revision: 'rev-1',
         baseRevision: null,
         createdAt: '2026-01-01T00:00:00.000Z',
@@ -162,12 +162,12 @@ describe('artifact materialization', () => {
         },
       };
 
-      const result = await materializeManifestArtifacts({
+      const result = await materializeBuildStateArtifacts({
         storageRoot: rootDir,
         storageBasePath: 'builds',
         movieId,
         artifactsMovieFolderName: 'my-movie',
-        buildState: manifest,
+        buildState,
         mode: 'symlink',
       });
 

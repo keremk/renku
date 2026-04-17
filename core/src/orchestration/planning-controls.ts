@@ -22,7 +22,6 @@ import {
   normalizeProducerOverrides,
   type NormalizedProducerOverrides,
 } from './producer-overrides.js';
-import { createEmptyBuildState } from '../execution-state.js';
 
 export interface LatestArtifactSnapshot {
   latestById: Map<string, ArtifactEvent>;
@@ -53,10 +52,7 @@ export function resolvePlanningControls(args: {
   latestSnapshot: LatestArtifactSnapshot;
   buildState: BuildState;
 }): PlanningControlsResolution {
-  const buildState =
-    args.buildState ??
-    (args as { manifest?: BuildState }).manifest ??
-    createEmptyBuildState();
+  const buildState = args.buildState;
   const merged = mergePlanningControls(args.baselineInputs, args.userControls);
   const warnings: PlanningWarning[] = [];
   const layerByJobId = buildJobLayerMap(args.producerGraph);

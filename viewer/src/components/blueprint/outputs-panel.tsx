@@ -5,6 +5,7 @@ import {
   useMemo,
   useCallback,
   type ComponentProps,
+  type ReactNode,
 } from 'react';
 import {
   Download,
@@ -278,7 +279,7 @@ function ArtifactGallery({
         const producerArtifacts = groupedByProducer.get(producerName) ?? [];
         const artifactIds = producerArtifacts.map((artifact) => artifact.id);
         const generatedIds = producerArtifacts
-          .filter((artifact) => artifact.status === 'succeeded')
+          .filter((artifact) => artifactHasDisplayableOutput(artifact))
           .map((artifact) => artifact.id);
 
         const selectedCount = artifactIds.filter((id) =>
@@ -674,8 +675,12 @@ function ArtifactCardRenderer({
   subGroup?: ArtifactSubGroup;
   useSimplifiedTextFooter?: boolean;
 }) {
-  // Handle failed or skipped artifacts first
-  if (artifact.status === 'failed' || artifact.status === 'skipped') {
+  // When a later rerun fails or skips, we still show the last usable output
+  // and surface the latest attempt state as badges on the card.
+  if (
+    (artifact.status === 'failed' || artifact.status === 'skipped') &&
+    !artifactHasDisplayableOutput(artifact)
+  ) {
     return <FailedArtifactCard artifact={artifact} isSelected={isSelected} />;
   }
 
@@ -1014,6 +1019,7 @@ interface ArtifactCardFooterProps {
   isEdited?: boolean;
   onEdit?: () => void;
   onRestore?: () => void;
+  badge?: ReactNode;
 }
 
 function ArtifactCardFooter({
@@ -1024,6 +1030,7 @@ function ArtifactCardFooter({
   isEdited,
   onEdit,
   onRestore,
+  badge,
 }: ArtifactCardFooterProps) {
   const {
     isArtifactSelected,
@@ -1143,7 +1150,12 @@ function ArtifactCardFooter({
     <CardActionsFooter
       label={displayName}
       actions={actions}
-      badge={isEdited ? <EditedBadge /> : undefined}
+      badge={
+        <>
+          {badge}
+          {isEdited ? <EditedBadge /> : null}
+        </>
+      }
     />
   );
 }
@@ -1519,6 +1531,7 @@ function MediaArtifactCard({
       isEdited={isEdited}
       onEdit={handleEdit}
       onRestore={isEdited ? handleRestore : undefined}
+      badge={<ArtifactAttemptBadge artifact={artifact} />}
     />
   );
 
@@ -1736,6 +1749,7 @@ function TextArtifactSmartCard({
         <span className='text-xs text-foreground truncate' title={displayName}>
           {displayName}
         </span>
+        <ArtifactAttemptBadge artifact={artifact} />
         {isEdited && <EditedBadge />}
       </div>
       {isEdited && (
@@ -1765,6 +1779,7 @@ function TextArtifactSmartCard({
       isEdited={isEdited}
       onEdit={handleEdit}
       onRestore={isEdited ? handleRestore : undefined}
+      badge={<ArtifactAttemptBadge artifact={artifact} />}
     />
   );
 
@@ -1967,6 +1982,49 @@ function FailedArtifactCard({
         </div>
       </div>
     </MediaCard>
+  );
+}
+
+function artifactHasDisplayableOutput(artifact: ArtifactInfo): boolean {
+  return artifact.hash.length > 0;
+}
+
+function ArtifactAttemptBadge({ artifact }: { artifact: ArtifactInfo }) {
+  const isFailed = artifact.status === 'failed';
+  const isSkipped = artifact.status === 'skipped';
+
+  if (!isFailed && !isSkipped) {
+    return null;
+  }
+
+  const toneClass = isFailed
+    ? 'border-destructive/40 bg-destructive/10 text-destructive'
+    : 'border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300';
+  const label = isFailed ? 'Failed' : 'Skipped';
+  const title = artifact.showingPreviousOutput
+    ? `Latest attempt ${label.toLowerCase()}. Showing previous output.`
+    : `Latest attempt ${label.toLowerCase()}.`;
+
+  return (
+    <>
+      <span
+        className={cn(
+          'inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em]',
+          toneClass
+        )}
+        title={title}
+      >
+        {label}
+      </span>
+      {artifact.showingPreviousOutput ? (
+        <span
+          className='inline-flex items-center rounded-full border border-border/50 bg-muted/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground'
+          title='Showing the last succeeded output from an earlier run.'
+        >
+          Previous
+        </span>
+      ) : null}
+    </>
   );
 }
 

@@ -726,7 +726,7 @@ describe('createPlanningService', () => {
   }
 
   describe('generatePlan', () => {
-    it('generates a plan for first run (new manifest)', async () => {
+    it('generates a plan for the first run with an empty build-state baseline', async () => {
       const service = createPlanningService();
       const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
@@ -745,12 +745,8 @@ describe('createPlanningService', () => {
       expect(result.plan).toBeDefined();
       expect(result.plan.layers.length).toBeGreaterThan(0);
       expect(result.targetRevision).toBe('rev-0001');
-      expect(result.manifest).toBeDefined();
-      if (!result.manifest) {
-        throw new Error('Expected planning result to include manifest.');
-      }
-      expect(result.manifest.revision).toBe('rev-0000');
-      expect(result.manifestHash).toBeNull();
+      expect(result.buildState.revision).toBe('rev-0000');
+      expect(result.baselineHash).toBeNull();
       expect(result.inputEvents).toHaveLength(1);
       expect(result.inputEvents[0]?.id).toBe('Input:Prompt');
       expect(result.inputEvents[0]?.payload).toBe('Hello world');
@@ -1117,7 +1113,7 @@ describe('createPlanningService', () => {
       expect(planExists).toBe(true);
     });
 
-    it('resolves surgical targets from event log when artifact is missing in manifest', async () => {
+    it('resolves surgical targets for failed artifacts from latest event-log metadata because build state only retains succeeded artifacts', async () => {
       const service = createPlanningService();
       const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);

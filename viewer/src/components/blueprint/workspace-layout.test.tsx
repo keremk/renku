@@ -24,7 +24,7 @@ vi.mock('@/contexts/execution-context', () => ({
       layerRange: { upToLayer: null },
       producerStatuses: {},
     },
-    initializeFromManifest: vi.fn(),
+    initializeFromBuildArtifacts: vi.fn(),
     setTotalLayers: vi.fn(),
     setLayerRange: vi.fn(),
   }),
@@ -177,6 +177,7 @@ const builds: BuildInfo[] = [
     updatedAt: '2026-03-12T00:00:00.000Z',
     revision: 'revision-1',
     hasBuildState: true,
+    hasInputSnapshot: false,
     hasInputsFile: false,
     displayName: null,
   },
@@ -276,6 +277,7 @@ describe('WorkspaceLayout', () => {
     const editableBuilds: BuildInfo[] = [
       {
         ...builds[0],
+        hasInputSnapshot: false,
         hasInputsFile: true,
       },
     ];

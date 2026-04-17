@@ -117,8 +117,8 @@ describe('end-to-end: surgical artifact regeneration', () => {
     // Verify first run succeeded
     expect(firstRunResult.status).toBe('succeeded');
 
-    // Build and save manifest
-    const manifest1 = await firstRunResult.buildStateSnapshot();
+    // Recompute derived build state
+    const buildState1 = await firstRunResult.buildStateSnapshot();
 
     // ============================================================
     // PHASE 2: Surgical regeneration of AudioProducer[0]
@@ -224,7 +224,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await planResult.persist();
 
-    // Create storage and run to build manifest
+    // Create storage and run to derive build state
     const storage = createStorageContext({
       kind: 'local',
       rootDir: cliConfig.storage.root,
@@ -256,7 +256,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       logger,
     });
 
-    const manifest = await runResult.buildStateSnapshot();
+    const buildState = await runResult.buildStateSnapshot();
 
     // Try to use a non-canonical regenerate id (should fail fast)
     await expect(
@@ -296,7 +296,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await planResult.persist();
 
-    // Create storage and run to build manifest
+    // Create storage and run to derive build state
     const storage = createStorageContext({
       kind: 'local',
       rootDir: cliConfig.storage.root,
@@ -328,7 +328,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       logger,
     });
 
-    const manifest = await runResult.buildStateSnapshot();
+    const buildState = await runResult.buildStateSnapshot();
 
     // Find the ScriptProducer artifact (layer 0) to target for surgical regeneration
     const initialPlan = await readPlan(planResult.planPath);
@@ -371,7 +371,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     expect(surgicalJobs.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('fails when target artifact does not exist in manifest', async () => {
+  it('fails when target artifact does not exist in build state', async () => {
     const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop', 'audio-narration-loop.yaml');
     const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'audio-narration-loop--default.inputs.yaml');
     const { logger } = createLoggerRecorder();
@@ -396,7 +396,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await planResult.persist();
 
-    // Create storage and run to build manifest
+    // Create storage and run to derive build state
     const storage = createStorageContext({
       kind: 'local',
       rootDir: cliConfig.storage.root,
@@ -428,7 +428,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       logger,
     });
 
-    const manifest = await runResult.buildStateSnapshot();
+    const buildState = await runResult.buildStateSnapshot();
 
     // Try to regenerate a non-existent artifact
     await expect(
@@ -529,8 +529,8 @@ describe('end-to-end: surgical artifact regeneration', () => {
     // Verify first run succeeded
     expect(firstRunResult.status).toBe('succeeded');
 
-    // Build and save manifest
-    const manifest1 = await firstRunResult.buildStateSnapshot();
+    // Recompute derived build state
+    const buildState1 = await firstRunResult.buildStateSnapshot();
 
     // ============================================================
     // PHASE 2: Surgical regeneration of MULTIPLE AudioProducers
@@ -623,7 +623,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await planResult.persist();
 
-    // Create storage and run to build manifest
+    // Create storage and run to derive build state
     const storage = createStorageContext({
       kind: 'local',
       rootDir: cliConfig.storage.root,
@@ -655,7 +655,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       logger,
     });
 
-    const manifest = await runResult.buildStateSnapshot();
+    const buildState = await runResult.buildStateSnapshot();
 
     // Find a valid artifact
     const initialPlan = await readPlan(planResult.planPath);

@@ -1455,17 +1455,17 @@ describe('ExecutionContext', () => {
   });
 
   // =============================================================================
-  // Manifest Initialization Tests
+  // Build Artifact Initialization Tests
   // =============================================================================
 
-  describe('initializeFromManifest', () => {
+  describe('initializeFromBuildArtifacts', () => {
     it('maps succeeded artifacts to success status', () => {
       const { result } = renderHook(() => useExecution(), {
         wrapper: createWrapper(),
       });
 
       act(() => {
-        result.current.initializeFromManifest([
+        result.current.initializeFromBuildArtifacts([
           createMockArtifact({
             id: 'Artifact:ProducerA.Output[0]',
             status: 'succeeded',
@@ -1484,7 +1484,7 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.initializeFromManifest([
+        result.current.initializeFromBuildArtifacts([
           createMockArtifact({
             id: 'Artifact:ProducerA.Output[0]',
             status: 'failed',
@@ -1503,7 +1503,7 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.initializeFromManifest([
+        result.current.initializeFromBuildArtifacts([
           createMockArtifact({
             id: 'Artifact:ProducerA.Output[0]',
             status: 'skipped',
@@ -1522,7 +1522,7 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.initializeFromManifest([
+        result.current.initializeFromBuildArtifacts([
           createMockArtifact({
             id: 'Artifact:ProducerA.Output[0]',
             status: 'pending',
@@ -1541,7 +1541,7 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.initializeFromManifest([
+        result.current.initializeFromBuildArtifacts([
           createMockArtifact({
             id: 'Artifact:ProducerA.Output[0]',
             status: 'succeeded',
@@ -1569,7 +1569,7 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.initializeFromManifest([
+        result.current.initializeFromBuildArtifacts([
           createMockArtifact({
             id: 'Artifact:ProducerA.Output[0]',
             status: 'succeeded',
@@ -1602,7 +1602,7 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.initializeFromManifest([
+        result.current.initializeFromBuildArtifacts([
           createMockArtifact({ id: 'InvalidFormat', status: 'succeeded' }),
           createMockArtifact({
             id: 'Artifact:ProducerA.Output[0]',
@@ -1625,7 +1625,7 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.initializeFromManifest([
+        result.current.initializeFromBuildArtifacts([
           createMockArtifact({
             id: 'Artifact:ProducerA.Output[0]',
             producerNodeId: undefined,

@@ -1,17 +1,16 @@
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMp4ExporterHandler, __test__ } from './mp4-exporter.js';
 import type { ProviderJobContext } from '../../types.js';
 
+const { mockedExecFile } = vi.hoisted(() => ({
+  mockedExecFile: vi.fn(),
+}));
+
 vi.mock('node:child_process', () => ({
-  execFile: (...args: unknown[]) => {
-    const callback = args.find((arg) => typeof arg === 'function') as
-      | ((err: Error | null, stdout?: unknown, stderr?: unknown) => void)
-      | undefined;
-    callback?.(null, { stdout: '', stderr: '' });
-  },
+  execFile: mockedExecFile,
 }));
 
 vi.mock('@gorenku/compositions', () => {
@@ -24,6 +23,16 @@ vi.mock('@gorenku/compositions', () => {
 });
 
 describe('mp4-exporter', () => {
+  beforeEach(() => {
+    mockedExecFile.mockReset();
+    mockedExecFile.mockImplementation((...args: unknown[]) => {
+      const callback = args.find((arg) => typeof arg === 'function') as
+        | ((err: Error | null, stdout?: unknown, stderr?: unknown) => void)
+        | undefined;
+      callback?.(null, { stdout: '', stderr: '' });
+    });
+  });
+
   it('validates required config', () => {
     expect(() => __test__.parseExporterConfig({})).not.toThrow();
   });
@@ -50,7 +59,7 @@ describe('mp4-exporter', () => {
     );
   });
 
-  it('exports mp4 using timeline + manifest blobs', async () => {
+  it('exports mp4 using event-log artifacts and writes an explicit render payload', async () => {
     const tempRoot = await mkdtemp(path.join(tmpdir(), 'mp4-exporter-'));
     const builds = path.join(tempRoot, 'builds');
     const movieId = 'movie-123';
@@ -128,6 +137,22 @@ describe('mp4-exporter', () => {
     const expectedOutput = path.join(movieDir, 'FinalVideo.mp4');
     await writeFile(expectedOutput, Buffer.from('mp4'));
 
+    let renderPayload: Record<string, unknown> | null = null;
+    mockedExecFile.mockImplementationOnce(async (...args: unknown[]) => {
+      const dockerArgs = args[1] as string[];
+      const payloadIndex = dockerArgs.indexOf('--payload');
+      const payloadPath = dockerArgs[payloadIndex + 1]?.replace('/data', tempRoot);
+      renderPayload = JSON.parse(await readFile(payloadPath!, 'utf8')) as Record<
+        string,
+        unknown
+      >;
+
+      const callback = args.find((arg) => typeof arg === 'function') as
+        | ((err: Error | null, stdout?: unknown, stderr?: unknown) => void)
+        | undefined;
+      callback?.(null, { stdout: '', stderr: '' });
+    });
+
     const handler = createMp4ExporterHandler()({
       descriptor: { provider: 'renku', model: 'Mp4Exporter', environment: 'local' },
       mode: 'live',
@@ -149,10 +174,22 @@ describe('mp4-exporter', () => {
     expect(artifact?.artifactId).toBe('Artifact:FinalVideo');
     expect(artifact?.blob?.mimeType).toBe('video/mp4');
     expect(Buffer.isBuffer(artifact?.blob?.data)).toBe(true);
+    expect(renderPayload).toMatchObject({
+      movieId,
+      timeline,
+      assetPaths: {
+        'Artifact:Audio[0]': path.join('builds', movieId, 'blobs', 'ab', 'ab123.mp3'),
+      },
+    });
   });
 });
 
-function createRequest(opts: { providerConfig: Record<string, unknown>; produces: string[]; resolvedInputs?: Record<string, unknown> }): ProviderJobContext {
+function createRequest(opts: {
+  providerConfig: Record<string, unknown>;
+  produces: string[];
+  resolvedInputs?: Record<string, unknown>;
+  inputs?: string[];
+}): ProviderJobContext {
   return {
     jobId: 'job-1',
     provider: 'renku',
@@ -160,7 +197,7 @@ function createRequest(opts: { providerConfig: Record<string, unknown>; produces
     revision: 'rev-1',
     layerIndex: 0,
     attempt: 1,
-    inputs: [],
+    inputs: opts.inputs ?? [],
     produces: opts.produces,
     context: {
       providerConfig: opts.providerConfig,

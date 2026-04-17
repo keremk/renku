@@ -6,6 +6,7 @@ import { existsSync } from "node:fs";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
+  createBuildStateService,
   createRunRecordService,
   createStorageContext,
   createMovieMetadataService,
@@ -15,7 +16,7 @@ import type { BuildInfo, BuildsListResponse } from "./types.js";
 /**
  * Lists all builds in the builds/ subfolder of the blueprint folder.
  * Sorted by updatedAt (most recent first).
- * Filters out builds that have neither build-state-backed runs nor an inputs file.
+ * Filters out builds that have neither succeeded artifacts nor saved inputs.
  */
 export async function listBuilds(blueprintFolder: string): Promise<BuildsListResponse> {
   const buildsDir = path.join(blueprintFolder, "builds");
@@ -34,6 +35,7 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
     });
     const metadataService = createMovieMetadataService(storageContext);
     const runRecordService = createRunRecordService(storageContext);
+    const buildStateService = createBuildStateService(storageContext);
 
     const entries = await fs.readdir(buildsDir, { withFileTypes: true });
     const movieDirs = entries.filter(
@@ -51,10 +53,21 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
 
         const latestRunRecord = await runRecordService.loadLatest(movieId);
         const revision = latestRunRecord?.revision ?? null;
-        const hasBuildState = latestRunRecord !== null;
+        let hasBuildState = false;
+        try {
+          const { buildState } = await buildStateService.loadCurrent(movieId);
+          hasBuildState = Object.keys(buildState.artifacts).length > 0;
+        } catch {
+          hasBuildState = false;
+        }
 
-        // Check for inputs.yaml
+        const snapshotInputsPath = latestRunRecord
+          ? path.join(movieDir, latestRunRecord.inputSnapshotPath)
+          : null;
         const hasInputsFile = existsSync(inputsPath);
+        const hasInputSnapshot = snapshotInputsPath
+          ? existsSync(snapshotInputsPath)
+          : false;
 
         // Read displayName from metadata using the core service
         let displayName: string | null = null;
@@ -65,8 +78,8 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
           // Ignore read errors
         }
 
-        // Filter out builds that have neither build-state history nor inputs file
-        if (!hasBuildState && !hasInputsFile) {
+        // Keep any build that still has either displayable artifacts or saved inputs.
+        if (!hasBuildState && !hasInputsFile && !hasInputSnapshot) {
           continue;
         }
 
@@ -75,6 +88,7 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
           updatedAt,
           revision,
           hasBuildState,
+          hasInputSnapshot,
           hasInputsFile,
           displayName,
         });

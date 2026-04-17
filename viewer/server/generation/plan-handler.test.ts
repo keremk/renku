@@ -2,6 +2,9 @@
  * Unit tests for plan-handler.ts - Plan building and layer counting.
  */
 
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import type {
   BuildState,
@@ -9,9 +12,18 @@ import type {
   ExecutionState,
   JobDescriptor,
 } from '@gorenku/core';
+import {
+  createRunRecordService,
+  createStorageContext,
+  initializeMovieStorage,
+  RuntimeErrorCode,
+} from '@gorenku/core';
 import type { PlanCostSummary, JobCostEstimate } from '@gorenku/providers';
 import type { CachedPlan } from './types.js';
-import { buildPlanResponse } from './plan-handler.js';
+import {
+  buildPlanResponse,
+  resolveExistingBuildInputsPath,
+} from './plan-handler.js';
 
 // Helper to create a mock job descriptor
 function createMockJob(id: string, producer: string): JobDescriptor {
@@ -433,5 +445,94 @@ describe('buildPlanResponse', () => {
       expect(response.cliCommand).toContain('--up=1');
     });
 
+  });
+});
+
+describe('resolveExistingBuildInputsPath', () => {
+  it('prefers editable build inputs when they exist', async () => {
+    const blueprintFolder = await mkdtemp(
+      path.join(tmpdir(), 'viewer-plan-inputs-')
+    );
+
+    try {
+      const movieId = 'movie-editable';
+      const buildDir = path.join(blueprintFolder, 'builds', movieId);
+      const inputsPath = path.join(buildDir, 'inputs.yaml');
+
+      await mkdir(buildDir, { recursive: true });
+      await writeFile(inputsPath, 'Prompt: editable\n', 'utf8');
+
+      await expect(
+        resolveExistingBuildInputsPath(blueprintFolder, movieId)
+      ).resolves.toBe(inputsPath);
+    } finally {
+      await rm(blueprintFolder, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to the latest saved input snapshot for snapshot-only builds', async () => {
+    const blueprintFolder = await mkdtemp(
+      path.join(tmpdir(), 'viewer-plan-inputs-')
+    );
+
+    try {
+      const movieId = 'movie-snapshot';
+      const storage = createStorageContext({
+        kind: 'local',
+        rootDir: blueprintFolder,
+        basePath: 'builds',
+      });
+      await initializeMovieStorage(storage, movieId);
+
+      const runRecordService = createRunRecordService(storage);
+      const snapshot = await runRecordService.writeInputSnapshot(
+        movieId,
+        'rev-0007',
+        Buffer.from('Prompt: snapshot\n', 'utf8')
+      );
+      await runRecordService.write(movieId, {
+        revision: 'rev-0007',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        blueprintPath: '/tmp/blueprint.yaml',
+        sourceInputsPath: '/tmp/inputs.yaml',
+        inputSnapshotPath: snapshot.path,
+        inputSnapshotHash: snapshot.hash,
+        planPath: 'runs/rev-0007-plan.json',
+        runConfig: {},
+        status: 'planned',
+      });
+
+      await expect(
+        resolveExistingBuildInputsPath(blueprintFolder, movieId)
+      ).resolves.toBe(
+        path.join(blueprintFolder, 'builds', movieId, snapshot.path)
+      );
+    } finally {
+      await rm(blueprintFolder, { recursive: true, force: true });
+    }
+  });
+
+  it('fails fast when an existing build has neither editable inputs nor a saved snapshot', async () => {
+    const blueprintFolder = await mkdtemp(
+      path.join(tmpdir(), 'viewer-plan-inputs-')
+    );
+
+    try {
+      const movieId = 'movie-missing-inputs';
+      const storage = createStorageContext({
+        kind: 'local',
+        rootDir: blueprintFolder,
+        basePath: 'builds',
+      });
+      await initializeMovieStorage(storage, movieId);
+
+      await expect(
+        resolveExistingBuildInputsPath(blueprintFolder, movieId)
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      });
+    } finally {
+      await rm(blueprintFolder, { recursive: true, force: true });
+    }
   });
 });

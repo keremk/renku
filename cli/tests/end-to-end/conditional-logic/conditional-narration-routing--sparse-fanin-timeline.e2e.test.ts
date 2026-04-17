@@ -314,15 +314,15 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 		// PHASE 5: Read and verify REAL timeline JSON
 		// ============================================================
 
-		const manifest = await result.buildStateSnapshot();
-		const artifactIds = Object.keys(manifest.artifacts);
+		const buildState = await result.buildStateSnapshot();
+		const artifactIds = Object.keys(buildState.artifacts);
 
 		// Find timeline artifact
 		const timelineArtifactId = artifactIds.find((id) =>
 			id.includes('Timeline')
 		);
 		expect(timelineArtifactId).toBeDefined();
-		const timelineArtifact = manifest.artifacts[timelineArtifactId!];
+		const timelineArtifact = buildState.artifacts[timelineArtifactId!];
 		expect(timelineArtifact).toBeDefined();
 		expect(timelineArtifact.blob).toBeDefined();
 

@@ -4,6 +4,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { existsSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 import { mkdir, readFile } from 'node:fs/promises';
 import {
@@ -30,10 +31,12 @@ import {
   persistArtifactOverrideBlobs,
   deriveSurgicalInfoArray,
   createRunRecordService,
+  createRuntimeError,
   type BuildState,
   type ExecutionPlan,
   type ExecutionState,
   type ProducerOptionsMap,
+  RuntimeErrorCode,
 } from '@gorenku/core';
 import {
   loadPricingCatalog,
@@ -79,6 +82,57 @@ interface ResolvedPlanRequestContext {
   inputsPath: string;
 }
 
+export async function resolveExistingBuildInputsPath(
+  blueprintFolder: string,
+  movieId: string
+): Promise<string> {
+  const buildInputsPath = await resolveBuildInputsPath(blueprintFolder, movieId);
+  if (buildInputsPath) {
+    return buildInputsPath;
+  }
+
+  const storage = createStorageContext({
+    kind: 'local',
+    rootDir: blueprintFolder,
+    basePath: 'builds',
+  });
+  const runRecordService = createRunRecordService(storage);
+  const latestRunRecord = await runRecordService.loadLatest(movieId);
+
+  if (!latestRunRecord) {
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      `Build "${movieId}" has no editable inputs.yaml and no saved input snapshot.`,
+      {
+        suggestion:
+          `Expected either "${blueprintFolder}/builds/${movieId}/inputs.yaml" ` +
+          `or a latest run record with a valid input snapshot.`,
+      }
+    );
+  }
+
+  const snapshotInputsPath = resolve(
+    blueprintFolder,
+    'builds',
+    movieId,
+    latestRunRecord.inputSnapshotPath
+  );
+
+  if (!existsSync(snapshotInputsPath)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      `Build "${movieId}" is missing its saved input snapshot for revision "${latestRunRecord.revision}".`,
+      {
+        suggestion:
+          `Expected snapshot at "${snapshotInputsPath}". Re-enable editing for the build ` +
+          `or regenerate the plan so a fresh snapshot is recorded.`,
+      }
+    );
+  }
+
+  return snapshotInputsPath;
+}
+
 async function resolvePlanRequestContext(args: {
   blueprint: string;
   inputs?: string;
@@ -98,13 +152,10 @@ async function resolvePlanRequestContext(args: {
 
   let inputsPath = paths.inputsPath;
   if (args.movieId && !args.inputs) {
-    const buildInputsPath = await resolveBuildInputsPath(
+    inputsPath = await resolveExistingBuildInputsPath(
       paths.blueprintFolder,
       movieId
     );
-    if (buildInputsPath) {
-      inputsPath = buildInputsPath;
-    }
   }
 
   return {

@@ -3,44 +3,35 @@
  */
 
 import { existsSync } from "node:fs";
-import { promises as fs } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import { streamFileWithRange } from "../shared/stream-utils.js";
+import {
+  createEventLog,
+  createStorageContext,
+  readLatestSucceededArtifactEvents,
+} from "@gorenku/core";
+import {
+  resolveExistingBlobPath,
+  streamFileWithRange,
+} from "../shared/stream-utils.js";
 
 async function readLatestArtifactBlobFromEvents(
-  movieDir: string,
+  blueprintFolder: string,
+  movieId: string,
   canonicalId: string,
 ): Promise<{ hash: string; size?: number; mimeType?: string } | null> {
-  const logPath = path.join(movieDir, "events", "artifacts.log");
-  if (!existsSync(logPath)) {
-    return null;
-  }
-
-  const content = await fs.readFile(logPath, "utf8");
-  const lines = content.split(/\r?\n/).filter((line) => line.trim());
-  let latest:
-    | {
-        status: string;
-        output?: { blob?: { hash: string; size?: number; mimeType?: string } };
-      }
-    | undefined;
-  for (const line of lines) {
-    try {
-      const event = JSON.parse(line) as {
-        artifactId: string;
-        status: string;
-        output?: { blob?: { hash: string; size?: number; mimeType?: string } };
-      };
-      if (event.artifactId === canonicalId) {
-        latest = event;
-      }
-    } catch {
-      // Ignore malformed lines.
-    }
-  }
-
-  if (!latest || latest.status !== "succeeded" || !latest.output?.blob?.hash) {
+  const storage = createStorageContext({
+    kind: "local",
+    rootDir: blueprintFolder,
+    basePath: "builds",
+  });
+  const latestEvents = await readLatestSucceededArtifactEvents({
+    artifactIds: [canonicalId],
+    eventLog: createEventLog(storage),
+    movieId,
+  });
+  const latest = latestEvents.get(canonicalId);
+  if (!latest?.output.blob?.hash) {
     return null;
   }
   return latest.output.blob;
@@ -114,39 +105,28 @@ export async function streamBuildAsset(
   movieId: string,
   canonicalId: string,
 ): Promise<void> {
-  const movieDir = path.join(blueprintFolder, "builds", movieId);
-
   try {
-    const artifact = await readLatestArtifactBlobFromEvents(movieDir, canonicalId);
+    const artifact = await readLatestArtifactBlobFromEvents(
+      blueprintFolder,
+      movieId,
+      canonicalId,
+    );
     if (!artifact?.hash) {
       res.statusCode = 404;
       res.end("Asset not found");
       return;
     }
 
-    // Resolve blob path
     const { hash, mimeType: blobMimeType, size } = artifact;
-    const blobsDir = path.join(movieDir, "blobs");
-    const prefix = hash.slice(0, 2);
-
-    // Try different possible file paths
-    const possiblePaths = [path.join(blobsDir, prefix, hash)];
-
-    // Also try common extensions
-    const extensions = ["png", "jpg", "jpeg", "mp4", "mp3", "wav", "webm", "json", "txt"];
-    for (const ext of extensions) {
-      possiblePaths.push(path.join(blobsDir, prefix, `${hash}.${ext}`));
-    }
-
-    let filePath: string | null = null;
-    for (const p of possiblePaths) {
-      if (existsSync(p)) {
-        filePath = p;
-        break;
-      }
-    }
-
-    if (!filePath) {
+    let filePath: string;
+    try {
+      filePath = await resolveExistingBlobPath(
+        path.join(blueprintFolder, "builds"),
+        movieId,
+        hash,
+        blobMimeType,
+      );
+    } catch {
       res.statusCode = 404;
       res.end("Asset blob not found");
       return;

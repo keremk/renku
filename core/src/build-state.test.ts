@@ -159,7 +159,7 @@ describe('BuildStateService', () => {
     expect(buildState.revision).toBe('rev-10000');
   });
 
-  it('builds build-state snapshot from event log', async () => {
+  it('derives build state from the event log', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
     const buildStateService = createBuildStateService(ctx);

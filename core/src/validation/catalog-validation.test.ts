@@ -79,7 +79,7 @@ describe('catalog blueprint validation', () => {
     }
   });
 
-  it('finds blueprint manifests for each catalog blueprint directory', async () => {
+  it('finds blueprint YAML files for each catalog blueprint directory', async () => {
     const blueprints = await findBlueprintFiles();
     expect(blueprints.length).toBeGreaterThan(0);
     for (const blueprint of blueprints) {

@@ -118,9 +118,9 @@ export function createFfmpegExporterHandler(): HandlerFactory {
           request.inputs.includes(TIMELINE_ARTIFACT_ID);
 
         // Prefer inline runtime timeline. During multi-producer runs,
-        // current.json can point to an older revision while VideoExporter runs.
-        // If this job declares Timeline as an input, fail fast when payload is
-        // missing/invalid instead of falling back to a stale manifest snapshot.
+        // the latest persisted build state can lag behind the currently running
+        // layer. If this job declares Timeline as an input, fail fast when the
+        // payload is missing or invalid instead of reading stale persisted state.
         let timeline: TimelineDocument;
         if (isTimelineDocument(inlineTimeline)) {
           timeline = inlineTimeline;
@@ -158,8 +158,8 @@ export function createFfmpegExporterHandler(): HandlerFactory {
           };
         }
 
-        // Build asset path map - prefer paths from event log (via context.extras.assetBlobPaths)
-        // over manifest-based resolution to ensure fresh paths during execution.
+        // Build asset path map - prefer paths from event-log context extras so
+        // execution uses the freshest blob paths available in the current run.
         const moviePath = storage.resolve(movieId, '');
         const eventLogPaths = request.context.extras?.assetBlobPaths as
           | Record<string, string>
@@ -181,8 +181,8 @@ export function createFfmpegExporterHandler(): HandlerFactory {
             : path.resolve(storageRoot, assetPath);
         }
 
-        // Try to load transcription for subtitles (optional)
-        // First try to get it from runtime inputs (during execution), then fall back to manifest
+        // Try to load transcription for subtitles (optional).
+        // First try runtime inputs during execution, then fall back to persisted state.
         let transcription: TranscriptionArtifact | undefined;
         const inlineTranscription = runtime.inputs.getByNodeId<unknown>(
           TRANSCRIPTION_ARTIFACT_ID
@@ -612,9 +612,8 @@ async function loadTranscription(
  * @param timeline - Timeline document containing asset references
  * @param eventLogPaths - Optional pre-resolved paths from event log (preferred source)
  *
- * If eventLogPaths is provided, uses those paths for assets (resolved from event log).
- * Falls back to manifest-based resolution for any assets not in eventLogPaths.
- * This ensures fresh paths are used during execution when manifest may be stale.
+ * If eventLogPaths is provided, uses those paths for assets first.
+ * Any missing assets are resolved from the persisted event log for the movie.
  */
 async function buildAssetPaths(
   storage: ReturnType<typeof createStorageContext>,

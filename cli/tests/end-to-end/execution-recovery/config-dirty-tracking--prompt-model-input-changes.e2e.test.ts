@@ -72,7 +72,7 @@ describe('end-to-end: config dirty tracking', () => {
 		});
 	}
 
-	/** Run a full plan + execute cycle and persist manifest. */
+	/** Run a full plan + execute cycle and return derived build state. */
 	async function runPhase(opts: {
 		movieId: string;
 		storageMovieId: string;
@@ -122,10 +122,10 @@ describe('end-to-end: config dirty tracking', () => {
 			logger,
 		});
 
-		// Build and save manifest
-		const manifest = await result.buildStateSnapshot();
+		// Recompute derived build state
+		const buildState = await result.buildStateSnapshot();
 
-		return { planResult, plan, allJobs, manifest, cliConfig };
+		return { planResult, plan, allJobs, buildState, cliConfig };
 	}
 
 	it('TOML systemPrompt change triggers re-run + downstream propagation', async () => {

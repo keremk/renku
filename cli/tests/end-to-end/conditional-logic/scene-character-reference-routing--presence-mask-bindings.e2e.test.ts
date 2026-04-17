@@ -54,10 +54,10 @@ function parseBooleanText(value: string, artifactId: string): boolean {
 	);
 }
 
-function getRequiredBlob(manifest: BuildState, artifactId: string) {
-	const entry = manifest.artifacts[artifactId];
+function getRequiredBlob(buildState: BuildState, artifactId: string) {
+	const entry = buildState.artifacts[artifactId];
 	if (!entry) {
-		throw new Error(`Missing manifest artifact: ${artifactId}`);
+		throw new Error(`Missing build-state artifact: ${artifactId}`);
 	}
 	if (!entry.blob) {
 		throw new Error(`Expected blob for artifact: ${artifactId}`);
@@ -68,10 +68,10 @@ function getRequiredBlob(manifest: BuildState, artifactId: string) {
 async function readTextArtifact(
 	storage: StorageContext,
 	movieId: string,
-	manifest: BuildState,
+	buildState: BuildState,
 	artifactId: string
 ): Promise<string> {
-	const blob = getRequiredBlob(manifest, artifactId);
+	const blob = getRequiredBlob(buildState, artifactId);
 	const content = await readBlobFromStorage(storage, movieId, blob);
 	return Buffer.from(content.data).toString('utf8');
 }
@@ -254,7 +254,7 @@ describe('end-to-end: scene character presence', () => {
 			expect(sceneJob.status).toBe('succeeded');
 		}
 
-		const manifest = await run.buildStateSnapshot();
+		const buildState = await run.buildStateSnapshot();
 
 		const characterPrompts: string[] = [];
 		for (
@@ -266,7 +266,7 @@ describe('end-to-end: scene character presence', () => {
 			const prompt = await readTextArtifact(
 				storage,
 				storageMovieId,
-				manifest,
+				buildState,
 				artifactId
 			);
 			expect(prompt.trim().length).toBeGreaterThan(0);
@@ -282,7 +282,7 @@ describe('end-to-end: scene character presence', () => {
 			const scenePrompt = await readTextArtifact(
 				storage,
 				storageMovieId,
-				manifest,
+				buildState,
 				promptArtifactId
 			);
 			expect(scenePrompt.trim().length).toBeGreaterThan(0);
@@ -298,7 +298,7 @@ describe('end-to-end: scene character presence', () => {
 				const rawValue = await readTextArtifact(
 					storage,
 					storageMovieId,
-					manifest,
+					buildState,
 					presenceArtifactId
 				);
 				row.push(parseBooleanText(rawValue, presenceArtifactId));

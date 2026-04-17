@@ -249,11 +249,11 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		expect(firstRunResult.status).toBe('succeeded');
 		expect(firstRunResult.jobs).toHaveLength(6); // 1 DocProducer + 4 ImageProducers + 1 TimelineComposer
 
-		// Build and save manifest after first run
-		const manifest1 = await firstRunResult.buildStateSnapshot();
+		// Recompute derived build state after first run
+		const buildState1 = await firstRunResult.buildStateSnapshot();
 
-		// Verify all artifacts are in manifest
-		expect(Object.keys(manifest1.artifacts).length).toBeGreaterThanOrEqual(5);
+		// Verify all artifacts are in build state
+		expect(Object.keys(buildState1.artifacts).length).toBeGreaterThanOrEqual(5);
 
 		// ============================================================
 		// PHASE 2: Create override inputs.yaml with virtual artifact override
@@ -455,7 +455,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		});
 		expect(firstRunResult.status).toBe('succeeded');
 
-		const manifest1 = await firstRunResult.buildStateSnapshot();
+		const buildState1 = await firstRunResult.buildStateSnapshot();
 
 		// PHASE 2: Override a DIFFERENT virtual artifact: Segments[1].ImagePrompts[1]
 		const overridePromptPath = join(tempRoot, 'override-prompt2.txt');

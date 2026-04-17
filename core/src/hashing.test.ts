@@ -27,7 +27,7 @@ describe('hashing utilities', () => {
 
   it('hashes input contents deterministically regardless of input order', () => {
     const createdAt = '2025-01-01T00:00:00.000Z';
-    const manifest = {
+    const buildState = {
       inputs: {
         'Input:a': { hash: 'hash-a', payloadDigest: 'digest-a', createdAt },
         'Input:b': { hash: 'hash-b', payloadDigest: 'digest-b', createdAt },
@@ -43,11 +43,11 @@ describe('hashing utilities', () => {
     };
     const hashA = hashInputContents(
       ['Input:b', 'Artifact:c', 'Input:a'],
-      manifest
+      buildState
     );
     const hashB = hashInputContents(
       ['Artifact:c', 'Input:a', 'Input:b'],
-      manifest
+      buildState
     );
     expect(hashA).toBe(hashB);
   });

@@ -141,7 +141,7 @@ describe('end-to-end: failed artifact recovery', () => {
     expect(firstRunCalls.size).toBe(4); // All 4 jobs attempted
 
     // ============================================================
-    // PHASE 2: Verify event log and manifest after first run
+    // PHASE 2: Verify event log and build state after first run
     // ============================================================
 
     // Verify event log contains failed artifact
@@ -155,17 +155,17 @@ describe('end-to-end: failed artifact recovery', () => {
     }
     expect(foundFailedEvent).toBe(true);
 
-    // Build manifest after first run
-    const manifest1 = await firstRunResult.buildStateSnapshot();
+    // Recompute derived build state after first run
+    const buildState1 = await firstRunResult.buildStateSnapshot();
 
-    // Verify failed artifact is excluded from manifest
-    expect(manifest1.artifacts[failedArtifactId!]).toBeUndefined();
+    // Verify failed artifact is excluded from build state
+    expect(buildState1.artifacts[failedArtifactId!]).toBeUndefined();
 
-    // Verify successful artifacts are in manifest
+    // Verify successful artifacts are in build state
     const successfulAudioJobs = audioJobs.filter((j: any) => j.jobId !== audioJob1!.jobId);
     for (const job of successfulAudioJobs) {
       const artifactId = job.produces.find((id: string) => id.startsWith('Artifact:'));
-      expect(manifest1.artifacts[artifactId!]).toBeDefined();
+      expect(buildState1.artifacts[artifactId!]).toBeDefined();
     }
 
     // ============================================================
@@ -223,7 +223,7 @@ describe('end-to-end: failed artifact recovery', () => {
     // Execute recovery with core runner
     const recoveryResult = await runner.execute(editPlan, {
       movieId: storageMovieId,
-      buildState: manifest1, // Use manifest from first run
+      buildState: buildState1, // Use build state from first run
       storage,
       eventLog,
       produce: recoveryProduce,
@@ -236,20 +236,20 @@ describe('end-to-end: failed artifact recovery', () => {
     expect(recoveryResult.jobs[0].status).toBe('succeeded');
 
     // ============================================================
-    // PHASE 5: Verify final manifest includes recovered artifact
+    // PHASE 5: Verify final build state includes recovered artifact
     // ============================================================
 
-    // Build final manifest after recovery
-    const finalManifest = await recoveryResult.buildStateSnapshot();
+    // Recompute derived build state after recovery
+    const finalBuildState = await recoveryResult.buildStateSnapshot();
 
-    // Verify recovered artifact is now in manifest
-    expect(finalManifest.artifacts[failedArtifactId!]).toBeDefined();
-    expect(finalManifest.artifacts[failedArtifactId!].status).toBe('succeeded');
+    // Verify recovered artifact is now in build state
+    expect(finalBuildState.artifacts[failedArtifactId!]).toBeDefined();
+    expect(finalBuildState.artifacts[failedArtifactId!].status).toBe('succeeded');
 
     // Verify all 3 audio artifacts are present (2 from first run + 1 recovered)
     for (const job of audioJobs) {
       const artifactId = job.produces.find((id: string) => id.startsWith('Artifact:'));
-      expect(finalManifest.artifacts[artifactId!]).toBeDefined();
+      expect(finalBuildState.artifacts[artifactId!]).toBeDefined();
     }
 
     // ============================================================

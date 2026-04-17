@@ -929,7 +929,6 @@ export interface RunResult {
   status: RunStatus;
   revision: RevisionId;
   baselineHash: string;
-  manifestBaseHash?: string;
   jobs: JobResult[];
   startedAt: IsoDatetime;
   completedAt: IsoDatetime;

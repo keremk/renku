@@ -13,7 +13,6 @@ import type { EventLog } from './event-log.js';
 import { hashInputContents } from './hashing.js';
 import {
   applyArtifactEventsToExecutionState,
-  createEmptyBuildState,
   createExecutionState,
 } from './execution-state.js';
 import { buildRunResultBuildStateSnapshot } from './run-result-build-state.js';
@@ -118,10 +117,7 @@ export function createRunner(options: RunnerOptions = {}) {
 
       const startedAt = clock.now();
       const jobs: JobResult[] = [];
-      const baselineHash =
-        plan.baselineHash ??
-        (plan as { manifestBaseHash?: string }).manifestBaseHash ??
-        '';
+      const baselineHash = plan.baselineHash ?? '';
 
       let executionState =
         context.executionState ??
@@ -205,7 +201,6 @@ export function createRunner(options: RunnerOptions = {}) {
         status,
         revision: plan.revision,
         baselineHash,
-        manifestBaseHash: baselineHash,
         jobs,
         startedAt,
         completedAt,
@@ -245,11 +240,7 @@ export function createRunner(options: RunnerOptions = {}) {
 }
 
 function normalizeBuildState(context: RunnerExecutionContext): BuildState {
-  if (context.buildState) {
-    return context.buildState;
-  }
-  const legacy = (context as { manifest?: BuildState }).manifest;
-  return legacy ?? createEmptyBuildState();
+  return context.buildState;
 }
 
 export async function hydrateExecutionState(args: {

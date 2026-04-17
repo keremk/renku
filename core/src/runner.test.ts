@@ -14,7 +14,7 @@ import type {
   ProduceResult,
 } from './types.js';
 
-const baseManifest: BuildState = {
+const baseBuildState: BuildState = {
   revision: 'rev-0000',
   baseRevision: null,
   createdAt: '2024-01-01T00:00:00.000Z',
@@ -95,7 +95,7 @@ describe('createRunner', () => {
     const runner = createRunner();
     const result = await runner.execute(plan, {
       movieId: 'movie-123',
-      buildState: baseManifest,
+      buildState: baseBuildState,
       storage,
       eventLog,
       produce,
@@ -152,7 +152,7 @@ describe('createRunner', () => {
     const runner = createRunner();
     const result = await runner.execute(plan, {
       movieId: 'movie-456',
-      buildState: baseManifest,
+      buildState: baseBuildState,
       storage,
       eventLog,
     });
@@ -190,7 +190,7 @@ describe('createRunner', () => {
     const runner = createRunner();
     const result = await runner.execute(plan, {
       movieId: 'movie-error',
-      buildState: baseManifest,
+      buildState: baseBuildState,
       storage,
       eventLog,
       produce,
@@ -243,7 +243,7 @@ describe('createRunner', () => {
     const runner = createRunner();
     await runner.execute(plan, {
       movieId: 'movie-recovery',
-      buildState: baseManifest,
+      buildState: baseBuildState,
       storage,
       eventLog,
       produce,
@@ -347,7 +347,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -359,7 +359,7 @@ describe('createRunner', () => {
       movieId: 'movie-alias',
       storage,
       eventLog,
-      buildState: manifest,
+      buildState,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -440,7 +440,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -452,7 +452,7 @@ describe('createRunner', () => {
       movieId: 'movie-fanin',
       storage,
       eventLog,
-      buildState: manifest,
+      buildState,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -582,7 +582,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -594,7 +594,7 @@ describe('createRunner', () => {
       movieId: 'movie-conditional-fanin',
       storage,
       eventLog,
-      buildState: manifest,
+      buildState,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -667,7 +667,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -679,7 +679,7 @@ describe('createRunner', () => {
       movieId: 'movie-all-conditional',
       storage,
       eventLog,
-      buildState: manifest,
+      buildState,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -829,7 +829,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: BuildState = {
+    const buildState: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -841,7 +841,7 @@ describe('createRunner', () => {
       movieId: 'movie-conditional-bindings',
       storage,
       eventLog,
-      buildState: manifest,
+      buildState,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -942,7 +942,7 @@ describe('createRunner', () => {
 
     await runner.execute(fanInPlan, {
       movieId: 'movie-fanin-assets',
-      buildState: baseManifest,
+      buildState: baseBuildState,
       storage,
       eventLog,
     });

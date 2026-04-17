@@ -1,11 +1,22 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { handleExecuteRequest } from './execute-handler.js';
+import {
+  handleExecuteRequest,
+  finalizeCancelledRunRecord,
+} from './execute-handler.js';
 import { getJobManager, resetJobManager } from './job-manager.js';
 import {
   createMockRequest,
   createMockResponse,
   parseResponseJson,
 } from './test-utils.js';
+import {
+  createRunRecordService,
+  createStorageContext,
+  initializeMovieStorage,
+} from '@gorenku/core';
 
 describe('handleExecuteRequest', () => {
   beforeEach(() => {
@@ -41,5 +52,52 @@ describe('handleExecuteRequest', () => {
       error: 'concurrency must be an integer',
     });
     expect(getJobManager().listJobs()).toHaveLength(0);
+  });
+
+  it('marks a persisted planned run as cancelled on disk', async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), 'viewer-execute-'));
+
+    try {
+      const storage = createStorageContext({
+        kind: 'local',
+        rootDir: tempRoot,
+        basePath: 'builds',
+      });
+      const movieId = 'movie-cancelled';
+      const revision = 'rev-0007';
+      await initializeMovieStorage(storage, movieId);
+
+      const runRecords = createRunRecordService(storage);
+      await runRecords.write(movieId, {
+        revision,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        inputSnapshotPath: `runs/${revision}-inputs.yaml`,
+        inputSnapshotHash: 'snapshot-hash',
+        planPath: `runs/${revision}-plan.json`,
+        runConfig: {},
+        status: 'planned',
+      });
+
+      await finalizeCancelledRunRecord({
+        cliConfig: {
+          storage: {
+            root: tempRoot,
+          },
+        },
+        cachedPlan: {
+          movieId,
+          basePath: 'builds',
+          plan: {
+            revision,
+          },
+        },
+      });
+
+      const record = await runRecords.load(movieId, revision);
+      expect(record?.status).toBe('cancelled');
+      expect(record?.completedAt).toBeDefined();
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
   });
 });

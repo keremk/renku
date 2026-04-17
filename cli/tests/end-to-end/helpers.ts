@@ -104,8 +104,8 @@ export async function readPlan(planPath: string): Promise<any> {
   return JSON.parse(contents);
 }
 
-export async function readManifest(manifestPath: string): Promise<any> {
-  const contents = await readFile(manifestPath, 'utf8');
+export async function readJsonFile(filePath: string): Promise<any> {
+  const contents = await readFile(filePath, 'utf8');
   return JSON.parse(contents);
 }
 

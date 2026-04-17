@@ -95,8 +95,12 @@ function WorkspaceLayoutInner({
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { state, initializeFromManifest, setTotalLayers, setLayerRange } =
-    useExecution();
+  const {
+    state,
+    initializeFromBuildArtifacts,
+    setTotalLayers,
+    setLayerRange,
+  } = useExecution();
   const isExecuting = state.status === 'executing';
 
   // Tab state management with auto-switching
@@ -397,9 +401,9 @@ function WorkspaceLayoutInner({
       return;
     }
     if (selectedBuildState?.artifacts) {
-      initializeFromManifest(selectedBuildState.artifacts);
+      initializeFromBuildArtifacts(selectedBuildState.artifacts);
     }
-  }, [selectedBuildState, initializeFromManifest, state.status]);
+  }, [selectedBuildState, initializeFromBuildArtifacts, state.status]);
 
   const handleNodeSelect = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);

@@ -103,7 +103,7 @@ type ExecutionAction =
   | { type: 'CANCEL' }
   | { type: 'DISMISS_DIALOG' }
   | { type: 'RESET' }
-  | { type: 'INIT_FROM_MANIFEST'; artifacts: ArtifactInfo[] }
+  | { type: 'INIT_FROM_BUILD_ARTIFACTS'; artifacts: ArtifactInfo[] }
   | { type: 'ADD_LOG_ENTRY'; entry: ExecutionLogEntry }
   | { type: 'SET_STOPPING'; isStopping: boolean }
   | { type: 'SHOW_BOTTOM_PANEL' }
@@ -278,7 +278,7 @@ function executionReducer(
         producerOverrides: state.producerOverrides,
       };
 
-    case 'INIT_FROM_MANIFEST': {
+    case 'INIT_FROM_BUILD_ARTIFACTS': {
       const statuses = mapArtifactsToProducerStatuses(action.artifacts);
       return {
         ...state,
@@ -666,7 +666,7 @@ interface ExecutionContextValue {
   dismissDialog: () => void;
   /** Dismiss the completion dialog, optionally clearing regeneration selections */
   dismissCompletion: (clearSelections: boolean) => void;
-  initializeFromManifest: (artifacts: ArtifactInfo[]) => void;
+  initializeFromBuildArtifacts: (artifacts: ArtifactInfo[]) => void;
   reset: () => void;
   showBottomPanel: () => void;
   hideBottomPanel: () => void;
@@ -1023,9 +1023,12 @@ export function ExecutionProvider({
     dispatch({ type: 'DISMISS_COMPLETION', clearSelections });
   }, []);
 
-  const initializeFromManifest = useCallback((artifacts: ArtifactInfo[]) => {
-    dispatch({ type: 'INIT_FROM_MANIFEST', artifacts });
-  }, []);
+  const initializeFromBuildArtifacts = useCallback(
+    (artifacts: ArtifactInfo[]) => {
+      dispatch({ type: 'INIT_FROM_BUILD_ARTIFACTS', artifacts });
+    },
+    []
+  );
 
   const reset = useCallback(() => {
     // Clean up SSE subscription
@@ -1157,7 +1160,7 @@ export function ExecutionProvider({
     cancelExecution,
     dismissDialog,
     dismissCompletion,
-    initializeFromManifest,
+    initializeFromBuildArtifacts,
     reset,
     showBottomPanel,
     hideBottomPanel,

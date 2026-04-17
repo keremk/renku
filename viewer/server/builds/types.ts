@@ -74,6 +74,7 @@ export interface BuildInfo {
   updatedAt: string;
   revision: string | null;
   hasBuildState: boolean;
+  hasInputSnapshot: boolean;
   hasInputsFile: boolean;
   displayName: string | null;
 }
@@ -125,6 +126,11 @@ export interface ArtifactInfo {
   provider?: string;
   /** Model name (e.g., 'kling-video') */
   model?: string;
+  /**
+   * True when the latest attempt failed/skipped but we can still display
+   * the most recent succeeded blob from an earlier run.
+   */
+  showingPreviousOutput?: boolean;
 }
 
 /**

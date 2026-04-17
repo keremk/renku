@@ -128,7 +128,14 @@ export function createRunRecordService(storage: StorageContext): RunRecordServic
         ...(args.startedAt ? { startedAt: args.startedAt } : {}),
         ...(args.completedAt ? { completedAt: args.completedAt } : {}),
         ...(args.summary ? { summary: args.summary } : {}),
-        ...(args.runConfig ? { runConfig: args.runConfig } : {}),
+        ...(args.runConfig
+          ? {
+              runConfig: {
+                ...record.runConfig,
+                ...args.runConfig,
+              },
+            }
+          : {}),
       };
       await this.write(args.movieId, updated);
       return updated;
