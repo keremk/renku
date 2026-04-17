@@ -75,7 +75,6 @@ describe('end-to-end: video-audio-music dry runs', () => {
 		expect(errors).toHaveLength(0);
 		expect(queryResult.planPath).toBeDefined();
 		await expectFileExists(queryResult.planPath);
-		await expectFileExists(queryResult.storagePath);
 
 		const plan = await readPlan(queryResult.planPath);
 		const scriptJob = findJob(plan, 'ScriptProducer');
@@ -195,6 +194,7 @@ describe('end-to-end: video-audio-music dry runs', () => {
 			storageMovieId: queryResult.storageMovieId,
 			isNew: false,
 			inputsPath: editedInputsPath,
+			blueprintSpecifier: blueprintPath,
 			dryRun: true,
 			nonInteractive: true,
 			logger,

@@ -52,6 +52,10 @@ export interface ExecuteBuildOptions {
 	persistRunLifecycle?: boolean;
 	/** Override storage context (used for transient dry-runs). */
 	storageContext?: StorageContext;
+	/** Override system storage root injected into producer inputs. */
+	systemStorageRoot?: string;
+	/** Override system storage base path injected into producer inputs. */
+	systemStorageBasePath?: string;
 	/** Condition hints for dry-run simulation (controls value alternation). */
 	conditionHints?: ConditionHints;
 	logger?: Logger;
@@ -107,6 +111,10 @@ export async function executeBuild(
 			basePath: options.cliConfig.storage.basePath,
 		});
 	const concurrency = normalizeConcurrency(options.concurrency);
+	const systemStorageRoot =
+		options.systemStorageRoot ?? options.cliConfig.storage.root;
+	const systemStorageBasePath =
+		options.systemStorageBasePath ?? options.cliConfig.storage.basePath;
 
 	await initializeMovieStorage(storage, options.movieId);
 
@@ -142,8 +150,8 @@ export async function executeBuild(
 		const resolvedInputsWithSystem = injectAllSystemInputs(
 			resolvedInputsWithBlobs,
 			options.movieId,
-			options.cliConfig.storage.root,
-			options.cliConfig.storage.basePath
+			systemStorageRoot,
+			systemStorageBasePath
 		);
 
 		const produce = createProviderProduce(

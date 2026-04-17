@@ -71,7 +71,6 @@ describe('end-to-end: image-audio dry runs', () => {
 		expect(warnings).toHaveLength(0);
 		expect(errors).toHaveLength(0);
 		await expectFileExists(queryResult.planPath);
-		await expectFileExists(queryResult.storagePath);
 
 		const plan = await readPlan(queryResult.planPath);
 

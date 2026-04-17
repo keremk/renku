@@ -1,7 +1,7 @@
 /* eslint-env node */
 import process from 'node:process';
 import './__testutils__/simulated-providers.js';
-import { mkdtemp, rm, stat, copyFile } from 'node:fs/promises';
+import { access, copyFile, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -178,5 +178,14 @@ describe('runExecute (edit flow)', () => {
 		expect(editResult.isDryRun).toBe(true);
 		expect(editResult.build?.jobCount).toBeGreaterThan(0);
 		expect(editResult.build?.counts.succeeded).toBeGreaterThan(0);
+		await expect(
+			access(resolve(queryResult.storagePath, 'events', 'runs.log'))
+		).resolves.toBeUndefined();
+		const runsLog = await readFile(
+			resolve(queryResult.storagePath, 'events', 'runs.log'),
+			'utf8'
+		);
+		expect(runsLog).toContain('"revision":"rev-0001"');
+		expect(runsLog).not.toContain('"revision":"rev-0002"');
 	});
 });

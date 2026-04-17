@@ -72,6 +72,9 @@ export interface GenerateOptions {
 	pinIds?: string[];
 	/** Optional path to a dry-run profile file. */
 	dryRunProfilePath?: string;
+
+	/** Persist an inspectable dry-run snapshot into a temp folder. */
+	saveDryRun?: boolean;
 }
 
 export interface GenerateResult {
@@ -86,6 +89,8 @@ export interface GenerateResult {
 	/** Dry-run validation coverage summary (present for dry-runs). */
 	dryRunValidation?: BlueprintDryRunValidationResult;
 	storagePath: string;
+	/** Temp folder containing an inspectable saved dry-run snapshot. */
+	savedDryRunPath?: string;
 	/** Path to artifacts folder (symlinks to build outputs) */
 	artifactsRoot?: string;
 	/** Materialized root outputs whose source artifacts are produced by the terminal producer layer. */
@@ -130,6 +135,17 @@ export async function runGenerate(
 			{
 				suggestion:
 					'Either remove --dry-run-profile/--profile, or add --dry-run to this command.',
+			}
+		);
+	}
+
+	if (options.saveDryRun && !options.dryRun) {
+		throw createRuntimeError(
+			RuntimeErrorCode.INVALID_INPUT_VALUE,
+			'--save-dry-run requires --dry-run. Remove the flag or run in dry-run mode.',
+			{
+				suggestion:
+					'Either remove --save-dry-run, or add --dry-run to this command.',
 			}
 		);
 	}
@@ -227,6 +243,7 @@ export async function runGenerate(
 			concurrency,
 			planningControls,
 			dryRunProfilePath: options.dryRunProfilePath,
+			saveDryRun: options.saveDryRun,
 			logger,
 			cliConfig: activeConfig,
 		});
@@ -274,6 +291,7 @@ export async function runGenerate(
 			isDryRun: editResult.isDryRun,
 			dryRunValidation: editResult.dryRunValidation,
 			storagePath: editResult.storagePath,
+			savedDryRunPath: editResult.savedDryRunPath,
 			artifactsRoot,
 			finalStageOutputs,
 			rootOutputs,
@@ -321,6 +339,7 @@ export async function runGenerate(
 		concurrency,
 		planningControls,
 		dryRunProfilePath: options.dryRunProfilePath,
+		saveDryRun: options.saveDryRun,
 		logger,
 		cliConfig: activeConfig,
 	});
@@ -377,6 +396,7 @@ export async function runGenerate(
 		isDryRun: queryResult.isDryRun,
 		dryRunValidation: queryResult.dryRunValidation,
 		storagePath: queryResult.storagePath,
+		savedDryRunPath: queryResult.savedDryRunPath,
 		artifactsRoot,
 		finalStageOutputs,
 		rootOutputs,

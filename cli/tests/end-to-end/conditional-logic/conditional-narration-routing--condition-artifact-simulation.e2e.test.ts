@@ -150,6 +150,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 			inputsPath,
 			blueprintSpecifier: blueprintPath,
 			dryRun: true,
+			saveDryRun: true,
 			nonInteractive: true,
 			logger,
 		});
@@ -216,7 +217,11 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		// ============================================================
 		// VERIFY: Build state contains all artifacts
 		// ============================================================
-		const buildState = await readCurrentBuildState(queryResult.storagePath);
+		const savedStoragePath = queryResult.savedDryRunPath;
+		if (!savedStoragePath) {
+			throw new Error('Expected saved dry-run path to be defined.');
+		}
+		const buildState = await readCurrentBuildState(savedStoragePath);
 		expect(buildState).toBeDefined();
 		expect(buildState.artifacts).toBeDefined();
 
@@ -237,7 +242,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		// ============================================================
 		// VERIFY: Boolean blob content is actual boolean values
 		// ============================================================
-		const blobsDir = resolve(queryResult.storagePath, 'blobs');
+		const blobsDir = resolve(savedStoragePath, 'blobs');
 		const booleanValues: boolean[] = [];
 
 		for (const artifactId of booleanBuildStateIds.sort()) {
@@ -399,6 +404,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 			inputsPath,
 			blueprintSpecifier: blueprintPath,
 			dryRun: true,
+			saveDryRun: true,
 			nonInteractive: true,
 			logger,
 		});
@@ -420,10 +426,14 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		// and try to navigate the field path, but that nested artifact doesn't exist.
 
 		// Read build state to verify blob content
-		const buildState = await readCurrentBuildState(queryResult.storagePath);
+		const savedStoragePath = queryResult.savedDryRunPath;
+		if (!savedStoragePath) {
+			throw new Error('Expected saved dry-run path to be defined.');
+		}
+		const buildState = await readCurrentBuildState(savedStoragePath);
 
 		// Check which boolean values were generated
-		const blobsDir = resolve(queryResult.storagePath, 'blobs');
+		const blobsDir = resolve(savedStoragePath, 'blobs');
 		const booleanArtifactIds = [
 			'Artifact:DocProducer.VideoScript.Segments[0].UseNarrationAudio',
 			'Artifact:DocProducer.VideoScript.Segments[1].UseNarrationAudio',

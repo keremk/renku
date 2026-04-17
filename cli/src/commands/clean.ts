@@ -2,10 +2,14 @@ import readline from 'node:readline';
 import process from 'node:process';
 import { resolve } from 'node:path';
 import { readdir, rm, stat } from 'node:fs/promises';
+import {
+  createStorageContext,
+  deleteMovieStorage,
+  resolveCurrentBuildContext,
+  type Logger,
+} from '@gorenku/core';
 import { getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
 import { formatMovieId } from './execute.js';
-import { createStorageContext, deleteMovieStorage } from '@gorenku/core';
-import type { Logger } from '@gorenku/core';
 
 export interface CleanOptions {
   /** Specific movie ID to clean */
@@ -27,8 +31,7 @@ export interface CleanResult {
 
 export async function runClean(options: CleanOptions): Promise<CleanResult> {
   const logger = options.logger ?? globalThis.console;
-  const globalConfig = await readCliConfig();
-  if (!globalConfig) {
+  if (!(await readCliConfig())) {
     throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
 
@@ -42,45 +45,16 @@ export async function runClean(options: CleanOptions): Promise<CleanResult> {
     basePath: projectStorage.basePath,
   });
 
-  // If specific movieId provided, clean that one (old behavior with artifacts naming)
   if (options.movieId) {
-    const storageMovieId = formatMovieId(options.movieId);
-    const buildPath = resolve(buildsRoot, storageMovieId);
-    const artifactPath = resolve(artifactsRoot, storageMovieId);
-
-    if (!(await pathExists(buildPath))) {
-      logger.info(`No build found for ${storageMovieId}`);
-      return { cleaned: [], protected: [], dryRun: Boolean(options.dryRun) };
-    }
-
-    const hasArtifacts = await pathExists(artifactPath);
-    if (hasArtifacts && !options.all) {
-      logger.info(`Build ${storageMovieId} has artifacts and is protected. Use --all to force clean.`);
-      return { cleaned: [], protected: [storageMovieId], dryRun: Boolean(options.dryRun) };
-    }
-
-    if (options.dryRun) {
-      logger.info(`Would clean: ${storageMovieId}`);
-      return { cleaned: [storageMovieId], protected: [], dryRun: true };
-    }
-
-    const confirmed = options.nonInteractive || await promptConfirm(
+    return cleanSpecificMovie({
       logger,
-      `This will delete ${buildPath}${hasArtifacts ? ` and ${artifactPath}` : ''}. Proceed? (y/n): `,
-    );
-    if (!confirmed) {
-      return { cleaned: [], protected: [], dryRun: false };
-    }
-
-    await deleteMovieStorage(storageContext, storageMovieId);
-    if (hasArtifacts) {
-      await rm(artifactPath, { recursive: true, force: true });
-    }
-    logger.info(`Cleaned ${storageMovieId}`);
-    return { cleaned: [storageMovieId], protected: [], dryRun: false };
+      options,
+      buildsRoot,
+      artifactsRoot,
+      storageContext,
+    });
   }
 
-  // Smart clean: scan builds folder and clean those without artifacts
   const builds = await listMovieIds(buildsRoot);
   if (builds.length === 0) {
     logger.info('No builds found in current directory.');
@@ -91,29 +65,30 @@ export async function runClean(options: CleanOptions): Promise<CleanResult> {
   const protectedBuilds: string[] = [];
 
   for (const movieId of builds) {
-    const artifactPath = resolve(artifactsRoot, movieId);
-    const hasArtifacts = await pathExists(artifactPath);
-    if (hasArtifacts && !options.all) {
+    const realBuild = await isRealBuild(storageContext, movieId);
+    if (realBuild && !options.all) {
       protectedBuilds.push(movieId);
-    } else {
-      cleanable.push(movieId);
+      continue;
     }
+    cleanable.push(movieId);
   }
 
   if (cleanable.length === 0) {
-    logger.info('No dry-run builds to clean.');
+    logger.info('No preview leftovers to clean.');
     if (protectedBuilds.length > 0) {
-      logger.info(`${protectedBuilds.length} build(s) with artifacts are protected.`);
+      logger.info(
+        `${protectedBuilds.length} real build(s) are protected. Use --all to remove them.`
+      );
     }
     return { cleaned: [], protected: protectedBuilds, dryRun: Boolean(options.dryRun) };
   }
 
-  logger.info('\nBuilds to clean (no artifacts):');
+  logger.info('\nBuilds to clean:');
   for (const movieId of cleanable) {
     logger.info(`  ○ ${movieId}`);
   }
   if (protectedBuilds.length > 0) {
-    logger.info('\nProtected builds (have artifacts):');
+    logger.info('\nProtected real builds:');
     for (const movieId of protectedBuilds) {
       logger.info(`  ✓ ${movieId}`);
     }
@@ -124,17 +99,18 @@ export async function runClean(options: CleanOptions): Promise<CleanResult> {
     return { cleaned: cleanable, protected: protectedBuilds, dryRun: true };
   }
 
-  const confirmed = options.nonInteractive || await promptConfirm(
-    logger,
-    `\nClean ${cleanable.length} dry-run build(s)? (y/n): `,
-  );
+  const confirmed =
+    options.nonInteractive ||
+    (await promptConfirm(
+      logger,
+      `\nClean ${cleanable.length} build(s)? (y/n): `,
+    ));
   if (!confirmed) {
     return { cleaned: [], protected: protectedBuilds, dryRun: false };
   }
 
   for (const movieId of cleanable) {
     await deleteMovieStorage(storageContext, movieId);
-    // Also remove artifacts if --all was used and they exist
     if (options.all) {
       const artifactPath = resolve(artifactsRoot, movieId);
       await rm(artifactPath, { recursive: true, force: true });
@@ -143,6 +119,65 @@ export async function runClean(options: CleanOptions): Promise<CleanResult> {
 
   logger.info(`Cleaned ${cleanable.length} build(s).`);
   return { cleaned: cleanable, protected: protectedBuilds, dryRun: false };
+}
+
+async function cleanSpecificMovie(args: {
+  logger: Logger;
+  options: CleanOptions;
+  buildsRoot: string;
+  artifactsRoot: string;
+  storageContext: ReturnType<typeof createStorageContext>;
+}): Promise<CleanResult> {
+  const movieId = args.options.movieId;
+  if (!movieId) {
+    throw new Error('cleanSpecificMovie requires movieId.');
+  }
+  const storageMovieId = formatMovieId(movieId);
+  const buildPath = resolve(args.buildsRoot, storageMovieId);
+  const artifactPath = resolve(args.artifactsRoot, storageMovieId);
+
+  if (!(await pathExists(buildPath))) {
+    args.logger.info(`No build found for ${storageMovieId}`);
+    return {
+      cleaned: [],
+      protected: [],
+      dryRun: Boolean(args.options.dryRun),
+    };
+  }
+
+  const hasArtifacts = await pathExists(artifactPath);
+  if (hasArtifacts && !args.options.all) {
+    args.logger.info(
+      `Build ${storageMovieId} has artifacts and is protected. Use --all to force clean.`
+    );
+    return {
+      cleaned: [],
+      protected: [storageMovieId],
+      dryRun: Boolean(args.options.dryRun),
+    };
+  }
+
+  if (args.options.dryRun) {
+    args.logger.info(`Would clean: ${storageMovieId}`);
+    return { cleaned: [storageMovieId], protected: [], dryRun: true };
+  }
+
+  const confirmed =
+    args.options.nonInteractive ||
+    (await promptConfirm(
+      args.logger,
+      `This will delete ${buildPath}${hasArtifacts ? ` and ${artifactPath}` : ''}. Proceed? (y/n): `,
+    ));
+  if (!confirmed) {
+    return { cleaned: [], protected: [], dryRun: false };
+  }
+
+  await deleteMovieStorage(args.storageContext, storageMovieId);
+  if (hasArtifacts) {
+    await rm(artifactPath, { recursive: true, force: true });
+  }
+  args.logger.info(`Cleaned ${storageMovieId}`);
+  return { cleaned: [storageMovieId], protected: [], dryRun: false };
 }
 
 async function listMovieIds(buildsRoot: string): Promise<string[]> {
@@ -154,6 +189,17 @@ async function listMovieIds(buildsRoot: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+async function isRealBuild(
+  storage: ReturnType<typeof createStorageContext>,
+  movieId: string
+): Promise<boolean> {
+  const context = await resolveCurrentBuildContext({
+    storage,
+    movieId,
+  });
+  return context.currentBuildRevision !== null || context.latestRunRevision !== null;
 }
 
 async function pathExists(targetPath: string): Promise<boolean> {

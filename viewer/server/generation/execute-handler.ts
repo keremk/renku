@@ -227,6 +227,9 @@ async function executeJobAsync(
   const jobManager = getJobManager();
   const { dryRun = false } = options;
   let executionPlan = cachedPlan.plan;
+  let committedRevision: RevisionId | null = dryRun
+    ? executionPlan.revision
+    : null;
   const persistedRunLifecycleService = createPersistedRunLifecycleService({
     cliConfig,
     basePath: cachedPlan.basePath,
@@ -289,6 +292,7 @@ async function executeJobAsync(
     if (!dryRun) {
       const committed = await cachedPlan.persist({ runConfig });
       executionPlan = committed.plan;
+      committedRevision = committed.plan.revision;
       executionStorage = createStorageContext({
         kind: 'local',
         rootDir: cliConfig.storage.root,
@@ -564,25 +568,20 @@ async function executeJobAsync(
       return;
     }
 
-    if (!dryRun) {
-      await persistedRunLifecycleService.appendCompleted(cachedPlan.movieId, {
-        type: 'run-completed',
-        revision: executionPlan.revision,
-        completedAt: new Date().toISOString(),
-        status: 'failed',
-        summary: {
-          jobCount: executionPlan.layers.reduce(
-            (total, layer) => total + layer.length,
-            0
-          ),
-          counts: {
-            succeeded: 0,
-            failed: 0,
-            skipped: 0,
-          },
-          layers: executionPlan.layers.length,
-        },
+    try {
+      await appendFailedCompletionIfCommitted({
+        dryRun,
+        movieId: cachedPlan.movieId,
+        revision: committedRevision,
+        executionPlan,
+        runLifecycleService: persistedRunLifecycleService,
       });
+    } catch (completionError) {
+      logger.error?.(
+        completionError instanceof Error
+          ? completionError.message
+          : String(completionError)
+      );
     }
 
     const errorMessage =
@@ -600,6 +599,37 @@ async function executeJobAsync(
     unsubscribeNotifications();
     notifications.complete();
   }
+}
+
+export async function appendFailedCompletionIfCommitted(args: {
+  dryRun: boolean;
+  movieId: string;
+  revision: RevisionId | null;
+  executionPlan: ExecutionPlan;
+  runLifecycleService: ReturnType<typeof createRunLifecycleService>;
+}): Promise<void> {
+  if (args.dryRun || !args.revision) {
+    return;
+  }
+
+  await args.runLifecycleService.appendCompleted(args.movieId, {
+    type: 'run-completed',
+    revision: args.revision,
+    completedAt: new Date().toISOString(),
+    status: 'failed',
+    summary: {
+      jobCount: args.executionPlan.layers.reduce(
+        (total, layer) => total + layer.length,
+        0
+      ),
+      counts: {
+        succeeded: 0,
+        failed: 0,
+        skipped: 0,
+      },
+      layers: args.executionPlan.layers.length,
+    },
+  });
 }
 
 /**

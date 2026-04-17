@@ -2,6 +2,7 @@
 import process from 'node:process';
 import './__testutils__/simulated-providers.js';
 import {
+	access,
 	copyFile,
 	mkdtemp,
 	readFile,
@@ -223,6 +224,83 @@ describe('runGenerate (new runs)', () => {
 		expect(result.build?.status).toBe('succeeded');
 		expect(result.build?.jobCount).toBeGreaterThan(0);
 		expect(result.build?.counts.succeeded).toBeGreaterThan(0);
+		await expect(
+			access(resolve(root, 'builds', formatMovieId(result.movieId)))
+		).rejects.toThrow();
+	});
+
+	it('can save a dry run into a temp folder without touching the workspace', async () => {
+		const root = await createTempRoot();
+		const cliConfigPath = join(root, 'cli-config.json');
+		process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
+
+		const inputsPath = await createInputsFile({
+			root,
+			prompt: 'Explain tides',
+			models: AUDIO_ONLY_MODELS,
+			includeDefaults: false,
+			overrides: AUDIO_ONLY_OVERRIDES,
+		});
+		const result = await runGenerate({
+			...LOG_DEFAULTS,
+			inputsPath,
+			dryRun: true,
+			saveDryRun: true,
+			nonInteractive: true,
+			blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+			storageOverride: { root, basePath: 'builds' },
+		});
+
+		expect(result.isDryRun).toBe(true);
+		expect(result.savedDryRunPath).toBeDefined();
+		await expect(
+			access(resolve(root, 'builds', formatMovieId(result.movieId)))
+		).rejects.toThrow();
+		const savedStats = await stat(result.savedDryRunPath ?? '');
+		expect(savedStats.isDirectory()).toBe(true);
+		const runsLogStats = await stat(
+			resolve(result.savedDryRunPath ?? '', 'events', 'runs.log')
+		);
+		expect(runsLogStats.isFile()).toBe(true);
+	});
+
+	it('rejects --save-dry-run without --dry-run', async () => {
+		const root = await createTempRoot();
+		const cliConfigPath = join(root, 'cli-config.json');
+		process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
+
+		const inputsPath = await createInputsFile({
+			root,
+			prompt: 'Invalid save dry run',
+			models: AUDIO_ONLY_MODELS,
+			includeDefaults: false,
+			overrides: AUDIO_ONLY_OVERRIDES,
+		});
+
+		await expect(
+			runGenerate({
+				...LOG_DEFAULTS,
+				inputsPath,
+				saveDryRun: true,
+				nonInteractive: true,
+				blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+				storageOverride: { root, basePath: 'builds' },
+			})
+		).rejects.toMatchObject({
+			code: RuntimeErrorCode.INVALID_INPUT_VALUE,
+		});
 	});
 
 	it('runs the video + audio + music blueprint with timeline stub', async () => {

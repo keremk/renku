@@ -286,6 +286,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 				blueprint: blueprintPath,
 				inputsPath,
 				dryRun: true,
+				saveDryRun: true,
 				dryRunProfilePath: profilePath,
 				nonInteractive: true,
 				logLevel: 'info',
@@ -300,8 +301,12 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 			expect(result.dryRunValidation?.failedCases).toBe(0);
 			expect(result.dryRunValidation?.failures).toHaveLength(0);
 			expect(result.dryRunValidation?.totalCases).toBeGreaterThan(0);
+			const savedStoragePath = result.savedDryRunPath;
+			if (!savedStoragePath) {
+				throw new Error('Expected saved dry-run path to be defined.');
+			}
 
-			const runLifecycleLogPath = resolve(result.storagePath, 'events', 'runs.log');
+			const runLifecycleLogPath = resolve(savedStoragePath, 'events', 'runs.log');
 			let runLifecycleLog = '';
 			try {
 				await access(runLifecycleLogPath);
@@ -309,10 +314,10 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 			} catch {
 				runLifecycleLog = '';
 			}
-			expect(runLifecycleLog).not.toContain('"type":"run-started"');
-			expect(runLifecycleLog).not.toContain('"type":"run-completed"');
+			expect(runLifecycleLog).toContain('"type":"run-started"');
+			expect(runLifecycleLog).toContain('"type":"run-completed"');
 
-			const buildState = await readBuildState(result.storagePath);
+			const buildState = await readBuildState(savedStoragePath);
 
 			const shotTypeIds = Object.keys(buildState.artifacts)
 				.filter(
@@ -348,7 +353,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 				expect(blob?.mimeType).toBe('text/plain');
 				observedShotTypes.push(
 					await readTextBlob({
-						storagePath: result.storagePath,
+						storagePath: savedStoragePath,
 						hash: blob!.hash,
 					})
 				);
@@ -360,7 +365,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 				expect(blob).toBeDefined();
 				expect(blob?.mimeType).toBe('text/plain');
 				const value = await readTextBlob({
-					storagePath: result.storagePath,
+					storagePath: savedStoragePath,
 					hash: blob!.hash,
 				});
 				observedSceneNumbers.push(Number.parseInt(value, 10));
@@ -373,7 +378,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 				expect(blob?.mimeType).toBe('text/plain');
 				observedCharacterPresence.push(
 					await readTextBlob({
-						storagePath: result.storagePath,
+						storagePath: savedStoragePath,
 						hash: blob!.hash,
 					})
 				);
@@ -480,6 +485,7 @@ cases:
 				blueprint: blueprintPath,
 				inputsPath,
 				dryRun: true,
+				saveDryRun: true,
 				dryRunProfilePath: profilePath,
 				nonInteractive: true,
 				logLevel: 'info',
@@ -492,8 +498,12 @@ cases:
 			expect(result.isDryRun).toBe(true);
 			expect(result.dryRunValidation).toBeDefined();
 			expect(result.dryRunValidation?.sourceTestFilePath).toBe(profilePath);
+			const savedStoragePath = result.savedDryRunPath;
+			if (!savedStoragePath) {
+				throw new Error('Expected saved dry-run path to be defined.');
+			}
 
-			const buildState = await readBuildState(result.storagePath);
+			const buildState = await readBuildState(savedStoragePath);
 
 			const narrationTypeIds = Object.keys(buildState.artifacts)
 				.filter(
@@ -520,7 +530,7 @@ cases:
 				expect(blob?.mimeType).toBe('text/plain');
 				observedNarrationTypes.push(
 					await readTextBlob({
-						storagePath: result.storagePath,
+						storagePath: savedStoragePath,
 						hash: blob!.hash,
 					})
 				);
@@ -533,7 +543,7 @@ cases:
 				expect(blob?.mimeType).toBe('text/plain');
 				observedUseNarrationAudio.push(
 					await readTextBlob({
-						storagePath: result.storagePath,
+						storagePath: savedStoragePath,
 						hash: blob!.hash,
 					})
 				);

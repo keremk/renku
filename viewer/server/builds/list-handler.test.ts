@@ -11,7 +11,7 @@ import {
 import { listBuilds } from "./list-handler.js";
 
 describe("listBuilds", () => {
-  it("keeps draft-only builds in the inputs-only state", async () => {
+  it("hides preview-only folders that never became real builds", async () => {
     const blueprintFolder = await mkdtemp(
       path.join(tmpdir(), "viewer-build-list-")
     );
@@ -42,14 +42,7 @@ describe("listBuilds", () => {
       });
 
       const result = await listBuilds(blueprintFolder);
-      expect(result.builds).toHaveLength(1);
-      expect(result.builds[0]).toMatchObject({
-        movieId,
-        revision: null,
-        hasBuildState: false,
-        hasInputSnapshot: false,
-        hasInputsFile: true,
-      });
+      expect(result.builds).toHaveLength(0);
     } finally {
       await rm(blueprintFolder, { recursive: true, force: true });
     }

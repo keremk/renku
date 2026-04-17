@@ -1,8 +1,9 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  appendFailedCompletionIfCommitted,
   handleExecuteRequest,
   finalizeCancelledRun,
 } from './execute-handler.js';
@@ -99,5 +100,24 @@ describe('handleExecuteRequest', () => {
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
     }
+  });
+
+  it('skips failed completion bookkeeping when execution was never committed', async () => {
+    const appendCompleted = vi.fn();
+
+    await appendFailedCompletionIfCommitted({
+      dryRun: false,
+      movieId: 'movie-test',
+      revision: null,
+      executionPlan: {
+        revision: 'rev-draft',
+        layers: [],
+      } as never,
+      runLifecycleService: {
+        appendCompleted,
+      } as never,
+    });
+
+    expect(appendCompleted).not.toHaveBeenCalled();
   });
 });

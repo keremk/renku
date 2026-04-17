@@ -82,8 +82,12 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
           // Ignore read errors
         }
 
-        // Keep any build that still has either displayable artifacts or saved inputs.
-        if (!hasBuildState && !hasInputsFile && !hasInputSnapshot) {
+        const hasRealBuild =
+          currentBuildRevision !== null || snapshotSourceRun !== null;
+
+        // Only show real execution-backed builds. Preview-only leftovers and
+        // inputs-only folders are not real builds and should stay hidden.
+        if (!hasRealBuild) {
           continue;
         }
 

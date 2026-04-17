@@ -1,7 +1,11 @@
 import { resolve } from 'node:path';
 import { readdir, stat } from 'node:fs/promises';
+import {
+  createStorageContext,
+  resolveCurrentBuildContext,
+  type Logger,
+} from '@gorenku/core';
 import { getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
-import type { Logger } from '@gorenku/core';
 
 export interface ListOptions {
   logger?: Logger;
@@ -18,14 +22,18 @@ export interface ListResult {
 
 export async function runList(options: ListOptions = {}): Promise<ListResult> {
   const logger = options.logger ?? globalThis.console;
-  const globalConfig = await readCliConfig();
-  if (!globalConfig) {
+  if (!(await readCliConfig())) {
     throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
 
   const projectStorage = getProjectLocalStorage();
   const buildsRoot = resolve(projectStorage.root, projectStorage.basePath);
   const artifactsRoot = resolve(projectStorage.root, 'artifacts');
+  const storage = createStorageContext({
+    kind: 'local',
+    rootDir: projectStorage.root,
+    basePath: projectStorage.basePath,
+  });
 
   const movieIds = await listMovieIds(buildsRoot);
   if (movieIds.length === 0) {
@@ -35,12 +43,20 @@ export async function runList(options: ListOptions = {}): Promise<ListResult> {
 
   const builds: BuildInfo[] = [];
   for (const movieId of movieIds) {
+    if (!(await isRealBuild(storage, movieId))) {
+      continue;
+    }
+
     const artifactPath = resolve(artifactsRoot, movieId);
     const hasArtifacts = await pathExists(artifactPath);
     builds.push({ movieId, hasArtifacts });
   }
 
-  // Sort: builds with artifacts first, then by name
+  if (builds.length === 0) {
+    logger.info('No builds found in current directory.');
+    return { builds: [] };
+  }
+
   builds.sort((a, b) => {
     if (a.hasArtifacts !== b.hasArtifacts) {
       return a.hasArtifacts ? -1 : 1;
@@ -51,16 +67,8 @@ export async function runList(options: ListOptions = {}): Promise<ListResult> {
   logger.info('Builds in current project:\n');
   for (const build of builds) {
     const icon = build.hasArtifacts ? '✓' : '○';
-    const status = build.hasArtifacts ? '(has artifacts)' : '(dry-run, no artifacts)';
+    const status = build.hasArtifacts ? '(has artifacts)' : '(no artifacts)';
     logger.info(`  ${icon} ${build.movieId} ${status}`);
-  }
-
-  const withArtifacts = builds.filter((b) => b.hasArtifacts).length;
-  const dryRuns = builds.length - withArtifacts;
-
-  logger.info('');
-  if (dryRuns > 0) {
-    logger.info(`Run \`renku clean\` to remove ${dryRuns} dry-run build(s).`);
   }
 
   return { builds };
@@ -75,6 +83,17 @@ async function listMovieIds(buildsRoot: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+async function isRealBuild(
+  storage: ReturnType<typeof createStorageContext>,
+  movieId: string
+): Promise<boolean> {
+  const context = await resolveCurrentBuildContext({
+    storage,
+    movieId,
+  });
+  return context.currentBuildRevision !== null || context.latestRunRevision !== null;
 }
 
 async function pathExists(targetPath: string): Promise<boolean> {

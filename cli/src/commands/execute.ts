@@ -1,5 +1,5 @@
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import {
 	getDefaultCliConfigPath,
@@ -19,6 +19,7 @@ import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { cleanupPartialRunDirectory } from '../lib/cleanup.js';
 import {
 	buildBlueprintValidationCases,
+	commitExecutionDraft,
 	conditionAnalysisToVaryingHints,
 	parseBlueprintValidationScenario,
 	readBlobFromStorage,
@@ -31,6 +32,7 @@ import {
 	initializeMovieStorage,
 	type ExecutionPlan,
 	type Logger,
+	type RunConfig,
 	type RootOutputBinding,
 } from '@gorenku/core';
 
@@ -77,6 +79,9 @@ export interface ExecuteOptions {
 	/** Optional dry-run profile path (alias: --profile). */
 	dryRunProfilePath?: string;
 
+	/** Persist an inspectable dry-run snapshot into a temp folder. */
+	saveDryRun?: boolean;
+
 	/** Logger instance */
 	logger: Logger;
 
@@ -98,7 +103,7 @@ export interface ExecuteResult {
 	/** Storage movie ID (with "movie-" prefix) */
 	storageMovieId: string;
 
-	/** Path to saved plan JSON for a committed execution. */
+	/** Path to the saved plan JSON. Dry-runs use a transient plan file unless a temp snapshot was saved. */
 	planPath?: string;
 
 	/** Plan revision string for a committed execution. */
@@ -113,7 +118,7 @@ export interface ExecuteResult {
 	/** Dry-run validation coverage summary (present for dry-runs). */
 	dryRunValidation?: BlueprintDryRunValidationResult;
 
-	/** Path to movie storage directory */
+	/** Path to the workspace movie storage directory. Dry-runs may leave this path untouched. */
 	storagePath: string;
 
 	/** Exact root Output:... connector bindings captured on the plan. */
@@ -127,6 +132,9 @@ export interface ExecuteResult {
 
 	/** Whether cleanup was performed on cancel/costs-only */
 	cleanedUp?: boolean;
+
+	/** Temp folder containing an inspectable saved dry-run snapshot. */
+	savedDryRunPath?: string;
 }
 
 /**
@@ -285,59 +293,91 @@ export async function runExecute(
 		committedPlan = await planResult.persist({ runConfig });
 	}
 
-	const { buildResult, dryRunValidation } = options.dryRun
-		? await executeDryRunWithValidation({
-				cliConfig,
-				storageMovieId,
-				blueprintPath,
-				inputsPath,
-				planResult,
-				concurrency,
-				upToLayer,
-				regenerateIds,
-				dryRunProfilePath: options.dryRunProfilePath,
-				logger,
-			})
-		: {
-				buildResult: await executeBuild({
+	let mainResult: ExecuteResult | undefined;
+	let cleanedUp = false;
+	try {
+		const { buildResult, dryRunValidation } = options.dryRun
+			? await executeDryRunWithValidation({
 					cliConfig,
-					movieId: storageMovieId,
-					plan: committedPlan!.plan,
-					buildState: planResult.buildState,
-					baselineHash: planResult.baselineHash,
-					executionState: planResult.executionState,
-					providerOptions: planResult.providerOptions,
-					resolvedInputs: planResult.resolvedInputs,
-					catalog: planResult.modelCatalog,
-					catalogModelsDir: planResult.catalogModelsDir,
-					logger,
+					storageMovieId,
+					blueprintPath,
+					inputsPath,
+					planResult,
+					runConfig,
 					concurrency,
 					upToLayer,
 					regenerateIds,
-					dryRun: false,
-				}),
-				dryRunValidation: undefined,
-			};
+					dryRunProfilePath: options.dryRunProfilePath,
+					saveDryRun: options.saveDryRun,
+					logger,
+				})
+			: {
+					buildResult: await executeBuild({
+						cliConfig,
+						movieId: storageMovieId,
+						plan: committedPlan!.plan,
+						buildState: planResult.buildState,
+						baselineHash: planResult.baselineHash,
+						executionState: planResult.executionState,
+						providerOptions: planResult.providerOptions,
+						resolvedInputs: planResult.resolvedInputs,
+						catalog: planResult.modelCatalog,
+						catalogModelsDir: planResult.catalogModelsDir,
+						logger,
+						concurrency,
+						upToLayer,
+						regenerateIds,
+						dryRun: false,
+					}),
+					dryRunValidation: undefined,
+				};
 
-	const transientPlanPath = options.dryRun
-		? await writeTransientPlanFile({
+		const transientPlanPath = options.dryRun
+			? await writeTransientPlanFile({
+					movieId: storageMovieId,
+					plan: planResult.plan,
+				})
+			: undefined;
+
+		mainResult = {
+			movieId: options.movieId ?? normalizePublicId(storageMovieId),
+			storageMovieId,
+			planPath:
+				committedPlan?.planPath ??
+				(options.dryRun && 'planPath' in buildResult
+					? buildResult.planPath ?? transientPlanPath
+					: transientPlanPath),
+			targetRevision: committedPlan?.targetRevision,
+			build: buildResult.summary,
+			isDryRun: buildResult.dryRun,
+			dryRunValidation,
+			storagePath: movieDir,
+			rootOutputBindings: planResult.plan.rootOutputBindings,
+			finalStageProducerJobIds: planResult.plan.finalStageProducerJobIds,
+			resolvedInputs: planResult.resolvedInputs,
+			savedDryRunPath:
+				options.dryRun && 'savedDryRunPath' in buildResult
+					? buildResult.savedDryRunPath
+					: undefined,
+		};
+	} finally {
+		if (options.dryRun) {
+			cleanedUp = await cleanupPartialRunDirectory({
+				storageRoot,
+				basePath,
 				movieId: storageMovieId,
-				plan: planResult.plan,
-			})
-		: undefined;
+				isNew,
+			});
+		}
+	}
+
+	if (!mainResult) {
+		throw new Error('Execution completed without producing a result.');
+	}
 
 	return {
-		movieId: options.movieId ?? normalizePublicId(storageMovieId),
-		storageMovieId,
-		planPath: committedPlan?.planPath ?? transientPlanPath,
-		targetRevision: committedPlan?.targetRevision,
-		build: buildResult.summary,
-		isDryRun: buildResult.dryRun,
-		dryRunValidation,
-		storagePath: movieDir,
-		rootOutputBindings: planResult.plan.rootOutputBindings,
-		finalStageProducerJobIds: planResult.plan.finalStageProducerJobIds,
-		resolvedInputs: planResult.resolvedInputs,
+		...mainResult,
+		cleanedUp: options.dryRun ? cleanedUp : mainResult.cleanedUp,
 	};
 }
 
@@ -357,13 +397,18 @@ async function executeDryRunWithValidation(args: {
 	blueprintPath: string;
 	inputsPath: string;
 	planResult: Awaited<ReturnType<typeof generatePlan>>;
+	runConfig: RunConfig;
 	concurrency: number;
 	upToLayer?: number;
 	regenerateIds?: string[];
 	dryRunProfilePath?: string;
+	saveDryRun?: boolean;
 	logger: Logger;
 }): Promise<{
-	buildResult: Awaited<ReturnType<typeof executeBuild>>;
+	buildResult: Awaited<ReturnType<typeof executeBuild>> & {
+		planPath?: string;
+		savedDryRunPath?: string;
+	};
 	dryRunValidation: BlueprintDryRunValidationResult;
 }> {
 	const silentValidationLogger: Logger = {
@@ -416,104 +461,227 @@ async function executeDryRunWithValidation(args: {
 
 	let baselineHashCursor = args.planResult.baselineHash;
 	let primaryBuildResult: Awaited<ReturnType<typeof executeBuild>> | undefined;
+	const validationStorage = await createTransientDryRunStorageContext({
+		cliConfig: args.cliConfig,
+		storageMovieId: args.storageMovieId,
+		blueprintPath: args.blueprintPath,
+		planResult: args.planResult,
+	});
 
-	const storage = args.planResult.planningStorage;
+	try {
+		const executeDryRunBuild = async (
+			conditionHints = args.planResult.conditionHints,
+			baselineHash = baselineHashCursor,
+			logger = args.logger
+		) =>
+			executeBuild({
+				cliConfig: args.cliConfig,
+				movieId: args.storageMovieId,
+				plan: args.planResult.plan,
+				buildState: args.planResult.buildState,
+				baselineHash,
+				executionState: args.planResult.executionState,
+				providerOptions: args.planResult.providerOptions,
+				resolvedInputs: args.planResult.resolvedInputs,
+				catalog: args.planResult.modelCatalog,
+				catalogModelsDir: args.planResult.catalogModelsDir,
+				logger,
+				concurrency: args.concurrency,
+				upToLayer: args.upToLayer,
+				regenerateIds: args.regenerateIds,
+				dryRun: true,
+				persistRunLifecycle: false,
+				storageContext: validationStorage.storageContext,
+				systemStorageRoot: validationStorage.tempRoot,
+				systemStorageBasePath: 'builds',
+				conditionHints,
+			});
 
-	const executeDryRunBuild = async (
-		conditionHints = args.planResult.conditionHints,
-		storageContext = args.planResult.planningStorage,
-		baselineHash = baselineHashCursor,
-		logger = args.logger
-	) =>
-		executeBuild({
-			cliConfig: args.cliConfig,
-			movieId: args.storageMovieId,
-			plan: args.planResult.plan,
-			buildState: args.planResult.buildState,
-			baselineHash,
-			executionState: args.planResult.executionState,
-			providerOptions: args.planResult.providerOptions,
-			resolvedInputs: args.planResult.resolvedInputs,
-			catalog: args.planResult.modelCatalog,
-			catalogModelsDir: args.planResult.catalogModelsDir,
-			logger,
-			concurrency: args.concurrency,
-			upToLayer: args.upToLayer,
-			regenerateIds: args.regenerateIds,
-			dryRun: true,
-			persistRunLifecycle: false,
-			storageContext,
-			conditionHints,
+		const dryRunValidation = await runBlueprintDryRunValidation({
+			conditionAnalysis,
+			cases,
+			sourceTestFilePath: loadedScenario?.path,
+			executeCase: async ({ caseDefinition, caseIndex }) => {
+				const buildResult = await executeDryRunBuild(
+					caseDefinition.conditionHints ?? args.planResult.conditionHints,
+					baselineHashCursor,
+					silentValidationLogger
+				);
+
+				baselineHashCursor = buildResult.baselineHash;
+				if (caseIndex === 0) {
+					primaryBuildResult = buildResult;
+				}
+
+				return {
+					movieId: args.storageMovieId,
+					failedJobs: collectFailedJobsFromSummary(buildResult.summary),
+					artifactIds: Object.keys(buildResult.buildState.artifacts),
+					readArtifactText: async (artifactId: string): Promise<string> => {
+						const entry = buildResult.buildState.artifacts[artifactId];
+						if (!entry) {
+							throw new Error(
+								`Missing build-state artifact ${artifactId} in dry-run case ${caseDefinition.id}.`
+							);
+						}
+						if (!entry.blob) {
+							throw new Error(
+								`Expected blob content for ${artifactId} in dry-run case ${caseDefinition.id}.`
+							);
+						}
+
+						const blob = await readBlobFromStorage(
+							validationStorage.storageContext,
+							args.storageMovieId,
+							entry.blob
+						);
+						return Buffer.from(blob.data).toString('utf8');
+					},
+				};
+			},
 		});
 
-	const dryRunValidation = await runBlueprintDryRunValidation({
-		conditionAnalysis,
-		cases,
-		sourceTestFilePath: loadedScenario?.path,
-		executeCase: async ({ caseDefinition, caseIndex }) => {
-			const buildResult = await executeDryRunBuild(
-				caseDefinition.conditionHints ?? args.planResult.conditionHints,
-				args.planResult.planningStorage,
+		if (cases.length > 1) {
+			const baselineCase = cases[0]!;
+			const baselineBuildResult = await executeDryRunBuild(
+				baselineCase.conditionHints ?? args.planResult.conditionHints,
 				baselineHashCursor,
 				silentValidationLogger
 			);
 
-			baselineHashCursor = buildResult.baselineHash;
-			if (caseIndex === 0) {
-				primaryBuildResult = buildResult;
-			}
+			baselineHashCursor = baselineBuildResult.baselineHash;
+			primaryBuildResult = baselineBuildResult;
+		}
 
+		if (!primaryBuildResult) {
+			throw new Error('Dry-run validation did not execute a primary case.');
+		}
+
+		if (!args.saveDryRun) {
 			return {
-				movieId: args.storageMovieId,
-				failedJobs: collectFailedJobsFromSummary(buildResult.summary),
-				artifactIds: Object.keys(buildResult.buildState.artifacts),
-				readArtifactText: async (artifactId: string): Promise<string> => {
-					const entry = buildResult.buildState.artifacts[artifactId];
-					if (!entry) {
-						throw new Error(
-							`Missing build-state artifact ${artifactId} in dry-run case ${caseDefinition.id}.`
-						);
-					}
-					if (!entry.blob) {
-						throw new Error(
-							`Expected blob content for ${artifactId} in dry-run case ${caseDefinition.id}.`
-						);
-					}
-
-					const blob = await readBlobFromStorage(
-						storage,
-						args.storageMovieId,
-						entry.blob
-					);
-					return Buffer.from(blob.data).toString('utf8');
-				},
+				buildResult: primaryBuildResult,
+				dryRunValidation,
 			};
-		},
-	});
+		}
 
-	if (cases.length > 1) {
-		const baselineCase = cases[0]!;
-		const baselineBuildResult = await executeDryRunBuild(
-			baselineCase.conditionHints ?? args.planResult.conditionHints,
-			args.planResult.planningStorage,
-			baselineHashCursor,
-			silentValidationLogger
-		);
-
-		baselineHashCursor = baselineBuildResult.baselineHash;
-		primaryBuildResult = baselineBuildResult;
+		const primaryConditionHints =
+			cases[0]?.conditionHints ?? args.planResult.conditionHints;
+		const materializedBuildResult = await persistDryRunSnapshotToTemp({
+			cliConfig: args.cliConfig,
+			storageMovieId: args.storageMovieId,
+			blueprintPath: args.blueprintPath,
+			inputsPath: args.inputsPath,
+			planResult: args.planResult,
+			runConfig: args.runConfig,
+			concurrency: args.concurrency,
+			upToLayer: args.upToLayer,
+			regenerateIds: args.regenerateIds,
+			conditionHints: primaryConditionHints,
+			logger: silentValidationLogger,
+		});
+		return {
+			buildResult: materializedBuildResult,
+			dryRunValidation,
+		};
+	} finally {
+		await rm(validationStorage.tempRoot, { recursive: true, force: true });
 	}
+}
 
-	if (!primaryBuildResult) {
-		throw new Error('Dry-run validation did not execute a primary case.');
-	}
-
-	const localStorageContext = createStorageContext({
+async function createTransientDryRunStorageContext(args: {
+	cliConfig: CliConfig;
+	storageMovieId: string;
+	blueprintPath: string;
+	planResult: Awaited<ReturnType<typeof generatePlan>>;
+}): Promise<{
+	tempRoot: string;
+	storageContext: import('@gorenku/core').StorageContext;
+}> {
+	const tempRoot = await mkdtemp(join(tmpdir(), 'renku-dry-run-exec-'));
+	const workspaceStorageContext = createStorageContext({
 		kind: 'local',
 		rootDir: args.cliConfig.storage.root,
-		basePath: args.cliConfig.storage.basePath ?? 'builds',
+		basePath: args.cliConfig.storage.basePath,
 	});
+	const tempStorageContext = createStorageContext({
+		kind: 'local',
+		rootDir: tempRoot,
+		basePath: 'builds',
+	});
+
+	await initializeMovieStorage(tempStorageContext, args.storageMovieId);
+	await copyRunArchivesBetweenContexts({
+		source: workspaceStorageContext,
+		target: tempStorageContext,
+		movieId: args.storageMovieId,
+	});
+	await copyEventLogsBetweenContexts({
+		source: workspaceStorageContext,
+		target: tempStorageContext,
+		movieId: args.storageMovieId,
+	});
+	await copyBlobsBetweenContexts({
+		source: workspaceStorageContext,
+		target: tempStorageContext,
+		movieId: args.storageMovieId,
+	});
+	const metadataService = createMovieMetadataService(tempStorageContext);
+	await metadataService.merge(args.storageMovieId, {
+		blueprintPath: args.blueprintPath,
+	});
+	await copyBlobsFromMemoryToLocal(
+		args.planResult.planningStorage,
+		tempStorageContext,
+		args.storageMovieId
+	);
+
+	return {
+		tempRoot,
+		storageContext: tempStorageContext,
+	};
+}
+
+async function persistDryRunSnapshotToTemp(args: {
+	cliConfig: CliConfig;
+	storageMovieId: string;
+	blueprintPath: string;
+	inputsPath: string;
+	planResult: Awaited<ReturnType<typeof generatePlan>>;
+	runConfig: RunConfig;
+	concurrency: number;
+	upToLayer?: number;
+	regenerateIds?: string[];
+	conditionHints?: import('@gorenku/providers').ConditionHints;
+	logger: Logger;
+}): Promise<
+	Awaited<ReturnType<typeof executeBuild>> & {
+		planPath: string;
+		savedDryRunPath: string;
+	}
+> {
+	const tempRoot = await mkdtemp(join(tmpdir(), 'renku-dry-run-'));
+	const workspaceStorageContext = createStorageContext({
+		kind: 'local',
+		rootDir: args.cliConfig.storage.root,
+		basePath: args.cliConfig.storage.basePath,
+	});
+	const localStorageContext = createStorageContext({
+		kind: 'local',
+		rootDir: tempRoot,
+		basePath: 'builds',
+	});
+
 	await initializeMovieStorage(localStorageContext, args.storageMovieId);
+	await copyRunArchivesBetweenContexts({
+		source: workspaceStorageContext,
+		target: localStorageContext,
+		movieId: args.storageMovieId,
+	});
+	await copyEventLogsBetweenContexts({
+		source: workspaceStorageContext,
+		target: localStorageContext,
+		movieId: args.storageMovieId,
+	});
 	const metadataService = createMovieMetadataService(localStorageContext);
 	await metadataService.merge(args.storageMovieId, {
 		blueprintPath: args.blueprintPath,
@@ -523,17 +691,113 @@ async function executeDryRunWithValidation(args: {
 		localStorageContext,
 		args.storageMovieId
 	);
-	const primaryConditionHints =
-		cases[0]?.conditionHints ?? args.planResult.conditionHints;
-	const materializedBuildResult = await executeDryRunBuild(
-		primaryConditionHints,
-		localStorageContext,
-		args.planResult.baselineHash
-	);
+
+	const inputSnapshotBytes = await readFile(args.inputsPath);
+	const committed = await commitExecutionDraft({
+		movieId: args.storageMovieId,
+		storage: localStorageContext,
+		draftPlan: args.planResult.plan,
+		draftInputEvents: args.planResult.inputEvents,
+		draftArtifactEvents: args.planResult.artifactEvents,
+		inputSnapshotContents: inputSnapshotBytes,
+		runConfig: args.runConfig,
+	});
+
+	const buildResult = await executeBuild({
+		cliConfig: args.cliConfig,
+		movieId: args.storageMovieId,
+		plan: committed.plan,
+		buildState: args.planResult.buildState,
+		baselineHash: args.planResult.baselineHash,
+		executionState: args.planResult.executionState,
+		providerOptions: args.planResult.providerOptions,
+		resolvedInputs: args.planResult.resolvedInputs,
+		catalog: args.planResult.modelCatalog,
+		catalogModelsDir: args.planResult.catalogModelsDir,
+		logger: args.logger,
+		concurrency: args.concurrency,
+		upToLayer: args.upToLayer,
+		regenerateIds: args.regenerateIds,
+		dryRun: true,
+		storageContext: localStorageContext,
+		systemStorageRoot: tempRoot,
+		systemStorageBasePath: 'builds',
+		conditionHints: args.conditionHints,
+	});
+
+	const savedDryRunPath = resolve(tempRoot, 'builds', args.storageMovieId);
 	return {
-		buildResult: materializedBuildResult,
-		dryRunValidation,
+		...buildResult,
+		planPath: resolve(savedDryRunPath, committed.planPath),
+		savedDryRunPath,
 	};
+}
+
+async function copyRunArchivesBetweenContexts(args: {
+	source: import('@gorenku/core').StorageContext;
+	target: import('@gorenku/core').StorageContext;
+	movieId: string;
+}): Promise<void> {
+	const runsDir = args.source.resolve(args.movieId, 'runs');
+	if (!(await args.source.storage.directoryExists(runsDir))) {
+		return;
+	}
+
+	const listing = args.source.storage.list(runsDir, { deep: true });
+	for await (const item of listing) {
+		if (item.type !== 'file') {
+			continue;
+		}
+		const content = await args.source.storage.readToUint8Array(item.path);
+		await args.target.storage.write(item.path, Buffer.from(content), {
+			mimeType: item.path.endsWith('.json')
+				? 'application/json'
+				: 'application/x-yaml',
+		});
+	}
+}
+
+async function copyEventLogsBetweenContexts(args: {
+	source: import('@gorenku/core').StorageContext;
+	target: import('@gorenku/core').StorageContext;
+	movieId: string;
+}): Promise<void> {
+	const eventFiles = [
+		'events/inputs.log',
+		'events/artifacts.log',
+		'events/runs.log',
+	];
+	for (const eventFile of eventFiles) {
+		const sourcePath = args.source.resolve(args.movieId, eventFile);
+		if (!(await args.source.storage.fileExists(sourcePath))) {
+			continue;
+		}
+		const content = await args.source.storage.readToString(sourcePath);
+		const targetPath = args.target.resolve(args.movieId, eventFile);
+		await args.target.storage.write(targetPath, content, {
+			mimeType: 'text/plain',
+		});
+	}
+}
+
+async function copyBlobsBetweenContexts(args: {
+	source: import('@gorenku/core').StorageContext;
+	target: import('@gorenku/core').StorageContext;
+	movieId: string;
+}): Promise<void> {
+	const blobsDir = args.source.resolve(args.movieId, 'blobs');
+	if (!(await args.source.storage.directoryExists(blobsDir))) {
+		return;
+	}
+
+	const listing = args.source.storage.list(blobsDir, { deep: true });
+	for await (const item of listing) {
+		if (item.type !== 'file') {
+			continue;
+		}
+		const content = await args.source.storage.readToUint8Array(item.path);
+		await args.target.storage.write(item.path, Buffer.from(content), {});
+	}
 }
 
 async function loadDryRunScenarioFile(profilePath: string): Promise<{
