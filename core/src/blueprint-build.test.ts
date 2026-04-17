@@ -63,7 +63,7 @@ describe('createBlueprintBuild', () => {
       basePath: 'builds',
     });
 
-    expect(await storage.storage.fileExists(storage.resolve(result.movieId, 'current.json'))).toBe(true);
+    expect(await storage.storage.fileExists(storage.resolve(result.movieId, 'current.json'))).toBe(false);
     expect(
       await storage.storage.fileExists(storage.resolve(result.movieId, 'events', 'inputs.log'))
     ).toBe(true);

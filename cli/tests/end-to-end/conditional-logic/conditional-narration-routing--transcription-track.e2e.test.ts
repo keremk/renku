@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
 	createEventLog,
-	createManifestService,
+	createBuildStateService,
 	createRunner,
 	createStorageContext,
 	initializeMovieStorage,
@@ -141,7 +141,7 @@ describe('end-to-end: TimelineComposer with Transcription track', () => {
 		});
 		await initializeMovieStorage(storage, storageMovieId);
 		const eventLog = createEventLog(storage);
-		const manifestService = createManifestService(storage);
+		const buildStateService = createBuildStateService(storage);
 
 		// Load model catalog and create provider registry with live mode for real TimelineComposer execution
 		const catalog = await loadModelCatalog(CATALOG_MODELS_ROOT);
@@ -302,10 +302,9 @@ describe('end-to-end: TimelineComposer with Transcription track', () => {
 		const runner = createRunner();
 		const result = await runner.execute(planResult.plan, {
 			movieId: storageMovieId,
-			manifest: planResult.manifest,
+			buildState: planResult.buildState,
 			storage,
 			eventLog,
-			manifestService,
 			produce,
 			logger,
 		});
@@ -314,7 +313,7 @@ describe('end-to-end: TimelineComposer with Transcription track', () => {
 		// PHASE 5: Read and verify REAL timeline JSON
 		// ============================================================
 
-		const manifest = await result.buildManifest();
+		const manifest = await result.buildStateSnapshot();
 		const artifactIds = Object.keys(manifest.artifacts);
 
 		const timelineArtifactId = artifactIds.find((id) =>

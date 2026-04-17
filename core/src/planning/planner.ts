@@ -5,20 +5,20 @@ import {
 } from '../canonical-ids.js';
 import { evaluateInputConditions } from '../condition-evaluator.js';
 import type { EventLog } from '../event-log.js';
+import { deriveArtifactHash } from '../event-log-state.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { hashPayload, hashInputContents } from '../hashing.js';
-import { deriveArtifactHash } from '../manifest.js';
 import { computeTopologyLayers } from '../topology/index.js';
 import { normalizeSurgicalRegenerationScope } from '../orchestration/surgical-regeneration.js';
 import {
   type ArtifactRegenerationConfig,
+  type BuildState,
   type Clock,
   type EdgeConditionClause,
   type EdgeConditionDefinition,
   type EdgeConditionGroup,
   type ExecutionPlan,
   type InputEvent,
-  type Manifest,
   type ArtifactEvent,
   type ProducerGraph,
   type ResolvedEdgeCondition,
@@ -40,7 +40,8 @@ export interface PlannerOptions {
 
 interface ComputePlanArgs {
   movieId: string;
-  manifest: Manifest | null;
+  buildState?: BuildState | null;
+  manifest?: BuildState | null;
   eventLog: EventLog;
   blueprint: ProducerGraph;
   targetRevision: RevisionId;
@@ -112,21 +113,23 @@ export function createPlanner(options: PlannerOptions = {}) {
     async computePlan(args: ComputePlanArgs): Promise<ComputePlanResult> {
       const collectExplanation =
         args.collectExplanation ?? defaultCollectExplanation;
-      const manifest = args.manifest ?? createEmptyManifest();
+      const buildState =
+        args.buildState ??
+        ((args as { manifest?: BuildState }).manifest ?? createEmptyBuildState());
       const eventLog = args.eventLog;
       const pendingEdits = args.pendingEdits ?? [];
       const blueprint = args.blueprint;
 
       const latestInputs = await readLatestInputs(eventLog, args.movieId);
       const combinedInputs = mergeInputs(latestInputs, pendingEdits);
-      const dirtyInputs = determineDirtyInputs(manifest, combinedInputs);
+      const dirtyInputs = determineDirtyInputs(buildState, combinedInputs);
       const artifactSnapshot = await readLatestArtifactSnapshot(
         eventLog,
         args.movieId
       );
       const latestArtifacts = artifactSnapshot.latestSuccessful;
       const dirtyArtifacts = determineDirtyArtifacts(
-        manifest,
+        buildState,
         latestArtifacts,
         artifactSnapshot.latestFailedIds
       );
@@ -134,7 +137,7 @@ export function createPlanner(options: PlannerOptions = {}) {
         collectRequiredConditionArtifactIds(blueprint);
       const missingConditionArtifacts =
         determineMissingRequiredConditionArtifacts(
-          manifest,
+          buildState,
           requiredConditionArtifactIds,
           latestArtifacts
         );
@@ -169,16 +172,17 @@ export function createPlanner(options: PlannerOptions = {}) {
         );
 
         // Also detect jobs with missing/dirty artifacts (same logic as normal mode)
+        const shouldCollectDirtyReasons = collectExplanation || true;
         const { dirtyJobs: initialDirty, reasons: initialReasons } =
           determineInitialDirtyJobs(
-            manifest,
+            buildState,
             metadata,
             conditionallyInactiveJobs,
             dirtyInputs,
             dirtyArtifacts,
             latestArtifacts,
             artifactSnapshot.latestFailedIds,
-            collectExplanation
+            shouldCollectDirtyReasons
           );
         const { allDirty: propagatedDirty, propagatedReasons } =
           propagateDirtyJobs(
@@ -222,7 +226,7 @@ export function createPlanner(options: PlannerOptions = {}) {
         // Normal mode: use dirty detection only
         const { dirtyJobs: initialDirty, reasons: initialReasons } =
           determineInitialDirtyJobs(
-            manifest,
+            buildState,
             metadata,
             conditionallyInactiveJobs,
             dirtyInputs,
@@ -278,7 +282,7 @@ export function createPlanner(options: PlannerOptions = {}) {
           jobsToInclude,
           protectedJobIds: forceTargetJobIds,
           metadata,
-          manifest,
+          buildState,
           latestArtifacts,
           latestFailedArtifacts: artifactSnapshot.latestFailedIds,
           resolvedConditionArtifacts: args.resolvedConditionArtifacts,
@@ -305,7 +309,7 @@ export function createPlanner(options: PlannerOptions = {}) {
           const allReusable = producedArtifacts.every((id) =>
             isPinnedArtifactReusable(
               id,
-              manifest,
+              buildState,
               latestArtifacts,
               artifactSnapshot.latestFailedIds
             )
@@ -347,7 +351,7 @@ export function createPlanner(options: PlannerOptions = {}) {
 
       const plan: ExecutionPlan = {
         revision: args.targetRevision,
-        manifestBaseHash: manifestBaseHash(manifest),
+        baselineHash: buildStateBaselineHash(buildState),
         layers,
         createdAt: nowIso(clock),
         blueprintLayerCount,
@@ -530,7 +534,7 @@ function deriveConditionallyInactiveJobs(
 }
 
 function determineInitialDirtyJobs(
-  manifest: Manifest,
+  buildState: BuildState,
   metadata: Map<string, GraphMetadata>,
   conditionallyInactiveJobs: Set<string>,
   dirtyInputs: Set<string>,
@@ -541,7 +545,7 @@ function determineInitialDirtyJobs(
 ): InitialDirtyResult {
   const dirtyJobs = new Set<string>();
   const reasons: JobDirtyReason[] = [];
-  const isInitial = Object.keys(manifest.inputs).length === 0;
+  const isInitial = Object.keys(buildState.inputs).length === 0;
 
   for (const [jobId, info] of metadata) {
     if (conditionallyInactiveJobs.has(jobId)) {
@@ -560,12 +564,12 @@ function determineInitialDirtyJobs(
       continue;
     }
 
-    // Check which artifacts are missing from manifest
+    // Check which artifacts are missing from the current build state
     const missingArtifacts = info.node.produces.filter((id) => {
       if (!isCanonicalArtifactId(id)) {
         return false;
       }
-      return manifest.artifacts[id] === undefined && !latestArtifacts.has(id);
+      return buildState.artifacts[id] === undefined && !latestArtifacts.has(id);
     });
     const producesMissing = missingArtifacts.length > 0;
     const failedArtifacts = info.node.produces.filter(
@@ -597,10 +601,10 @@ function determineInitialDirtyJobs(
       const jobProducedIds = info.node.produces.filter((id) =>
         isCanonicalArtifactId(id)
       );
-      const expectedHash = hashInputContents(info.node.inputs, manifest);
+      const expectedHash = hashInputContents(info.node.inputs, buildState);
 
       for (const artId of jobProducedIds) {
-        const entry = manifest.artifacts[artId];
+        const entry = buildState.artifacts[artId];
         if (entry?.inputsHash && entry.inputsHash !== expectedHash) {
           staleInputsHashArtifacts.push(artId);
         }
@@ -662,14 +666,14 @@ function determineInitialDirtyJobs(
 }
 
 function determineMissingRequiredConditionArtifacts(
-  manifest: Manifest,
+  buildState: BuildState,
   requiredConditionArtifactIds: Set<string>,
   latestArtifacts: ArtifactMap
 ): string[] {
   const missing: string[] = [];
   for (const artifactId of requiredConditionArtifactIds) {
     if (
-      manifest.artifacts[artifactId] === undefined &&
+      buildState.artifacts[artifactId] === undefined &&
       !latestArtifacts.has(artifactId)
     ) {
       missing.push(artifactId);
@@ -973,7 +977,7 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
   jobsToInclude: Set<string>;
   protectedJobIds: Set<string>;
   metadata: Map<string, GraphMetadata>;
-  manifest: Manifest;
+  buildState: BuildState;
   latestArtifacts: ArtifactMap;
   latestFailedArtifacts: Set<string>;
   resolvedConditionArtifacts: Record<string, unknown> | undefined;
@@ -983,7 +987,7 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
   }
 
   const reusableArtifacts = buildReusableArtifactSet(
-    args.manifest,
+    args.buildState,
     args.latestArtifacts,
     args.latestFailedArtifacts
   );
@@ -1059,7 +1063,7 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
 }
 
 function buildReusableArtifactSet(
-  manifest: Manifest,
+  buildState: BuildState,
   latestArtifacts: ArtifactMap,
   latestFailedArtifacts: Set<string>
 ): Set<string> {
@@ -1071,7 +1075,7 @@ function buildReusableArtifactSet(
     }
   }
 
-  for (const [artifactId, entry] of Object.entries(manifest.artifacts)) {
+  for (const [artifactId, entry] of Object.entries(buildState.artifacts)) {
     if (entry.status !== 'succeeded') {
       continue;
     }
@@ -1187,7 +1191,7 @@ interface BuildExecutionLayersResult {
 
 function isPinnedArtifactReusable(
   artifactId: string,
-  manifest: Manifest,
+  buildState: BuildState,
   latestArtifacts: ArtifactMap,
   latestFailedIds: Set<string>
 ): boolean {
@@ -1197,8 +1201,8 @@ function isPinnedArtifactReusable(
   if (latestArtifacts.has(artifactId)) {
     return true;
   }
-  const manifestEntry = manifest.artifacts[artifactId];
-  return manifestEntry?.status === 'succeeded';
+  const buildStateEntry = buildState.artifacts[artifactId];
+  return buildStateEntry?.status === 'succeeded';
 }
 
 function buildExecutionLayers(
@@ -1616,12 +1620,12 @@ function mergeInputs(latest: InputsMap, pending: InputEvent[]): InputsMap {
 }
 
 function determineDirtyInputs(
-  manifest: Manifest,
+  buildState: BuildState,
   inputs: InputsMap
 ): Set<string> {
   const dirty = new Set<string>();
   for (const [id, event] of inputs) {
-    const record = manifest.inputs[id];
+    const record = buildState.inputs[id];
     if (!record || record.hash !== event.hash) {
       dirty.add(id);
     }
@@ -1657,15 +1661,15 @@ async function readLatestArtifactSnapshot(
 }
 
 function determineDirtyArtifacts(
-  manifest: Manifest,
+  buildState: BuildState,
   artifacts: ArtifactMap,
   latestFailedIds: Set<string>
 ): Set<string> {
   const dirty = new Set<string>();
   for (const [id, event] of artifacts) {
-    const manifestEntry = manifest.artifacts[id];
+    const buildStateEntry = buildState.artifacts[id];
     const eventHash = deriveArtifactHash(event);
-    if (!manifestEntry || manifestEntry.hash !== eventHash) {
+    if (!buildStateEntry || buildStateEntry.hash !== eventHash) {
       dirty.add(id);
     }
   }
@@ -1675,15 +1679,15 @@ function determineDirtyArtifacts(
   return dirty;
 }
 
-function manifestBaseHash(manifest: Manifest): string {
-  return hashPayload(manifest).hash;
+function buildStateBaselineHash(buildState: BuildState): string {
+  return hashPayload(buildState).hash;
 }
 
 function nowIso(clock?: Clock): string {
   return clock?.now() ?? new Date().toISOString();
 }
 
-function createEmptyManifest(): Manifest {
+function createEmptyBuildState(): BuildState {
   return {
     revision: 'rev-0000',
     baseRevision: null,

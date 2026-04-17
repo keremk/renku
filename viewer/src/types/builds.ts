@@ -1,12 +1,12 @@
 /**
- * Types for builds list and manifest data.
+ * Types for builds list and build-state data.
  */
 
 export interface BuildInfo {
   movieId: string;
   updatedAt: string;
   revision: string | null;
-  hasManifest: boolean;
+  hasBuildState: boolean;
   hasInputsFile: boolean;     // Has builds/{movieId}/inputs.yaml
   displayName: string | null; // User-friendly name from movie-metadata.json
 }
@@ -55,20 +55,20 @@ export interface ArtifactInfo {
 }
 
 /**
- * Model selection extracted from manifest inputs.
+ * Model selection extracted from build-state inputs.
  */
-export interface ManifestModelSelection {
+export interface BuildStateModelSelection {
   producerId: string;
   provider: string;
   model: string;
   config?: Record<string, unknown>;
 }
 
-export interface BuildManifestResponse {
+export interface BuildStateResponse {
   movieId: string;
   revision: string | null;
   inputs: Record<string, unknown>;
-  models?: ManifestModelSelection[];
+  models?: BuildStateModelSelection[];
   artifacts: ArtifactInfo[];
   createdAt: string | null;
 }

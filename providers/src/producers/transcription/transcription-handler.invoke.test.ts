@@ -94,6 +94,10 @@ function createTranscriptionRequest(storageRoot: string): ProviderJobContext {
   };
 }
 
+function decodeBlobData(data: Uint8Array | string): string {
+  return typeof data === 'string' ? data : Buffer.from(data).toString('utf8');
+}
+
 describe('createTranscriptionHandler invoke contract', () => {
   let storageRoot = '';
 
@@ -158,22 +162,21 @@ describe('createTranscriptionHandler invoke contract', () => {
     };
     mocks.alignTranscriptionToTimeline.mockReturnValue(alignedTranscription);
 
-    const sttInvoke = vi.fn<
-      [ProviderJobContext],
-      Promise<ProviderResult>
-    >().mockResolvedValue({
-      status: 'succeeded',
-      artifacts: [
-        {
-          artifactId: 'Artifact:TranscriptionProducer.SttTranscription',
-          status: 'succeeded',
-          blob: {
-            data: Buffer.from(JSON.stringify(sttOutput)),
-            mimeType: 'application/json',
+    const sttInvoke = vi
+      .fn(async (_job: ProviderJobContext): Promise<ProviderResult> => ({
+        status: 'succeeded',
+        artifacts: [
+          {
+            artifactId: 'Artifact:TranscriptionProducer.SttTranscription',
+            status: 'succeeded',
+            blob: {
+              data: Buffer.from(JSON.stringify(sttOutput)),
+              mimeType: 'application/json',
+            },
           },
-        },
-      ],
-    });
+        ],
+      }))
+      .mockName('sttInvoke');
 
     const handler = createTranscriptionHandler()({
       descriptor: {
@@ -259,9 +262,9 @@ describe('createTranscriptionHandler invoke contract', () => {
         }),
       ])
     );
-    expect(
-      JSON.parse(result.artifacts[0]!.blob!.data.toString('utf8'))
-    ).toEqual(alignedTranscription);
+    expect(JSON.parse(decodeBlobData(result.artifacts[0]!.blob!.data))).toEqual(
+      alignedTranscription
+    );
   });
 
   it('fails fast in live mode when delegated STT returns zero word tokens', async () => {

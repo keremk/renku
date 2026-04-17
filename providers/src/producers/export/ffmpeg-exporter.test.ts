@@ -416,38 +416,36 @@ describe('ffmpeg-exporter', () => {
       await mkdir(path.join(tempRoot, 'builds', movieId, 'blobs', 'ab'), {
         recursive: true,
       });
+      await mkdir(path.join(tempRoot, 'builds', movieId, 'events'), {
+        recursive: true,
+      });
 
-      // Create manifest files
       const timeline: TimelineDocument = {
         id: 'timeline-1',
         duration: 10,
         tracks: [],
       };
 
-      const manifest = {
-        artifacts: {
-          'Artifact:TimelineComposer.Timeline': {
-            blob: {
-              hash: 'ab123',
-              size: 100,
-              mimeType: 'application/json',
-            },
+      const timelineEvent = {
+        artifactId: 'Artifact:TimelineComposer.Timeline',
+        revision: 'rev-0001',
+        inputsHash: 'timeline-inputs-hash',
+        output: {
+          blob: {
+            hash: 'ab123',
+            size: 100,
+            mimeType: 'application/json',
           },
         },
-      };
-
-      const pointer = {
-        revision: '1',
-        manifestPath: 'manifest.json',
+        status: 'succeeded',
+        producedBy: 'Producer:TimelineComposer[0]',
+        producerId: 'Producer:TimelineComposer',
+        createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
       };
 
       await writeFile(
-        path.join(tempRoot, 'builds', movieId, 'current.json'),
-        JSON.stringify(pointer)
-      );
-      await writeFile(
-        path.join(tempRoot, 'builds', movieId, 'manifest.json'),
-        JSON.stringify(manifest)
+        path.join(tempRoot, 'builds', movieId, 'events', 'artifacts.log'),
+        `${JSON.stringify(timelineEvent)}\n`
       );
       await writeFile(
         path.join(tempRoot, 'builds', movieId, 'blobs', 'ab', 'ab123.json'),

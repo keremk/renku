@@ -83,7 +83,7 @@ Any runtime product produced by a producer job:
 - Video (MP4)
 - JSON (timelines, metadata)
 
-Artifacts are stored under canonical `Artifact:...` IDs in manifests and event logs. They can be scalar (single value) or arrays (one per segment).
+Artifacts are tracked under canonical `Artifact:...` IDs in the runtime event log and in reconstructed `BuildState` snapshots. They can be scalar (single value) or arrays (one per segment).
 
 ### Loop
 
@@ -106,7 +106,7 @@ An execution layer contains jobs that can run in parallel. The planner uses topo
 The directory structure where Renku stores:
 
 - Blueprint catalog
-- Build outputs (artifacts, manifests, logs)
+- Build outputs (artifacts, event logs, run records)
 - Configuration
 
 ## What's Next?

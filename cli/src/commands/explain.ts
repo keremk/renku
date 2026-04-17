@@ -5,15 +5,15 @@ import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { displayPlanExplanation } from '../lib/plan-display.js';
 import {
   createStorageContext,
-  createManifestService,
+  createBuildStateService,
   createEventLog,
   planStore,
   createRuntimeError,
   RuntimeErrorCode,
+  type BuildState,
   type ExecutionPlan,
   type PlanExplanation,
   type Logger,
-  type Manifest,
   type RevisionId,
 } from '@gorenku/core';
 
@@ -34,7 +34,7 @@ export interface ExplainResult {
 
 /**
  * Explain a previously saved plan from disk.
- * Reconstructs the explanation from the saved plan and manifest.
+ * Reconstructs the explanation from the saved plan and build state.
  */
 export async function runExplain(options: ExplainOptions): Promise<ExplainResult> {
   const logger = options.logger ?? globalThis.console;
@@ -73,16 +73,16 @@ export async function runExplain(options: ExplainOptions): Promise<ExplainResult
     basePath,
   });
 
-  // Load manifest
-  const manifestService = createManifestService(storageContext);
-  let manifest: Manifest;
+  // Load build state
+  const buildStateService = createBuildStateService(storageContext);
+  let buildState: BuildState;
   try {
-    const { manifest: loadedManifest } = await manifestService.loadCurrent(storageMovieId);
-    manifest = loadedManifest;
+    const { buildState: loadedBuildState } = await buildStateService.loadCurrent(storageMovieId);
+    buildState = loadedBuildState;
   } catch (error) {
     throw createRuntimeError(
-      RuntimeErrorCode.MANIFEST_NOT_FOUND,
-      `No manifest found for movie "${storageMovieId}". The movie may not have completed a run.`,
+      RuntimeErrorCode.BUILD_STATE_NOT_FOUND,
+      `No build state found for movie "${storageMovieId}". The movie may not have completed a run.`,
       {
         cause: error,
         suggestion: 'Run generation for this movie before using explain.',
@@ -122,11 +122,11 @@ export async function runExplain(options: ExplainOptions): Promise<ExplainResult
   // Load event log for dirty detection
   const eventLog = createEventLog(storageContext);
 
-  // Reconstruct the explanation from the plan and manifest
+  // Reconstruct the explanation from the plan and build state
   const explanation = await reconstructExplanation({
     movieId: storageMovieId,
     plan,
-    manifest,
+    buildState,
     eventLog,
     logger,
   });
@@ -168,13 +168,13 @@ async function findLatestPlanRevision(movieDir: string): Promise<RevisionId | nu
 interface ReconstructExplanationArgs {
   movieId: string;
   plan: ExecutionPlan;
-  manifest: Manifest;
+  buildState: BuildState;
   eventLog: ReturnType<typeof createEventLog>;
   logger: Logger;
 }
 
 /**
- * Reconstruct plan explanation from a saved plan and manifest.
+ * Reconstruct plan explanation from a saved plan and build state.
  * This is a simplified version that shows what jobs are in the plan.
  * For full dirty detection details, use `renku generate --explain`.
  */

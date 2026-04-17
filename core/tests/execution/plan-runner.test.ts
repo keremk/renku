@@ -2,15 +2,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   createEventLog,
-  createManifestService,
   createStorageContext,
   initializeMovieStorage,
   executePlanWithConcurrency,
+  type BuildState,
   type ExecutionPlan,
-  type Manifest,
   type ProduceFn,
   type JobDescriptor,
   type ProviderName,
+  hashInputPayload,
 } from '../../src/index.js';
 
 async function createRunnerContext() {
@@ -18,15 +18,14 @@ async function createRunnerContext() {
   const storage = createStorageContext({ kind: 'memory' });
   await initializeMovieStorage(storage, movieId);
   const eventLog = createEventLog(storage);
-  const manifestService = createManifestService(storage);
-  const manifest: Manifest = {
+  const manifest: BuildState = {
     revision: 'rev-0000',
     baseRevision: null,
     createdAt: new Date().toISOString(),
     inputs: {},
     artifacts: {},
   };
-  return { movieId, storage, eventLog, manifestService, manifest };
+  return { movieId, storage, eventLog, manifest };
 }
 
 const makeJob = (jobId: string): JobDescriptor => ({
@@ -41,14 +40,14 @@ const makeJob = (jobId: string): JobDescriptor => ({
 
 describe('executePlanWithConcurrency', () => {
   it('runs layer jobs in parallel up to the limit and keeps layers sequential', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } =
+    const { movieId, storage, eventLog, manifest } =
       await createRunnerContext();
 
     const layerOne = ['job-1', 'job-2', 'job-3'].map(makeJob);
     const layerTwo = [makeJob('job-4')];
     const plan: ExecutionPlan = {
       revision: 'rev-0001',
-      manifestBaseHash: 'hash',
+      baselineHash: 'hash',
       layers: [layerOne, layerTwo],
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 2,
@@ -86,10 +85,9 @@ describe('executePlanWithConcurrency', () => {
       plan,
       {
         movieId,
-        manifest,
+        buildState: manifest,
         storage,
         eventLog,
-        manifestService,
         produce,
       },
       { concurrency: 2 }
@@ -105,7 +103,7 @@ describe('executePlanWithConcurrency', () => {
   });
 
   it('stops executing after reaching the requested layer', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } =
+    const { movieId, storage, eventLog, manifest } =
       await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
@@ -114,7 +112,7 @@ describe('executePlanWithConcurrency', () => {
     ];
     const plan: ExecutionPlan = {
       revision: 'rev-0002',
-      manifestBaseHash: 'hash',
+      baselineHash: 'hash',
       layers,
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 3,
@@ -127,7 +125,7 @@ describe('executePlanWithConcurrency', () => {
 
     const result = await executePlanWithConcurrency(
       plan,
-      { movieId, manifest, storage, eventLog, manifestService, produce },
+      { movieId, buildState: manifest, storage, eventLog, produce },
       { concurrency: 2, upToLayer: 1 }
     );
 
@@ -136,11 +134,11 @@ describe('executePlanWithConcurrency', () => {
   });
 
   it('rejects negative upToLayer values', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } =
+    const { movieId, storage, eventLog, manifest } =
       await createRunnerContext();
     const plan: ExecutionPlan = {
       revision: 'rev-0003',
-      manifestBaseHash: 'hash',
+      baselineHash: 'hash',
       layers: [[makeJob('job-a')]],
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 1,
@@ -154,14 +152,14 @@ describe('executePlanWithConcurrency', () => {
     await expect(
       executePlanWithConcurrency(
         plan,
-        { movieId, manifest, storage, eventLog, manifestService, produce },
+        { movieId, buildState: manifest, storage, eventLog, produce },
         { concurrency: 1, upToLayer: -1 }
       )
     ).rejects.toThrow(/upToLayer/);
   });
 
   it('emits progress events during execution', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } =
+    const { movieId, storage, eventLog, manifest } =
       await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
@@ -169,7 +167,7 @@ describe('executePlanWithConcurrency', () => {
     ];
     const plan: ExecutionPlan = {
       revision: 'rev-0010',
-      manifestBaseHash: 'hash',
+      baselineHash: 'hash',
       layers,
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 2,
@@ -184,7 +182,7 @@ describe('executePlanWithConcurrency', () => {
 
     await executePlanWithConcurrency(
       plan,
-      { movieId, manifest, storage, eventLog, manifestService, produce },
+      { movieId, buildState: manifest, storage, eventLog, produce },
       {
         concurrency: 1,
         onProgress: (event) => {
@@ -203,8 +201,68 @@ describe('executePlanWithConcurrency', () => {
     );
   });
 
+  it('rebuilds the final build-state snapshot from latest input events', async () => {
+    const { movieId, storage, eventLog } = await createRunnerContext();
+    await eventLog.appendInput(movieId, {
+      id: 'Input:Prompt',
+      revision: 'rev-0001',
+      hash: hashInputPayload('latest prompt'),
+      payload: 'latest prompt',
+      editedBy: 'user',
+      createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
+    });
+
+    const staleBuildState: BuildState = {
+      revision: 'rev-0000',
+      baseRevision: null,
+      createdAt: new Date('2024-12-31T00:00:00Z').toISOString(),
+      inputs: {
+        'Input:Prompt': {
+          hash: hashInputPayload('stale prompt'),
+          payloadDigest: '"stale prompt"',
+          createdAt: new Date('2024-12-31T00:00:00Z').toISOString(),
+        },
+      },
+      artifacts: {},
+    };
+    const plan: ExecutionPlan = {
+      revision: 'rev-0001',
+      baselineHash: 'hash',
+      layers: [],
+      createdAt: new Date().toISOString(),
+      blueprintLayerCount: 0,
+    };
+
+    const result = await executePlanWithConcurrency(
+      plan,
+      {
+        movieId,
+        buildState: staleBuildState,
+        storage,
+        eventLog,
+        produce: async ({ job }) => ({
+          jobId: job.jobId,
+          status: 'succeeded',
+          artifacts: [],
+        }),
+      },
+      { concurrency: 1 }
+    );
+
+    const buildStateSnapshot = await result.buildStateSnapshot();
+
+    expect(buildStateSnapshot.revision).toBe('rev-0001');
+    expect(buildStateSnapshot.baseRevision).toBe('rev-0000');
+    expect(buildStateSnapshot.inputs['Input:Prompt']?.hash).toBe(
+      hashInputPayload('latest prompt')
+    );
+    expect(buildStateSnapshot.inputs['Input:Prompt']?.payloadDigest).toBe(
+      '"latest prompt"'
+    );
+  });
+
   it('supports cancellation via AbortSignal', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } =
+    const { movieId, storage, eventLog, manifest } =
       await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
@@ -213,7 +271,7 @@ describe('executePlanWithConcurrency', () => {
     ];
     const plan: ExecutionPlan = {
       revision: 'rev-0011',
-      manifestBaseHash: 'hash',
+      baselineHash: 'hash',
       layers,
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 3,
@@ -237,7 +295,7 @@ describe('executePlanWithConcurrency', () => {
 
     const result = await executePlanWithConcurrency(
       plan,
-      { movieId, manifest, storage, eventLog, manifestService, produce },
+      { movieId, buildState: manifest, storage, eventLog, produce },
       { concurrency: 1, signal: abortController.signal }
     );
 

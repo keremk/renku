@@ -6,7 +6,10 @@ import {
 } from './planner.js';
 import { createEventLog } from '../event-log.js';
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
-import { createManifestService, ManifestNotFoundError } from '../manifest.js';
+import {
+  createBuildStateService,
+  BuildStateNotFoundError,
+} from '../build-state.js';
 import {
   hashArtifactOutput,
   hashPayload,
@@ -15,8 +18,8 @@ import {
 import { nextRevisionId } from '../revisions.js';
 import { computeTopologyLayers } from '../topology/index.js';
 import type {
+  BuildState,
   InputEvent,
-  Manifest,
   ProducerGraph,
   ProducerGraphNode,
   ProducerGraphEdge,
@@ -167,13 +170,13 @@ function buildConditionArtifactGraph(): ProducerGraph {
 
 async function loadManifest(
   ctx: ReturnType<typeof memoryContext>
-): Promise<Manifest> {
-  const svc = createManifestService(ctx);
+): Promise<BuildState> {
+  const svc = createBuildStateService(ctx);
   try {
-    const { manifest } = await svc.loadCurrent('demo');
-    return manifest;
+    const { buildState } = await svc.loadCurrent('demo');
+    return buildState;
   } catch (error) {
-    if (error instanceof ManifestNotFoundError) {
+    if (error instanceof BuildStateNotFoundError) {
       return {
         revision: 'rev-0000',
         baseRevision: null,
@@ -234,7 +237,7 @@ function createSucceededManifest(
     revision?: RevisionId;
     artifacts?: Record<string, { hash: string; producedBy: string }>;
   }
-): Manifest {
+): BuildState {
   const revision = options?.revision ?? 'rev-0001';
   const artifactCreatedAt = new Date().toISOString();
 
@@ -264,7 +267,7 @@ function createSucceededManifest(
     };
 
   const artifactDefs = options?.artifacts ?? defaultArtifacts;
-  const artifacts: Manifest['artifacts'] = {};
+  const artifacts: BuildState['artifacts'] = {};
   for (const [id, def] of Object.entries(artifactDefs)) {
     artifacts[id] = {
       hash: def.hash,
@@ -331,7 +334,7 @@ describe('planner', () => {
     }
 
     const artifactCreatedAt = new Date().toISOString();
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: artifactCreatedAt,
@@ -648,7 +651,7 @@ describe('planner', () => {
       await eventLog.appendInput('demo', event);
     }
 
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: baseRevision,
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -725,7 +728,7 @@ describe('planner', () => {
     });
     const baselineArtifactTimestamp = new Date().toISOString();
 
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: baseRevision,
       baseRevision: null,
       createdAt: baselineArtifactTimestamp,
@@ -939,7 +942,7 @@ describe('planner', () => {
       createdAt: artifactCreatedAt,
     });
 
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: artifactCreatedAt,
@@ -1065,7 +1068,7 @@ describe('planner', () => {
       createdAt: artifactCreatedAt,
     });
 
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: artifactCreatedAt,
@@ -1552,7 +1555,7 @@ describe('planner', () => {
       // Create a manifest where AudioProducer[1] artifact is MISSING (simulating a failed run).
       // Only AudioProducer[0]'s artifact and ScriptProducer's artifacts exist.
       const artifactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
+      const manifest: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -1643,7 +1646,7 @@ describe('planner', () => {
 
       // Ambient dirty state: SegmentAudio[1] is missing.
       const artifactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
+      const manifest: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -2110,7 +2113,7 @@ describe('planner', () => {
       }
 
       const artifactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
+      const manifest: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -2547,7 +2550,7 @@ describe('planner', () => {
         }
       );
 
-      const manifest: Manifest = {
+      const manifest: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -2685,7 +2688,7 @@ describe('planner', () => {
         },
       };
 
-      const manifest: Manifest = {
+      const manifest: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -2865,7 +2868,7 @@ describe('planner', () => {
         },
       };
 
-      const manifest: Manifest = {
+      const manifest: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,
@@ -3122,7 +3125,7 @@ describe('planner', () => {
         },
       };
 
-      const manifest: Manifest = {
+      const manifest: BuildState = {
         revision: baseRevision,
         baseRevision: null,
         createdAt: artifactCreatedAt,

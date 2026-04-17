@@ -11,7 +11,12 @@ import {
 } from './canonical-ids.js';
 import type { EventLog } from './event-log.js';
 import { hashInputContents } from './hashing.js';
-import { createManifestService, type ManifestService } from './manifest.js';
+import {
+  applyArtifactEventsToExecutionState,
+  createEmptyBuildState,
+  createExecutionState,
+} from './execution-state.js';
+import { buildRunResultBuildStateSnapshot } from './run-result-build-state.js';
 import type { StorageContext } from './storage.js';
 import { persistBlobToStorage } from './blob-utils.js';
 import {
@@ -30,10 +35,12 @@ import {
   type ArtifactEventStatus,
   type BlobRef,
   type Clock,
+  type BuildState,
   type ExecutionPlan,
+  type ExecutionState,
+  type InputEvent,
   type JobDescriptor,
   type JobResult,
-  type Manifest,
   type ProduceFn,
   type ProduceRequest,
   type ProduceResult,
@@ -57,10 +64,10 @@ export interface RunnerOptions {
 
 export interface RunnerExecutionContext {
   movieId: string;
-  manifest: Manifest;
+  buildState: BuildState;
+  executionState?: ExecutionState;
   storage: StorageContext;
   eventLog: EventLog;
-  manifestService?: ManifestService;
   produce?: ProduceFn;
   logger?: Partial<Logger>;
   clock?: Clock;
@@ -81,7 +88,6 @@ interface RunnerJobContext extends RunnerExecutionContext {
   produce: ProduceFn;
   logger: Partial<Logger>;
   clock: Clock;
-  manifestService: ManifestService;
   notifications?: NotificationBus;
   signal?: AbortSignal;
 }
@@ -106,19 +112,24 @@ export function createRunner(options: RunnerOptions = {}) {
       const clock = context.clock ?? baseClock;
       const logger = context.logger ?? baseLogger;
       const produce = context.produce ?? baseProduce;
-      const storage = context.storage;
       const eventLog = context.eventLog;
       const notifications = context.notifications ?? baseNotifications;
-
-      const manifestService =
-        context.manifestService ?? createManifestService(storage);
+      const buildState = normalizeBuildState(context);
 
       const startedAt = clock.now();
       const jobs: JobResult[] = [];
+      const baselineHash =
+        plan.baselineHash ??
+        (plan as { manifestBaseHash?: string }).manifestBaseHash ??
+        '';
 
-      // Track a running manifest that accumulates artifacts produced in earlier layers.
-      // This ensures hashInputContents in later layers resolves correct upstream hashes.
-      let runningManifest = context.manifest;
+      let executionState =
+        context.executionState ??
+        (await hydrateExecutionState({
+          movieId: context.movieId,
+          buildState,
+          eventLog,
+        }));
 
       for (
         let layerIndex = 0;
@@ -145,21 +156,20 @@ export function createRunner(options: RunnerOptions = {}) {
         for (const job of layer) {
           const jobResult = await executeJob(job, {
             ...context,
-            manifest: runningManifest,
+            buildState,
+            executionState,
             layerIndex,
             attempt: 1,
             revision: plan.revision,
             produce,
             logger,
             clock,
-            manifestService,
             notifications,
           });
           jobs.push(jobResult);
 
-          // Update running manifest with produced artifacts so later layers see correct hashes
-          runningManifest = accumulateArtifacts(
-            runningManifest,
+          executionState = applyArtifactEventsToExecutionState(
+            executionState,
             jobResult.artifacts
           );
         }
@@ -182,23 +192,24 @@ export function createRunner(options: RunnerOptions = {}) {
       )
         ? 'failed'
         : 'succeeded';
+      const buildStateSnapshot = async (): Promise<BuildState> =>
+        buildRunResultBuildStateSnapshot({
+          movieId: context.movieId,
+          eventLog,
+          buildState,
+          revision: plan.revision,
+          completedAt,
+        });
 
       return {
         status,
         revision: plan.revision,
-        manifestBaseHash: plan.manifestBaseHash,
+        baselineHash,
+        manifestBaseHash: baselineHash,
         jobs,
         startedAt,
         completedAt,
-        async buildManifest(): Promise<Manifest> {
-          return manifestService.buildFromEvents({
-            movieId: context.movieId,
-            targetRevision: plan.revision,
-            baseRevision: context.manifest.revision,
-            eventLog,
-            clock,
-          });
-        },
+        buildStateSnapshot,
       };
     },
 
@@ -209,24 +220,52 @@ export function createRunner(options: RunnerOptions = {}) {
       const clock = ctx.clock ?? baseClock;
       const logger = ctx.logger ?? baseLogger;
       const produce = ctx.produce ?? baseProduce;
-      const storage = ctx.storage;
-      const _eventLog = ctx.eventLog;
-      const manifestService =
-        ctx.manifestService ?? createManifestService(storage);
-
+      const eventLog = ctx.eventLog;
+      const buildState = normalizeBuildState(ctx);
       return executeJob(job, {
         ...ctx,
+        buildState,
+        executionState:
+          ctx.executionState ??
+          (await hydrateExecutionState({
+            movieId: ctx.movieId,
+            buildState,
+            eventLog,
+          })),
         layerIndex: ctx.layerIndex ?? 0,
         attempt: ctx.attempt ?? 1,
         revision: ctx.revision,
         produce,
         logger,
         clock,
-        manifestService,
         notifications: ctx.notifications ?? baseNotifications,
       });
     },
   };
+}
+
+function normalizeBuildState(context: RunnerExecutionContext): BuildState {
+  if (context.buildState) {
+    return context.buildState;
+  }
+  const legacy = (context as { manifest?: BuildState }).manifest;
+  return legacy ?? createEmptyBuildState();
+}
+
+export async function hydrateExecutionState(args: {
+  movieId: string;
+  buildState: BuildState;
+  eventLog: EventLog;
+}): Promise<ExecutionState> {
+  const latestInputs = new Map<string, InputEvent>();
+  for await (const event of args.eventLog.streamInputs(args.movieId)) {
+    latestInputs.set(event.id, event);
+  }
+
+  return createExecutionState({
+    buildState: args.buildState,
+    inputEvents: Array.from(latestInputs.values()),
+  });
 }
 
 function createStubProduce(): ProduceFn {
@@ -258,7 +297,7 @@ async function executeJob(
   } = context;
   const notifications = context.notifications;
   const startedAt = clock.now();
-  const inputsHash = hashInputContents(job.inputs, context.manifest);
+  const inputsHash = hashInputContents(job.inputs, context.executionState);
   const expectedArtifacts = job.produces.filter((id) =>
     isCanonicalArtifactId(id)
   );
@@ -429,7 +468,7 @@ async function executeJob(
 
     // Extract asset IDs from resolved artifacts (e.g., from Timeline)
     // and resolve their blob paths from the event log.
-    // This ensures exporters get fresh paths even when manifest is stale.
+    // This ensures exporters get fresh paths even when persisted build state is stale.
     const assetIds = extractAssetIdsFromResolved(resolvedArtifacts);
     const assetBlobPaths =
       assetIds.length > 0
@@ -653,32 +692,14 @@ function deriveJobStatus(
 }
 
 /**
- * Accumulate newly produced artifacts into the manifest's artifacts map.
- * This ensures that later-layer jobs see correct upstream artifact hashes
- * when computing content-aware inputsHash.
+ * Backwards-compatible helper for callers that still update execution state
+ * incrementally outside the runner.
  */
 export function accumulateArtifacts(
-  manifest: Manifest,
+  executionState: ExecutionState,
   artifacts: ArtifactEvent[]
-): Manifest {
-  if (artifacts.length === 0) {
-    return manifest;
-  }
-  const updatedArtifacts = { ...manifest.artifacts };
-  for (const event of artifacts) {
-    if (event.status === 'succeeded' && event.output.blob) {
-      updatedArtifacts[event.artifactId] = {
-        hash: event.output.blob.hash,
-        blob: event.output.blob,
-        producedBy: event.producedBy,
-        status: event.status,
-        diagnostics: event.diagnostics,
-        createdAt: event.createdAt,
-        inputsHash: event.inputsHash,
-      };
-    }
-  }
-  return { ...manifest, artifacts: updatedArtifacts };
+): ExecutionState {
+  return applyArtifactEventsToExecutionState(executionState, artifacts);
 }
 
 function serializeError(error: unknown): SerializedError {
@@ -962,7 +983,7 @@ function mergeResolvedArtifacts(
 /**
  * Merges asset blob paths into the job context.
  * These paths allow handlers (like ffmpeg-exporter) to resolve asset references
- * from the event log instead of the manifest, ensuring fresh paths during execution.
+ * from the event log instead of persisted build state, ensuring fresh paths during execution.
  */
 function mergeAssetBlobPaths(
   job: JobDescriptor,

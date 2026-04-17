@@ -815,9 +815,6 @@ function printGenerateSummary(
 
 	const detailLines: Array<[string, string]> = [
 		[`${chalk.bold('Plan')}`, result.planPath],
-		...(result.manifestPath
-			? [[`${chalk.bold('Manifest')}`, result.manifestPath] as [string, string]]
-			: []),
 		[`${chalk.bold('Builds')}`, result.storagePath],
 		...(result.artifactsRoot
 			? [

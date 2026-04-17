@@ -26,11 +26,18 @@ import {
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { EventLog } from '../event-log.js';
 import { hashPayload } from '../hashing.js';
-import { ManifestNotFoundError, type ManifestService } from '../manifest.js';
+import {
+  BuildStateNotFoundError,
+  type BuildStateService,
+} from '../build-state.js';
 import { nextRevisionId } from '../revisions.js';
 import { planStore, type StorageContext } from '../storage.js';
 import { computeTopologyLayers } from '../topology/index.js';
 import type { Clock } from '../types.js';
+import {
+  applyArtifactEventsToExecutionState,
+  createExecutionState,
+} from '../execution-state.js';
 import { convertBlobInputToBlobRef } from '../input-blob-storage.js';
 import { formatBlobFileName } from '../blob-utils.js';
 import { applyOutputSchemasFromProviderOptionsToBlueprintTree } from './output-schema-hydration.js';
@@ -49,7 +56,8 @@ import type {
   InputEvent,
   InputEventSource,
   MappingFieldDefinition,
-  Manifest,
+  BuildState,
+  ExecutionState,
   ProducerCatalog,
   ProducerGraph,
   PlanningUserControls,
@@ -88,7 +96,7 @@ export interface GeneratePlanArgs {
   providerOptions: Map<string, ProviderOptionEntry>;
   resolutionContext?: BlueprintResolutionContext;
   storage: StorageContext;
-  manifestService: ManifestService;
+  buildStateService: BuildStateService;
   eventLog: EventLog;
   pendingArtifacts?: PendingArtifactDraft[];
   inputSource?: InputEventSource;
@@ -104,8 +112,11 @@ export interface GeneratePlanResult {
   plan: ExecutionPlan;
   planPath: string;
   targetRevision: RevisionId;
-  manifest: Manifest;
-  manifestHash: string | null;
+  buildState: BuildState;
+  manifest?: BuildState;
+  baselineHash: string | null;
+  manifestHash?: string | null;
+  executionState: ExecutionState;
   inputEvents: InputEvent[];
   resolvedInputs: Record<string, unknown>;
   /** Explanation of why jobs were scheduled (only if collectExplanation was true) */
@@ -137,14 +148,15 @@ export function createPlanningService(
   return {
     async generatePlan(args) {
       const now = () => options.clock?.now() ?? new Date().toISOString();
+      const buildStateService = args.buildStateService;
 
-      const { manifest, hash: manifestHash } = await loadOrCreateManifest(
-        args.manifestService,
+      const { buildState, hash: baselineHash } = await loadOrCreateBuildState(
+        buildStateService,
         args.movieId,
         now
       );
 
-      let targetRevision = nextRevisionId(manifest.revision ?? null);
+      let targetRevision = nextRevisionId(buildState.revision ?? null);
       targetRevision = await ensureUniquePlanRevision(
         args.storage,
         args.movieId,
@@ -224,7 +236,7 @@ export function createPlanningService(
         baselineInputs: {},
         userControls: args.userControls,
         latestSnapshot: latestArtifactSnapshot,
-        manifest,
+        buildState,
       });
 
       const requiredConditionArtifactIds =
@@ -241,7 +253,7 @@ export function createPlanningService(
 
       const { plan, explanation, prunedUnrunnableJobs } = await adapter.compute({
         movieId: args.movieId,
-        manifest,
+        buildState,
         eventLog: args.eventLog,
         blueprint: producerGraph,
         targetRevision,
@@ -271,7 +283,7 @@ export function createPlanningService(
           movieId: args.movieId,
           producerGraph,
           scheduledJobIds,
-          manifest,
+          buildState,
           latestSuccessfulArtifactIds: latestArtifactSnapshot.latestSuccessfulIds,
           resolvedConditionArtifacts,
           prunedUnrunnableJobs,
@@ -301,19 +313,24 @@ export function createPlanningService(
         `${targetRevision}-plan.json`
       );
 
-      // Merge current input events into the manifest so the runner has
-      // up-to-date input hashes for content-aware inputsHash computation.
-      const manifestWithInputs = mergeInputEventsIntoManifest(
-        manifest,
-        inputEvents
+      const baseExecutionState = createExecutionState({
+        buildState,
+        inputEvents,
+      });
+      const executionState = applyArtifactEventsToExecutionState(
+        baseExecutionState,
+        artifactEvents
       );
 
       return {
         plan,
         planPath,
         targetRevision,
-        manifest: manifestWithInputs,
-        manifestHash,
+        buildState,
+        manifest: buildState,
+        baselineHash,
+        manifestHash: baselineHash,
+        executionState,
         inputEvents,
         resolvedInputs,
         explanation,
@@ -368,18 +385,27 @@ function collectFinalStageProducerJobIds(
     .sort();
 }
 
-async function loadOrCreateManifest(
-  service: ManifestService,
+async function loadOrCreateBuildState(
+  service: BuildStateService,
   movieId: string,
   now: () => string
-): Promise<{ manifest: Manifest; hash: string | null }> {
+): Promise<{ buildState: BuildState; hash: string | null }> {
   try {
-    const { manifest, hash } = await service.loadCurrent(movieId);
-    return { manifest, hash };
+    const result = await service.loadCurrent(movieId);
+    return {
+      buildState: result.buildState,
+      hash: result.hash,
+    };
   } catch (error) {
-    if (error instanceof ManifestNotFoundError) {
+    if (
+      error instanceof BuildStateNotFoundError ||
+      (typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === RuntimeErrorCode.BUILD_STATE_NOT_FOUND)
+    ) {
       return {
-        manifest: {
+        buildState: {
           revision: 'rev-0000',
           baseRevision: null,
           createdAt: now(),
@@ -458,30 +484,6 @@ function makeArtifactEvent(
     diagnostics: draft.diagnostics,
     createdAt,
   };
-}
-
-/**
- * Merge current input events into the manifest's inputs map.
- * This ensures the runner has up-to-date input hashes for content-aware
- * inputsHash computation (so hashInputContents can resolve real content
- * hashes instead of falling back to hashing ID strings).
- */
-function mergeInputEventsIntoManifest(
-  manifest: Manifest,
-  inputEvents: InputEvent[]
-): Manifest {
-  if (inputEvents.length === 0) {
-    return manifest;
-  }
-  const mergedInputs = { ...manifest.inputs };
-  for (const event of inputEvents) {
-    mergedInputs[event.id] = {
-      hash: event.hash,
-      payloadDigest: hashPayload(event.payload).canonical,
-      createdAt: event.createdAt,
-    };
-  }
-  return { ...manifest, inputs: mergedInputs };
 }
 
 async function ensureUniquePlanRevision(
@@ -592,7 +594,7 @@ function validateProducerOverrideDependencies(args: {
   movieId: string;
   producerGraph: ProducerGraph;
   scheduledJobIds: Set<string>;
-  manifest: Manifest;
+  buildState: BuildState;
   latestSuccessfulArtifactIds: Set<string>;
   resolvedConditionArtifacts?: Record<string, unknown>;
   prunedUnrunnableJobs?: PrunedUnrunnableJob[];
@@ -636,7 +638,7 @@ function validateProducerOverrideDependencies(args: {
   }
 
   const reusableArtifacts = new Set<string>(args.latestSuccessfulArtifactIds);
-  for (const [artifactId, entry] of Object.entries(args.manifest.artifacts)) {
+  for (const [artifactId, entry] of Object.entries(args.buildState.artifacts)) {
     if (entry.status === 'succeeded') {
       reusableArtifacts.add(artifactId);
     }

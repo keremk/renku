@@ -1,6 +1,8 @@
 import type { StorageContext } from './storage.js';
+import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import type { ArtifactEvent, InputEvent, RevisionId } from './types.js';
 import { hashArtifactOutput, hashInputPayload } from './hashing.js';
+import { compareRevisionIds } from './revisions.js';
 
 /* eslint-disable no-unused-vars */
 export interface EventLog {
@@ -17,11 +19,6 @@ export interface EventLog {
 }
 
 const JSONL_MIME = 'application/jsonl';
-const collator = new Intl.Collator(undefined, {
-  numeric: true,
-  sensitivity: 'base',
-});
-
 export function createEventLog(storage: StorageContext): EventLog {
   return {
     streamInputs(movieId, sinceRevision) {
@@ -55,12 +52,25 @@ async function* iterateEvents<T extends { revision: RevisionId }>(
   }
   const raw = await storage.storage.readToString(path);
   const lines = raw.split(/\r?\n/);
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     const trimmed = line.trim();
     if (!trimmed) {
       continue;
     }
-    const event = JSON.parse(trimmed) as T;
+    let event: T;
+    try {
+      event = JSON.parse(trimmed) as T;
+    } catch (error) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_BUILD_HISTORY_JSON,
+        `Failed to parse build history JSON in "${path}" at line ${index + 1}.`,
+        {
+          filePath: path,
+          context: `line ${index + 1}`,
+          cause: error,
+        }
+      );
+    }
     if (!sinceRevision || isRevisionAfter(event.revision, sinceRevision)) {
       yield event;
     }
@@ -79,5 +89,5 @@ async function appendEvent(
 }
 
 function isRevisionAfter(candidate: RevisionId, pivot: RevisionId): boolean {
-  return collator.compare(candidate, pivot) > 0;
+  return compareRevisionIds(candidate, pivot) > 0;
 }

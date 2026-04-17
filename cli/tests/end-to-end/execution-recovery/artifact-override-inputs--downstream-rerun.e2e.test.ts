@@ -4,7 +4,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import {
 	createEventLog,
-	createManifestService,
+	createBuildStateService,
 	createRunner,
 	createStorageContext,
 	initializeMovieStorage,
@@ -109,7 +109,7 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
 		});
 		await initializeMovieStorage(storage, storageMovieId);
 		const eventLog = createEventLog(storage);
-		const manifestService = createManifestService(storage);
+		const buildStateService = createBuildStateService(storage);
 
 		// Create custom produce function that returns stub data
 		const produce: ProduceFn = vi.fn(
@@ -134,10 +134,9 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
 		const runner = createRunner();
 		const firstRunResult = await runner.execute(planResult.plan, {
 			movieId: storageMovieId,
-			manifest: planResult.manifest,
+			buildState: planResult.buildState,
 			storage,
 			eventLog,
-			manifestService,
 			produce,
 			logger,
 		});
@@ -147,12 +146,7 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
 		expect(firstRunResult.jobs).toHaveLength(4); // 1 script + 3 audio
 
 		// Build and save manifest after first run
-		const manifest1 = await firstRunResult.buildManifest();
-		await manifestService.saveManifest(manifest1, {
-			movieId: storageMovieId,
-			previousHash: planResult.manifestHash,
-			clock: { now: () => new Date().toISOString() },
-		});
+		const manifest1 = await firstRunResult.buildStateSnapshot();
 
 		// Verify all artifacts are in manifest
 		expect(Object.keys(manifest1.artifacts).length).toBeGreaterThanOrEqual(4);

@@ -157,14 +157,9 @@ describe('runGenerate (new runs)', () => {
 		).toBe(true);
 
 		expect(result.build?.status).toBe('succeeded');
-		expect(result.manifestPath).toBeDefined();
-		const manifestStats = await stat(result.manifestPath!);
-		expect(manifestStats.isFile()).toBe(true);
-
-		const current = JSON.parse(
-			await readFile(join(movieDir, 'current.json'), 'utf8')
-		) as { revision?: string };
-		expect(current.revision).toBe(result.targetRevision);
+		expect(result.build?.runRecordPath).toBeDefined();
+		const runRecordStats = await stat(result.build!.runRecordPath);
+		expect(runRecordStats.isFile()).toBe(true);
 		const artifactsStats = await stat(result.artifactsRoot ?? '');
 		expect(artifactsStats.isDirectory()).toBe(true);
 		expect(result.rootOutputs).toBeDefined();

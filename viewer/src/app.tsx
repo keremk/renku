@@ -14,7 +14,7 @@ import {
 import { reconcileBuildSelection } from '@/lib/build-selection';
 import { useBlueprintData } from '@/services/use-blueprint-data';
 import { useBuildsList } from '@/services/use-builds-list';
-import { useBuildManifest } from '@/services/use-build-manifest';
+import { useBuildState } from '@/services/use-build-state';
 import { useInitializationStatus } from '@/services/use-initialization-status';
 
 function getFolderName(folderPath: string): string {
@@ -51,9 +51,9 @@ function BlueprintApp() {
     refetch: refetchBuilds,
   } = useBuildsList(resolvedPaths?.blueprintFolder ?? null);
 
-  // Load manifest for selected build
-  const { manifest: selectedBuildManifest, refetch: refetchManifest } =
-    useBuildManifest(
+  // Load build state for the selected build
+  const { buildState: selectedBuildState, refetch: refetchBuildState } =
+    useBuildState(
       resolvedPaths?.blueprintFolder ?? null,
       blueprintRoute?.selectedBuildId ?? null,
       resolvedPaths?.blueprintPath ?? null,
@@ -162,9 +162,9 @@ function BlueprintApp() {
       builds={builds}
       buildsLoading={buildsStatus === 'loading'}
       selectedBuildId={blueprintRoute.selectedBuildId}
-      selectedBuildManifest={selectedBuildManifest}
-      onBuildsRefresh={refetchBuilds}
-      onManifestRefresh={refetchManifest}
+        selectedBuildState={selectedBuildState}
+        onBuildsRefresh={refetchBuilds}
+        onBuildStateRefresh={refetchBuildState}
     />
   );
 }

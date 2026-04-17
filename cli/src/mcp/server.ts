@@ -8,17 +8,16 @@ import type { Variables } from '@modelcontextprotocol/sdk/shared/uriTemplate.js'
 import type { ReadResourceResult, ListResourcesResult, Resource } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { stringify as stringifyYaml } from 'yaml';
-import type { Manifest } from '@gorenku/core';
+import {
+  createBuildStateService,
+  createRunRecordService,
+  createStorageContext,
+  type BuildState,
+} from '@gorenku/core';
 import { runGenerate, type GenerateResult } from '../commands/generate.js';
 import { runLaunch } from '../commands/launch.js';
 import { readCliConfig } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
-
-/** Minimal type for reading input events from inputs.log */
-interface InputEventRecord {
-  id: string;
-  payload: unknown;
-}
 
 const console = globalThis.console;
 
@@ -139,11 +138,6 @@ Before you start the generation, always provide a summary for what you are gener
         await cleanupTempInputs(inputsPath);
       }
 
-      const manifestPath = result.manifestPath;
-      if (!manifestPath) {
-        throw new Error('Build manifest not produced. Ensure the blueprint executes without dry-run.');
-      }
-
       let viewerUrl: string | undefined;
       if (shouldOpenViewer) {
         try {
@@ -161,7 +155,11 @@ Before you start the generation, always provide a summary for what you are gener
         }
       }
 
-      const artifactUris = await buildArtifactUris(manifestPath, result.storageMovieId);
+      const artifactUris = await buildArtifactUris(
+        options.storageRoot,
+        options.storageBasePath,
+        result.storageMovieId
+      );
       const timelineUri = buildTimelineUri(result.storageMovieId);
       const inputsUri = buildInputsUri(result.storageMovieId);
 
@@ -191,7 +189,6 @@ Before you start the generation, always provide a summary for what you are gener
           movieId: result.movieId,
           storageMovieId: result.storageMovieId,
           planPath: result.planPath,
-          manifestPath,
           timelineUri,
           inputsUri,
           artifactUris,
@@ -212,7 +209,7 @@ function buildInstructions(options: CreateMcpServerOptions): string {
     '- renku://blueprints/... for blueprint YAML files',
     '- renku://movies/{movieId}/inputs for the inputs used in the movie generation',
     '- renku://movies/{movieId}/timeline for the generated timeline JSON',
-    '- renku://movies/{movieId}/artifacts/{canonicalId} for any artifact stored in the manifest',
+    '- renku://movies/{movieId}/artifacts/{canonicalId} for any artifact stored in the latest build state',
   ].join('\n');
 }
 
@@ -275,7 +272,7 @@ function registerMovieResources(server: McpServer, movieStore: MovieStorage): vo
     timelineTemplate,
     {
       title: 'Movie Timeline',
-      description: 'Rendered timeline JSON from the manifest timeline artifact.',
+      description: 'Rendered timeline JSON from the latest build-state timeline artifact.',
       mimeType: 'application/json',
     },
     async (_uri: URL, variables) => {
@@ -292,7 +289,7 @@ function registerMovieResources(server: McpServer, movieStore: MovieStorage): vo
     artifactTemplate,
     {
       title: 'Movie Artifacts',
-      description: 'Manifest artifacts keyed by canonical node IDs.',
+      description: 'Build-state artifacts keyed by canonical node IDs.',
     },
     async (_uri: URL, variables) => {
       const movieId = readTemplateVar(variables, 'movieId');
@@ -362,18 +359,37 @@ async function cleanupTempInputs(inputsPath: string): Promise<void> {
   }
 }
 
-async function buildArtifactUris(manifestPath: string, storageMovieId: string): Promise<string[]> {
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Manifest;
-  return Object.keys(manifest.artifacts ?? {}).map((id) => buildArtifactUri(storageMovieId, id));
+async function buildArtifactUris(
+  storageRoot: string,
+  storageBasePath: string,
+  storageMovieId: string
+): Promise<string[]> {
+  const storage = createStorageContext({
+    kind: 'local',
+    rootDir: storageRoot,
+    basePath: storageBasePath,
+  });
+  const buildStateService = createBuildStateService(storage);
+  const { buildState } = await buildStateService.loadCurrent(storageMovieId);
+  return Object.keys(buildState.artifacts ?? {}).map((id) => buildArtifactUri(storageMovieId, id));
 }
 
 export class MovieStorage {
   private readonly root: string;
   private readonly basePath: string;
+  private readonly buildStateService;
+  private readonly runRecordService;
 
   constructor(root: string, basePath: string) {
     this.root = root;
     this.basePath = basePath;
+    const storage = createStorageContext({
+      kind: 'local',
+      rootDir: root,
+      basePath,
+    });
+    this.buildStateService = createBuildStateService(storage);
+    this.runRecordService = createRunRecordService(storage);
   }
 
   private resolveMovieDir(movieId: string): string {
@@ -392,9 +408,9 @@ export class MovieStorage {
   }
 
   async listTimelines(): Promise<ListResourcesResult> {
-    const manifests = await this.listMoviesWithManifests();
+    const buildStates = await this.listMoviesWithBuildState();
     return {
-      resources: manifests.map((movieId) => ({
+      resources: buildStates.map((movieId) => ({
         name: `${movieId}/timeline`,
         uri: buildTimelineUri(movieId),
         mimeType: 'application/json',
@@ -406,11 +422,11 @@ export class MovieStorage {
     const movieIds = await this.listMovieIds();
     const resources: Resource[] = [];
     for (const movieId of movieIds) {
-      const manifest = await this.tryLoadManifest(movieId);
-      if (!manifest) {
+      const buildState = await this.tryLoadBuildState(movieId);
+      if (!buildState) {
         continue;
       }
-      for (const artifactId of Object.keys(manifest.artifacts ?? {})) {
+      for (const artifactId of Object.keys(buildState.artifacts ?? {})) {
         resources.push({
           name: `${movieId}:${artifactId}`,
           uri: buildArtifactUri(movieId, artifactId),
@@ -422,24 +438,27 @@ export class MovieStorage {
 
   async readInputs(movieId: string, uri: string): Promise<ReadResourceResult> {
     const movieDir = this.resolveMovieDir(movieId);
-    const inputsLogPath = join(movieDir, 'events', 'inputs.log');
-    const content = await readFile(inputsLogPath, 'utf8');
-
-    // Parse JSONL and collect latest input values (last entry wins for each ID)
-    const inputs: Record<string, unknown> = {};
-    for (const line of content.split('\n').filter(Boolean)) {
-      const event = JSON.parse(line) as InputEventRecord;
-      inputs[event.id] = event.payload;
+    const editableInputsPath = join(movieDir, 'inputs.yaml');
+    if (await pathExists(editableInputsPath)) {
+      return wrapTextResource(
+        uri,
+        await readFile(editableInputsPath, 'utf8'),
+        'text/yaml'
+      );
     }
 
-    // Return as YAML for consistency with previous format
-    const yamlContent = stringifyYaml({ inputs });
-    return wrapTextResource(uri, yamlContent, 'text/yaml');
+    const latestRunRecord = await this.runRecordService.loadLatest(movieId);
+    if (!latestRunRecord) {
+      throw new Error(`Inputs not found for movie ${movieId}.`);
+    }
+
+    const snapshotPath = join(movieDir, latestRunRecord.inputSnapshotPath);
+    return wrapTextResource(uri, await readFile(snapshotPath, 'utf8'), 'text/yaml');
   }
 
   async readTimeline(movieId: string): Promise<ReadResourceResult> {
-    const manifest = await this.loadManifest(movieId);
-    const artifact = manifest.artifacts[TIMELINE_ARTIFACT_ID];
+    const buildState = await this.loadBuildState(movieId);
+    const artifact = buildState.artifacts[TIMELINE_ARTIFACT_ID];
     if (!artifact) {
       throw new Error(`Timeline artifact missing for movie ${movieId}`);
     }
@@ -456,8 +475,8 @@ export class MovieStorage {
 
   async readArtifact(movieId: string, encodedArtifactId: string): Promise<ReadResourceResult> {
     const artifactId = decodeURIComponent(encodedArtifactId);
-    const manifest = await this.loadManifest(movieId);
-    const record = manifest.artifacts[artifactId];
+    const buildState = await this.loadBuildState(movieId);
+    const record = buildState.artifacts[artifactId];
     if (!record) {
       throw new Error(`Artifact "${artifactId}" not found for movie ${movieId}.`);
     }
@@ -483,42 +502,32 @@ export class MovieStorage {
     }
   }
 
-  private async listMoviesWithManifests(): Promise<string[]> {
+  private async listMoviesWithBuildState(): Promise<string[]> {
     const movieIds = await this.listMovieIds();
     const result: string[] = [];
     for (const movieId of movieIds) {
-      const pointerPath = join(this.resolveMovieDir(movieId), 'current.json');
-      if (await pathExists(pointerPath)) {
+      if (await this.tryLoadBuildState(movieId)) {
         result.push(movieId);
       }
     }
     return result;
   }
 
-  private async loadManifest(movieId: string): Promise<Manifest> {
-    const manifest = await this.tryLoadManifest(movieId);
-    if (!manifest) {
-      throw new Error(`Manifest not found for movie ${movieId}`);
+  private async loadBuildState(movieId: string): Promise<BuildState> {
+    const buildState = await this.tryLoadBuildState(movieId);
+    if (!buildState) {
+      throw new Error(`Build state not found for movie ${movieId}`);
     }
-    return manifest;
+    return buildState;
   }
 
-  private async tryLoadManifest(movieId: string): Promise<Manifest | null> {
-    const movieDir = this.resolveMovieDir(movieId);
-    const pointerPath = join(movieDir, 'current.json');
-    if (!(await pathExists(pointerPath))) {
+  private async tryLoadBuildState(movieId: string): Promise<BuildState | null> {
+    try {
+      const { buildState } = await this.buildStateService.loadCurrent(movieId);
+      return buildState;
+    } catch {
       return null;
     }
-    const pointer = JSON.parse(await readFile(pointerPath, 'utf8')) as { manifestPath?: string | null };
-    if (!pointer.manifestPath) {
-      return null;
-    }
-    const manifestFile = resolve(movieDir, pointer.manifestPath);
-    if (!(await pathExists(manifestFile))) {
-      return null;
-    }
-    const manifest = JSON.parse(await readFile(manifestFile, 'utf8')) as Manifest;
-    return manifest;
   }
 
   private async readBlob(movieId: string, hash: string, mimeType?: string | null): Promise<Buffer> {

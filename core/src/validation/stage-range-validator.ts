@@ -4,7 +4,7 @@
  * Validates that stage ranges are valid for execution.
  * Enforces business rules:
  * - Ranges must be contiguous (start to end)
- * - Clean runs (no manifest) must start from stage 0
+ * - Clean runs (no prior build state) must start from stage 0
  * - Subsequent runs can start from stage N only if stage N-1 succeeded
  */
 
@@ -33,7 +33,7 @@ export interface StageRange {
 export interface StageValidationContext {
   /** Total number of stages in the plan */
   totalStages: number;
-  /** Array of stage statuses, or null for a clean run (no previous manifest) */
+  /** Array of stage statuses, or null for a clean run (no previous build state) */
   stageStatuses: StageStatus[] | null;
 }
 
@@ -183,7 +183,7 @@ export function getValidStartStages(context: StageValidationContext): Set<number
  * - A stage is 'not-run' if no producers have run yet
  *
  * @param producersByLayer - Array of producer name arrays, one per layer (from plan layerBreakdown)
- * @param artifactStatuses - Map of artifact/producer name to status (from manifest)
+ * @param artifactStatuses - Map of artifact/producer name to status (from build state)
  * @returns Array of stage statuses, one per layer
  */
 export function deriveStageStatuses(
@@ -241,7 +241,7 @@ export function deriveStageStatuses(
  * the types available in the viewer.
  *
  * @param layerBreakdown - Layer breakdown from plan display info
- * @param artifacts - Artifacts from manifest response
+ * @param artifacts - Artifacts from build-state response
  * @returns Array of stage statuses, one per layer
  */
 export function deriveStageStatusesFromDisplayInfo(

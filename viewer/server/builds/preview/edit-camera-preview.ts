@@ -613,7 +613,7 @@ function createSingleJobPlan(job: JobDescriptor): ExecutionPlan {
   const revision = `rev-preview-${Date.now().toString(36)}` as `rev-${string}`;
   return {
     revision,
-    manifestBaseHash: 'preview',
+    baselineHash: 'preview',
     layers: [[job]],
     createdAt: new Date().toISOString(),
     blueprintLayerCount: 1,

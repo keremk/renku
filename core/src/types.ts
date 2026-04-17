@@ -503,7 +503,7 @@ export interface ProducerJobContextExtras {
    * Blob file paths for assets referenced in Timeline, resolved from event log.
    * Keys are artifact IDs (e.g., "Artifact:VideoProducer.GeneratedVideo[0]"),
    * values are absolute file paths to the blob files.
-   * This ensures exporters use fresh paths even when manifest is stale.
+   * This ensures exporters use fresh paths even when stored build state is stale.
    */
   assetBlobPaths?: Record<string, string>;
   [key: string]: unknown;
@@ -575,7 +575,7 @@ export interface RootOutputBinding {
 
 export interface ExecutionPlan {
   revision: RevisionId;
-  manifestBaseHash: string;
+  baselineHash: string;
   layers: JobDescriptor[][];
   createdAt: IsoDatetime;
   /** Total layers in the full blueprint (before upToLayer filtering). Used for UI dropdown. */
@@ -708,7 +708,7 @@ export type SurgicalRegenerationScope = 'lineage-plus-dirty' | 'lineage-strict';
 
 /**
  * Configuration options used when running a generation.
- * Stored in the manifest to record how a run was invoked.
+ * Stored with the build state / run record to record how a run was invoked.
  */
 export interface RunConfig {
   /** Limit execution to layers 0 through this index (inclusive) */
@@ -724,19 +724,50 @@ export interface RunConfig {
   concurrency?: number;
 }
 
+export interface RunSummary {
+  jobCount: number;
+  counts: {
+    succeeded: number;
+    failed: number;
+    skipped: number;
+  };
+  layers: number;
+}
+
+export type RunRecordStatus =
+  | 'planned'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled';
+
+export interface RunRecord {
+  revision: RevisionId;
+  createdAt: IsoDatetime;
+  blueprintPath?: string;
+  sourceInputsPath?: string;
+  inputSnapshotPath: string;
+  inputSnapshotHash: string;
+  planPath: string;
+  runConfig: RunConfig;
+  status: RunRecordStatus;
+  startedAt?: IsoDatetime;
+  completedAt?: IsoDatetime;
+  summary?: RunSummary;
+}
+
 export interface BlobRef {
   hash: string;
   size: number;
   mimeType: string;
 }
 
-export interface ManifestInputEntry {
+export interface BuildStateInputEntry {
   hash: string;
   payloadDigest: string;
   createdAt: IsoDatetime;
 }
 
-export interface ManifestArtifactEntry {
+export interface BuildStateArtifactEntry {
   hash: string;
   blob?: BlobRef;
   producedBy: Id;
@@ -753,25 +784,31 @@ export interface ManifestArtifactEntry {
   inputsHash?: string;
 }
 
-export interface Manifest {
+export interface BuildState {
   revision: RevisionId;
   baseRevision: RevisionId | null;
   createdAt: IsoDatetime;
-  inputs: Record<string, ManifestInputEntry>;
-  artifacts: Record<string, ManifestArtifactEntry>;
+  inputs: Record<string, BuildStateInputEntry>;
+  artifacts: Record<string, BuildStateArtifactEntry>;
   timeline?: TimelineDocument;
   /** Configuration options used when this revision was generated */
   runConfig?: RunConfig;
 }
 
-export type TimelineDocument = Record<string, unknown>;
-
-export interface ManifestPointer {
-  revision: RevisionId | null;
-  manifestPath: string | null;
-  hash: string | null;
-  updatedAt: IsoDatetime | null;
+export interface ExecutionState {
+  inputHashes: Map<string, string>;
+  artifactHashes: Map<string, string>;
 }
+
+export interface EventLogState {
+  latestRevision: RevisionId | null;
+  latestInputsById: Map<string, InputEvent>;
+  latestArtifactsById: Map<string, ArtifactEvent>;
+  latestSucceededArtifactIds: Set<string>;
+  latestFailedArtifactIds: Set<string>;
+}
+
+export type TimelineDocument = Record<string, unknown>;
 
 export interface Clock {
   now(): IsoDatetime;
@@ -891,11 +928,12 @@ export type RunStatus = 'succeeded' | 'failed';
 export interface RunResult {
   status: RunStatus;
   revision: RevisionId;
-  manifestBaseHash: string;
+  baselineHash: string;
+  manifestBaseHash?: string;
   jobs: JobResult[];
   startedAt: IsoDatetime;
   completedAt: IsoDatetime;
-  buildManifest(): Promise<Manifest>;
+  buildStateSnapshot(): Promise<BuildState>;
 }
 
 // === Producer Mapping Types ===

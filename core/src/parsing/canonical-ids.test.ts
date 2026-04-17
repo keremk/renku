@@ -407,7 +407,7 @@ describe('InputIdResolver', () => {
           { name: 'Topic', type: 'string', required: true },
           { name: 'Count', type: 'int', required: false },
         ],
-        artifacts: [],
+        outputs: [],
         producers: [],
         imports: [],
         edges: [],
@@ -421,7 +421,7 @@ describe('InputIdResolver', () => {
             inputs: [
               { name: 'Prompt', type: 'string', required: true },
             ],
-            artifacts: [],
+            outputs: [],
             producers: [],
             imports: [],
             edges: [],
@@ -522,7 +522,7 @@ describe('InputIdResolver', () => {
         document: {
           meta: { id: 'EmptyBlueprint', name: 'Empty Blueprint' },
           inputs: [], // No declared inputs
-          artifacts: [],
+          outputs: [],
           producers: [],
           imports: [],
           edges: [],
@@ -548,7 +548,7 @@ describe('InputIdResolver', () => {
           inputs: [
             { name: 'Duration', type: 'number', required: true }, // Explicitly declared
           ],
-          artifacts: [],
+          outputs: [],
           producers: [],
           imports: [],
           edges: [],

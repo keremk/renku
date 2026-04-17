@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { createMovieMetadataService } from './movie-metadata.js';
 import { formatBlobFileName } from './blob-utils.js';
 import { createStorageContext, initializeMovieStorage } from './storage.js';
-import type { Manifest } from './types.js';
+import type { BuildState } from './types.js';
 import {
   deriveArtifactsMovieFolderName,
   materializeManifestArtifacts,
@@ -83,7 +83,7 @@ describe('artifact materialization', () => {
       await mkdir(resolve(blobPath, '..'), { recursive: true });
       await writeFile(blobPath, Buffer.from('image-data'));
 
-      const manifest: Manifest = {
+      const manifest: BuildState = {
         revision: 'rev-1',
         baseRevision: null,
         createdAt: '2026-01-01T00:00:00.000Z',
@@ -108,7 +108,7 @@ describe('artifact materialization', () => {
         storageBasePath: 'builds',
         movieId,
         artifactsMovieFolderName: 'my-movie',
-        manifest,
+        buildState: manifest,
         mode: 'copy',
       });
 
@@ -142,7 +142,7 @@ describe('artifact materialization', () => {
       await mkdir(resolve(blobPath, '..'), { recursive: true });
       await writeFile(blobPath, Buffer.from('audio-data'));
 
-      const manifest: Manifest = {
+      const manifest: BuildState = {
         revision: 'rev-1',
         baseRevision: null,
         createdAt: '2026-01-01T00:00:00.000Z',
@@ -167,7 +167,7 @@ describe('artifact materialization', () => {
         storageBasePath: 'builds',
         movieId,
         artifactsMovieFolderName: 'my-movie',
-        manifest,
+        buildState: manifest,
         mode: 'symlink',
       });
 

@@ -510,7 +510,7 @@ function mapArtifactStatusToProducerStatus(
 }
 
 /**
- * Map artifacts from manifest to producer statuses.
+ * Map artifacts from build state to producer statuses.
  * Uses the "worst" status if a producer has multiple artifacts.
  */
 function mapArtifactsToProducerStatuses(

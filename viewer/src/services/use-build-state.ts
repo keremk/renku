@@ -1,32 +1,32 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { fetchBuildManifest } from "@/data/blueprint-client";
-import type { BuildManifestResponse } from "@/types/builds";
+import { fetchBuildState } from "@/data/blueprint-client";
+import type { BuildStateResponse } from "@/types/builds";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-interface BuildManifestState {
-  manifest: BuildManifestResponse | null;
+interface BuildStateHookState {
+  buildState: BuildStateResponse | null;
   status: Status;
   error: Error | null;
 }
 
-interface BuildManifestResult extends BuildManifestState {
+interface BuildStateHookResult extends BuildStateHookState {
   refetch: () => void;
 }
 
-const idleState: BuildManifestState = {
-  manifest: null,
+const idleState: BuildStateHookState = {
+  buildState: null,
   status: "idle",
   error: null,
 };
 
-export function useBuildManifest(
+export function useBuildState(
   blueprintFolder: string | null,
   movieId: string | null,
   blueprintPath: string | null,
   catalogRoot?: string | null
-): BuildManifestResult {
-  const [state, setState] = useState<BuildManifestState>(idleState);
+): BuildStateHookResult {
+  const [state, setState] = useState<BuildStateHookState>(idleState);
   // Track trigger for refetch - increment to force re-run
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   // Store current params in refs so refetch callback doesn't need dependencies
@@ -61,7 +61,7 @@ export function useBuildManifest(
 
     const loadData = async () => {
       try {
-        const data = await fetchBuildManifest(
+        const data = await fetchBuildState(
           blueprintFolder,
           movieId,
           blueprintPath,
@@ -71,7 +71,7 @@ export function useBuildManifest(
         if (cancelled) return;
         startTransition(() => {
           setState({
-            manifest: data,
+            buildState: data,
             status: "success",
             error: null,
           });
@@ -80,7 +80,7 @@ export function useBuildManifest(
         if (cancelled) return;
         startTransition(() => {
           setState({
-            manifest: null,
+            buildState: null,
             status: "error",
             error: err instanceof Error ? err : new Error(String(err)),
           });

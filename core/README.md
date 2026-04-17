@@ -5,12 +5,13 @@
 [![npm version](https://img.shields.io/npm/v/@gorenku/core.svg)](https://www.npmjs.com/package/@gorenku/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The core library for Renku - handles blueprint loading, execution planning, job orchestration, manifest management, and event logging. This package is the foundation for building AI-powered video generation workflows.
+The core library for Renku - handles blueprint loading, execution planning, job orchestration, event logging, run records, and dynamic `BuildState` reconstruction. This package is the foundation for building AI-powered video generation workflows.
 
-Authoring/runtime terminology in core is intentionally split:
+Authoring and runtime terminology in core is intentionally split:
 
 - Authored blueprints declare `inputs:`, `outputs:`, and `imports:`
-- Runtime execution persists concrete products as canonical `Artifact:...` entries in manifests and event logs
+- Runtime execution appends concrete history as canonical input and `Artifact:...` events plus per-run metadata
+- `BuildState` is a reconstructed snapshot derived from that persisted runtime history, not a stored source of truth
 
 ## Overview
 
@@ -19,7 +20,7 @@ Authoring/runtime terminology in core is intentionally split:
 - **Blueprint parsing and validation** - Load and validate YAML workflow definitions
 - **Execution planning** - Build dependency graphs and create layered execution plans
 - **Job orchestration** - Run jobs in parallel with automatic dependency resolution
-- **State management** - Track artifacts, versions, and execution history
+- **State management** - Rebuild current runtime state from event logs and run records whenever core needs a current view
 - **Storage abstraction** - Local filesystem and S3 cloud storage support
 
 This is a developer-focused package. If you're looking to generate videos from the command line, use [@gorenku/cli](../cli/README.md) instead.
@@ -57,11 +58,12 @@ pnpm add @gorenku/core
 
 ### Storage & State
 
-- `Storage` - File system storage abstraction
-- `CloudStorage` - S3-based cloud storage implementation
-- `EventLog` - Records execution events for debugging and auditing
-- `Manifest` - Tracks artifact metadata, versions, and dependencies
-- `createManifestService()` - Factory for manifest management
+- `createStorageContext()` - File system storage abstraction entry point
+- `createCloudStorageContext()` - S3-based cloud storage entry point
+- `createEventLog()` - Records input and artifact events for execution history, debugging, and auditing
+- `BuildState` - In-memory snapshot of the latest known inputs, artifacts, revision, and run configuration
+- `createBuildStateService()` - Rebuilds the latest `BuildState` view from persisted event history and run records
+- `createRunRecordService()` - Reads and writes per-run metadata such as plan paths, input snapshots, status, and summaries
 
 ### Types
 
@@ -93,56 +95,83 @@ The planner analyzes the blueprint, resolves dependencies between producers, and
 
 The runner executes the plan layer by layer, running independent jobs in parallel within each layer. It handles artifact resolution, provider communication, and event logging.
 
-### Manifest
+### BuildState
 
-The manifest system tracks all runtime artifacts produced during execution, including their metadata, dependencies, and content hashes. This enables incremental regeneration and dependency tracking across runs.
+`BuildState` is a synthesized view of the latest runtime state for a movie. It includes the latest known input hashes, artifact metadata, revision information, and optional run configuration.
+
+`BuildState` is not the canonical persisted runtime store. Core does not maintain a separate mutable current-state document and then try to keep it in sync. Instead, the source of truth is:
+
+- input events in the event log
+- artifact events in the event log
+- run records for per-run metadata such as plan paths, input snapshot paths, status, and summaries
+
+Core rebuilds `BuildState` from that history whenever planning, execution, or read APIs need the current state. That means the snapshot always comes from the same persisted history the runtime just wrote.
+
+This matters especially after a run. Execution appends new input events, artifact events, and run-record data first, and only then exposes a fresh `BuildState` snapshot. In other words, `runResult.buildStateSnapshot()` is a rebuild from the updated source of truth, not a lightly patched copy of the state that was passed into the run.
 
 ### Event Log
 
-The event log records all significant events during execution (input changes, artifact production, errors) for debugging and audit purposes.
+The event log records the runtime history of a movie: input edits, artifact production attempts, failures, and resulting revisions. It is the canonical history stream used to reconstruct current state.
+
+### Run Records
+
+Run records store per-revision metadata that does not belong in the event stream itself, such as:
+
+- plan file paths
+- input snapshot paths and hashes
+- run status and timestamps
+- run summaries
+- run configuration
+
+Together, event logs and run records let core rebuild a current `BuildState` snapshot without treating that snapshot as the source of truth.
 
 ## Usage Example
 
 ```typescript
 import {
-  loadBlueprint,
+  createStorageContext,
+  initializeMovieStorage,
+  createBuildStateService,
+  createEventLog,
   createPlanner,
-  createRunner,
-  createManifestService,
-  Storage,
-  EventLog
+  createRunner
 } from '@gorenku/core';
 
-// Load blueprint
-const blueprint = await loadBlueprint('./blueprint.yaml');
+const storage = createStorageContext({
+  kind: 'local',
+  basePath: '/path/to/workspace/builds',
+});
+await initializeMovieStorage(storage, 'movie-123');
 
-// Load inputs
-const inputs = await loadInputs('./inputs.yaml');
+const buildStateService = createBuildStateService(storage);
+const eventLog = createEventLog(storage);
 
-// Create storage
-const storage = new Storage('/path/to/workspace/builds/movie-123');
+const { buildState } = await buildStateService.loadCurrent('movie-123');
 
-// Create manifest service
-const manifestService = createManifestService(storage);
-
-// Create execution plan
-const planner = createPlanner(blueprint, inputs, manifestService);
-const plan = await planner.createPlan();
-
-// Create event log
-const eventLog = new EventLog(storage);
-
-// Execute the plan
-const runner = createRunner({
-  plan,
-  storage,
-  registry, // Provider registry from @gorenku/providers
+const planner = createPlanner();
+const planResult = await planner.computePlan({
+  movieId: 'movie-123',
+  buildState,
   eventLog,
-  concurrency: 2
+  blueprint: producerGraph,
+  targetRevision: 'rev-0002',
+  pendingEdits: [],
 });
 
-await runner.execute();
+const runner = createRunner();
+const runResult = await runner.execute(planResult.plan, {
+  movieId: 'movie-123',
+  buildState: planResult.buildState,
+  executionState: planResult.executionState,
+  storage,
+  eventLog,
+  produce,
+});
+
+const nextBuildState = await runResult.buildStateSnapshot();
 ```
+
+In that flow, `buildState` is just the planner and runner's current working snapshot. The durable record is still the event log plus run records written during execution, and `nextBuildState` is reconstructed from those persisted writes.
 
 ## Development
 
@@ -202,6 +231,11 @@ The core package is organized into several key directories:
 - **`planning/`** - Execution graph construction and planning
   - `planner.ts` - Main planning engine
   - `dirty-checker.ts` - Determines what needs regeneration
+
+- **`build-state.ts`, `event-log.ts`, `run-record.ts`** - Runtime history storage and current-state reconstruction
+  - `event-log.ts` - Append and read runtime events
+  - `run-record.ts` - Persist per-run metadata
+  - `build-state.ts` - Rebuild the latest `BuildState` view from persisted history
 
 - **`orchestration/`** - High-level service coordination
   - `planning-service.ts` - Coordinates planning operations

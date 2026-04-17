@@ -2,17 +2,17 @@
  * Shared plan-generation helpers used by both CLI and viewer.
  *
  * These functions handle storage operations around planning (copying
- * manifests/events to memory, persisting blobs, building provider metadata,
+ * run archives/events to memory, persisting blobs, building provider metadata,
  * converting artifact overrides, deriving surgical info). Extracted to
  * eliminate duplication between CLI planner.ts and viewer plan-handler.ts.
  */
 
-import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import type { StorageContext } from '../storage.js';
 import { inferMimeType } from '../blob-utils.js';
 import { persistInputBlob } from '../input-blob-storage.js';
-import type { Manifest } from '../types.js';
+import type { BuildState } from '../types.js';
 import type { ArtifactOverride } from '../parsing/input-loader.js';
 import type { PendingArtifactDraft, ProviderOptionEntry } from './planning-service.js';
 import type { ProducerOptionsMap } from './producer-options.js';
@@ -22,28 +22,51 @@ import type { ProducerOptionsMap } from './producer-options.js';
 // ---------------------------------------------------------------------------
 
 /**
- * Copy existing manifest from local storage to in-memory storage.
+ * Copy existing run archives from local storage to in-memory storage.
  */
-export async function copyManifestToMemory(
+export async function copyRunArchivesToMemory(
   localCtx: StorageContext,
   memoryCtx: StorageContext,
   movieId: string,
 ): Promise<void> {
-  const currentJsonPath = localCtx.resolve(movieId, 'current.json');
-  if (await localCtx.storage.fileExists(currentJsonPath)) {
-    const content = await localCtx.storage.readToString(currentJsonPath);
-    const memoryPath = memoryCtx.resolve(movieId, 'current.json');
-    await memoryCtx.storage.write(memoryPath, content, { mimeType: 'application/json' });
+  const runsDir = localCtx.resolve(movieId, 'runs');
+  if (!(await localCtx.storage.directoryExists(runsDir))) {
+    return;
+  }
 
-    const parsed = JSON.parse(content) as { manifestPath?: string | null };
-    if (parsed.manifestPath) {
-      const manifestFullPath = localCtx.resolve(movieId, parsed.manifestPath);
-      if (await localCtx.storage.fileExists(manifestFullPath)) {
-        const manifestContent = await localCtx.storage.readToString(manifestFullPath);
-        const memoryManifestPath = memoryCtx.resolve(movieId, parsed.manifestPath);
-        await memoryCtx.storage.write(memoryManifestPath, manifestContent, { mimeType: 'application/json' });
-      }
+  const listing = localCtx.storage.list(runsDir, { deep: true });
+  for await (const item of listing) {
+    if (item.type !== 'file') {
+      continue;
     }
+    const content = await localCtx.storage.readToUint8Array(item.path);
+    await memoryCtx.storage.write(item.path, Buffer.from(content), {
+      mimeType: item.path.endsWith('.json')
+        ? 'application/json'
+        : 'application/x-yaml',
+    });
+  }
+}
+
+export async function copyPlansToMemory(
+  localCtx: StorageContext,
+  memoryCtx: StorageContext,
+  movieId: string,
+): Promise<void> {
+  const runsDir = localCtx.resolve(movieId, 'runs');
+  if (!(await localCtx.storage.directoryExists(runsDir))) {
+    return;
+  }
+
+  const listing = localCtx.storage.list(runsDir, { deep: false });
+  for await (const item of listing) {
+    if (item.type !== 'file' || !item.path.endsWith('-plan.json')) {
+      continue;
+    }
+    const content = await localCtx.storage.readToUint8Array(item.path);
+    await memoryCtx.storage.write(item.path, Buffer.from(content), {
+      mimeType: 'application/json',
+    });
   }
 }
 
@@ -198,15 +221,15 @@ export interface SurgicalInfo {
 }
 
 /**
- * Derive surgical regeneration info from the manifest for multiple artifacts.
+ * Derive surgical regeneration info from the current build state for multiple artifacts.
  */
 export function deriveSurgicalInfoArray(
   regenerateArtifactIds: string[],
-  manifest: Manifest,
+  buildState: BuildState,
 ): SurgicalInfo[] | undefined {
   const results: SurgicalInfo[] = [];
   for (const artifactId of regenerateArtifactIds) {
-    const entry = manifest.artifacts[artifactId];
+    const entry = buildState.artifacts[artifactId];
     if (!entry) {
       continue;
     }

@@ -252,6 +252,8 @@ describe('createProducerGraph', () => {
             'Context': 'Input:Context',
           },
         },
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -305,6 +307,8 @@ describe('createProducerGraph', () => {
             'ScriptText': 'Artifact:Script',
           },
         },
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -357,6 +361,8 @@ describe('createProducerGraph', () => {
             'ReferenceImages[1]': 'Artifact:ProductImage.GeneratedImage',
           },
         },
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -411,6 +417,8 @@ describe('createProducerGraph', () => {
             'ReferenceImages': 'Artifact:ImageGenerator.AllImages',
           },
         },
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {},
       };
 
@@ -533,6 +541,8 @@ describe('createProducerGraph', () => {
           { from: 'Artifact:Script[1]', to: 'Producer:TestProducer' },
         ],
         inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
         fanIn: {
           'Artifact:Script[0]': fanInDescriptor,
           'Artifact:Script[1]': fanInDescriptor,

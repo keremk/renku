@@ -7,7 +7,7 @@ import {
 	readCliConfig,
 } from '../lib/cli-config.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
-import { loadCurrentManifest } from '../lib/artifacts-view.js';
+import { loadCurrentBuildState } from '../lib/artifacts-view.js';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import {
 	createStorageContext,
@@ -115,17 +115,17 @@ interface SubtitleConfig {
 }
 
 /**
- * Extracts subtitle configuration from manifest inputs.
- * The manifest stores VideoExporter config as flattened inputs like:
+ * Extracts subtitle configuration from build-state inputs.
+ * The stored build state keeps VideoExporter config as flattened inputs like:
  * - Input:VideoExporter.subtitles.font
  * - Input:VideoExporter.subtitles.fontSize
  * etc.
  */
-function extractSubtitleConfig(manifest: {
+function extractSubtitleConfig(buildState: {
 	inputs: Record<string, { payloadDigest: string }>;
 }): SubtitleConfig | undefined {
 	const prefix = 'Input:VideoExporter.subtitles.';
-	const subtitleInputs = Object.entries(manifest.inputs).filter(([key]) =>
+	const subtitleInputs = Object.entries(buildState.inputs).filter(([key]) =>
 		key.startsWith(prefix)
 	);
 
@@ -197,11 +197,11 @@ function extractSubtitleConfig(manifest: {
 	return Object.keys(config).length > 0 ? config : undefined;
 }
 
-function extractTextConfig(manifest: {
+function extractTextConfig(buildState: {
 	inputs: Record<string, { payloadDigest: string }>;
 }): TextConfig | undefined {
 	const prefix = 'Input:VideoExporter.text.';
-	const textInputs = Object.entries(manifest.inputs).filter(([key]) =>
+	const textInputs = Object.entries(buildState.inputs).filter(([key]) =>
 		key.startsWith(prefix)
 	);
 
@@ -687,7 +687,7 @@ function isOverlayPosition(value: unknown): value is OverlayPosition {
 }
 
 /**
- * Merges subtitle configs with config file taking priority over manifest.
+ * Merges subtitle configs with config file taking priority over build state.
  * Returns undefined if both are undefined.
  */
 function mergeSubtitleConfigs(
@@ -698,7 +698,7 @@ function mergeSubtitleConfigs(
 		return undefined;
 	}
 
-	// Config file values take priority over manifest values
+	// Config file values take priority over build-state values
 	return {
 		...manifestConfig,
 		...fileConfig,
@@ -762,19 +762,18 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 	// Load and validate the blueprint has a TimelineComposer
 	await validateBlueprintHasTimelineComposer(metadata.blueprintPath);
 
-	// Load manifest and validate Timeline artifact exists
-	const { manifest } = await loadCurrentManifest(
+	const { buildState } = await loadCurrentBuildState(
 		effectiveConfig,
 		storageMovieId
 	);
-	validateTimelineArtifactExists(manifest);
+	validateTimelineArtifactExists(buildState);
 
 	// Load export config from file if provided
 	const fileConfig = options.inputsPath
 		? await loadExportConfig(options.inputsPath)
 		: undefined;
 
-	// Determine output settings with priority: CLI flags > config file > manifest > defaults
+	// Determine output settings with priority: CLI flags > config file > build state > defaults
 	// CLI flags take highest priority (explicit user override)
 	const width = options.width ?? fileConfig?.width ?? DEFAULT_WIDTH;
 	const height = options.height ?? fileConfig?.height ?? DEFAULT_HEIGHT;
@@ -811,21 +810,20 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 	});
 
 	// Get the timeline artifact entry for the job context
-	const timelineEntry = manifest.artifacts[TIMELINE_ARTIFACT_ID];
+	const timelineEntry = buildState.artifacts[TIMELINE_ARTIFACT_ID];
 
 	// Get the transcription artifact entry if it exists (optional, for subtitles)
-	const transcriptionEntry = manifest.artifacts[TRANSCRIPTION_ARTIFACT_ID];
+	const transcriptionEntry = buildState.artifacts[TRANSCRIPTION_ARTIFACT_ID];
 
-	// Extract subtitle configuration from manifest inputs (if present in blueprint)
-	const manifestSubtitleConfig = extractSubtitleConfig(manifest);
+	const buildStateSubtitleConfig = extractSubtitleConfig(buildState);
 
-	// Merge subtitle configs: config file > manifest (for each field)
+	// Merge subtitle configs: config file > build state (for each field)
 	const subtitleConfig = mergeSubtitleConfigs(
-		manifestSubtitleConfig,
+		buildStateSubtitleConfig,
 		fileConfig?.subtitles
 	);
-	const manifestTextConfig = extractTextConfig(manifest);
-	const textConfig = mergeTextConfigs(manifestTextConfig, fileConfig?.text);
+	const buildStateTextConfig = extractTextConfig(buildState);
+	const textConfig = mergeTextConfigs(buildStateTextConfig, fileConfig?.text);
 
 	// Build provider config with all settings
 	const providerConfig: Record<string, unknown> = { width, height, fps };
@@ -868,7 +866,7 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 		jobId: `export-${Date.now()}`,
 		provider: 'renku',
 		model: exporterModel,
-		revision: manifest.revision,
+		revision: buildState.revision,
 		layerIndex: 0,
 		attempt: 1,
 		inputs: [],
@@ -951,13 +949,13 @@ async function validateBlueprintHasTimelineComposer(
 	}
 }
 
-function validateTimelineArtifactExists(manifest: {
+function validateTimelineArtifactExists(buildState: {
 	artifacts: Record<string, unknown>;
 }): void {
-	const hasTimeline = TIMELINE_ARTIFACT_ID in manifest.artifacts;
+	const hasTimeline = TIMELINE_ARTIFACT_ID in buildState.artifacts;
 	if (!hasTimeline) {
 		throw createRuntimeError(
-			RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
+			RuntimeErrorCode.ARTIFACT_NOT_IN_BUILD_STATE,
 			'No timeline found. Please run the generation first to create a timeline.',
 			{
 				suggestion:

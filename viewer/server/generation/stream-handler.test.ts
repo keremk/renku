@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { Manifest, ExecutionPlan } from '@gorenku/core';
+import type { BuildState, ExecutionPlan, ExecutionState } from '@gorenku/core';
 import type { PlanCostSummary } from '@gorenku/providers';
 import { handleStreamRequest } from './stream-handler.js';
 import { getJobManager, resetJobManager } from './job-manager.js';
@@ -20,8 +20,12 @@ function createMockPlanData(): Omit<CachedPlan, 'planId' | 'createdAt'> {
   return {
     movieId: 'movie-test',
     plan: { layers: [] } as unknown as ExecutionPlan,
-    manifest: { revision: 'rev1' } as unknown as Manifest,
-    manifestHash: 'hash123',
+    buildState: { revision: 'rev1' } as unknown as BuildState,
+    executionState: {
+      inputHashes: new Map(),
+      artifactHashes: new Map(),
+    } as ExecutionState,
+    baselineHash: 'hash123',
     resolvedInputs: { input1: 'value1' },
     providerOptions: new Map(),
     blueprintPath: '/test/blueprint.yaml',
@@ -92,8 +96,7 @@ describe('handleStreamRequest', () => {
       status: 'succeeded',
       jobCount: 5,
       counts: { succeeded: 5, failed: 0, skipped: 0 },
-      manifestRevision: 'rev2',
-      manifestPath: '/path/to/manifest.json',
+      revision: 'rev2',
     };
     manager.setJobSummary(job.jobId, summary);
 
@@ -259,8 +262,7 @@ describe('handleStreamRequest', () => {
         status: 'succeeded',
         jobCount: 3,
         counts: { succeeded: 3, failed: 0, skipped: 0 },
-        manifestRevision: 'rev2',
-        manifestPath: '/path/manifest.json',
+        revision: 'rev2',
       },
     };
     manager.broadcastEvent(job.jobId, completeEvent);

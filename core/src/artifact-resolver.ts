@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import type { EventLog } from './event-log.js';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import type { StorageContext } from './storage.js';
-import type { BlobRef, ArtifactEvent, Manifest } from './types.js';
+import type { BlobRef, ArtifactEvent, BuildState } from './types.js';
 import { formatBlobFileName } from './blob-utils.js';
 
 /**
@@ -57,9 +57,9 @@ export async function resolveArtifactsFromEventLog(args: {
   return Object.fromEntries(resolvedByCanonicalId.entries());
 }
 
-export async function resolveManifestArtifactValues(args: {
+export async function resolveBuildStateArtifactValues(args: {
   artifactIds: string[];
-  manifest: Manifest;
+  buildState: BuildState;
   storage: StorageContext;
   movieId: string;
 }): Promise<Record<string, unknown>> {
@@ -70,7 +70,7 @@ export async function resolveManifestArtifactValues(args: {
   const resolvedByCanonicalId = new Map<string, unknown>();
 
   for (const artifactId of args.artifactIds) {
-    const entry = args.manifest.artifacts[artifactId];
+    const entry = args.buildState.artifacts[artifactId];
     if (!entry?.blob || entry.status !== 'succeeded') {
       continue;
     }
@@ -173,8 +173,8 @@ function decodePayload(payload: Uint8Array, mimeType?: string): unknown {
  * returns the file system paths to the blobs. This is needed by exporters
  * like ffmpeg which require file paths rather than in-memory content.
  *
- * This function reads from the event log (not the manifest) to ensure it always
- * gets the latest artifact paths, even during execution when the manifest
+ * This function reads from the event log (not persisted build state) to ensure it always
+ * gets the latest artifact paths, even during execution when persisted build state
  * hasn't been updated yet.
  *
  * @param args Configuration with artifact IDs to resolve, event log, storage, and movie ID

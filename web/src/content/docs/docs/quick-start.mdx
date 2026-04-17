@@ -211,9 +211,8 @@ After generation, your **current working directory** contains:
 ├── builds/                      # GITIGNORED - build data
 │   └── movie-{id}/
 │       ├── blobs/               # Generated files (audio, images, etc.)
-│       ├── manifests/           # Artifact metadata
-│       ├── events/              # Execution logs
-│       └── runs/                # Execution plans
+│       ├── events/              # Input/artifact history logs (JSONL)
+│       └── runs/                # Per-run metadata, plans, and input snapshots
 └── artifacts/                   # GITIGNORED - symlinks to build outputs
     └── movie-{id}/
         ├── Script.txt           # Generated narration script
@@ -222,7 +221,7 @@ After generation, your **current working directory** contains:
         └── Segment_2.mp3        # Audio for segment 2
 ```
 
-The `artifacts/` directory contains human-readable symlinks to your generated content. Use `renku list` to see all builds in the current project.
+The `artifacts/` directory contains human-readable symlinks to your generated content. Internally, Renku reconstructs the current `BuildState` from `events/` and `runs/` rather than reading a stored manifest file. Use `renku list` to see all builds in the current project.
 
 ## Next Steps
 

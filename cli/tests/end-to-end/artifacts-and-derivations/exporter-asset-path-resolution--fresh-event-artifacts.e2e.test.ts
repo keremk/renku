@@ -4,15 +4,15 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   createEventLog,
-  createManifestService,
+  createBuildStateService,
   createRunner,
   createStorageContext,
   initializeMovieStorage,
+  type BuildState,
   type ProduceRequest,
   type ProduceResult,
   type ProduceFn,
   type ExecutionPlan,
-  type Manifest,
   type RevisionId,
 } from '@gorenku/core';
 import {
@@ -49,7 +49,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     await initializeMovieStorage(storage, movieId);
 
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
 
     // Create mock video blobs (use valid hex hashes for testing)
     const videoHash1 = 'fe001234567890abcdef1234567890abcdef1234567890abcdef1234567890ab';
@@ -160,7 +160,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     const staleVideoHash1 = '0001234567890abcdef1234567890abcdef1234567890abcdef12345678901234';
     const staleVideoHash2 = '0002234567890abcdef1234567890abcdef1234567890abcdef12345678901234';
 
-    const staleManifest: Manifest = {
+    const staleManifest: BuildState = {
       revision: 'rev-0000' as RevisionId,
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -203,11 +203,6 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     };
 
     // Save stale manifest and create current.json pointer
-    await manifestService.saveManifest(staleManifest, {
-      movieId,
-      previousHash: null,
-      clock: { now: () => new Date().toISOString() },
-    });
 
     // Track what assetBlobPaths are passed to the handler
     let capturedAssetBlobPaths: Record<string, string> | undefined;
@@ -235,7 +230,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     // Create execution plan with a job that receives Timeline as input
     const plan: ExecutionPlan = {
       revision: 'rev-0002' as RevisionId,
-      manifestBaseHash: 'base-hash',
+      baselineHash: 'base-hash',
       createdAt: new Date().toISOString(),
       layers: [
         [
@@ -264,10 +259,9 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     const runner = createRunner();
     const runResult = await runner.execute(plan, {
       movieId,
-      manifest: staleManifest, // Using stale manifest
+      buildState: staleManifest, // Using stale manifest
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     });
@@ -311,7 +305,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     await initializeMovieStorage(storage, movieId);
 
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
 
     // Create hashes for video, audio, and music assets (use valid hex hashes)
     const videoHash = 'b1de0123456789abcdef1234567890abcdef1234567890abcdef1234567890ab';
@@ -381,19 +375,13 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     });
 
     // Create empty manifest
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: 'rev-0000' as RevisionId,
       baseRevision: null,
       createdAt: new Date().toISOString(),
       inputs: {},
       artifacts: {},
     };
-
-    await manifestService.saveManifest(manifest, {
-      movieId,
-      previousHash: null,
-      clock: { now: () => new Date().toISOString() },
-    });
 
     let capturedAssetBlobPaths: Record<string, string> | undefined;
 
@@ -413,7 +401,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
 
     const plan: ExecutionPlan = {
       revision: 'rev-0002' as RevisionId,
-      manifestBaseHash: 'base-hash',
+      baselineHash: 'base-hash',
       createdAt: new Date().toISOString(),
       layers: [[{
         jobId: 'job-exporter',
@@ -437,10 +425,9 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
     const runner = createRunner();
     await runner.execute(plan, {
       movieId,
-      manifest,
+      buildState: manifest,
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     });

@@ -10,7 +10,12 @@ import {
 } from '../../sdk/unified/schema-file.js';
 import type { HandlerFactory, HandlerFactoryInit } from '../../types.js';
 import type { ResolvedInputsAccessor } from '../../sdk/types.js';
-import { createStorageContext } from '@gorenku/core';
+import {
+  createEventLog,
+  createStorageContext,
+  resolveArtifactBlobPaths,
+  resolveArtifactsFromEventLog,
+} from '@gorenku/core';
 import type { TimelineDocument } from '@gorenku/compositions';
 import { buildFfmpegCommand } from './ffmpeg/command-builder.js';
 import { generateAssFile } from './ffmpeg/ass-renderer.js';
@@ -36,24 +41,6 @@ interface FfmpegProgressSnapshot {
 interface RunFfmpegOptions {
   signal?: AbortSignal;
   onProgress?: (snapshot: FfmpegProgressSnapshot) => void;
-}
-
-interface ManifestPointer {
-  revision: string | null;
-  manifestPath: string | null;
-}
-
-interface ManifestFile {
-  artifacts?: Record<
-    string,
-    {
-      blob: {
-        hash: string;
-        size: number;
-        mimeType?: string;
-      };
-    }
-  >;
 }
 
 export function createFfmpegExporterHandler(): HandlerFactory {
@@ -568,40 +555,22 @@ async function loadTimeline(
   storage: ReturnType<typeof createStorageContext>,
   movieId: string
 ): Promise<TimelineDocument> {
-  const pointerPath = storage.resolve(movieId, 'current.json');
-  const pointerRaw = await storage.storage.readToString(pointerPath);
-  const pointer = JSON.parse(pointerRaw) as ManifestPointer;
-
-  if (!pointer.manifestPath) {
-    throw createProviderError(
-      SdkErrorCode.MISSING_MANIFEST,
-      `Manifest pointer missing path for movie ${movieId}.`,
-      { kind: 'user_input', causedByUser: true }
-    );
-  }
-
-  const manifestPath = storage.resolve(movieId, pointer.manifestPath);
-  const manifestRaw = await storage.storage.readToString(manifestPath);
-  const manifest = JSON.parse(manifestRaw) as ManifestFile;
-
-  const timelineArtifact = manifest.artifacts?.[TIMELINE_ARTIFACT_ID];
-  if (!timelineArtifact) {
+  const eventLog = createEventLog(storage);
+  const artifacts = await resolveArtifactsFromEventLog({
+    artifactIds: [TIMELINE_ARTIFACT_ID],
+    eventLog,
+    storage,
+    movieId,
+  });
+  const timelineArtifact = artifacts[TIMELINE_ARTIFACT_ID];
+  if (!timelineArtifact || !isTimelineDocument(timelineArtifact)) {
     throw createProviderError(
       SdkErrorCode.MISSING_TIMELINE,
       `Timeline artifact not found for movie ${movieId}.`,
       { kind: 'user_input', causedByUser: true }
     );
   }
-
-  // Load the actual timeline blob
-  const blobPath = buildBlobPath(
-    storage,
-    movieId,
-    timelineArtifact.blob.hash,
-    'json'
-  );
-  const timelineRaw = await storage.storage.readToString(blobPath);
-  return JSON.parse(timelineRaw) as TimelineDocument;
+  return timelineArtifact;
 }
 
 /**
@@ -613,33 +582,22 @@ async function loadTranscription(
   movieId: string
 ): Promise<TranscriptionArtifact | undefined> {
   try {
-    const pointerPath = storage.resolve(movieId, 'current.json');
-    const pointerRaw = await storage.storage.readToString(pointerPath);
-    const pointer = JSON.parse(pointerRaw) as ManifestPointer;
-
-    if (!pointer.manifestPath) {
-      return undefined;
-    }
-
-    const manifestPath = storage.resolve(movieId, pointer.manifestPath);
-    const manifestRaw = await storage.storage.readToString(manifestPath);
-    const manifest = JSON.parse(manifestRaw) as ManifestFile;
-
-    const transcriptionArtifact =
-      manifest.artifacts?.[TRANSCRIPTION_ARTIFACT_ID];
-    if (!transcriptionArtifact?.blob?.hash) {
-      return undefined;
-    }
-
-    // Load the actual transcription blob
-    const blobPath = buildBlobPath(
+    const eventLog = createEventLog(storage);
+    const artifacts = await resolveArtifactsFromEventLog({
+      artifactIds: [TRANSCRIPTION_ARTIFACT_ID],
+      eventLog,
       storage,
       movieId,
-      transcriptionArtifact.blob.hash,
-      'json'
-    );
-    const transcriptionRaw = await storage.storage.readToString(blobPath);
-    return JSON.parse(transcriptionRaw) as TranscriptionArtifact;
+    });
+    const transcription = artifacts[TRANSCRIPTION_ARTIFACT_ID];
+    if (
+      transcription &&
+      typeof transcription === 'object' &&
+      'words' in transcription
+    ) {
+      return transcription as TranscriptionArtifact;
+    }
+    return undefined;
   } catch {
     // Transcription is optional, return undefined if loading fails
     return undefined;
@@ -684,41 +642,19 @@ async function buildAssetPaths(
     return assetPaths;
   }
 
-  // Fall back to manifest for any missing assets (backward compatibility)
+  // Resolve any remaining assets from the persisted event log.
   try {
-    const pointerPath = storage.resolve(movieId, 'current.json');
-    const pointerRaw = await storage.storage.readToString(pointerPath);
-    const pointer = JSON.parse(pointerRaw) as ManifestPointer;
-
-    if (!pointer.manifestPath) {
-      return assetPaths;
-    }
-
-    const manifestPath = storage.resolve(movieId, pointer.manifestPath);
-    const manifestRaw = await storage.storage.readToString(manifestPath);
-    const manifest = JSON.parse(manifestRaw) as ManifestFile;
-
-    if (!manifest.artifacts) {
-      return assetPaths;
-    }
-
-    // Build paths for missing assets from manifest
-    for (const assetId of missingAssets) {
-      const artifact = manifest.artifacts[assetId];
-      if (artifact?.blob) {
-        const ext = mimeToExtension(artifact.blob.mimeType);
-        const blobPath = buildBlobPath(
-          storage,
-          movieId,
-          artifact.blob.hash,
-          ext
-        );
-        assetPaths[assetId] = blobPath;
-      }
+    const persistedPaths = await resolveArtifactBlobPaths({
+      artifactIds: missingAssets,
+      eventLog: createEventLog(storage),
+      storage,
+      movieId,
+    });
+    for (const [assetId, blobPath] of Object.entries(persistedPaths)) {
+      assetPaths[assetId] = blobPath;
     }
   } catch {
-    // If manifest reading fails and we have no event log paths, this will cause issues
-    // downstream when FFmpeg tries to access missing assets
+    // Missing assets will surface later when FFmpeg tries to use them.
   }
 
   return assetPaths;
@@ -750,17 +686,6 @@ function collectAssetIds(timeline: TimelineDocument): Set<string> {
   }
 
   return assetIds;
-}
-
-function buildBlobPath(
-  storage: ReturnType<typeof createStorageContext>,
-  movieId: string,
-  hash: string,
-  extension: string
-): string {
-  // Content-addressed storage: blobs/{prefix}/{hash}.{ext}
-  const prefix = hash.substring(0, 2);
-  return storage.resolve(movieId, `blobs/${prefix}/${hash}.${extension}`);
 }
 
 function mimeToExtension(mime?: string): string {

@@ -2,14 +2,14 @@ import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	createEventLog,
-	createManifestService,
+	createBuildStateService,
 	createStorageContext,
 	executePlanWithConcurrency,
 	initializeMovieStorage,
 	injectAllSystemInputs,
 	readBlobFromStorage,
 	resolveBlobRefsToInputs,
-	type Manifest,
+	type BuildState,
 	type ProduceFn,
 	type ProduceRequest,
 	type ProduceResult,
@@ -54,7 +54,7 @@ function parseBooleanText(value: string, artifactId: string): boolean {
 	);
 }
 
-function getRequiredBlob(manifest: Manifest, artifactId: string) {
+function getRequiredBlob(manifest: BuildState, artifactId: string) {
 	const entry = manifest.artifacts[artifactId];
 	if (!entry) {
 		throw new Error(`Missing manifest artifact: ${artifactId}`);
@@ -68,7 +68,7 @@ function getRequiredBlob(manifest: Manifest, artifactId: string) {
 async function readTextArtifact(
 	storage: StorageContext,
 	movieId: string,
-	manifest: Manifest,
+	manifest: BuildState,
 	artifactId: string
 ): Promise<string> {
 	const blob = getRequiredBlob(manifest, artifactId);
@@ -179,7 +179,7 @@ describe('end-to-end: scene character presence', () => {
 		});
 		await initializeMovieStorage(storage, storageMovieId);
 		const eventLog = createEventLog(storage);
-		const manifestService = createManifestService(storage);
+		const buildStateService = createBuildStateService(storage);
 
 		const registry = createProviderRegistry({
 			mode: 'simulated',
@@ -232,10 +232,9 @@ describe('end-to-end: scene character presence', () => {
 			planResult.plan,
 			{
 				movieId: storageMovieId,
-				manifest: planResult.manifest,
+				buildState: planResult.buildState,
 				storage,
 				eventLog,
-				manifestService,
 				produce,
 				logger,
 			},
@@ -255,7 +254,7 @@ describe('end-to-end: scene character presence', () => {
 			expect(sceneJob.status).toBe('succeeded');
 		}
 
-		const manifest = await run.buildManifest();
+		const manifest = await run.buildStateSnapshot();
 
 		const characterPrompts: string[] = [];
 		for (

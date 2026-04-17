@@ -4,8 +4,9 @@
  */
 
 import type {
+  BuildState,
   ExecutionPlan,
-  Manifest,
+  ExecutionState,
   PlanningUserControls,
   PlanningWarning,
   ProducerSchedulingSummary,
@@ -244,8 +245,7 @@ export interface BuildSummaryInfo {
     failed: number;
     skipped: number;
   };
-  manifestRevision: string;
-  manifestPath: string;
+  revision: string;
 }
 
 /**
@@ -382,8 +382,9 @@ export interface CachedPlan {
   planId: string;
   movieId: string;
   plan: ExecutionPlan;
-  manifest: Manifest;
-  manifestHash: string | null;
+  buildState: BuildState;
+  executionState: ExecutionState;
+  baselineHash: string | null;
   resolvedInputs: Record<string, unknown>;
   providerOptions: Map<string, unknown>;
   blueprintPath: string;

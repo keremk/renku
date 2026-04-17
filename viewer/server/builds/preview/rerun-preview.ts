@@ -5,10 +5,10 @@ import {
   copyLatestSucceededArtifactBlobsToMemory,
   convertArtifactOverridesToDrafts,
   copyEventsToMemory,
-  copyManifestToMemory,
+  copyRunArchivesToMemory,
   createEventLog,
   createLogger,
-  createManifestService,
+  createBuildStateService,
   createMovieMetadataService,
   createNotificationBus,
   createPlanningService,
@@ -36,7 +36,7 @@ import {
   resolveStorageBasePathForBlueprint,
   sliceExecutionPlanThroughLayer,
   readLlmInvocationSettings,
-  type Manifest,
+  type BuildState,
   type PendingArtifactDraft,
   type ProducerOptionsMap,
 } from '@gorenku/core';
@@ -64,13 +64,14 @@ import type {
 
 interface PreparedRerunPreviewContext {
   memoryStorageContext: ReturnType<typeof createStorageContext>;
-  manifestService: ReturnType<typeof createManifestService>;
+  buildStateService: ReturnType<typeof createBuildStateService>;
   eventLog: ReturnType<typeof createEventLog>;
   producerOptions: ProducerOptionsMap;
   modelCatalog: Awaited<ReturnType<typeof loadModelCatalog>>;
   catalogModelsDir: string;
   plan: import('@gorenku/core').ExecutionPlan;
-  manifest: Manifest;
+  buildState: BuildState;
+  executionState: import('@gorenku/core').ExecutionState;
   resolvedInputs: Record<string, unknown>;
   targetLayerIndex: number;
   estimatedCost: GenerationCostEstimate;
@@ -140,10 +141,10 @@ export async function generateRerunPreview(
       rerunContext.plan,
       {
         movieId: body.movieId,
-        manifest: rerunContext.manifest,
+        buildState: rerunContext.buildState,
+        executionState: rerunContext.executionState,
         storage: rerunContext.memoryStorageContext,
         eventLog: rerunContext.eventLog,
-        manifestService: rerunContext.manifestService,
         produce,
         logger,
       },
@@ -241,7 +242,7 @@ async function prepareRerunSurgicalPreviewContext(
   });
 
   await initializeMovieStorage(memoryStorageContext, body.movieId);
-  await copyManifestToMemory(
+  await copyRunArchivesToMemory(
     localStorageContext,
     memoryStorageContext,
     body.movieId
@@ -348,7 +349,7 @@ async function prepareRerunSurgicalPreviewContext(
   }
 
   const planningService = createPlanningService();
-  const manifestService = createManifestService(memoryStorageContext);
+  const buildStateService = createBuildStateService(memoryStorageContext);
   const eventLog = createEventLog(memoryStorageContext);
 
   const planResult = await planningService.generatePlan({
@@ -359,7 +360,7 @@ async function prepareRerunSurgicalPreviewContext(
     providerOptions: providerMetadata,
     resolutionContext,
     storage: memoryStorageContext,
-    manifestService,
+    buildStateService,
     eventLog,
     pendingArtifacts:
       pendingArtifacts.length > 0 ? pendingArtifacts : undefined,
@@ -389,13 +390,14 @@ async function prepareRerunSurgicalPreviewContext(
 
   return {
     memoryStorageContext,
-    manifestService,
+    buildStateService,
     eventLog,
     producerOptions: providerOptions,
     modelCatalog,
     catalogModelsDir,
     plan: previewPlan,
-    manifest: planResult.manifest,
+    buildState: planResult.buildState,
+    executionState: planResult.executionState,
     resolvedInputs: planResult.resolvedInputs,
     targetLayerIndex,
     estimatedCost: toPlanCostEstimate(costSummary),

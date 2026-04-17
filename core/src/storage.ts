@@ -7,7 +7,7 @@ import { promises as fs } from 'node:fs';
 import * as nodePath from 'node:path';
 import { posix as path } from 'node:path';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
-import type { ExecutionPlan, ManifestPointer, RevisionId } from './types.js';
+import type { ExecutionPlan, RevisionId } from './types.js';
 
 export type StorageConfig =
   | (BaseStorageConfig & {
@@ -165,26 +165,16 @@ export async function initializeMovieStorage(
   await ensureDirectoryChain(storage, ctx.basePath);
   await ensureDirectoryChain(storage, root);
 
-  const manifestsDir = ctx.resolve(movieId, 'manifests');
   const eventsDir = ctx.resolve(movieId, 'events');
   const runsDir = ctx.resolve(movieId, 'runs');
   const blobsDir = ctx.resolve(movieId, 'blobs');
 
-  await ensureDirectoryChain(storage, manifestsDir);
   await ensureDirectoryChain(storage, eventsDir);
   await ensureDirectoryChain(storage, runsDir);
   await ensureDirectoryChain(storage, blobsDir);
 
   await ensureFile(storage, path.join(eventsDir, 'inputs.log'), '');
   await ensureFile(storage, path.join(eventsDir, 'artifacts.log'), '');
-
-  if (options.seedCurrentJson !== false) {
-    await ensureFile(
-      storage,
-      path.join(root, 'current.json'),
-      JSON.stringify(emptyManifestPointer(), null, 2)
-    );
-  }
 }
 
 export const planStore = {
@@ -266,14 +256,6 @@ function normalizeSegment(segment: string): string {
   return segment.replace(/^\/+/, '').replace(/\/+$/, '');
 }
 
-function emptyManifestPointer(): ManifestPointer {
-  return {
-    revision: null,
-    manifestPath: null,
-    hash: null,
-    updatedAt: null,
-  };
-}
 
 async function appendLocalFile(
   rootDir: string,

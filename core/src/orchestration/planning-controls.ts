@@ -6,7 +6,7 @@ import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type {
   ArtifactRegenerationConfig,
   ArtifactEvent,
-  Manifest,
+  BuildState,
   PlanningUserControls,
   PlanningWarning,
   ProducerDirective,
@@ -22,6 +22,7 @@ import {
   normalizeProducerOverrides,
   type NormalizedProducerOverrides,
 } from './producer-overrides.js';
+import { createEmptyBuildState } from '../execution-state.js';
 
 export interface LatestArtifactSnapshot {
   latestById: Map<string, ArtifactEvent>;
@@ -50,8 +51,12 @@ export function resolvePlanningControls(args: {
   };
   userControls?: PlanningUserControls;
   latestSnapshot: LatestArtifactSnapshot;
-  manifest: Manifest;
+  buildState: BuildState;
 }): PlanningControlsResolution {
+  const buildState =
+    args.buildState ??
+    (args as { manifest?: BuildState }).manifest ??
+    createEmptyBuildState();
   const merged = mergePlanningControls(args.baselineInputs, args.userControls);
   const warnings: PlanningWarning[] = [];
   const layerByJobId = buildJobLayerMap(args.producerGraph);
@@ -124,7 +129,7 @@ export function resolvePlanningControls(args: {
   const forceResolution = resolveForcedJobIds({
     regenerationIds,
     producerGraph: args.producerGraph,
-    manifest: args.manifest,
+    buildState,
     latestById: args.latestSnapshot.latestById,
     blockedJobIds,
     effectiveUpToLayer,
@@ -135,7 +140,7 @@ export function resolvePlanningControls(args: {
   const pinnedArtifactIds = resolvePinnedArtifactIds({
     pinIds,
     producerGraph: args.producerGraph,
-    manifest: args.manifest,
+    buildState,
     latestSnapshot: args.latestSnapshot,
     blockedJobIds,
     layerByJobId,
@@ -228,7 +233,7 @@ function normalizeCanonicalTargetIds(
 function resolveForcedJobIds(args: {
   regenerationIds: string[];
   producerGraph: ProducerGraph;
-  manifest: Manifest;
+  buildState: BuildState;
   latestById: Map<string, ArtifactEvent>;
   blockedJobIds: Set<string>;
   effectiveUpToLayer?: number;
@@ -252,7 +257,7 @@ function resolveForcedJobIds(args: {
     if (isCanonicalArtifactId(targetId)) {
       const regeneration = resolveArtifactToJob(
         targetId,
-        args.manifest,
+        args.buildState,
         args.producerGraph,
         args.latestById
       );
@@ -337,7 +342,7 @@ function resolveForcedJobIds(args: {
 function resolvePinnedArtifactIds(args: {
   pinIds: string[];
   producerGraph: ProducerGraph;
-  manifest: Manifest;
+  buildState: BuildState;
   latestSnapshot: LatestArtifactSnapshot;
   blockedJobIds: Set<string>;
   layerByJobId: Map<string, number>;
@@ -447,11 +452,12 @@ function resolvePinnedArtifactIds(args: {
     return [];
   }
 
-  const hasSucceededManifestArtifacts = Object.values(
-    args.manifest.artifacts
+  const hasSucceededBuildStateArtifacts = Object.values(
+    args.buildState.artifacts
   ).some((entry) => entry.status === 'succeeded');
   const hasPriorReusableArtifacts =
-    hasSucceededManifestArtifacts || args.latestSnapshot.latestSuccessfulIds.size > 0;
+    hasSucceededBuildStateArtifacts ||
+    args.latestSnapshot.latestSuccessfulIds.size > 0;
 
   if (!hasPriorReusableArtifacts) {
     throw createRuntimeError(
@@ -464,7 +470,11 @@ function resolvePinnedArtifactIds(args: {
     );
   }
 
-  validatePinnedTargetsReusable(inScopePins, args.manifest, args.latestSnapshot);
+  validatePinnedTargetsReusable(
+    inScopePins,
+    args.buildState,
+    args.latestSnapshot
+  );
   return inScopePins;
 }
 
@@ -506,7 +516,7 @@ function buildProducerJobsByArtifact(
 
 function validatePinnedTargetsReusable(
   pinnedArtifactIds: string[],
-  manifest: Manifest,
+  buildState: BuildState,
   latestSnapshot: LatestArtifactSnapshot
 ): void {
   const invalid: string[] = [];
@@ -519,8 +529,8 @@ function validatePinnedTargetsReusable(
     if (latestSnapshot.latestSuccessfulIds.has(artifactId)) {
       continue;
     }
-    const manifestEntry = manifest.artifacts[artifactId];
-    if (manifestEntry?.status === 'succeeded') {
+    const buildStateEntry = buildState.artifacts[artifactId];
+    if (buildStateEntry?.status === 'succeeded') {
       continue;
     }
     invalid.push(`${artifactId} (no reusable successful artifact found)`);
@@ -595,29 +605,29 @@ function resolveProducerIdsToJobs(
 
 export function resolveArtifactsToJobs(
   artifactIds: string[],
-  manifest: Manifest,
+  buildState: BuildState,
   producerGraph: { nodes: Array<{ jobId: string }> },
   latestById?: Map<string, ArtifactEvent>
 ): ArtifactRegenerationConfig[] {
   return artifactIds.map((id) =>
-    resolveArtifactToJob(id, manifest, producerGraph, latestById)
+    resolveArtifactToJob(id, buildState, producerGraph, latestById)
   );
 }
 
 export function resolveArtifactToJob(
   artifactId: string,
-  manifest: Manifest,
+  buildState: BuildState,
   producerGraph: { nodes: Array<{ jobId: string }> },
   latestById?: Map<string, ArtifactEvent>
 ): ArtifactRegenerationConfig {
-  const entry = manifest.artifacts[artifactId];
+  const entry = buildState.artifacts[artifactId];
   const latestEvent = latestById?.get(artifactId);
   const sourceJobId = entry?.producedBy ?? latestEvent?.producedBy;
 
   if (!sourceJobId) {
     throw createRuntimeError(
-      RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
-      `Artifact "${artifactId}" not found in manifest or event log. The artifact may not have been generated yet, or the ID may be incorrect.`,
+      RuntimeErrorCode.ARTIFACT_NOT_IN_BUILD_STATE,
+      `Artifact "${artifactId}" not found in build state or event log. The artifact may not have been generated yet, or the ID may be incorrect.`,
       { context: `artifactId=${artifactId}` }
     );
   }

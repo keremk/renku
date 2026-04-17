@@ -9,7 +9,7 @@ import {
   parseCanonicalProducerId,
 } from './canonical-ids.js';
 import type { MovieMetadataService } from './movie-metadata.js';
-import type { Manifest } from './types.js';
+import type { BuildState } from './types.js';
 import type { ArtifactMaterializationMode } from './workspace.js';
 
 export interface MaterializedArtifactInfo {
@@ -21,24 +21,26 @@ export interface MaterializedArtifactInfo {
   mimeType?: string;
 }
 
-export interface MaterializeManifestArtifactsResult {
+export interface MaterializeBuildStateArtifactsResult {
   artifactsRoot: string;
   artifacts: MaterializedArtifactInfo[];
 }
 
-export interface MaterializeManifestArtifactsOptions {
+export interface MaterializeBuildStateArtifactsOptions {
   storageRoot: string;
   storageBasePath: string;
   movieId: string;
   artifactsMovieFolderName: string;
-  manifest: Manifest;
+  buildState: BuildState;
+  manifest?: BuildState;
   mode: ArtifactMaterializationMode;
   logger?: Pick<Console, 'warn'>;
 }
 
-export async function materializeManifestArtifacts(
-  options: MaterializeManifestArtifactsOptions
-): Promise<MaterializeManifestArtifactsResult> {
+export async function materializeBuildStateArtifacts(
+  options: MaterializeBuildStateArtifactsOptions
+): Promise<MaterializeBuildStateArtifactsResult> {
+  const buildState = options.buildState ?? options.manifest;
   const artifactsRoot = resolveArtifactsMovieRoot(
     options.storageRoot,
     options.storageBasePath,
@@ -50,7 +52,7 @@ export async function materializeManifestArtifacts(
 
   const artifacts: MaterializedArtifactInfo[] = [];
   for (const [artifactId, entry] of Object.entries(
-    options.manifest.artifacts
+    buildState.artifacts
   )) {
     if (!entry.blob) {
       continue;
@@ -96,6 +98,8 @@ export async function materializeManifestArtifacts(
 
   return { artifactsRoot, artifacts };
 }
+
+export const materializeManifestArtifacts = materializeBuildStateArtifacts;
 
 export async function materializeArtifactFile(args: {
   sourcePath: string;

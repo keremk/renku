@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto';
 import type { ArtifactEventOutput } from './types.js';
 import { isCanonicalInputId, isCanonicalArtifactId } from './canonical-ids.js';
+import type { BuildState, ExecutionState } from './types.js';
+
+type HashStateSnapshot = {
+  inputs: Record<string, { hash: string }>;
+  artifacts: Record<string, { hash: string }>;
+};
 
 export interface HashedValue {
   hash: string;
@@ -25,26 +31,43 @@ export function hashArtifactOutput(output: ArtifactEventOutput): string {
 
 /**
  * Compute a content-aware hash of a job's inputs.
- * For Input:* entries, uses the input's value hash from the manifest.
- * For Artifact:* entries, uses the artifact's blob hash from the manifest.
+ * For Input:* entries, uses the input's value hash from the execution state.
+ * For Artifact:* entries, uses the artifact's blob hash from the execution state.
  * Falls back to hashing the input ID if content hash is not available.
  */
 export function hashInputContents(
   inputs: readonly string[],
-  manifest: {
-    inputs: Record<string, { hash: string }>;
-    artifacts: Record<string, { hash: string }>;
-  }
+  state?:
+    | ExecutionState
+    | Pick<BuildState, 'inputs' | 'artifacts'>
+    | HashStateSnapshot
 ): string {
   const contentHashes: string[] = [];
+  const executionState =
+    state &&
+    'inputHashes' in state &&
+    state.inputHashes instanceof Map &&
+    'artifactHashes' in state &&
+    state.artifactHashes instanceof Map
+      ? state
+      : null;
+  const buildStateSnapshot = executionState
+    ? null
+    : (state as HashStateSnapshot | undefined);
   for (const id of [...inputs].sort()) {
     if (isCanonicalInputId(id)) {
       const baseId = id.replace(/\[.*?\]/g, '');
-      const entry = manifest.inputs[baseId] ?? manifest.inputs[id];
-      contentHashes.push(entry?.hash ?? id);
+      const hash = executionState
+        ? executionState.inputHashes.get(baseId) ??
+          executionState.inputHashes.get(id)
+        : buildStateSnapshot?.inputs[baseId]?.hash ??
+          buildStateSnapshot?.inputs[id]?.hash;
+      contentHashes.push(hash ?? id);
     } else if (isCanonicalArtifactId(id)) {
-      const entry = manifest.artifacts[id];
-      contentHashes.push(entry?.hash ?? id);
+      const hash = executionState
+        ? executionState.artifactHashes.get(id)
+        : buildStateSnapshot?.artifacts[id]?.hash;
+      contentHashes.push(hash ?? id);
     } else {
       contentHashes.push(id);
     }

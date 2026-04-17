@@ -820,7 +820,7 @@ When a condition is evaluated at runtime:
 1. **Condition Evaluation**: The runner resolves the artifact data and evaluates the condition for each dimension instance
 2. **Input Filtering**: If a condition is not satisfied, that input is filtered out
 3. **Job Skipping**: If ALL conditional inputs for a job are not satisfied, the job is **skipped**
-4. **Artifact Absence**: Skipped jobs produce no artifacts - those artifact IDs are absent from the manifest
+4. **Artifact Absence**: Skipped jobs produce no successful artifact entries in the reconstructed `BuildState`, because the latest runtime record for those artifact IDs is a skip rather than a produced blob
 
 **Example**: With 3 segments where `NarrationType = ["ImageNarration", "TalkingHead", "ImageNarration"]`:
 
@@ -1091,7 +1091,7 @@ Type:path.to.name[index0][index1]...
 
 For incremental runs:
 
-1. Compare input hashes against manifest
+1. Compare input hashes against the current reconstructed `BuildState`
 2. Find changed or missing artifacts
 3. Mark affected jobs as dirty
 4. Propagate through dependency graph

@@ -3,7 +3,7 @@ import { cp, mkdir } from 'node:fs/promises';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
 	createEventLog,
-	createManifestService,
+	createBuildStateService,
 	createRunner,
 	createStorageContext,
 	initializeMovieStorage,
@@ -109,26 +109,21 @@ describe('end-to-end: config dirty tracking', () => {
 		});
 		await initializeMovieStorage(storage, opts.storageMovieId);
 		const eventLog = createEventLog(storage);
-		const manifestService = createManifestService(storage);
+		const buildStateService = createBuildStateService(storage);
 
 		const runner = createRunner();
 		const result = await runner.execute(planResult.plan, {
 			movieId: opts.storageMovieId,
-			manifest: planResult.manifest,
+			buildState: planResult.buildState,
+			executionState: planResult.executionState,
 			storage,
 			eventLog,
-			manifestService,
 			produce: createStubProduce(),
 			logger,
 		});
 
 		// Build and save manifest
-		const manifest = await result.buildManifest();
-		await manifestService.saveManifest(manifest, {
-			movieId: opts.storageMovieId,
-			previousHash: planResult.manifestHash,
-			clock: { now: () => new Date().toISOString() },
-		});
+		const manifest = await result.buildStateSnapshot();
 
 		return { planResult, plan, allJobs, manifest, cliConfig };
 	}

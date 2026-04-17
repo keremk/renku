@@ -17,12 +17,20 @@ describe('MovieStorage', () => {
     const buildsDir = join(rootDir, 'builds', movieId);
     await mkdir(join(buildsDir, 'blobs', 'ab'), { recursive: true });
     await mkdir(join(buildsDir, 'blobs', 'fe'), { recursive: true });
-    await mkdir(join(buildsDir, 'manifests'), { recursive: true });
     await mkdir(join(buildsDir, 'events'), { recursive: true });
+    await mkdir(join(buildsDir, 'runs'), { recursive: true });
 
-    // Write inputs.log in JSONL format (InputEvent records)
+    const createdAt = new Date().toISOString();
+    const revision = 'rev-0001';
     const inputEvents = [
-      { id: 'Input:InquiryPrompt', revision: 'r001', hash: 'abc123', payload: 'Hello', editedBy: 'user', createdAt: new Date().toISOString() },
+      {
+        id: 'Input:InquiryPrompt',
+        revision,
+        hash: 'abc123',
+        payload: 'Hello',
+        editedBy: 'user',
+        createdAt,
+      },
     ];
     const inputsLogContent = inputEvents.map(e => JSON.stringify(e)).join('\n') + '\n';
     await writeFile(join(buildsDir, 'events', 'inputs.log'), inputsLogContent, 'utf8');
@@ -30,45 +38,67 @@ describe('MovieStorage', () => {
     const timelineBody = JSON.stringify({ duration: 30 });
     await writeFile(join(buildsDir, 'blobs', 'fe', 'feed1234'), timelineBody, 'utf8');
 
-    const manifest = {
-      revision: 'rev-0001',
-      baseRevision: null,
-      createdAt: new Date().toISOString(),
-      inputs: {},
-      artifacts: {
-        [TIMELINE_ID]: {
-          hash: 'feed1234',
-          producedBy: 'Producer:Timeline',
-          status: 'succeeded',
-          createdAt: new Date().toISOString(),
+    const artifactEvents = [
+      {
+        artifactId: TIMELINE_ID,
+        revision,
+        inputsHash: 'timeline-inputs-hash',
+        output: {
           blob: {
             hash: 'feed1234',
             size: Buffer.byteLength(timelineBody, 'utf8'),
             mimeType: 'application/json',
           },
         },
-        'Artifact:Audio.Sample': {
-          hash: 'audio-hash',
-          producedBy: 'Producer:Audio',
-          status: 'succeeded',
-          createdAt: new Date().toISOString(),
+        status: 'succeeded',
+        producedBy: 'Producer:TimelineComposer[0]',
+        producerId: 'Producer:TimelineComposer',
+        createdAt,
+      },
+      {
+        artifactId: 'Artifact:Audio.Sample',
+        revision,
+        inputsHash: 'audio-inputs-hash',
+        output: {
           blob: {
             hash: 'abcd1234',
             size: 4,
             mimeType: 'audio/mpeg',
           },
         },
+        status: 'succeeded',
+        producedBy: 'Producer:Audio[0]',
+        producerId: 'Producer:Audio',
+        createdAt,
       },
-    };
+    ];
+    const artifactsLogContent = artifactEvents.map(e => JSON.stringify(e)).join('\n') + '\n';
+    await writeFile(join(buildsDir, 'events', 'artifacts.log'), artifactsLogContent, 'utf8');
 
-    await writeFile(join(buildsDir, 'manifests', 'rev-0001.json'), JSON.stringify(manifest, null, 2), 'utf8');
+    await writeFile(join(buildsDir, 'blobs', 'ab', 'abcd1234.mp3'), Buffer.from([1, 2, 3]));
+    const snapshotContents = ['inputs:', '  InquiryPrompt: Hello', ''].join('\n');
+    await writeFile(join(buildsDir, 'runs', 'rev-0001-inputs.yaml'), snapshotContents, 'utf8');
     await writeFile(
-      join(buildsDir, 'current.json'),
-      JSON.stringify({ manifestPath: 'manifests/rev-0001.json' }, null, 2),
+      join(buildsDir, 'runs', 'rev-0001-run.json'),
+      JSON.stringify(
+        {
+          revision,
+          createdAt,
+          blueprintPath: '/catalog/blueprints/example/example.yaml',
+          sourceInputsPath: '/tmp/inputs.yaml',
+          inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
+          inputSnapshotHash: 'snapshot-hash',
+          planPath: 'runs/rev-0001-plan.json',
+          runConfig: {},
+          status: 'succeeded',
+          startedAt: createdAt,
+          completedAt: createdAt,
+        },
+        null,
+        2,
+      ),
       'utf8',
     );
-    // Blob file (mp3 extension inferred from mime type)
-    await writeFile(join(buildsDir, 'blobs', 'ab', 'abcd1234.mp3'), Buffer.from([1, 2, 3]));
 
     storage = new MovieStorage(rootDir, 'builds');
   });
@@ -111,8 +141,7 @@ describe('MovieStorage', () => {
       throw new Error('Expected text content for inputs response');
     }
     expect(first.mimeType).toBe('text/yaml');
-    // Verify the YAML contains our input
-    expect(first.text).toContain('Input:InquiryPrompt');
+    expect(first.text).toContain('InquiryPrompt');
     expect(first.text).toContain('Hello');
   });
 });

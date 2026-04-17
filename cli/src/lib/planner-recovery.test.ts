@@ -2,7 +2,7 @@
 import process from 'node:process';
 import '../commands/__testutils__/simulated-providers.js';
 import { Buffer } from 'node:buffer';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,10 +12,10 @@ import { createInputsFile } from '../commands/__testutils__/inputs.js';
 import { generatePlan } from './planner.js';
 import type { CliConfig } from './cli-config.js';
 import {
+	createBuildStateService,
 	createStorageContext,
 	createEventLog,
 	type ArtifactEvent,
-	type RevisionId,
 	type FalRecoveryStatusResult,
 } from '@gorenku/core';
 import {
@@ -51,12 +51,6 @@ interface SeedMovie {
 	cliConfig: CliConfig;
 	storageMovieId: string;
 	inputsPath: string;
-	manifestPath: string;
-}
-
-interface ManifestArtifactEntry {
-	inputsHash?: string;
-	producedBy?: string;
 }
 
 const tmpRoots: string[] = [];
@@ -266,10 +260,6 @@ async function createSeedMovie(prompt: string): Promise<SeedMovie> {
 		storageOverride: { root, basePath: 'builds' },
 	});
 
-	if (!result.manifestPath) {
-		throw new Error('Seed movie did not produce a manifest path.');
-	}
-
 	return {
 		root,
 		cliConfigPath,
@@ -279,7 +269,6 @@ async function createSeedMovie(prompt: string): Promise<SeedMovie> {
 		},
 		storageMovieId: result.storageMovieId,
 		inputsPath,
-		manifestPath: result.manifestPath,
 	};
 }
 
@@ -288,15 +277,16 @@ async function appendFailedArtifactEvent(
 	artifactId: string,
 	diagnostics: Record<string, unknown>
 ): Promise<void> {
-	const manifestRaw = await readFile(seed.manifestPath, 'utf8');
-	const manifest = JSON.parse(manifestRaw) as {
-		revision: RevisionId;
-		artifacts: Record<string, ManifestArtifactEntry>;
-	};
-
-	const artifact = manifest.artifacts[artifactId];
+	const storage = createStorageContext({
+		kind: 'local',
+		rootDir: seed.root,
+		basePath: 'builds',
+	});
+	const buildStateService = createBuildStateService(storage);
+	const { buildState } = await buildStateService.loadCurrent(seed.storageMovieId);
+	const artifact = buildState.artifacts[artifactId];
 	if (!artifact) {
-		throw new Error(`Artifact ${artifactId} not found in manifest.`);
+		throw new Error(`Artifact ${artifactId} not found in build state.`);
 	}
 	if (!artifact.inputsHash) {
 		throw new Error(`Artifact ${artifactId} is missing inputsHash.`);
@@ -305,16 +295,11 @@ async function appendFailedArtifactEvent(
 		throw new Error(`Artifact ${artifactId} is missing producedBy.`);
 	}
 
-	const storage = createStorageContext({
-		kind: 'local',
-		rootDir: seed.root,
-		basePath: 'builds',
-	});
 	const eventLog = createEventLog(storage);
 
 	const failedEvent: ArtifactEvent = {
 		artifactId,
-		revision: manifest.revision,
+		revision: buildState.revision,
 		inputsHash: artifact.inputsHash,
 		output: {},
 		status: 'failed',

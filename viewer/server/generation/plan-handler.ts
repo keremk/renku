@@ -5,11 +5,11 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { resolve, relative } from 'node:path';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import {
   createStorageContext,
   initializeMovieStorage,
-  createManifestService,
+  createBuildStateService,
   createEventLog,
   createPlanningService,
   createMovieMetadataService,
@@ -21,15 +21,18 @@ import {
   createValidationError,
   ValidationErrorCode,
   isCanonicalProducerId,
-  copyManifestToMemory,
+  copyRunArchivesToMemory,
+  copyPlansToMemory,
   copyEventsToMemory,
   copyBlobsFromMemoryToLocal,
   buildProviderMetadata,
   convertArtifactOverridesToDrafts,
   persistArtifactOverrideBlobs,
   deriveSurgicalInfoArray,
+  createRunRecordService,
+  type BuildState,
   type ExecutionPlan,
-  type Manifest,
+  type ExecutionState,
   type ProducerOptionsMap,
 } from '@gorenku/core';
 import {
@@ -265,8 +268,9 @@ export async function handlePlanRequest(
     const cachedPlan = jobManager.cachePlan({
       movieId: context.movieId,
       plan: planResult.plan,
-      manifest: planResult.manifest,
-      manifestHash: planResult.manifestHash,
+      buildState: planResult.buildState,
+      executionState: planResult.executionState,
+      baselineHash: planResult.baselineHash,
       resolvedInputs: planResult.resolvedInputs,
       providerOptions: planResult.providerOptions as Map<string, unknown>,
       blueprintPath: planResult.blueprintPath,
@@ -330,8 +334,9 @@ interface GeneratePlanOptions {
  */
 interface GeneratePlanResult {
   plan: ExecutionPlan;
-  manifest: Manifest;
-  manifestHash: string | null;
+  buildState: BuildState;
+  executionState: ExecutionState;
+  baselineHash: string | null;
   resolvedInputs: Record<string, unknown>;
   providerOptions: ProducerOptionsMap;
   blueprintPath: string;
@@ -370,7 +375,7 @@ async function generatePlan(
   });
   await initializeMovieStorage(memoryStorageContext, movieId);
 
-  // For edits (isNew: false), load existing manifest and events from disk
+  // For edits (isNew: false), load existing run archives and events from disk
   if (!isNew) {
     const localStorageContext = createStorageContext({
       kind: 'local',
@@ -381,7 +386,12 @@ async function generatePlan(
       storage: localStorageContext,
       movieId,
     });
-    await copyManifestToMemory(
+    await copyRunArchivesToMemory(
+      localStorageContext,
+      memoryStorageContext,
+      movieId
+    );
+    await copyPlansToMemory(
       localStorageContext,
       memoryStorageContext,
       movieId
@@ -393,7 +403,7 @@ async function generatePlan(
     );
   }
 
-  const manifestService = createManifestService(memoryStorageContext);
+  const buildStateService = createBuildStateService(memoryStorageContext);
   const eventLog = createEventLog(memoryStorageContext);
 
   // Load blueprint
@@ -471,7 +481,7 @@ async function generatePlan(
     providerOptions: providerMetadata,
     resolutionContext: preparedValidation.context,
     storage: memoryStorageContext,
-    manifestService,
+    buildStateService,
     eventLog,
     pendingArtifacts:
       allPendingArtifacts.length > 0 ? allPendingArtifacts : undefined,
@@ -494,13 +504,14 @@ async function generatePlan(
       id.startsWith('Artifact:')
     ) ?? [];
   const surgicalInfo = artifactRegenerateIds.length
-    ? deriveSurgicalInfoArray(artifactRegenerateIds, planResult.manifest)
+    ? deriveSurgicalInfoArray(artifactRegenerateIds, planResult.buildState)
     : undefined;
 
   return {
     plan: planResult.plan,
-    manifest: planResult.manifest,
-    manifestHash: planResult.manifestHash,
+    buildState: planResult.buildState,
+    executionState: planResult.executionState,
+    baselineHash: planResult.baselineHash,
     resolvedInputs: planResult.resolvedInputs,
     providerOptions,
     blueprintPath,
@@ -542,6 +553,33 @@ async function generatePlan(
       await planStore.save(planResult.plan, {
         movieId,
         storage: localStorageContext,
+      });
+
+      const inputSnapshotBytes = await readFile(inputsPath);
+      const runRecordService = createRunRecordService(localStorageContext);
+      const { path: inputSnapshotPath, hash: inputSnapshotHash } =
+        await runRecordService.writeInputSnapshot(
+          movieId,
+          planResult.plan.revision,
+          inputSnapshotBytes
+        );
+      await runRecordService.write(movieId, {
+        revision: planResult.plan.revision,
+        createdAt: planResult.plan.createdAt,
+        blueprintPath,
+        sourceInputsPath: inputsPath,
+        inputSnapshotPath,
+        inputSnapshotHash,
+        planPath: `runs/${planResult.plan.revision}-plan.json`,
+        runConfig: {
+          ...(planningControls?.scope?.upToLayer !== undefined
+            ? { upToLayer: planningControls.scope.upToLayer }
+            : {}),
+          ...(planningControls?.surgical?.regenerateIds?.length
+            ? { regenerateIds: planningControls.surgical.regenerateIds }
+            : {}),
+        },
+        status: 'planned',
       });
     },
   };

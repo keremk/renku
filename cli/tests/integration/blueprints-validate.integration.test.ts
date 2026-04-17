@@ -1,8 +1,8 @@
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildBlueprintGraph } from '@gorenku/core';
+import { buildBlueprintGraph, createBuildStateService, createStorageContext } from '@gorenku/core';
 import { runBlueprintsValidate } from '../../src/commands/blueprints-validate.js';
 import { runBlueprintsDryRunProfile } from '../../src/commands/blueprints-dry-run-profile.js';
 import { runGenerate } from '../../src/commands/generate.js';
@@ -26,9 +26,16 @@ interface TestManifest {
 	>;
 }
 
-async function readManifest(manifestPath: string): Promise<TestManifest> {
-	const raw = await readFile(manifestPath, 'utf8');
-	return JSON.parse(raw) as TestManifest;
+async function readBuildState(storagePath: string): Promise<TestManifest> {
+	const movieId = basename(storagePath);
+	const storage = createStorageContext({
+		kind: 'local',
+		rootDir: dirname(dirname(storagePath)),
+		basePath: basename(dirname(storagePath)),
+	});
+	const buildStateService = createBuildStateService(storage);
+	const { buildState } = await buildStateService.loadCurrent(movieId);
+	return buildState as TestManifest;
 }
 
 async function readTextBlob(args: {
@@ -294,9 +301,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 			expect(result.dryRunValidation?.failures).toHaveLength(0);
 			expect(result.dryRunValidation?.totalCases).toBeGreaterThan(0);
 
-			const manifestPath = result.build?.manifestPath;
-			expect(manifestPath).toBeDefined();
-			const manifest = await readManifest(manifestPath!);
+			const manifest = await readBuildState(result.storagePath);
 
 			const shotTypeIds = Object.keys(manifest.artifacts)
 				.filter(
@@ -477,9 +482,7 @@ cases:
 			expect(result.dryRunValidation).toBeDefined();
 			expect(result.dryRunValidation?.sourceTestFilePath).toBe(profilePath);
 
-			const manifestPath = result.build?.manifestPath;
-			expect(manifestPath).toBeDefined();
-			const manifest = await readManifest(manifestPath!);
+			const manifest = await readBuildState(result.storagePath);
 
 			const narrationTypeIds = Object.keys(manifest.artifacts)
 				.filter(

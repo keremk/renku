@@ -259,8 +259,8 @@ Generated content is in two locations within your **current working directory**:
 **Build directory** (`builds/movie-{id}/`):
 
 - `blobs/` - Raw generated files
-- `manifests/` - Artifact metadata
-- `events/` - Execution logs
+- `events/` - Input and artifact history logs
+- `runs/` - Per-run metadata, plans, and input snapshots
 
 **Artifacts view** (`artifacts/movie-{id}/`):
 
@@ -424,11 +424,16 @@ Pinning rules:
 **Finding artifact IDs:**
 
 ```bash
-# List all artifact IDs in a movie
-cat builds/movie-{id}/manifests/rev-XXXX.json | jq '.artifacts | keys'
+# List artifact IDs whose latest event is currently succeeded
+jq -rs '
+  reduce .[] as $event ({}; .[$event.artifactId] = $event)
+  | to_entries[]
+  | select(.value.status == "succeeded")
+  | .key
+' builds/movie-{id}/events/artifacts.log
 ```
 
-The keys in `.artifacts` are canonical artifact IDs. Use those values directly with `--regen` and `--pin`.
+That command reconstructs the current artifact set from the event log by keeping the latest event for each artifact ID. Use the returned canonical `Artifact:...` values directly with `--regen` and `--pin`.
 
 **Note:** Quote the artifact ID when using zsh to prevent bracket expansion:
 

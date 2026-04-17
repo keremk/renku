@@ -73,7 +73,7 @@ export interface BuildInfo {
   movieId: string;
   updatedAt: string;
   revision: string | null;
-  hasManifest: boolean;
+  hasBuildState: boolean;
   hasInputsFile: boolean;
   displayName: string | null;
 }
@@ -96,7 +96,7 @@ export type ArtifactFailureReason =
   | 'conditions_not_met'; // Conditional producer skipped
 
 /**
- * Artifact information in a build manifest.
+ * Artifact information in a build state view.
  */
 export interface ArtifactInfo {
   id: string;
@@ -128,9 +128,9 @@ export interface ArtifactInfo {
 }
 
 /**
- * Response from GET /blueprints/manifest
+ * Response from GET /blueprints/build-state
  */
-export interface BuildManifestResponse {
+export interface BuildStateResponse {
   movieId: string;
   revision: string | null;
   inputs: Record<string, unknown>;

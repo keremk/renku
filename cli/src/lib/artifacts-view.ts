@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import {
-	createManifestService,
+	createBuildStateService,
 	createMovieMetadataService,
 	createStorageContext,
 	filterActiveOutputBindings,
@@ -11,12 +11,12 @@ import {
 	getCliArtifactsConfig,
 	isCanonicalArtifactId,
 	materializeArtifactFile,
-	materializeManifestArtifacts,
+	materializeBuildStateArtifacts,
 	resolveArtifactsMovieFolderName,
 	resolveArtifactsMovieRoot,
 	resolveExpectedArtifactPath,
+	type BuildState,
 	type BlobRef,
-	type Manifest,
 	type RootOutputBinding,
 } from '@gorenku/core';
 import type { PendingArtifactDraft } from './planner.js';
@@ -102,25 +102,25 @@ export function selectFinalStageOutputs(args: {
 	return args.rootOutputs.filter((output) => finalStageJobIds.has(output.producedBy));
 }
 
-export async function loadCurrentManifest(
+export async function loadCurrentBuildState(
 	cliConfig: CliConfig,
 	movieId: string
-): Promise<{ manifest: Manifest; hash: string | null }> {
+): Promise<{ buildState: BuildState; hash: string | null }> {
 	const storage = createStorageContext({
 		kind: 'local',
 		rootDir: cliConfig.storage.root,
 		basePath: cliConfig.storage.basePath,
 	});
-	const manifestService = createManifestService(storage);
-	return manifestService.loadCurrent(movieId);
+	const buildStateService = createBuildStateService(storage);
+	return buildStateService.loadCurrent(movieId);
 }
 
 export async function buildArtifactsView(args: {
 	cliConfig: CliConfig;
 	movieId: string;
-	manifest: Manifest;
+	buildState: BuildState;
 }): Promise<ArtifactsViewContext> {
-	const { cliConfig, movieId, manifest } = args;
+	const { cliConfig, movieId, buildState } = args;
 	const artifactsConfig = getCliArtifactsConfig(cliConfig);
 
 	const storage = createStorageContext({
@@ -134,12 +134,12 @@ export async function buildArtifactsView(args: {
 		metadataService,
 	});
 
-	const materialized = await materializeManifestArtifacts({
+	const materialized = await materializeBuildStateArtifacts({
 		storageRoot: cliConfig.storage.root,
 		storageBasePath: cliConfig.storage.basePath,
 		movieId,
 		artifactsMovieFolderName,
-		manifest,
+		buildState,
 		mode: artifactsConfig.mode,
 		logger: log,
 	});
@@ -166,7 +166,7 @@ export async function buildArtifactsView(args: {
 export async function prepareArtifactsPreflight(args: {
 	cliConfig: CliConfig;
 	movieId: string;
-	manifest: Manifest;
+	buildState: BuildState;
 	allowShardedBlobs?: boolean;
 }): Promise<ArtifactsPreflightResult> {
 	const artifactsConfig = getCliArtifactsConfig(args.cliConfig);
@@ -218,11 +218,11 @@ export async function prepareArtifactsPreflight(args: {
 async function collectArtifactsContext(args: {
 	cliConfig: CliConfig;
 	movieId: string;
-	manifest: Manifest;
+	buildState: BuildState;
 	allowShardedBlobs?: boolean;
 	mode: 'copy' | 'symlink';
 }): Promise<ArtifactsViewContext> {
-	const { cliConfig, movieId, manifest, mode } = args;
+	const { cliConfig, movieId, buildState, mode } = args;
 
 	const storage = createStorageContext({
 		kind: 'local',
@@ -250,7 +250,7 @@ async function collectArtifactsContext(args: {
 	);
 
 	const artifacts: ArtifactInfo[] = [];
-	for (const [artifactId, entry] of Object.entries(manifest.artifacts)) {
+	for (const [artifactId, entry] of Object.entries(buildState.artifacts)) {
 		if (!entry.blob) {
 			continue;
 		}

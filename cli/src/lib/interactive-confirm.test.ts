@@ -19,7 +19,7 @@ vi.mock('node:readline', () => ({
 function createPlan(): ExecutionPlan {
   return {
     revision: 'rev-0001',
-    manifestBaseHash: 'base-hash',
+    baselineHash: 'base-hash',
     layers: [
       [
         {
@@ -41,7 +41,7 @@ function createPlan(): ExecutionPlan {
 function createMultiLayerPlan(): ExecutionPlan {
   return {
     revision: 'rev-0002',
-    manifestBaseHash: 'base-hash',
+    baselineHash: 'base-hash',
     layers: [
       [
         {

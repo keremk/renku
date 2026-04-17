@@ -14,7 +14,7 @@ export type {
   BuildsListResponse,
   ArtifactInfo,
   ArtifactFailureReason,
-  BuildManifestResponse,
+  BuildStateResponse,
   UploadedFileInfo,
   UploadFilesResponse,
   MediaInputType,
@@ -28,7 +28,7 @@ export { getBuildInputs, saveBuildInputs } from './inputs-handler.js';
 export { updateBuildMetadata } from './metadata-handler.js';
 export { enableBuildEditing } from './enable-editing-handler.js';
 export { listBuilds } from './list-handler.js';
-export { getBuildManifest, getBuildTimeline } from './manifest-handler.js';
+export { getBuildState, getBuildTimeline } from './build-state-handler.js';
 export { handleBuildsSubRoute } from './builds-handler.js';
 export { handleFileUpload, streamInputFile } from './upload-handler.js';
 export {

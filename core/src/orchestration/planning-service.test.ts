@@ -18,9 +18,10 @@ import {
 } from './planning-service.js';
 import { buildBlueprintGraph } from '../resolution/canonical-graph.js';
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
-import { createManifestService } from '../manifest.js';
+import { createBuildStateService } from '../build-state.js';
 import { createEventLog } from '../event-log.js';
 import { RuntimeErrorCode } from '../errors/index.js';
+import { hashInputContents } from '../hashing.js';
 
 describe('applyOutputSchemasToBlueprintTree', () => {
   it('applies outputSchema from providerOptions to JSON artifacts with arrays', () => {
@@ -727,7 +728,7 @@ describe('createPlanningService', () => {
   describe('generatePlan', () => {
     it('generates a plan for first run (new manifest)', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -737,13 +738,17 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
       expect(result.plan).toBeDefined();
       expect(result.plan.layers.length).toBeGreaterThan(0);
       expect(result.targetRevision).toBe('rev-0001');
+      expect(result.manifest).toBeDefined();
+      if (!result.manifest) {
+        throw new Error('Expected planning result to include manifest.');
+      }
       expect(result.manifest.revision).toBe('rev-0000');
       expect(result.manifestHash).toBeNull();
       expect(result.inputEvents).toHaveLength(1);
@@ -753,7 +758,7 @@ describe('createPlanningService', () => {
 
     it('records exact root output bindings on the execution plan', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -769,7 +774,7 @@ describe('createPlanningService', () => {
         },
         providerOptions: createDefaultOptions(['SegmentUnit.MainVideo']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -786,7 +791,7 @@ describe('createPlanningService', () => {
 
     it('preserves root output binding conditions on the execution plan', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -810,7 +815,7 @@ describe('createPlanningService', () => {
         },
         providerOptions: createDefaultOptions(['PreviewProducer', 'GateProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -827,7 +832,7 @@ describe('createPlanningService', () => {
 
     it('supports NumOfSegments used only in countInput declarations', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -840,7 +845,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -849,7 +854,7 @@ describe('createPlanningService', () => {
 
     it('uses derived SegmentDuration during graph expansion when countInput depends on it', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -863,7 +868,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -873,7 +878,7 @@ describe('createPlanningService', () => {
 
     it('accepts canonical producer-scoped model inputs for nested leaf producers', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -900,7 +905,7 @@ describe('createPlanningService', () => {
           ],
         ]),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -911,7 +916,7 @@ describe('createPlanningService', () => {
 
     it('generates a plan with subsequent revision', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       // First plan
@@ -922,7 +927,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -936,7 +941,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -945,7 +950,7 @@ describe('createPlanningService', () => {
 
     it('appends input events to event log', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await service.generatePlan({
@@ -955,7 +960,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -970,7 +975,7 @@ describe('createPlanningService', () => {
 
     it('handles pending artifact drafts', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const pendingArtifacts: PendingArtifactDraft[] = [
@@ -990,7 +995,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         pendingArtifacts,
       });
@@ -1008,7 +1013,7 @@ describe('createPlanningService', () => {
 
     it('skips undefined input values', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -1021,7 +1026,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -1032,7 +1037,7 @@ describe('createPlanningService', () => {
 
     it('includes resolved inputs in result', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -1042,7 +1047,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -1051,7 +1056,7 @@ describe('createPlanningService', () => {
 
     it('uses provided input source', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -1061,7 +1066,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         inputSource: 'system',
       });
@@ -1074,7 +1079,7 @@ describe('createPlanningService', () => {
       const service = createPlanningService({
         clock: { now: () => fixedTime },
       });
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -1084,7 +1089,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -1093,7 +1098,7 @@ describe('createPlanningService', () => {
 
     it('saves the plan to storage', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -1103,7 +1108,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -1114,7 +1119,7 @@ describe('createPlanningService', () => {
 
     it('resolves surgical targets from event log when artifact is missing in manifest', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await eventLog.appendArtifact(movieId, {
@@ -1134,7 +1139,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         userControls: {
           surgical: {
@@ -1149,7 +1154,7 @@ describe('createPlanningService', () => {
 
     it('fails pinning on new runs', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await expect(
@@ -1160,7 +1165,7 @@ describe('createPlanningService', () => {
           providerCatalog: defaultCatalog,
           providerOptions: createDefaultOptions(['TestProducer']),
           storage,
-          manifestService,
+          buildStateService,
           eventLog,
           userControls: {
             surgical: {
@@ -1175,7 +1180,7 @@ describe('createPlanningService', () => {
 
     it('fails on invalid non-canonical pin IDs', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await expect(
@@ -1186,7 +1191,7 @@ describe('createPlanningService', () => {
           providerCatalog: defaultCatalog,
           providerOptions: createDefaultOptions(['TestProducer']),
           storage,
-          manifestService,
+          buildStateService,
           eventLog,
           userControls: {
             surgical: {
@@ -1201,7 +1206,7 @@ describe('createPlanningService', () => {
 
     it('fails when pinned producer is missing from producer graph', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await expect(
@@ -1212,7 +1217,7 @@ describe('createPlanningService', () => {
           providerCatalog: defaultCatalog,
           providerOptions: createDefaultOptions(['TestProducer']),
           storage,
-          manifestService,
+          buildStateService,
           eventLog,
           userControls: {
             surgical: {
@@ -1227,7 +1232,7 @@ describe('createPlanningService', () => {
 
     it('fails when pinned artifact is not reusable', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await eventLog.appendArtifact(movieId, {
@@ -1250,7 +1255,7 @@ describe('createPlanningService', () => {
           providerCatalog: defaultCatalog,
           providerOptions: createDefaultOptions(['TestProducer']),
           storage,
-          manifestService,
+          buildStateService,
           eventLog,
           userControls: {
             surgical: {
@@ -1265,7 +1270,7 @@ describe('createPlanningService', () => {
 
     it('fails when the same canonical target is both pinned and regenerated', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await eventLog.appendArtifact(movieId, {
@@ -1288,7 +1293,7 @@ describe('createPlanningService', () => {
           providerCatalog: defaultCatalog,
           providerOptions: createDefaultOptions(['TestProducer']),
           storage,
-          manifestService,
+          buildStateService,
           eventLog,
           userControls: {
             surgical: {
@@ -1305,7 +1310,7 @@ describe('createPlanningService', () => {
 
     it('resolves producer pin to artifact pins through shared core logic', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await eventLog.appendArtifact(movieId, {
@@ -1327,7 +1332,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         userControls: {
           surgical: {
@@ -1344,7 +1349,7 @@ describe('createPlanningService', () => {
 
     it('keeps pin active when producer override targets the same producer', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await eventLog.appendArtifact(movieId, {
@@ -1366,7 +1371,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         userControls: {
           scope: {
@@ -1385,7 +1390,7 @@ describe('createPlanningService', () => {
 
     it('allows producer overrides with layer filters without requiring mode flags', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -1395,7 +1400,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         userControls: {
           scope: {
@@ -1412,7 +1417,7 @@ describe('createPlanningService', () => {
 
     it('includes required upstream jobs when a downstream producer is targeted', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -1425,7 +1430,7 @@ describe('createPlanningService', () => {
           'DownstreamProducer',
         ]),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         userControls: {
           scope: {
@@ -1446,7 +1451,7 @@ describe('createPlanningService', () => {
 
     it('fails with R137 when producer overrides remove required upstream artifacts in full scope', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await expect(
@@ -1460,7 +1465,7 @@ describe('createPlanningService', () => {
             'DownstreamProducer',
           ]),
           storage,
-          manifestService,
+          buildStateService,
           eventLog,
           userControls: {
             scope: {
@@ -1477,7 +1482,7 @@ describe('createPlanningService', () => {
 
     it('does not fail with R137 when blocked dependencies are outside upToLayer scope', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -1490,7 +1495,7 @@ describe('createPlanningService', () => {
           'DownstreamProducer',
         ]),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         userControls: {
           scope: {
@@ -1507,7 +1512,7 @@ describe('createPlanningService', () => {
 
     it('does not fail with R137 when required upstream artifacts are already reusable', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await eventLog.appendArtifact(movieId, {
@@ -1532,7 +1537,7 @@ describe('createPlanningService', () => {
           'DownstreamProducer',
         ]),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         userControls: {
           scope: {
@@ -1552,7 +1557,7 @@ describe('createPlanningService', () => {
   describe('input event creation', () => {
     it('throws for non-canonical input IDs', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await expect(
@@ -1563,7 +1568,7 @@ describe('createPlanningService', () => {
           providerCatalog: defaultCatalog,
           providerOptions: createDefaultOptions(['TestProducer']),
           storage,
-          manifestService,
+          buildStateService,
           eventLog,
         })
       ).rejects.toThrow('Input "InvalidId" is not a canonical input id');
@@ -1571,7 +1576,7 @@ describe('createPlanningService', () => {
 
     it('hashes input payloads correctly', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       const result = await service.generatePlan({
@@ -1581,7 +1586,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -1594,7 +1599,7 @@ describe('createPlanningService', () => {
   describe('artifact events', () => {
     it('creates artifact event with default status succeeded', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await service.generatePlan({
@@ -1604,7 +1609,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         pendingArtifacts: [
           {
@@ -1627,7 +1632,7 @@ describe('createPlanningService', () => {
 
     it('uses provided status in artifact draft', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await service.generatePlan({
@@ -1637,7 +1642,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         pendingArtifacts: [
           {
@@ -1659,7 +1664,7 @@ describe('createPlanningService', () => {
 
     it('uses manual-edit as default inputsHash for artifact drafts', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       await service.generatePlan({
@@ -1669,7 +1674,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
         pendingArtifacts: [
           {
@@ -1689,12 +1694,166 @@ describe('createPlanningService', () => {
         'manual-edit'
       );
     });
+
+    it('seeds executionState with succeeded pending artifact hashes', async () => {
+      const service = createPlanningService();
+      const buildStateService = createBuildStateService(storage);
+      const eventLog = createEventLog(storage);
+
+      await eventLog.appendArtifact(movieId, {
+        artifactId: 'Artifact:Output',
+        revision: 'rev-0001',
+        inputsHash: 'inputs-hash',
+        output: {
+          blob: { hash: 'old-hash', size: 10, mimeType: 'text/plain' },
+        },
+        status: 'succeeded',
+        producedBy: 'Producer:TestProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        buildStateService,
+        eventLog,
+        pendingArtifacts: [
+          {
+            artifactId: 'Artifact:Output',
+            producedBy: 'Producer:TestProducer',
+            output: {
+              blob: { hash: 'new-hash', size: 20, mimeType: 'text/plain' },
+            },
+          },
+        ],
+      });
+
+      expect(result.executionState.artifactHashes.get('Artifact:Output')).toBe(
+        'new-hash'
+      );
+    });
+
+    it('removes artifact hashes from executionState for skipped pending artifacts', async () => {
+      const service = createPlanningService();
+      const buildStateService = createBuildStateService(storage);
+      const eventLog = createEventLog(storage);
+
+      await eventLog.appendArtifact(movieId, {
+        artifactId: 'Artifact:Output',
+        revision: 'rev-0001',
+        inputsHash: 'inputs-hash',
+        output: {
+          blob: { hash: 'old-hash', size: 10, mimeType: 'text/plain' },
+        },
+        status: 'succeeded',
+        producedBy: 'Producer:TestProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        buildStateService,
+        eventLog,
+        pendingArtifacts: [
+          {
+            artifactId: 'Artifact:Output',
+            producedBy: 'Producer:TestProducer',
+            output: {},
+            status: 'skipped',
+          },
+        ],
+      });
+
+      expect(result.executionState.artifactHashes.has('Artifact:Output')).toBe(
+        false
+      );
+    });
+
+    it('uses pending artifact hashes for downstream execution-state hashing', async () => {
+      const service = createPlanningService();
+      const buildStateService = createBuildStateService(storage);
+      const eventLog = createEventLog(storage);
+
+      await eventLog.appendArtifact(movieId, {
+        artifactId: 'Artifact:UpstreamProducer.Intermediate',
+        revision: 'rev-0001',
+        inputsHash: 'inputs-hash',
+        output: {
+          blob: { hash: 'old-hash', size: 10, mimeType: 'text/plain' },
+        },
+        status: 'succeeded',
+        producedBy: 'Producer:UpstreamProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createDependencyBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions([
+          'UpstreamProducer',
+          'DownstreamProducer',
+        ]),
+        storage,
+        buildStateService,
+        eventLog,
+        pendingArtifacts: [
+          {
+            artifactId: 'Artifact:UpstreamProducer.Intermediate',
+            producedBy: 'Producer:UpstreamProducer',
+            output: {
+              blob: { hash: 'new-hash', size: 20, mimeType: 'text/plain' },
+            },
+          },
+        ],
+        userControls: {
+          scope: {
+            producerDirectives: [
+              { producerId: 'Producer:UpstreamProducer', count: 0 },
+            ],
+          },
+        },
+      });
+
+      const downstreamJob = result.plan.layers
+        .flat()
+        .find((job) => job.jobId === 'Producer:DownstreamProducer');
+      if (!downstreamJob) {
+        throw new Error('Expected downstream job to be scheduled.');
+      }
+
+      const actualHash = hashInputContents(
+        downstreamJob.inputs,
+        result.executionState
+      );
+      const staleHash = hashInputContents(downstreamJob.inputs, {
+        inputHashes: result.executionState.inputHashes,
+        artifactHashes: new Map([
+          ['Artifact:UpstreamProducer.Intermediate', 'old-hash'],
+        ]),
+      });
+
+      expect(result.executionState.artifactHashes.get('Artifact:UpstreamProducer.Intermediate')).toBe(
+        'new-hash'
+      );
+      expect(actualHash).not.toBe(staleHash);
+    });
   });
 
   describe('revision uniqueness', () => {
     it('increments revision when plan file already exists', async () => {
       const service = createPlanningService();
-      const manifestService = createManifestService(storage);
+      const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
 
       // Create first plan
@@ -1705,7 +1864,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 
@@ -1725,7 +1884,7 @@ describe('createPlanningService', () => {
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
         storage,
-        manifestService,
+        buildStateService,
         eventLog,
       });
 

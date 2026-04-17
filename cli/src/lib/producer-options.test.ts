@@ -19,9 +19,9 @@ function createBlueprintNode(
 		document: {
 			meta: { id, name: id },
 			inputs: [],
-			artifacts: [],
+			outputs: [],
 			producers,
-			producerImports: [],
+			imports: [],
 			edges: [],
 		},
 		children: new Map(),

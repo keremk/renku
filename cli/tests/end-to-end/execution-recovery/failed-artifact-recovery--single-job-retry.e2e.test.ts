@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   createEventLog,
-  createManifestService,
+  createBuildStateService,
   createRunner,
   createStorageContext,
   initializeMovieStorage,
@@ -93,7 +93,7 @@ describe('end-to-end: failed artifact recovery', () => {
     });
     await initializeMovieStorage(storage, storageMovieId);
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
 
     // Create custom produce function that fails AudioProducer[1]
     const firstRunCalls = new Set<string>();
@@ -125,10 +125,9 @@ describe('end-to-end: failed artifact recovery', () => {
     const runner = createRunner();
     const firstRunResult = await runner.execute(planResult.plan, {
       movieId: storageMovieId,
-      manifest: planResult.manifest,
+      buildState: planResult.buildState,
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     });
@@ -157,12 +156,7 @@ describe('end-to-end: failed artifact recovery', () => {
     expect(foundFailedEvent).toBe(true);
 
     // Build manifest after first run
-    const manifest1 = await firstRunResult.buildManifest();
-    await manifestService.saveManifest(manifest1, {
-      movieId: storageMovieId,
-      previousHash: planResult.manifestHash,
-      clock: { now: () => new Date().toISOString() },
-    });
+    const manifest1 = await firstRunResult.buildStateSnapshot();
 
     // Verify failed artifact is excluded from manifest
     expect(manifest1.artifacts[failedArtifactId!]).toBeUndefined();
@@ -229,10 +223,9 @@ describe('end-to-end: failed artifact recovery', () => {
     // Execute recovery with core runner
     const recoveryResult = await runner.execute(editPlan, {
       movieId: storageMovieId,
-      manifest: manifest1, // Use manifest from first run
+      buildState: manifest1, // Use manifest from first run
       storage,
       eventLog,
-      manifestService,
       produce: recoveryProduce,
       logger: recoveryLogger,
     });
@@ -247,7 +240,7 @@ describe('end-to-end: failed artifact recovery', () => {
     // ============================================================
 
     // Build final manifest after recovery
-    const finalManifest = await recoveryResult.buildManifest();
+    const finalManifest = await recoveryResult.buildStateSnapshot();
 
     // Verify recovered artifact is now in manifest
     expect(finalManifest.artifacts[failedArtifactId!]).toBeDefined();

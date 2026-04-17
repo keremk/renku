@@ -1225,7 +1225,7 @@ describe('lookupModelPrice', () => {
 describe('estimatePlanCosts', () => {
 	const createMockPlan = (jobs: Partial<JobDescriptor>[]): ExecutionPlan => ({
 		revision: 'rev-0001' as const,
-		manifestBaseHash: 'hash123',
+		baselineHash: 'hash123',
 		layers: [jobs.map((j, i) => ({
 			jobId: j.jobId ?? `job-${i}`,
 			producer: j.producer ?? 'TestProducer',

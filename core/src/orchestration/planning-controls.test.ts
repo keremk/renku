@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RuntimeErrorCode } from '../errors/index.js';
 import type {
   ArtifactEvent,
-  Manifest,
+  BuildState,
   ProducerGraph,
   ProducerGraphNode,
 } from '../types.js';
@@ -73,7 +73,7 @@ function buildGraph(): ProducerGraph {
   };
 }
 
-function buildManifest(): Manifest {
+function createBuildState(): BuildState {
   return {
     revision: 'rev-0001',
     baseRevision: null,
@@ -116,13 +116,13 @@ function buildManifest(): Manifest {
 }
 
 function buildLatestSnapshot(): LatestArtifactSnapshot {
-  const manifest = buildManifest();
+  const buildState = createBuildState();
   const latestById = new Map<string, ArtifactEvent>(
-    Object.entries(manifest.artifacts).map(([artifactId, entry]) => [
+    Object.entries(buildState.artifacts).map(([artifactId, entry]) => [
       artifactId,
       {
         artifactId: artifactId,
-        revision: manifest.revision,
+        revision: buildState.revision,
         inputsHash: 'inputs-hash',
         output: {},
         status: entry.status,
@@ -134,7 +134,7 @@ function buildLatestSnapshot(): LatestArtifactSnapshot {
 
   return {
     latestById,
-    latestSuccessfulIds: new Set(Object.keys(manifest.artifacts)),
+    latestSuccessfulIds: new Set(Object.keys(buildState.artifacts)),
     latestFailedIds: new Set<string>(),
   };
 }
@@ -150,7 +150,7 @@ describe('resolvePlanningControls', () => {
           producerDirectives: [{ producerId: 'Producer:AudioProducer', count: 1 }],
         },
       },
-      manifest: buildManifest(),
+      buildState: createBuildState(),
       latestSnapshot: buildLatestSnapshot(),
     });
 
@@ -174,7 +174,7 @@ describe('resolvePlanningControls', () => {
           producerDirectives: [{ producerId: 'Producer:AudioProducer', count: 0 }],
         },
       },
-      manifest: buildManifest(),
+      buildState: createBuildState(),
       latestSnapshot: buildLatestSnapshot(),
     });
 
@@ -195,7 +195,7 @@ describe('resolvePlanningControls', () => {
           producerDirectives: [{ producerId: 'Producer:AudioProducer', count: 1 }],
         },
       },
-      manifest: buildManifest(),
+      buildState: createBuildState(),
       latestSnapshot: buildLatestSnapshot(),
     });
 
@@ -212,7 +212,7 @@ describe('resolvePlanningControls', () => {
         scope: { upToLayer: 0 },
         surgical: { regenerateIds: ['Artifact:Audio[0]'] },
       },
-      manifest: buildManifest(),
+      buildState: createBuildState(),
       latestSnapshot: buildLatestSnapshot(),
     });
 
@@ -235,7 +235,7 @@ describe('resolvePlanningControls', () => {
         scope: { upToLayer: 0 },
         surgical: { pinIds: ['Artifact:Audio[0]'] },
       },
-      manifest: buildManifest(),
+      buildState: createBuildState(),
       latestSnapshot: buildLatestSnapshot(),
     });
 
@@ -258,7 +258,7 @@ describe('resolvePlanningControls', () => {
         scope: { upToLayer: 1 },
         surgical: { regenerateIds: ['Artifact:Audio[0]'] },
       },
-      manifest: buildManifest(),
+      buildState: createBuildState(),
       latestSnapshot: buildLatestSnapshot(),
     });
 
@@ -278,7 +278,7 @@ describe('resolvePlanningControls', () => {
             pinIds: ['Artifact:Audio[0]'],
           },
         },
-        manifest: buildManifest(),
+        buildState: createBuildState(),
         latestSnapshot: buildLatestSnapshot(),
       })
     ).toThrowError(
@@ -299,7 +299,7 @@ describe('buildResolvedProducerSummaries', () => {
           producerDirectives: [{ producerId: 'Producer:AudioProducer', count: 1 }],
         },
       },
-      manifest: buildManifest(),
+      buildState: createBuildState(),
       latestSnapshot: buildLatestSnapshot(),
     });
 

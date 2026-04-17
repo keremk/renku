@@ -237,7 +237,7 @@ For new movies:
 For continuing movies:
 
 1. Runs a pre-plan recovery pass for recoverable failed artifacts (currently fal-ai) using stored provider request IDs
-2. Loads existing manifest
+2. Rebuilds the current `BuildState` from event logs and run records
 3. Computes the baseline plan from graph dependency analysis + dirty detection
 4. Applies explicit overrides in this order:
    - Add explicit regenerate targets from `--regen`
@@ -896,15 +896,16 @@ Project directory (current working directory when running `renku generate`):
 │       ├── events/
 │       │   ├── inputs.log   # Input events (JSONL)
 │       │   └── artifacts.log # Artifact events (JSONL)
-│       ├── manifests/
-│       │   └── {revision}.json
 │       ├── runs/
-│       │   └── {rev}-plan.json
-│       └── current.json
+│       │   ├── {rev}-run.json
+│       │   ├── {rev}-plan.json
+│       │   └── {rev}-inputs.yaml
 └── artifacts/               # GITIGNORED - symlinks to build outputs
     └── movie-{id}/
         └── *.mp3, *.mp4, etc.
 ```
+
+Renku does not persist a separate manifest snapshot in this layout. The current `BuildState` is rebuilt from `events/` and `runs/` whenever the CLI or viewer needs the latest state.
 
 **Key Concepts:**
 

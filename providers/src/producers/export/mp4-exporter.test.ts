@@ -55,13 +55,13 @@ describe('mp4-exporter', () => {
     const builds = path.join(tempRoot, 'builds');
     const movieId = 'movie-123';
     const movieDir = path.join(builds, movieId);
-    const manifestsDir = path.join(movieDir, 'manifests');
+    const eventsDir = path.join(movieDir, 'events');
     const audioBlobsDir = path.join(movieDir, 'blobs', 'ab');
+    const timelineBlobsDir = path.join(movieDir, 'blobs', 'cd');
 
-    await mkdir(manifestsDir, { recursive: true });
+    await mkdir(eventsDir, { recursive: true });
     await mkdir(audioBlobsDir, { recursive: true });
-
-    const manifestPath = path.join(manifestsDir, 'manifest.json');
+    await mkdir(timelineBlobsDir, { recursive: true });
     const timeline = {
       id: 'timeline-1',
       duration: 1,
@@ -85,31 +85,46 @@ describe('mp4-exporter', () => {
       ],
     };
 
-    const manifest = {
-      artifacts: {
-        'Artifact:TimelineComposer.Timeline': {
+    const artifactEvents = [
+      {
+        artifactId: 'Artifact:TimelineComposer.Timeline',
+        revision: 'rev-0001',
+        inputsHash: 'timeline-inputs-hash',
+        output: {
           blob: {
             hash: 'cd999',
             size: JSON.stringify(timeline).length,
             mimeType: 'application/json',
           },
         },
-        'Artifact:Audio[0]': {
+        status: 'succeeded',
+        producedBy: 'Producer:TimelineComposer[0]',
+        producerId: 'Producer:TimelineComposer',
+        createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
+      },
+      {
+        artifactId: 'Artifact:Audio[0]',
+        revision: 'rev-0001',
+        inputsHash: 'audio-inputs-hash',
+        output: {
           blob: {
             hash: 'ab123',
             size: 3,
             mimeType: 'audio/mpeg',
           },
         },
+        status: 'succeeded',
+        producedBy: 'Producer:AudioProducer[0]',
+        producerId: 'Producer:AudioProducer',
+        createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
       },
-    };
-
-    await writeFile(manifestPath, JSON.stringify(manifest));
-    await writeFile(path.join(movieDir, 'current.json'), JSON.stringify({ revision: '1', manifestPath: 'manifests/manifest.json' }));
+    ];
+    await writeFile(
+      path.join(eventsDir, 'artifacts.log'),
+      `${artifactEvents.map((event) => JSON.stringify(event)).join('\n')}\n`
+    );
     await writeFile(path.join(audioBlobsDir, 'ab123.mp3'), Buffer.from('mp3'));
-    const timelinePrefixDir = path.join(movieDir, 'blobs', 'cd');
-    await mkdir(timelinePrefixDir, { recursive: true });
-    await writeFile(path.join(timelinePrefixDir, 'cd999.json'), JSON.stringify(timeline));
+    await writeFile(path.join(timelineBlobsDir, 'cd999.json'), JSON.stringify(timeline));
     const expectedOutput = path.join(movieDir, 'FinalVideo.mp4');
     await writeFile(expectedOutput, Buffer.from('mp4'));
 

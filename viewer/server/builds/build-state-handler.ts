@@ -1,5 +1,5 @@
 /**
- * Build manifest handler.
+ * Build-state handler.
  */
 
 import { existsSync } from 'node:fs';
@@ -7,27 +7,23 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import {
   canonicalizeAuthoredProducerId,
-  extractModelSelectionsFromInputs,
+  createBuildStateService,
+  createRunRecordService,
+  createStorageContext,
+  isRenkuError,
   loadYamlBlueprintTree,
+  parseInputsForDisplay,
+  RuntimeErrorCode,
 } from '@gorenku/core';
-import type { ArtifactInfo, BuildManifestResponse } from './types.js';
+import type { ArtifactInfo, BuildStateResponse } from './types.js';
 import { normalizeNestedModelSelections } from './model-selection-normalizer.js';
 
 const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
-function stripCanonicalInputPrefix(inputId: string): string {
-  if (!inputId.startsWith('Input:')) {
-    throw new Error(
-      `Manifest input key must be canonical (Input:...), received "${inputId}".`
-    );
-  }
-  return inputId.slice('Input:'.length);
-}
-
 function stripCanonicalArtifactPrefix(artifactId: string): string {
   if (!artifactId.startsWith('Artifact:')) {
     throw new Error(
-      `Manifest artifact key must be canonical (Artifact:...), received "${artifactId}".`
+      `Build-state artifact key must be canonical (Artifact:...), received "${artifactId}".`
     );
   }
   return artifactId.slice('Artifact:'.length);
@@ -150,91 +146,78 @@ function resolveProducerNodeId(args: {
 }
 
 /**
- * Gets the manifest data for a specific build.
+ * Gets the build-state data for a specific build.
  */
-export async function getBuildManifest(
+export async function getBuildState(
   blueprintFolder: string,
   movieId: string,
   blueprintPath?: string,
   catalogRoot?: string
-): Promise<BuildManifestResponse> {
+): Promise<BuildStateResponse> {
   const movieDir = path.join(blueprintFolder, 'builds', movieId);
-  const currentPath = path.join(movieDir, 'current.json');
+  const storage = createStorageContext({
+    kind: 'local',
+    rootDir: blueprintFolder,
+    basePath: 'builds',
+  });
+  const buildStateService = createBuildStateService(storage);
+  const runRecordService = createRunRecordService(storage);
 
   try {
-    // Step 1: Read current.json for revision & manifestPath (may not exist)
-    let revision: string | null = null;
-    let manifestPath: string | null = null;
-
-    if (existsSync(currentPath)) {
-      const currentContent = await fs.readFile(currentPath, 'utf8');
-      const current = JSON.parse(currentContent) as {
-        revision?: string;
-        manifestPath?: string | null;
-      };
-      revision = current.revision ?? null;
-      manifestPath = current.manifestPath
-        ? path.join(movieDir, current.manifestPath)
-        : null;
-    }
-
-    // Step 2: Try to read manifest file if path exists (may not exist yet)
-    type ManifestData = {
-      inputs?: Record<string, { payloadDigest?: unknown }>;
-      artifacts?: Record<
+    let buildState: {
+      revision: string;
+      artifacts: Record<
         string,
         {
-          hash?: string;
+          hash: string;
           blob?: { hash: string; size: number; mimeType?: string };
-          producedBy?: string;
+          producedBy: string;
           producerId?: string;
-          status?: string;
-          createdAt?: string;
+          status: string;
+          createdAt: string;
         }
       >;
-      createdAt?: string;
-    };
-    let manifest: ManifestData | null = null;
-    let manifestMtime: string | null = null;
-
-    if (manifestPath && existsSync(manifestPath)) {
-      const manifestContent = await fs.readFile(manifestPath, 'utf8');
-      manifest = JSON.parse(manifestContent) as ManifestData;
-      const stat = await fs.stat(manifestPath);
-      manifestMtime = stat.mtime.toISOString();
-    }
-
-    // Step 3: Always read event log (the key fix — this was previously unreachable
-    // when manifestPath was null or the manifest file didn't exist yet)
-    const latestEvents = await readLatestArtifactEvents(movieDir);
-
-    // Step 4: Parse inputs from manifest (if available)
-    const parsedInputs: Record<string, unknown> = {};
-    if (manifest?.inputs) {
-      for (const [key, entry] of Object.entries(manifest.inputs)) {
-        const cleanName = stripCanonicalInputPrefix(key);
-        // Extract value from payloadDigest
-        if (entry && typeof entry === 'object' && 'payloadDigest' in entry) {
-          let value = entry.payloadDigest;
-          // payloadDigest may contain JSON-encoded strings (e.g., "\"actual string\"")
-          // Try to parse it if it's a string that looks like JSON
-          if (typeof value === 'string') {
-            try {
-              value = JSON.parse(value);
-            } catch {
-              // If parsing fails, use the raw string
-            }
-          }
-          parsedInputs[cleanName] = value;
-        }
+      createdAt: string;
+    } | null = null;
+    try {
+      const current = await buildStateService.loadCurrent(movieId);
+      buildState = current.buildState;
+    } catch (error) {
+      if (
+        isRenkuError(error) &&
+        error.code === RuntimeErrorCode.BUILD_STATE_NOT_FOUND
+      ) {
+        buildState = null;
+      } else {
+        throw error;
       }
     }
+    const latestRunRecord = await runRecordService.loadLatest(movieId);
+    const revision = buildState?.revision ?? latestRunRecord?.revision ?? null;
 
-    // Extract model selections from inputs
-    const { modelSelections } = extractModelSelectionsFromInputs(parsedInputs);
+    const latestEvents = await readLatestArtifactEvents(movieDir);
+
+    let parsedInputs: Record<string, unknown> = {};
+    let modelSelections: NonNullable<BuildStateResponse['models']> = [];
+    const editableInputsPath = path.join(movieDir, 'inputs.yaml');
+    const snapshotPath = latestRunRecord
+      ? path.join(movieDir, latestRunRecord.inputSnapshotPath)
+      : null;
+    const authoredInputsPath = existsSync(editableInputsPath)
+      ? editableInputsPath
+      : snapshotPath && existsSync(snapshotPath)
+        ? snapshotPath
+        : null;
+
+    if (authoredInputsPath) {
+      const parsed = await parseInputsForDisplay(authoredInputsPath);
+      parsedInputs = parsed.inputs;
+      modelSelections = parsed.models;
+    }
+
     const canonicalModelSelections =
       blueprintPath && modelSelections.length > 0
-      ? await canonicalizeManifestModelSelections(
+      ? await canonicalizeBuildStateModelSelections(
           blueprintPath,
           catalogRoot,
           movieId,
@@ -242,70 +225,9 @@ export async function getBuildManifest(
         )
       : modelSelections;
 
-    // Step 5: Build artifacts — merge manifest data with event log data
     const parsedArtifacts: ArtifactInfo[] = [];
-    const manifestArtifactIds = new Set<string>();
-
-    // First pass: manifest artifacts (merged with event log for latest state)
-    if (manifest?.artifacts) {
-      for (const [key, entry] of Object.entries(manifest.artifacts)) {
-        if (!entry || !entry.blob) continue;
-        manifestArtifactIds.add(key);
-
-        // Extract name from artifact ID (e.g., "Artifact:Producer.Output" -> "Producer.Output")
-        const cleanName = stripCanonicalArtifactPrefix(key);
-
-        // Check event log for latest state (may have edits)
-        const latestEvent = latestEvents.get(key);
-        const hasEventLogData = latestEvent?.output?.blob?.hash;
-
-        // Use event log data if available (includes user edits), otherwise fall back to manifest
-        const currentHash = hasEventLogData
-          ? latestEvent.output.blob!.hash
-          : entry.blob.hash;
-        const currentSize = hasEventLogData
-          ? latestEvent.output.blob!.size
-          : entry.blob.size;
-        const currentMimeType = hasEventLogData
-          ? (latestEvent.output.blob!.mimeType ?? 'application/octet-stream')
-          : (entry.blob.mimeType ?? 'application/octet-stream');
-
-        const producedBy = latestEvent?.producedBy ?? entry.producedBy;
-        const producerId = latestEvent?.producerId ?? entry.producerId;
-        const producerNodeId = resolveProducerNodeId({
-          producerId,
-        });
-        parsedArtifacts.push({
-          id: key,
-          name: cleanName,
-          producedBy,
-          ...(producerNodeId ? { producerNodeId } : {}),
-          hash: currentHash,
-          size: currentSize,
-          mimeType: currentMimeType,
-          status: latestEvent?.status ?? entry.status ?? 'unknown',
-          createdAt: latestEvent?.createdAt ?? entry.createdAt ?? null,
-          // Include edit tracking fields from event log
-          editedBy: latestEvent?.editedBy,
-          originalHash: latestEvent?.originalHash,
-          // Include recovery info from diagnostics
-          ...extractRecoveryInfo(latestEvent),
-        });
-      }
-    }
-
-    // Second pass: Include artifacts from event log that are NOT in the manifest.
-    // This handles mid-execution artifacts that exist in artifacts.log but not yet
-    // in the manifest file (which is only written after execution completes).
     for (const [artifactId, event] of latestEvents) {
-      if (manifestArtifactIds.has(artifactId)) {
-        // Already processed in first pass
-        continue;
-      }
-
       const cleanName = stripCanonicalArtifactPrefix(artifactId);
-
-      // For succeeded artifacts, we need blob info
       if (event.status === 'succeeded' && !event.output?.blob?.hash) {
         continue;
       }
@@ -339,7 +261,7 @@ export async function getBuildManifest(
           ? canonicalModelSelections
           : undefined,
       artifacts: parsedArtifacts,
-      createdAt: manifest?.createdAt ?? manifestMtime ?? null,
+      createdAt: latestRunRecord?.createdAt ?? buildState?.createdAt ?? null,
     };
   } catch (error) {
     if (error instanceof Error) {
@@ -349,17 +271,17 @@ export async function getBuildManifest(
   }
 }
 
-async function canonicalizeManifestModelSelections(
+async function canonicalizeBuildStateModelSelections(
   blueprintPath: string,
   catalogRoot: string | undefined,
   movieId: string,
-  modelSelections: NonNullable<BuildManifestResponse['models']>
-): Promise<NonNullable<BuildManifestResponse['models']>> {
+  modelSelections: NonNullable<BuildStateResponse['models']>
+): Promise<NonNullable<BuildStateResponse['models']>> {
   const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
   const normalizedSelections = normalizeNestedModelSelections(
     root,
     modelSelections,
-    `manifest for build "${movieId}"`
+    `build state for build "${movieId}"`
   );
 
   return normalizedSelections.map((selection) => {
@@ -369,7 +291,7 @@ async function canonicalizeManifestModelSelections(
     );
     if (!canonicalProducerId) {
       throw new Error(
-        `Refusing to use unknown producer "${selection.producerId}" from manifest for build "${movieId}".`
+        `Refusing to use unknown producer "${selection.producerId}" from build state for build "${movieId}".`
       );
     }
 
@@ -389,43 +311,15 @@ export async function getBuildTimeline(
   movieId: string
 ): Promise<unknown | null> {
   const movieDir = path.join(blueprintFolder, 'builds', movieId);
-  const currentPath = path.join(movieDir, 'current.json');
-
-  if (!existsSync(currentPath)) {
-    return null;
-  }
-
-  const currentContent = await fs.readFile(currentPath, 'utf8');
-  const current = JSON.parse(currentContent) as {
-    manifestPath?: string | null;
-  };
-
-  if (!current.manifestPath) {
-    return null;
-  }
-
-  const manifestPath = path.join(movieDir, current.manifestPath);
-  if (!existsSync(manifestPath)) {
-    return null;
-  }
-
-  const manifestContent = await fs.readFile(manifestPath, 'utf8');
-  const manifest = JSON.parse(manifestContent) as {
-    artifacts?: Record<
-      string,
-      {
-        blob?: { hash: string; mimeType?: string };
-      }
-    >;
-  };
-
-  const artifact = manifest.artifacts?.[TIMELINE_ARTIFACT_ID];
-  if (!artifact?.blob?.hash) {
+  const latestEvents = await readLatestArtifactEvents(movieDir);
+  const artifact = latestEvents.get(TIMELINE_ARTIFACT_ID);
+  const blob = artifact?.output?.blob;
+  if (!blob?.hash) {
     return null;
   }
 
   // Resolve the blob path
-  const hash = artifact.blob.hash;
+  const hash = blob.hash;
   const prefix = hash.slice(0, 2);
   const blobsDir = path.join(movieDir, 'blobs');
 

@@ -3,7 +3,7 @@ import path, { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   createEventLog,
-  createManifestService,
+  createBuildStateService,
   createStorageContext,
   executePlanWithConcurrency,
   initializeMovieStorage,
@@ -90,7 +90,7 @@ async function runTranscriptionPathScenario(
   });
   await initializeMovieStorage(storage, options.storageMovieId);
   const eventLog = createEventLog(storage);
-  const manifestService = createManifestService(storage);
+  const buildStateService = createBuildStateService(storage);
 
   const catalog = await loadModelCatalog(CATALOG_MODELS_ROOT);
   const registry = createProviderRegistry({
@@ -164,10 +164,9 @@ async function runTranscriptionPathScenario(
     planResult.plan,
     {
       movieId: options.storageMovieId,
-      manifest: planResult.manifest,
+      buildState: planResult.buildState,
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     },
@@ -233,7 +232,7 @@ describe('end-to-end: transcription audio path resolution', () => {
       expect(assetId).toMatch(/^Artifact:AudioProducer\.GeneratedAudio\[\d+\]$/);
     }
 
-    const manifest = await result.run.buildManifest();
+    const manifest = await result.run.buildStateSnapshot();
     const audioArtifactIds = Object.keys(manifest.artifacts).filter((artifactId) =>
       artifactId.startsWith('Artifact:AudioProducer.GeneratedAudio['),
     );

@@ -4,7 +4,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import {
 	createEventLog,
-	createManifestService,
+	createBuildStateService,
 	createRunner,
 	createStorageContext,
 	initializeMovieStorage,
@@ -213,7 +213,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		});
 		await initializeMovieStorage(storage, storageMovieId);
 		const eventLog = createEventLog(storage);
-		const manifestService = createManifestService(storage);
+		const buildStateService = createBuildStateService(storage);
 
 		// Create custom produce function that returns stub data
 		const produce: ProduceFn = vi.fn(
@@ -238,10 +238,9 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		const runner = createRunner();
 		const firstRunResult = await runner.execute(planResult.plan, {
 			movieId: storageMovieId,
-			manifest: planResult.manifest,
+			buildState: planResult.buildState,
 			storage,
 			eventLog,
-			manifestService,
 			produce,
 			logger,
 		});
@@ -251,12 +250,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		expect(firstRunResult.jobs).toHaveLength(6); // 1 DocProducer + 4 ImageProducers + 1 TimelineComposer
 
 		// Build and save manifest after first run
-		const manifest1 = await firstRunResult.buildManifest();
-		await manifestService.saveManifest(manifest1, {
-			movieId: storageMovieId,
-			previousHash: planResult.manifestHash,
-			clock: { now: () => new Date().toISOString() },
-		});
+		const manifest1 = await firstRunResult.buildStateSnapshot();
 
 		// Verify all artifacts are in manifest
 		expect(Object.keys(manifest1.artifacts).length).toBeGreaterThanOrEqual(5);
@@ -433,7 +427,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		});
 		await initializeMovieStorage(storage, storageMovieId);
 		const eventLog = createEventLog(storage);
-		const manifestService = createManifestService(storage);
+		const buildStateService = createBuildStateService(storage);
 
 		const produce: ProduceFn = vi.fn(
 			async (request: ProduceRequest): Promise<ProduceResult> => {
@@ -453,21 +447,15 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		const runner = createRunner();
 		const firstRunResult = await runner.execute(planResult.plan, {
 			movieId: storageMovieId,
-			manifest: planResult.manifest,
+			buildState: planResult.buildState,
 			storage,
 			eventLog,
-			manifestService,
 			produce,
 			logger,
 		});
 		expect(firstRunResult.status).toBe('succeeded');
 
-		const manifest1 = await firstRunResult.buildManifest();
-		await manifestService.saveManifest(manifest1, {
-			movieId: storageMovieId,
-			previousHash: planResult.manifestHash,
-			clock: { now: () => new Date().toISOString() },
-		});
+		const manifest1 = await firstRunResult.buildStateSnapshot();
 
 		// PHASE 2: Override a DIFFERENT virtual artifact: Segments[1].ImagePrompts[1]
 		const overridePromptPath = join(tempRoot, 'override-prompt2.txt');

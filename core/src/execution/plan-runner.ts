@@ -1,11 +1,12 @@
 import pLimit from 'p-limit';
-import { createRunner, accumulateArtifacts } from '../runner.js';
+import { createRunner, accumulateArtifacts, hydrateExecutionState } from '../runner.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { MAX_CLI_CONCURRENCY, MIN_CLI_CONCURRENCY } from '../concurrency.js';
+import { createEmptyBuildState } from '../execution-state.js';
+import { buildRunResultBuildStateSnapshot } from '../run-result-build-state.js';
 import type {
   ExecutionPlan,
   JobResult,
-  Manifest,
   RunResult,
 } from '../types.js';
 import type {
@@ -26,7 +27,7 @@ import type {
  * @param plan - The execution plan to run
  * @param context - Execution context with storage, event log, produce function, etc.
  * @param options - Execution options including concurrency, layer limits, etc.
- * @returns The run result with job results and manifest builder
+ * @returns The run result with job results and baseline hash
  */
 export async function executePlanWithConcurrency(
   plan: ExecutionPlan,
@@ -47,6 +48,14 @@ export async function executePlanWithConcurrency(
   const clock = context.clock ?? { now: () => new Date().toISOString() };
   const startedAt = clock.now();
   const jobs: JobResult[] = [];
+  const baselineHash =
+    plan.baselineHash ??
+    (plan as { manifestBaseHash?: string }).manifestBaseHash ??
+    '';
+  const buildState =
+    context.buildState ??
+    ((context as { manifest?: import('../types.js').BuildState }).manifest ??
+      createEmptyBuildState());
 
   // Log layer limit info
   if (layerLimit !== undefined) {
@@ -65,9 +74,13 @@ export async function executePlanWithConcurrency(
     });
   }
 
-  // Track a running manifest that accumulates artifacts produced in earlier layers.
-  // This ensures hashInputContents in later layers resolves correct upstream hashes.
-  let runningManifest: Manifest = context.manifest;
+  let executionState =
+    context.executionState ??
+    (await hydrateExecutionState({
+      movieId: context.movieId,
+      buildState,
+      eventLog: context.eventLog,
+    }));
 
   for (let layerIndex = 0; layerIndex < plan.layers.length; layerIndex += 1) {
     // Check for cancellation
@@ -146,7 +159,8 @@ export async function executePlanWithConcurrency(
 
           const result = await runner.executeJob(job, {
             ...context,
-            manifest: runningManifest,
+            buildState,
+            executionState,
             layerIndex,
             attempt: 1,
             revision: plan.revision,
@@ -172,9 +186,8 @@ export async function executePlanWithConcurrency(
     );
     jobs.push(...layerResults);
 
-    // Update running manifest with produced artifacts so later layers see correct hashes
     for (const result of layerResults) {
-      runningManifest = accumulateArtifacts(runningManifest, result.artifacts);
+      executionState = accumulateArtifacts(executionState, result.artifacts);
     }
 
     const layerCompleteMessage = `Layer ${layerIndex} finished running`;
@@ -211,19 +224,19 @@ export async function executePlanWithConcurrency(
   return {
     status,
     revision: plan.revision,
-    manifestBaseHash: plan.manifestBaseHash,
+    baselineHash,
+    manifestBaseHash: baselineHash,
     jobs,
     startedAt,
     completedAt,
-    async buildManifest() {
-      return context.manifestService.buildFromEvents({
+    buildStateSnapshot: async () =>
+      buildRunResultBuildStateSnapshot({
         movieId: context.movieId,
-        targetRevision: plan.revision,
-        baseRevision: context.manifest.revision,
         eventLog: context.eventLog,
-        clock,
-      });
-    },
+        buildState,
+        revision: plan.revision,
+        completedAt,
+      }),
   };
 }
 

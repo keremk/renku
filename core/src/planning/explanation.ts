@@ -12,8 +12,8 @@ export interface JobDirtyReason {
   producer: string;
   /** Why this job is dirty */
   reason:
-    | 'initial' // Manifest has no inputs (first run)
-    | 'producesMissing' // Job produces artifacts not in manifest
+    | 'initial' // Build state has no inputs (first run)
+    | 'producesMissing' // Job produces artifacts not present in build state
     | 'latestAttemptFailed' // Job produced artifacts that most recently failed
     | 'touchesDirtyInput' // Job depends on dirty inputs
     | 'touchesDirtyArtifact' // Job depends on dirty upstream artifacts

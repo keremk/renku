@@ -9,7 +9,7 @@ import type {
   ModelSelectionValue,
   AvailableModelOption,
 } from '@/types/blueprint-graph';
-import type { BuildsListResponse, BuildManifestResponse } from '@/types/builds';
+import type { BuildsListResponse, BuildStateResponse } from '@/types/builds';
 import type { StoryboardProjection } from '@/types/storyboard';
 import type { TimelineDocument } from '@/types/timeline';
 
@@ -242,14 +242,14 @@ export function fetchBuildsList(
   return fetchJson<BuildsListResponse>(url.toString());
 }
 
-export function fetchBuildManifest(
+export function fetchBuildState(
   blueprintFolder: string,
   movieId: string,
   blueprintPath: string,
   catalogRoot?: string | null
-): Promise<BuildManifestResponse> {
+): Promise<BuildStateResponse> {
   const url = new URL(
-    `${API_BASE}/blueprints/manifest`,
+    `${API_BASE}/blueprints/build-state`,
     window.location.origin
   );
   url.searchParams.set('folder', blueprintFolder);
@@ -258,7 +258,7 @@ export function fetchBuildManifest(
   if (catalogRoot) {
     url.searchParams.set('catalog', catalogRoot);
   }
-  return fetchJson<BuildManifestResponse>(url.toString());
+  return fetchJson<BuildStateResponse>(url.toString());
 }
 
 // --- Build management API functions ---

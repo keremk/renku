@@ -23,7 +23,7 @@ import { formatMovieId } from '../../../src/commands/execute.js';
 import {
 	setupTempCliConfig,
 	readPlan,
-	readManifest,
+	readCurrentBuildState,
 	createLoggerRecorder,
 } from '../helpers.js';
 import { CLI_FIXTURES_BLUEPRINTS } from '../../test-catalog-paths.js';
@@ -216,9 +216,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		// ============================================================
 		// VERIFY: Manifest contains all artifacts
 		// ============================================================
-		const manifestPath = queryResult.build?.manifestPath;
-		expect(manifestPath).toBeDefined();
-		const manifest = await readManifest(manifestPath!);
+		const manifest = await readCurrentBuildState(queryResult.storagePath);
 		expect(manifest).toBeDefined();
 		expect(manifest.artifacts).toBeDefined();
 
@@ -422,9 +420,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		// and try to navigate the field path, but that nested artifact doesn't exist.
 
 		// Read manifest to verify blob content
-		const manifestPath = queryResult.build?.manifestPath;
-		expect(manifestPath).toBeDefined();
-		const manifest = await readManifest(manifestPath!);
+		const manifest = await readCurrentBuildState(queryResult.storagePath);
 
 		// Check which boolean values were generated
 		const blobsDir = resolve(queryResult.storagePath, 'blobs');

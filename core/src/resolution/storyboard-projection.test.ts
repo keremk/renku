@@ -12,13 +12,19 @@ import { buildStoryboardProjection } from './storyboard-projection.js';
 const catalogRoot = path.resolve(process.cwd(), '../catalog');
 
 function makeTreeNode(document: Record<string, unknown>): BlueprintTreeNode {
-  const normalizedDocument: BlueprintDocument = {
+  const defaults: Pick<
+    BlueprintDocument,
+    'producers' | 'imports' | 'outputs' | 'edges'
+  > = {
     producers: [],
     imports: [],
     outputs: [],
     edges: [],
-    ...(document as BlueprintDocument),
   };
+  const normalizedDocument = {
+    ...defaults,
+    ...document,
+  } as BlueprintDocument;
   return {
     id: String((normalizedDocument.meta as { id: string }).id),
     namespacePath: [],

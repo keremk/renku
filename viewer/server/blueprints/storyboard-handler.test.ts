@@ -17,7 +17,6 @@ describe('getStoryboardProjection', () => {
     movieId = 'movie-001';
     movieDir = path.join(tempDir, 'builds', movieId);
 
-    await fs.mkdir(path.join(movieDir, 'manifests'), { recursive: true });
     await fs.mkdir(path.join(movieDir, 'events'), { recursive: true });
 
     await fs.writeFile(
@@ -104,29 +103,22 @@ describe('getStoryboardProjection', () => {
     );
 
     await fs.writeFile(
-      path.join(movieDir, 'current.json'),
-      JSON.stringify({
-        revision: 'rev-1',
-        manifestPath: 'manifests/rev-1.json',
-      })
-    );
-
-    await fs.writeFile(
-      path.join(movieDir, 'manifests', 'rev-1.json'),
+      path.join(movieDir, 'events', 'artifacts.log'),
+      [
         JSON.stringify({
-          inputs: {
-            'Input:SharedStyleImage': { payloadDigest: '"file:./input-files/style.png"' },
-            'Input:NumOfSegments': { payloadDigest: '1' },
-          },
-        artifacts: {
-          'Artifact:SceneVideo[0]': {
+          artifactId: 'Artifact:SceneVideo[0]',
+          revision: 'rev-0001',
+          inputsHash: 'scene-video-inputs',
+          output: {
             blob: { hash: 'video-hash', size: 10, mimeType: 'video/mp4' },
-            status: 'succeeded',
-            createdAt: '2026-04-09T12:00:00Z',
           },
-        },
-        createdAt: '2026-04-09T12:00:00Z',
-      })
+          status: 'succeeded',
+          producedBy: 'Producer:VideoProducer[0]',
+          producerId: 'Producer:VideoProducer',
+          createdAt: '2026-04-09T12:00:00Z',
+        }),
+        '',
+      ].join('\n')
     );
   });
 
@@ -318,41 +310,46 @@ describe('getStoryboardProjection', () => {
     );
 
     await fs.writeFile(
-      path.join(movieDir, 'manifests', 'rev-1.json'),
-      JSON.stringify({
-        inputs: {
-          'Input:NumOfSegments': { payloadDigest: '1' },
-        },
-        artifacts: {
-          'Artifact:StoryProducer.Storyboard.Scenes[0].VideoPrompt': {
-            hash: promptHash,
+      path.join(movieDir, 'events', 'artifacts.log'),
+      [
+        JSON.stringify({
+          artifactId: 'Artifact:StoryProducer.Storyboard.Scenes[0].VideoPrompt',
+          revision: 'rev-0001',
+          inputsHash: 'story-prompt-inputs',
+          output: {
             blob: {
               hash: promptHash,
               size: promptText.length,
               mimeType: 'text/plain',
             },
-            producedBy: 'Producer:StoryProducer',
-            status: 'succeeded',
-            diagnostics: {
-              kind: 'StoryProducer.Storyboard.Scenes.VideoPrompt',
-              jsonPath: 'Scenes[0].VideoPrompt',
-            },
-            createdAt: '2026-04-09T12:00:00Z',
           },
-          'Artifact:SceneVideo[0]': {
-            hash: 'video-hash',
+          status: 'succeeded',
+          producedBy: 'Producer:StoryProducer',
+          producerId: 'Producer:StoryProducer',
+          diagnostics: {
+            kind: 'StoryProducer.Storyboard.Scenes.VideoPrompt',
+            jsonPath: 'Scenes[0].VideoPrompt',
+          },
+          createdAt: '2026-04-09T12:00:00Z',
+        }),
+        JSON.stringify({
+          artifactId: 'Artifact:SceneVideo[0]',
+          revision: 'rev-0001',
+          inputsHash: 'scene-video-inputs',
+          output: {
             blob: {
               hash: 'video-hash',
               size: 10,
               mimeType: 'video/mp4',
             },
-            producedBy: 'Producer:VideoProducer[0]',
-            status: 'succeeded',
-            createdAt: '2026-04-09T12:00:00Z',
           },
-        },
-        createdAt: '2026-04-09T12:00:00Z',
-      })
+          status: 'succeeded',
+          producedBy: 'Producer:VideoProducer[0]',
+          producerId: 'Producer:VideoProducer',
+          createdAt: '2026-04-09T12:00:00Z',
+        }),
+        '',
+      ].join('\n')
     );
 
     const projection = await getStoryboardProjection({

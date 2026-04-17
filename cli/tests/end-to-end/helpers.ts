@@ -1,8 +1,12 @@
 import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { stringify, parse } from 'yaml';
-import type { Logger } from '@gorenku/core';
+import {
+  createBuildStateService,
+  createStorageContext,
+  type Logger,
+} from '@gorenku/core';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
 import { CATALOG_ROOT } from '../test-catalog-paths.js';
 
@@ -103,6 +107,19 @@ export async function readPlan(planPath: string): Promise<any> {
 export async function readManifest(manifestPath: string): Promise<any> {
   const contents = await readFile(manifestPath, 'utf8');
   return JSON.parse(contents);
+}
+
+export async function readCurrentBuildState(storagePath: string): Promise<any> {
+  const movieId = basename(storagePath);
+  const baseDir = dirname(storagePath);
+  const storage = createStorageContext({
+    kind: 'local',
+    rootDir: dirname(baseDir),
+    basePath: basename(baseDir),
+  });
+  const buildStateService = createBuildStateService(storage);
+  const { buildState } = await buildStateService.loadCurrent(movieId);
+  return buildState;
 }
 
 export function findJob(plan: any, producer: string) {

@@ -29,7 +29,7 @@ import type {
   InputTemplateData,
   ModelSelectionValue,
 } from '@/types/blueprint-graph';
-import type { BuildInfo, BuildManifestResponse } from '@/types/builds';
+import type { BuildInfo, BuildStateResponse } from '@/types/builds';
 
 type DetailPanelTab = 'inputs' | 'models' | 'outputs' | 'storyboard' | 'preview';
 
@@ -51,12 +51,12 @@ interface WorkspaceLayoutProps {
   buildsLoading: boolean;
   /** Currently selected build ID */
   selectedBuildId: string | null;
-  /** Manifest data for the selected build */
-  selectedBuildManifest: BuildManifestResponse | null;
+  /** Build-state data for the selected build */
+  selectedBuildState: BuildStateResponse | null;
   /** Callback to refresh builds list */
   onBuildsRefresh?: () => Promise<void>;
-  /** Callback to refresh the build manifest (after artifact edits) */
-  onManifestRefresh?: () => void;
+  /** Callback to refresh the selected build state (after artifact edits) */
+  onBuildStateRefresh?: () => void;
 }
 
 // Blueprint flow panel sizing (the graph at the bottom)
@@ -84,9 +84,9 @@ function WorkspaceLayoutInner({
   builds,
   buildsLoading,
   selectedBuildId,
-  selectedBuildManifest,
+  selectedBuildState,
   onBuildsRefresh,
-  onManifestRefresh,
+  onBuildStateRefresh,
 }: WorkspaceLayoutProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [detailPanelTab, setDetailPanelTab] =
@@ -252,17 +252,15 @@ function WorkspaceLayoutInner({
     return inputs.length > 0 ? { inputs } : null;
   }, [buildInputs, graphData.inputs]);
 
-  // Model selections: prioritize build inputs, fall back to manifest models
+  // Model selections: prioritize editable build inputs, then stored build-state models
   const parsedModelSelections = useMemo<ModelSelectionValue[]>(() => {
     // Use models from build inputs if available (editable builds)
     if (buildModels.length > 0) {
       return buildModels;
     }
 
-    // Fall back to models from manifest (read-only builds)
-    // API now extracts these into a separate field
-    return selectedBuildManifest?.models ?? [];
-  }, [buildModels, selectedBuildManifest?.models]);
+    return selectedBuildState?.models ?? [];
+  }, [buildModels, selectedBuildState?.models]);
 
   // Use the model selection editor hook for single source of truth
   const modelEditor = useModelSelectionEditor({
@@ -270,9 +268,9 @@ function WorkspaceLayoutInner({
     onSave: handleSaveModels,
   });
 
-  // Merge input data from build inputs or manifest
+  // Merge input data from editable build inputs or read-only build state
   const effectiveInputData = useMemo<InputTemplateData | null>(() => {
-    // For editable builds, never fall back to manifest/template values.
+    // For editable builds, never fall back to stored/template values.
     // Wait until build inputs are loaded to avoid writing fallback/template content.
     if (selectedBuildHasInputs) {
       if (!hasLoadedInputs) {
@@ -281,12 +279,12 @@ function WorkspaceLayoutInner({
       return parsedBuildInputs;
     }
 
-    // If we have a selected build manifest with inputs, use those
+    // If we have a selected build state with inputs, use those
     if (
-      selectedBuildManifest?.inputs &&
-      Object.keys(selectedBuildManifest.inputs).length > 0
+      selectedBuildState?.inputs &&
+      Object.keys(selectedBuildState.inputs).length > 0
     ) {
-      const manifestInputs = Object.entries(selectedBuildManifest.inputs).map(
+      const buildStateInputs = Object.entries(selectedBuildState.inputs).map(
         ([name, value]) => ({
           name,
           value,
@@ -301,14 +299,14 @@ function WorkspaceLayoutInner({
           required: true,
         })
       );
-      return { inputs: manifestInputs };
+      return { inputs: buildStateInputs };
     }
     // Fall back to the input data from file
     return inputData;
   }, [
     inputData,
     selectedBuildHasInputs,
-    selectedBuildManifest,
+    selectedBuildState,
     parsedBuildInputs,
     hasLoadedInputs,
   ]);
@@ -392,16 +390,16 @@ function WorkspaceLayoutInner({
     [modelEditor]
   );
 
-  // Initialize producer statuses from manifest when build changes
+  // Initialize producer statuses from build state when build changes
   // Skip during execution to avoid SSE-driven status badges being overwritten
   useEffect(() => {
     if (state.status === 'executing') {
       return;
     }
-    if (selectedBuildManifest?.artifacts) {
-      initializeFromManifest(selectedBuildManifest.artifacts);
+    if (selectedBuildState?.artifacts) {
+      initializeFromManifest(selectedBuildState.artifacts);
     }
-  }, [selectedBuildManifest, initializeFromManifest, state.status]);
+  }, [selectedBuildState, initializeFromManifest, state.status]);
 
   const handleNodeSelect = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);
@@ -434,11 +432,11 @@ function WorkspaceLayoutInner({
 
   // Check if the selected build has a timeline artifact
   const hasTimeline = useMemo(() => {
-    const artifacts = selectedBuildManifest?.artifacts;
+    const artifacts = selectedBuildState?.artifacts;
     if (!artifacts) return false;
     // Check for timeline artifact (id contains "Timeline")
     return artifacts.some((a) => a.id.includes('Timeline'));
-  }, [selectedBuildManifest?.artifacts]);
+  }, [selectedBuildState?.artifacts]);
 
   // Lift timeline and playback state for syncing between Preview and Timeline panels
   const {
@@ -449,7 +447,7 @@ function WorkspaceLayoutInner({
   } = useMovieTimeline(
     hasTimeline ? blueprintFolder : null,
     hasTimeline ? effectiveMovieId : null,
-    hasTimeline ? (selectedBuildManifest?.revision ?? null) : null
+    hasTimeline ? (selectedBuildState?.revision ?? null) : null
   );
   const { currentTime, isPlaying, play, pause, seek, reset } =
     usePreviewPlayback(effectiveMovieId);
@@ -543,7 +541,7 @@ function WorkspaceLayoutInner({
                   blueprintFolder={blueprintFolder}
                   blueprintPath={blueprintPath}
                   catalogRoot={catalogRoot}
-                  artifacts={selectedBuildManifest?.artifacts ?? []}
+                  artifacts={selectedBuildState?.artifacts ?? []}
                   actionButton={runButton}
                   isInputsEditable={isInputsEditable}
                   onSaveInputs={handleSaveInputs}
@@ -575,7 +573,7 @@ function WorkspaceLayoutInner({
                   onSeek={seek}
                   onReset={reset}
                   onRetryTimeline={retryTimeline}
-                  onArtifactUpdated={onManifestRefresh}
+                  onArtifactUpdated={onBuildStateRefresh}
                 />
               </div>
             </div>
@@ -646,7 +644,7 @@ function WorkspaceLayoutInner({
  */
 export function WorkspaceLayout(props: WorkspaceLayoutProps) {
   return (
-    <ExecutionProvider onArtifactProduced={props.onManifestRefresh}>
+    <ExecutionProvider onArtifactProduced={props.onBuildStateRefresh}>
       <WorkspaceLayoutInner {...props} />
     </ExecutionProvider>
   );

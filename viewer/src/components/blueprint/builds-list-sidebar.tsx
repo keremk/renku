@@ -420,13 +420,13 @@ function BuildCard({
               <span title='Executing'>
                 <Loader2 className='w-3 h-3 animate-spin text-blue-500' />
               </span>
-            ) : build.hasManifest ? (
+            ) : build.hasBuildState ? (
               <span
                 className='w-2 h-2 rounded-full bg-green-500'
-                title='Has manifest'
+                title='Has build state'
               />
             ) : null}
-            {build.hasInputsFile && !build.hasManifest && (
+            {build.hasInputsFile && !build.hasBuildState && (
               <span
                 className='w-2 h-2 rounded-full bg-amber-500'
                 title='Has inputs (not run yet)'

@@ -1,15 +1,17 @@
 import { resolve as resolvePath } from 'node:path';
 import {
 	createEventLog,
-	createManifestService,
+	createBuildStateService,
+	createRunRecordService,
 	createStorageContext,
 	initializeMovieStorage,
 	resolveBlobRefsToInputs,
 	injectAllSystemInputs,
 	executePlanWithConcurrency,
 	readLlmInvocationSettings,
+	type BuildState,
 	type ExecutionPlan,
-	type Manifest,
+	type ExecutionState,
 	type RunResult,
 	type RunConfig,
 	type Logger,
@@ -30,8 +32,9 @@ export interface ExecuteBuildOptions {
 	cliConfig: CliConfig;
 	movieId: string;
 	plan: ExecutionPlan;
-	manifest: Manifest;
-	manifestHash: string | null;
+	buildState: BuildState;
+	baselineHash: string | null;
+	executionState?: ExecutionState;
 	providerOptions: ProducerOptionsMap;
 	resolvedInputs: Record<string, unknown>;
 	/** Pre-loaded model catalog for provider registry. */
@@ -71,15 +74,15 @@ export interface BuildSummary {
 	layers: number;
 	/** Job-level details for display (optional) */
 	jobs?: JobSummary[];
-	manifestRevision: string;
-	manifestPath: string;
+	revision: string;
+	runRecordPath: string;
 }
 
 export interface ExecuteBuildResult {
 	run: RunResult;
-	manifest: Manifest;
-	manifestPath: string;
-	manifestHash: string;
+	buildState: BuildState;
+	runRecordPath: string;
+	baselineHash: string;
 	summary: BuildSummary;
 	/** True if this was a dry-run (simulated execution). */
 	dryRun: boolean;
@@ -101,7 +104,8 @@ export async function executeBuild(
 	await initializeMovieStorage(storage, options.movieId);
 
 	const eventLog = createEventLog(storage);
-	const manifestService = createManifestService(storage);
+	const buildStateService = createBuildStateService(storage);
+	const runRecordService = createRunRecordService(storage);
 
 	// Provider registry: mode differs based on dryRun flag
 	const registry = createProviderRegistry({
@@ -149,10 +153,10 @@ export async function executeBuild(
 		options.plan,
 		{
 			movieId: options.movieId,
-			manifest: options.manifest,
+			buildState: options.buildState,
+			executionState: options.executionState,
 			storage,
 			eventLog,
-			manifestService,
 			produce,
 			logger,
 			notifications,
@@ -173,12 +177,12 @@ export async function executeBuild(
 		}
 	);
 
-	// Always save the manifest after execution completes, even if some jobs failed.
-	// This enables retry functionality via --movie-id/--id.
-	// The manifest will contain all successfully produced artifacts up to the point of failure.
-	const manifest = await run.buildManifest();
+	const buildState = await buildStateService.buildFromEvents({
+		movieId: options.movieId,
+		targetRevision: run.revision,
+		baseRevision: options.buildState.revision,
+	});
 
-	// Record run configuration in the manifest for observability
 	const runConfig: RunConfig = {};
 	if (options.upToLayer !== undefined) {
 		runConfig.upToLayer = options.upToLayer;
@@ -192,48 +196,55 @@ export async function executeBuild(
 	if (concurrency !== undefined) {
 		runConfig.concurrency = concurrency;
 	}
-	if (Object.keys(runConfig).length > 0) {
-		manifest.runConfig = runConfig;
-	}
 
-	const { hash } = await manifestService.saveManifest(manifest, {
-		movieId: options.movieId,
-		previousHash: options.manifestHash,
-		clock: { now: () => new Date().toISOString() },
-	});
-
-	const relativeManifestPath = storage.resolve(
+	const relativeRunRecordPath = storage.resolve(
 		options.movieId,
-		'manifests',
-		`${manifest.revision}.json`
+		'runs',
+		`${run.revision}-run.json`
 	);
-	const manifestPath = resolvePath(
+	const runRecordPath = resolvePath(
 		options.cliConfig.storage.root,
-		relativeManifestPath
+		relativeRunRecordPath
 	);
+	const summary = summarizeRun(run, runRecordPath, options.plan);
+	await runRecordService.finalize({
+		movieId: options.movieId,
+		revision: run.revision,
+		status: run.status,
+		startedAt: run.startedAt,
+		completedAt: run.completedAt,
+		summary: {
+			jobCount: summary.jobCount,
+			counts: summary.counts,
+			layers: summary.layers,
+		},
+		runConfig,
+	});
 
 	// Log warning if build had failures
 	if (run.status === 'failed') {
 		const failedJobs = run.jobs.filter((j) => j.status === 'failed');
 		logger.warn?.(
 			`Build completed with ${failedJobs.length} failed job(s). ` +
-				`Manifest saved - you can retry with: renku generate --movie-id=${options.movieId.replace('movie-', '')} --in=<inputs.yaml>`
+				`Run record saved - you can retry with: renku generate --movie-id=${options.movieId.replace('movie-', '')} --in=<inputs.yaml>`
 		);
 	}
 
 	return {
 		run,
-		manifest,
-		manifestPath,
-		manifestHash: hash,
-		summary: summarizeRun(run, manifestPath, options.plan),
+		buildState,
+		runRecordPath,
+		baselineHash: run.baselineHash,
+		summary: {
+			...summary,
+		},
 		dryRun,
 	};
 }
 
 function summarizeRun(
 	run: RunResult,
-	manifestPath: string,
+	runRecordPath: string,
 	plan: ExecutionPlan
 ): BuildSummary {
 	const counts = {
@@ -268,7 +279,7 @@ function summarizeRun(
 		counts,
 		layers: plan.layers.length,
 		jobs,
-		manifestRevision: run.revision,
-		manifestPath,
+		revision: run.revision,
+		runRecordPath,
 	};
 }

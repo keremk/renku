@@ -353,7 +353,7 @@ export function displayPlanExplanation(
 			switch (jobReason.reason) {
 				case 'initial':
 					logger.info(
-						`    ${chalk.dim('Manifest has no inputs (initial run)')}`
+						`    ${chalk.dim('Build state has no inputs (initial run)')}`
 					);
 					break;
 				case 'producesMissing':

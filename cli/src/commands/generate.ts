@@ -9,7 +9,7 @@ import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import {
 	buildArtifactsView,
-	loadCurrentManifest,
+	loadCurrentBuildState,
 	prepareArtifactsPreflight,
 	resolveMaterializedRootOutputs,
 	selectFinalStageOutputs,
@@ -25,7 +25,7 @@ import {
 	isCanonicalArtifactId,
 	isCanonicalProducerId,
 	parseProducerDirectiveToken,
-	resolveManifestArtifactValues,
+	resolveBuildStateArtifactValues,
 	RuntimeErrorCode,
 	type PlanningUserControls,
 	type BlueprintDryRunValidationResult,
@@ -85,7 +85,6 @@ export interface GenerateResult {
 	isDryRun?: boolean;
 	/** Dry-run validation coverage summary (present for dry-runs). */
 	dryRunValidation?: BlueprintDryRunValidationResult;
-	manifestPath?: string;
 	storagePath: string;
 	/** Path to artifacts folder (symlinks to build outputs) */
 	artifactsRoot?: string;
@@ -190,14 +189,14 @@ export async function runGenerate(
 			level: options.logLevel,
 			logFilePath,
 		});
-		const { manifest } = await loadCurrentManifest(
+		const { buildState } = await loadCurrentBuildState(
 			activeConfig,
 			storageMovieId
 		).catch((error) => {
 			const message = error instanceof Error ? error.message : String(error);
 			throw createRuntimeError(
-				RuntimeErrorCode.MANIFEST_NOT_FOUND,
-				`Unable to load manifest for ${storageMovieId}. ${message}`,
+				RuntimeErrorCode.BUILD_STATE_NOT_FOUND,
+				`Unable to load build state for ${storageMovieId}. ${message}`,
 				{
 					cause: error,
 					suggestion:
@@ -210,7 +209,7 @@ export async function runGenerate(
 			? await prepareArtifactsPreflight({
 					cliConfig: activeConfig,
 					movieId: storageMovieId,
-					manifest,
+					buildState,
 					allowShardedBlobs: true,
 				})
 			: { pendingArtifacts: [] };
@@ -236,21 +235,21 @@ export async function runGenerate(
 		let finalStageOutputs: MaterializedRootOutput[] | undefined;
 		let rootOutputs: MaterializedRootOutput[] | undefined;
 		if (!options.dryRun && editResult.build && artifactsConfig.enabled) {
-			const { manifest: nextManifest } = await loadCurrentManifest(
+			const { buildState: nextBuildState } = await loadCurrentBuildState(
 				activeConfig,
 				storageMovieId
 			);
 			const artifacts = await buildArtifactsView({
 				cliConfig: activeConfig,
 				movieId: storageMovieId,
-				manifest: nextManifest,
+				buildState: nextBuildState,
 			});
 			artifactsRoot = artifacts.artifactsRoot;
 			const resolvedConditionArtifacts =
 				await resolveRootOutputConditionArtifacts({
 					cliConfig: activeConfig,
 					movieId: storageMovieId,
-					manifest: nextManifest,
+					buildState: nextBuildState,
 					rootOutputBindings: editResult.rootOutputBindings ?? [],
 				});
 			const materializedRootOutputs = resolveMaterializedRootOutputs({
@@ -274,7 +273,6 @@ export async function runGenerate(
 			build: editResult.build,
 			isDryRun: editResult.isDryRun,
 			dryRunValidation: editResult.dryRunValidation,
-			manifestPath: editResult.manifestPath,
 			storagePath: editResult.storagePath,
 			artifactsRoot,
 			finalStageOutputs,
@@ -331,24 +329,24 @@ export async function runGenerate(
 	let finalStageOutputs: MaterializedRootOutput[] | undefined;
 	let rootOutputs: MaterializedRootOutput[] | undefined;
 	if (!options.dryRun && queryResult.build && artifactsConfig.enabled) {
-		// Try to load manifest and build artifacts view, but don't fail if manifest doesn't exist
-		// (can happen if build failed before manifest was saved)
+		// Try to load build state and build artifacts view, but don't fail if the
+		// run did not produce inspectable artifacts.
 		try {
-			const { manifest } = await loadCurrentManifest(
+			const { buildState } = await loadCurrentBuildState(
 				activeConfig,
 				queryResult.storageMovieId
 			);
 			const artifacts = await buildArtifactsView({
 				cliConfig: activeConfig,
 				movieId: queryResult.storageMovieId,
-				manifest,
+				buildState,
 			});
 			artifactsRoot = artifacts.artifactsRoot;
 			const resolvedConditionArtifacts =
 				await resolveRootOutputConditionArtifacts({
 					cliConfig: activeConfig,
 					movieId: queryResult.storageMovieId,
-					manifest,
+					buildState,
 					rootOutputBindings: queryResult.rootOutputBindings ?? [],
 				});
 			const materializedRootOutputs = resolveMaterializedRootOutputs({
@@ -363,9 +361,9 @@ export async function runGenerate(
 				finalStageProducerJobIds: queryResult.finalStageProducerJobIds ?? [],
 			});
 		} catch {
-			// Manifest may not exist if build failed - continue without artifacts view
+			// Build state may not exist if the run failed early - continue without artifacts view
 			logger.debug?.(
-				'Could not load manifest for artifacts view - build may have failed'
+				'Could not load build state for artifacts view - build may have failed'
 			);
 		}
 	}
@@ -378,7 +376,6 @@ export async function runGenerate(
 		build: queryResult.build,
 		isDryRun: queryResult.isDryRun,
 		dryRunValidation: queryResult.dryRunValidation,
-		manifestPath: queryResult.manifestPath,
 		storagePath: queryResult.storagePath,
 		artifactsRoot,
 		finalStageOutputs,
@@ -391,7 +388,7 @@ export async function runGenerate(
 async function resolveRootOutputConditionArtifacts(args: {
 	cliConfig: CliConfig;
 	movieId: string;
-	manifest: Awaited<ReturnType<typeof loadCurrentManifest>>['manifest'];
+	buildState: Awaited<ReturnType<typeof loadCurrentBuildState>>['buildState'];
 	rootOutputBindings: ExecuteResult['rootOutputBindings'];
 }): Promise<Record<string, unknown>> {
 	const rootOutputBindings = args.rootOutputBindings ?? [];
@@ -406,9 +403,9 @@ async function resolveRootOutputConditionArtifacts(args: {
 		basePath: args.cliConfig.storage.basePath,
 	});
 
-	return resolveManifestArtifactValues({
+	return resolveBuildStateArtifactValues({
 		artifactIds,
-		manifest: args.manifest,
+		buildState: args.buildState,
 		storage,
 		movieId: args.movieId,
 	});

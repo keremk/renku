@@ -30,7 +30,7 @@ function createTestBlueprintTree(): BlueprintTreeNode {
         { name: 'Topic', type: 'string', required: true },
         { name: 'NumOfSegments', type: 'int', required: false },
       ],
-      artifacts: [{ name: 'VideoScript', type: 'json' }],
+      outputs: [{ name: 'VideoScript', type: 'json' }],
       producers: [{ name: 'DocProducer' }],
       imports: [],
       edges: [],
@@ -386,7 +386,7 @@ function createMinimalBlueprintTree(): BlueprintTreeNode {
     document: {
       meta: { id: 'MinimalBlueprint', name: 'Minimal Blueprint' },
       inputs: [],
-      artifacts: [],
+      outputs: [],
       producers: [
         { name: 'AudioProducer' },
         { name: 'ImageProducer' },
@@ -874,7 +874,7 @@ describe('input-loader edge cases', () => {
           { name: 'BoolInput', type: 'boolean', required: true },
           { name: 'FloatInput', type: 'float', required: true },
         ],
-        artifacts: [],
+        outputs: [],
         producers: [],
         imports: [],
         edges: [],
@@ -996,7 +996,7 @@ describe('input-loader edge cases', () => {
       document: {
         meta: { id: 'ArrayBlueprint', name: 'Array Blueprint' },
         inputs: [{ name: 'Tags', type: 'array', required: true }],
-        artifacts: [],
+        outputs: [],
         producers: [],
         imports: [],
         edges: [],
@@ -1028,7 +1028,7 @@ describe('input-loader edge cases', () => {
       document: {
         meta: { id: 'ResolutionBlueprint', name: 'Resolution Blueprint' },
         inputs: [{ name: 'Resolution', type: 'resolution', required: true }],
-        artifacts: [],
+        outputs: [],
         producers: [],
         imports: [],
         edges: [],
@@ -1063,7 +1063,7 @@ describe('input-loader edge cases', () => {
       document: {
         meta: { id: 'ResolutionBlueprint', name: 'Resolution Blueprint' },
         inputs: [{ name: 'Resolution', type: 'resolution', required: true }],
-        artifacts: [],
+        outputs: [],
         producers: [],
         imports: [],
         edges: [],

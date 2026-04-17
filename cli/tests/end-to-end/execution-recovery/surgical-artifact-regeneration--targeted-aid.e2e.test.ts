@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   createEventLog,
-  createManifestService,
+  createBuildStateService,
   createRunner,
   createStorageContext,
   initializeMovieStorage,
@@ -83,7 +83,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await initializeMovieStorage(storage, storageMovieId);
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
 
     // Create produce function that succeeds for all jobs
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => {
@@ -106,10 +106,10 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const runner = createRunner();
     const firstRunResult = await runner.execute(planResult.plan, {
       movieId: storageMovieId,
-      manifest: planResult.manifest,
+      buildState: planResult.buildState,
+      executionState: planResult.executionState,
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     });
@@ -118,12 +118,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     expect(firstRunResult.status).toBe('succeeded');
 
     // Build and save manifest
-    const manifest1 = await firstRunResult.buildManifest();
-    await manifestService.saveManifest(manifest1, {
-      movieId: storageMovieId,
-      previousHash: planResult.manifestHash,
-      clock: { now: () => new Date().toISOString() },
-    });
+    const manifest1 = await firstRunResult.buildStateSnapshot();
 
     // ============================================================
     // PHASE 2: Surgical regeneration of AudioProducer[0]
@@ -237,7 +232,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await initializeMovieStorage(storage, storageMovieId);
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
 
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => ({
       jobId: request.job.jobId,
@@ -253,20 +248,15 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const runner = createRunner();
     const runResult = await runner.execute(planResult.plan, {
       movieId: storageMovieId,
-      manifest: planResult.manifest,
+      buildState: planResult.buildState,
+      executionState: planResult.executionState,
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     });
 
-    const manifest = await runResult.buildManifest();
-    await manifestService.saveManifest(manifest, {
-      movieId: storageMovieId,
-      previousHash: planResult.manifestHash,
-      clock: { now: () => new Date().toISOString() },
-    });
+    const manifest = await runResult.buildStateSnapshot();
 
     // Try to use a non-canonical regenerate id (should fail fast)
     await expect(
@@ -314,7 +304,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await initializeMovieStorage(storage, storageMovieId);
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
 
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => ({
       jobId: request.job.jobId,
@@ -330,20 +320,15 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const runner = createRunner();
     const runResult = await runner.execute(planResult.plan, {
       movieId: storageMovieId,
-      manifest: planResult.manifest,
+      buildState: planResult.buildState,
+      executionState: planResult.executionState,
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     });
 
-    const manifest = await runResult.buildManifest();
-    await manifestService.saveManifest(manifest, {
-      movieId: storageMovieId,
-      previousHash: planResult.manifestHash,
-      clock: { now: () => new Date().toISOString() },
-    });
+    const manifest = await runResult.buildStateSnapshot();
 
     // Find the ScriptProducer artifact (layer 0) to target for surgical regeneration
     const initialPlan = await readPlan(planResult.planPath);
@@ -419,7 +404,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await initializeMovieStorage(storage, storageMovieId);
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
 
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => ({
       jobId: request.job.jobId,
@@ -435,20 +420,15 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const runner = createRunner();
     const runResult = await runner.execute(planResult.plan, {
       movieId: storageMovieId,
-      manifest: planResult.manifest,
+      buildState: planResult.buildState,
+      executionState: planResult.executionState,
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     });
 
-    const manifest = await runResult.buildManifest();
-    await manifestService.saveManifest(manifest, {
-      movieId: storageMovieId,
-      previousHash: planResult.manifestHash,
-      clock: { now: () => new Date().toISOString() },
-    });
+    const manifest = await runResult.buildStateSnapshot();
 
     // Try to regenerate a non-existent artifact
     await expect(
@@ -465,7 +445,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
         nonInteractive: true,
         logger,
       })
-    ).rejects.toThrow(/not found in manifest|ARTIFACT_NOT_IN_MANIFEST/);
+    ).rejects.toThrow(/not found in build state|ARTIFACT_NOT_IN_BUILD_STATE/);
   });
 
   it('regenerates multiple artifacts using multiple --regen flags', async () => {
@@ -515,7 +495,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await initializeMovieStorage(storage, storageMovieId);
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
 
     // Create produce function that succeeds for all jobs
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => {
@@ -538,10 +518,10 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const runner = createRunner();
     const firstRunResult = await runner.execute(planResult.plan, {
       movieId: storageMovieId,
-      manifest: planResult.manifest,
+      buildState: planResult.buildState,
+      executionState: planResult.executionState,
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     });
@@ -550,12 +530,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     expect(firstRunResult.status).toBe('succeeded');
 
     // Build and save manifest
-    const manifest1 = await firstRunResult.buildManifest();
-    await manifestService.saveManifest(manifest1, {
-      movieId: storageMovieId,
-      previousHash: planResult.manifestHash,
-      clock: { now: () => new Date().toISOString() },
-    });
+    const manifest1 = await firstRunResult.buildStateSnapshot();
 
     // ============================================================
     // PHASE 2: Surgical regeneration of MULTIPLE AudioProducers
@@ -656,7 +631,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     });
     await initializeMovieStorage(storage, storageMovieId);
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
 
     const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => ({
       jobId: request.job.jobId,
@@ -672,20 +647,15 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const runner = createRunner();
     const runResult = await runner.execute(planResult.plan, {
       movieId: storageMovieId,
-      manifest: planResult.manifest,
+      buildState: planResult.buildState,
+      executionState: planResult.executionState,
       storage,
       eventLog,
-      manifestService,
       produce,
       logger,
     });
 
-    const manifest = await runResult.buildManifest();
-    await manifestService.saveManifest(manifest, {
-      movieId: storageMovieId,
-      previousHash: planResult.manifestHash,
-      clock: { now: () => new Date().toISOString() },
-    });
+    const manifest = await runResult.buildStateSnapshot();
 
     // Find a valid artifact
     const initialPlan = await readPlan(planResult.planPath);
@@ -712,6 +682,6 @@ describe('end-to-end: surgical artifact regeneration', () => {
         nonInteractive: true,
         logger,
       })
-    ).rejects.toThrow(/not found in manifest|ARTIFACT_NOT_IN_MANIFEST/);
+    ).rejects.toThrow(/not found in build state|ARTIFACT_NOT_IN_BUILD_STATE/);
   });
 });

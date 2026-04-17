@@ -1,9 +1,14 @@
+import { Buffer } from 'node:buffer';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { createUnifiedHandler } from '../unified/schema-first-handler.js';
 import type { HandlerFactoryInit, ProviderJobContext } from '../../types.js';
 import { falAdapter } from './adapter.js';
+
+function decodeBlobData(data: Uint8Array | string): string {
+  return typeof data === 'string' ? data : Buffer.from(data).toString('utf8');
+}
 
 function readFixtureSchema(relativePath: string): string {
   return readFileSync(
@@ -90,7 +95,7 @@ describe('fal-ai unified response contract regressions', () => {
       })
     );
 
-    const saved = JSON.parse(result.artifacts[0]!.blob!.data.toString('utf8')) as Record<
+    const saved = JSON.parse(decodeBlobData(result.artifacts[0]!.blob!.data)) as Record<
       string,
       unknown
     >;
@@ -137,7 +142,7 @@ describe('fal-ai unified response contract regressions', () => {
       })
     );
 
-    const saved = JSON.parse(result.artifacts[0]!.blob!.data.toString('utf8')) as Record<
+    const saved = JSON.parse(decodeBlobData(result.artifacts[0]!.blob!.data)) as Record<
       string,
       unknown
     >;

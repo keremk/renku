@@ -134,10 +134,9 @@ export type ValidationErrorCodeValue =
 // =============================================================================
 
 export const RuntimeErrorCode = {
-  // R001-R009: Manifest
-  MANIFEST_NOT_FOUND: 'R001',
-  MANIFEST_HASH_CONFLICT: 'R002',
-  CORRUPTED_POINTER_FILE: 'R003',
+  // R001-R009: Build State
+  BUILD_STATE_NOT_FOUND: 'R001',
+  INVALID_BUILD_HISTORY_JSON: 'R002',
 
   // R010-R019: Planning
   CYCLIC_DEPENDENCY: 'R010',
@@ -150,7 +149,7 @@ export const RuntimeErrorCode = {
   MISSING_BLOB_PAYLOAD: 'R020',
   ARTIFACT_RESOLUTION_FAILED: 'R021',
   INVALID_JSON_ARTIFACT: 'R022',
-  ARTIFACT_NOT_IN_MANIFEST: 'R026',
+  ARTIFACT_NOT_IN_BUILD_STATE: 'R026',
   ARTIFACT_JOB_NOT_FOUND: 'R027',
   INVALID_CONCURRENCY_VALUE: 'R028',
   INVALID_UPTO_LAYER_VALUE: 'R029',

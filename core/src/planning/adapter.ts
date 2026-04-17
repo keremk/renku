@@ -3,10 +3,10 @@ import type { EventLog } from '../event-log.js';
 import type { Logger } from '../logger.js';
 import type {
   ArtifactRegenerationConfig,
+  BuildState,
   Clock,
   ExecutionPlan,
   InputEvent,
-  Manifest,
   ProducerGraph,
   RevisionId,
   SurgicalRegenerationScope,
@@ -15,7 +15,7 @@ import type { PlanExplanation } from './explanation.js';
 
 export interface PlanAdapterArgs {
   movieId: string;
-  manifest: Manifest | null;
+  buildState: BuildState | null;
   eventLog: EventLog;
   blueprint: ProducerGraph;
   targetRevision: RevisionId;

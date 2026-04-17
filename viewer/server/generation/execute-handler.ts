@@ -4,25 +4,26 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { resolve as resolvePath } from 'node:path';
 import {
   createEventLog,
-  createManifestService,
+  createBuildStateService,
   createMovieMetadataService,
+  createRunRecordService,
   createStorageContext,
   initializeMovieStorage,
   resolveBlobRefsToInputs,
   injectAllSystemInputs,
   executePlanWithConcurrency,
   getCliArtifactsConfig,
-  materializeManifestArtifacts,
+  materializeBuildStateArtifacts,
   resolveArtifactsMovieFolderName,
   isRenkuError,
   createLogger,
   createNotificationBus,
   readLlmInvocationSettings,
+  type BuildState,
   type ExecutionPlan,
-  type Manifest,
+  type ExecutionState,
   type RunConfig,
   type Logger,
   type NotificationBus,
@@ -154,8 +155,9 @@ async function executeJobAsync(
     planId: string;
     movieId: string;
     plan: ExecutionPlan;
-    manifest: Manifest;
-    manifestHash: string | null;
+    buildState: BuildState;
+    executionState: ExecutionState;
+    baselineHash: string | null;
     resolvedInputs: Record<string, unknown>;
     providerOptions: Map<string, unknown>;
     blueprintPath: string;
@@ -233,7 +235,8 @@ async function executeJobAsync(
     await initializeMovieStorage(storage, cachedPlan.movieId);
 
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
+    const runRecordService = createRunRecordService(storage);
 
     // Load model catalog if available
     const modelCatalog = cachedPlan.catalogModelsDir
@@ -302,10 +305,10 @@ async function executeJobAsync(
       cachedPlan.plan,
       {
         movieId: cachedPlan.movieId,
-        manifest: cachedPlan.manifest,
+        buildState: cachedPlan.buildState,
+        executionState: cachedPlan.executionState,
         storage,
         eventLog,
-        manifestService,
         produce,
       },
       {
@@ -401,8 +404,11 @@ async function executeJobAsync(
       }
     );
 
-    // Build manifest and save
-    const manifest = await run.buildManifest();
+    const buildState = await buildStateService.buildFromEvents({
+      movieId: cachedPlan.movieId,
+      targetRevision: run.revision,
+      baseRevision: cachedPlan.buildState.revision,
+    });
 
     // Record run configuration
     const runConfig: RunConfig = {};
@@ -415,16 +421,6 @@ async function executeJobAsync(
     if (concurrency !== undefined) {
       runConfig.concurrency = concurrency;
     }
-    if (Object.keys(runConfig).length > 0) {
-      manifest.runConfig = runConfig;
-    }
-
-    await manifestService.saveManifest(manifest, {
-      movieId: cachedPlan.movieId,
-      previousHash: cachedPlan.manifestHash,
-      clock: { now: () => new Date().toISOString() },
-    });
-
     if (!dryRun) {
       const artifactsConfig = getCliArtifactsConfig(cliConfig);
       if (artifactsConfig.enabled) {
@@ -434,12 +430,12 @@ async function executeJobAsync(
           metadataService,
         });
 
-        await materializeManifestArtifacts({
+        await materializeBuildStateArtifacts({
           storageRoot: cliConfig.storage.root,
           storageBasePath: cachedPlan.basePath,
           movieId: cachedPlan.movieId,
           artifactsMovieFolderName,
-          manifest,
+          buildState,
           mode: artifactsConfig.mode,
           logger,
         });
@@ -451,18 +447,21 @@ async function executeJobAsync(
       return;
     }
 
-    const relativeManifestPath = storage.resolve(
-      cachedPlan.movieId,
-      'manifests',
-      `${manifest.revision}.json`
-    );
-    const manifestPath = resolvePath(
-      cliConfig.storage.root,
-      relativeManifestPath
-    );
-
     // Build summary
-    const summary = summarizeRun(run, manifestPath);
+    const summary = summarizeRun(run);
+    await runRecordService.finalize({
+      movieId: cachedPlan.movieId,
+      revision: run.revision,
+      status: run.status,
+      startedAt: run.startedAt,
+      completedAt: run.completedAt,
+      summary: {
+        jobCount: summary.jobCount,
+        counts: summary.counts,
+        layers: cachedPlan.plan.layers.length,
+      },
+      runConfig,
+    });
     jobManager.setJobSummary(jobId, summary);
     jobManager.updateJobProgress(jobId, 100, cachedPlan.plan.layers.length);
     jobManager.updateJobStatus(
@@ -511,8 +510,7 @@ function broadcastEvent(jobId: string, event: SSEEvent): void {
  * Summarizes a run result.
  */
 function summarizeRun(
-  run: { status: string; revision: string; jobs: Array<{ status: string }> },
-  manifestPath: string
+  run: { status: string; revision: string; jobs: Array<{ status: string }> }
 ): BuildSummaryInfo {
   const counts = {
     succeeded: 0,
@@ -534,7 +532,6 @@ function summarizeRun(
     status: run.status as 'succeeded' | 'failed' | 'partial',
     jobCount: run.jobs.length,
     counts,
-    manifestRevision: run.revision,
-    manifestPath,
+    revision: run.revision,
   };
 }

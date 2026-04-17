@@ -20,7 +20,7 @@ import {
 import type { TimelineDocument } from '@gorenku/compositions';
 import { getDefaultCliConfigPath, getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
-import { loadCurrentManifest } from '../lib/artifacts-view.js';
+import { loadCurrentBuildState } from '../lib/artifacts-view.js';
 
 const DEFAULT_FPS = 30;
 const OUTPUT_FILENAME = 'DaVinciProject.otio';
@@ -77,8 +77,7 @@ export async function runExportDavinci(options: ExportDavinciOptions): Promise<E
     explicitMovieId: options.movieId,
   });
 
-  // Load manifest
-  const { manifest } = await loadCurrentManifest(effectiveConfig, storageMovieId);
+  const { buildState } = await loadCurrentBuildState(effectiveConfig, storageMovieId);
 
   // Resolve asset blob paths - create storage context first as we need it for loading timeline
   const storage = createStorageContext({
@@ -90,10 +89,10 @@ export async function runExportDavinci(options: ExportDavinciOptions): Promise<E
   const eventLog = createEventLog(storage);
 
   // Validate timeline artifact exists
-  const timelineArtifact = manifest.artifacts[TIMELINE_ARTIFACT_ID];
+  const timelineArtifact = buildState.artifacts[TIMELINE_ARTIFACT_ID];
   if (!timelineArtifact) {
     throw createRuntimeError(
-      RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
+      RuntimeErrorCode.ARTIFACT_NOT_IN_BUILD_STATE,
       `No timeline found (${TIMELINE_ARTIFACT_ID}). Please run the generation first to create a timeline.`,
     );
   }
@@ -101,8 +100,8 @@ export async function runExportDavinci(options: ExportDavinciOptions): Promise<E
   // Get timeline data from artifact blob
   if (!timelineArtifact.blob) {
     throw createRuntimeError(
-      RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
-      'Timeline artifact has no blob data. The manifest may be corrupted.',
+      RuntimeErrorCode.ARTIFACT_NOT_IN_BUILD_STATE,
+      'Timeline artifact has no blob data. The build state may be corrupted.',
     );
   }
 
@@ -112,7 +111,7 @@ export async function runExportDavinci(options: ExportDavinciOptions): Promise<E
 
   if (!timeline || !Array.isArray(timeline.tracks)) {
     throw createRuntimeError(
-      RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
+      RuntimeErrorCode.ARTIFACT_NOT_IN_BUILD_STATE,
       'Invalid timeline data structure. Expected a TimelineDocument with tracks array.',
     );
   }

@@ -12,7 +12,7 @@ import {
   type StoryboardArtifactState,
   type StoryboardProjection,
 } from '@gorenku/core';
-import { getBuildInputs, getBuildManifest } from '../builds/index.js';
+import { getBuildInputs, getBuildState } from '../builds/index.js';
 
 export interface GetStoryboardProjectionArgs {
   blueprintPath: string;
@@ -126,14 +126,14 @@ async function resolveEffectiveInputs(args: {
       return buildInputs.inputs;
     }
 
-    const manifest = await getBuildManifest(
+    const buildState = await getBuildState(
       args.blueprintFolder,
       args.movieId,
       args.blueprintPath,
       args.catalogRoot
     );
-    if (Object.keys(manifest.inputs).length > 0) {
-      return manifest.inputs;
+    if (Object.keys(buildState.inputs).length > 0) {
+      return buildState.inputs;
     }
   }
 
@@ -162,11 +162,11 @@ async function resolveBuildArtifactContext(args: {
     };
   }
 
-  const manifest = await getBuildManifest(args.blueprintFolder, args.movieId);
+  const buildState = await getBuildState(args.blueprintFolder, args.movieId);
   const artifactStates: Record<string, StoryboardArtifactState> = {};
   const resolvedArtifactValues: Record<string, unknown> = {};
 
-  for (const artifact of manifest.artifacts) {
+  for (const artifact of buildState.artifacts) {
     artifactStates[artifact.id] = {
       canonicalArtifactId: artifact.id,
       status:

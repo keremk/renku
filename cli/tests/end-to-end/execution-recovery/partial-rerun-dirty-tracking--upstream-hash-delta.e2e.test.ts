@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
 	createEventLog,
-	createManifestService,
+	createBuildStateService,
 	createRunner,
 	createStorageContext,
 	initializeMovieStorage,
@@ -155,15 +155,14 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		});
 		await initializeMovieStorage(storage1, storageMovieId);
 		const eventLog1 = createEventLog(storage1);
-		const manifestService1 = createManifestService(storage1);
+		const buildStateService1 = createBuildStateService(storage1);
 
 		const runner1 = createRunner();
 		const result1 = await runner1.execute(planResult1.plan, {
 			movieId: storageMovieId,
-			manifest: planResult1.manifest,
+			buildState: planResult1.buildState,
 			storage: storage1,
 			eventLog: eventLog1,
-			manifestService: manifestService1,
 			produce: createCountingStubProduce(),
 			logger: logger1,
 		});
@@ -171,12 +170,7 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		expect(result1.status).toBe('succeeded');
 
 		// Build and save manifest after Phase 1
-		const manifest1 = await result1.buildManifest();
-		await manifestService1.saveManifest(manifest1, {
-			movieId: storageMovieId,
-			previousHash: planResult1.manifestHash,
-			clock: { now: () => new Date().toISOString() },
-		});
+		const manifest1 = await result1.buildStateSnapshot();
 
 		// Verify manifest has artifacts from all layers
 		const layer1ArtifactKeys = Object.keys(manifest1.artifacts).filter(
@@ -231,15 +225,14 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 			basePath: cliConfig.storage.basePath,
 		});
 		const eventLog2 = createEventLog(storage2);
-		const manifestService2 = createManifestService(storage2);
+		const buildStateService2 = createBuildStateService(storage2);
 
 		const runner2 = createRunner();
 		const result2 = await runner2.execute(truncatedPlan, {
 			movieId: storageMovieId,
-			manifest: planResult2.manifest,
+			buildState: planResult2.buildState,
 			storage: storage2,
 			eventLog: eventLog2,
-			manifestService: manifestService2,
 			produce: createCountingStubProduce(),
 			logger: logger2,
 		});
@@ -249,17 +242,12 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		// Build manifest from ALL events (Phase 1 + Phase 2)
 		// Layer 0 artifacts will have NEW hashes (from Phase 2)
 		// Layer 1+ artifacts will have OLD hashes (from Phase 1, still latest)
-		const manifest2 = await result2.buildManifest();
+		const manifest2 = await result2.buildStateSnapshot();
 
 		// Save the updated manifest
 		// Load current manifest hash to use as previousHash
 		const { hash: currentManifestHash } =
-			await manifestService2.loadCurrent(storageMovieId);
-		await manifestService2.saveManifest(manifest2, {
-			movieId: storageMovieId,
-			previousHash: currentManifestHash,
-			clock: { now: () => new Date().toISOString() },
-		});
+			await buildStateService2.loadCurrent(storageMovieId);
 
 		// Verify layer 0 artifacts have CHANGED hashes
 		const scriptArtifactKeys = Object.keys(manifest2.artifacts).filter((id) =>
@@ -394,26 +382,20 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		});
 		await initializeMovieStorage(storage1, storageMovieId);
 		const eventLog1 = createEventLog(storage1);
-		const manifestService1 = createManifestService(storage1);
+		const buildStateService1 = createBuildStateService(storage1);
 
 		const runner1 = createRunner();
 		const result1 = await runner1.execute(planResult1.plan, {
 			movieId: storageMovieId,
-			manifest: planResult1.manifest,
+			buildState: planResult1.buildState,
 			storage: storage1,
 			eventLog: eventLog1,
-			manifestService: manifestService1,
 			produce: createCountingStubProduce(),
 			logger: logger1,
 		});
 		expect(result1.status).toBe('succeeded');
 
-		const manifest1 = await result1.buildManifest();
-		await manifestService1.saveManifest(manifest1, {
-			movieId: storageMovieId,
-			previousHash: planResult1.manifestHash,
-			clock: { now: () => new Date().toISOString() },
-		});
+		const manifest1 = await result1.buildStateSnapshot();
 
 		// Phase 2: Request plan WITHOUT any changes — should be empty
 		const { logger: logger2 } = createLoggerRecorder();

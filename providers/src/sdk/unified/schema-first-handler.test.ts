@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createUnifiedHandler } from './schema-first-handler.js';
 import type {
@@ -7,6 +8,10 @@ import type {
 } from './provider-adapter.js';
 import type { HandlerFactoryInit, ProviderJobContext } from '../../types.js';
 import { createProviderError, SdkErrorCode } from '../errors.js';
+
+function decodeBlobData(data: Uint8Array | string): string {
+  return typeof data === 'string' ? data : Buffer.from(data).toString('utf8');
+}
 
 // Type for extras to avoid repetitive casting
 type TestExtras = {
@@ -712,9 +717,7 @@ describe('createUnifiedHandler', () => {
     const result = await handler.invoke(createMockRequest());
 
     expect(result.status).toBe('succeeded');
-    expect(
-      JSON.parse(result.artifacts[0]!.blob!.data.toString('utf-8'))
-    ).toEqual({
+    expect(JSON.parse(decodeBlobData(result.artifacts[0]!.blob!.data))).toEqual({
       transcript: 'hello world',
       words: [{ text: 'hello', start: 0, end: 0.5 }],
     });
@@ -749,9 +752,7 @@ describe('createUnifiedHandler', () => {
     const result = await handler.invoke(createMockRequest());
 
     expect(result.diagnostics?.providerRequestId).toBe('req-123');
-    expect(
-      JSON.parse(result.artifacts[0]!.blob!.data.toString('utf-8'))
-    ).toEqual({
+    expect(JSON.parse(decodeBlobData(result.artifacts[0]!.blob!.data))).toEqual({
       transcript: 'ready',
       words: [],
     });

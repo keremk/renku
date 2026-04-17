@@ -15,7 +15,7 @@ import {
 import {
   handleBuildsSubRoute,
   listBuilds,
-  getBuildManifest,
+  getBuildState,
   getBuildTimeline,
   streamInputFile,
 } from '../builds/index.js';
@@ -45,7 +45,7 @@ import type { CreateBlueprintFromTemplateRequest } from './types.js';
  *   GET  /blueprints/storyboard?path=...&folder=...&movieId=...&catalog=...
  *   GET  /blueprints/inputs?path=...
  *   GET  /blueprints/builds?folder=...
- *   GET  /blueprints/manifest?folder=...&movieId=...&blueprintPath=...
+ *   GET  /blueprints/build-state?folder=...&movieId=...&blueprintPath=...
  *   GET  /blueprints/timeline?folder=...&movieId=...
  *   GET  /blueprints/asset?folder=...&movieId=...&assetId=...
  *   GET  /blueprints/blob?folder=...&movieId=...&hash=...
@@ -257,7 +257,7 @@ export async function handleBlueprintRequest(
       return true;
     }
 
-    case 'manifest': {
+    case 'build-state': {
       const folder = url.searchParams.get('folder');
       const movieId = url.searchParams.get('movieId');
       const blueprintPath = url.searchParams.get('blueprintPath');
@@ -267,15 +267,30 @@ export async function handleBlueprintRequest(
           'Missing folder, movieId, or blueprintPath parameter'
         );
       }
-      const manifestData = await getBuildManifest(
-        folder,
-        movieId,
-        blueprintPath,
-        catalogRoot
-      );
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify(manifestData));
-      return true;
+      try {
+        const buildStateData = await getBuildState(
+          folder,
+          movieId,
+          blueprintPath,
+          catalogRoot
+        );
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(buildStateData));
+        return true;
+      } catch (error) {
+        if (isRenkuError(error)) {
+          const statusCode =
+            error.category === 'parser' || error.category === 'validation'
+              ? 400
+              : 500;
+          sendError(res, statusCode, error.message, error.code);
+          return true;
+        }
+        const message =
+          error instanceof Error ? error.message : 'Failed to load build state';
+        sendError(res, 500, message);
+        return true;
+      }
     }
 
     case 'timeline': {

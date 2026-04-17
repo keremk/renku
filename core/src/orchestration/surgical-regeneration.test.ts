@@ -38,7 +38,7 @@ describe('findSurgicalTargetLayer', () => {
     const artifactId = 'Artifact:ImageProducer.Output[0]';
     const plan: ExecutionPlan = {
       revision: 'rev-test',
-      manifestBaseHash: 'manifest',
+      baselineHash: 'manifest',
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 3,
       layers: [
@@ -63,7 +63,7 @@ describe('findSurgicalTargetLayer', () => {
     const artifactId = 'Artifact:ImageProducer.Output[0]';
     const plan: ExecutionPlan = {
       revision: 'rev-test',
-      manifestBaseHash: 'manifest',
+      baselineHash: 'manifest',
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 1,
       layers: [[createJob('Producer:Other', ['Artifact:Other.Output'])]],
@@ -79,7 +79,7 @@ describe('sliceExecutionPlanThroughLayer', () => {
   it('keeps layers up to and including target layer', () => {
     const plan: ExecutionPlan = {
       revision: 'rev-test',
-      manifestBaseHash: 'manifest',
+      baselineHash: 'manifest',
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 3,
       layers: [

@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WorkspaceLayout } from './workspace-layout';
 import type { BlueprintGraphData } from '@/types/blueprint-graph';
-import type { BuildInfo, BuildManifestResponse } from '@/types/builds';
+import type { BuildInfo, BuildStateResponse } from '@/types/builds';
 
 const { mockUseBuildInputs } = vi.hoisted(() => ({
   mockUseBuildInputs: vi.fn(),
@@ -176,13 +176,13 @@ const builds: BuildInfo[] = [
     movieId: 'movie-1',
     updatedAt: '2026-03-12T00:00:00.000Z',
     revision: 'revision-1',
-    hasManifest: true,
+    hasBuildState: true,
     hasInputsFile: false,
     displayName: null,
   },
 ];
 
-const selectedBuildManifest: BuildManifestResponse = {
+const selectedBuildState: BuildStateResponse = {
   movieId: 'movie-1',
   revision: 'revision-1',
   inputs: {},
@@ -214,7 +214,7 @@ function renderWorkspaceLayout(buildsOverride: BuildInfo[] = builds) {
       builds={buildsOverride}
       buildsLoading={false}
       selectedBuildId='movie-1'
-      selectedBuildManifest={selectedBuildManifest}
+      selectedBuildState={selectedBuildState}
     />
   );
 }

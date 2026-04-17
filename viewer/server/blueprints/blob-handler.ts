@@ -8,6 +8,44 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { streamFileWithRange } from "../shared/stream-utils.js";
 
+async function readLatestArtifactBlobFromEvents(
+  movieDir: string,
+  canonicalId: string,
+): Promise<{ hash: string; size?: number; mimeType?: string } | null> {
+  const logPath = path.join(movieDir, "events", "artifacts.log");
+  if (!existsSync(logPath)) {
+    return null;
+  }
+
+  const content = await fs.readFile(logPath, "utf8");
+  const lines = content.split(/\r?\n/).filter((line) => line.trim());
+  let latest:
+    | {
+        status: string;
+        output?: { blob?: { hash: string; size?: number; mimeType?: string } };
+      }
+    | undefined;
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line) as {
+        artifactId: string;
+        status: string;
+        output?: { blob?: { hash: string; size?: number; mimeType?: string } };
+      };
+      if (event.artifactId === canonicalId) {
+        latest = event;
+      }
+    } catch {
+      // Ignore malformed lines.
+    }
+  }
+
+  if (!latest || latest.status !== "succeeded" || !latest.output?.blob?.hash) {
+    return null;
+  }
+  return latest.output.blob;
+}
+
 /**
  * Streams a blob file from a blueprint build.
  */
@@ -77,42 +115,17 @@ export async function streamBuildAsset(
   canonicalId: string,
 ): Promise<void> {
   const movieDir = path.join(blueprintFolder, "builds", movieId);
-  const currentPath = path.join(movieDir, "current.json");
-
-  if (!existsSync(currentPath)) {
-    res.statusCode = 404;
-    res.end("Build not found");
-    return;
-  }
 
   try {
-    // Load current manifest pointer
-    const currentContent = await fs.readFile(currentPath, "utf8");
-    const current = JSON.parse(currentContent) as { manifestPath?: string | null };
-
-    if (!current.manifestPath) {
-      res.statusCode = 404;
-      res.end("Manifest not found");
-      return;
-    }
-
-    // Load manifest
-    const manifestPath = path.join(movieDir, current.manifestPath);
-    const manifestContent = await fs.readFile(manifestPath, "utf8");
-    const manifest = JSON.parse(manifestContent) as {
-      artifacts?: Record<string, { blob?: { hash: string; size?: number; mimeType?: string } }>;
-    };
-
-    // Find the artifact
-    const artifact = manifest.artifacts?.[canonicalId];
-    if (!artifact?.blob?.hash) {
+    const artifact = await readLatestArtifactBlobFromEvents(movieDir, canonicalId);
+    if (!artifact?.hash) {
       res.statusCode = 404;
       res.end("Asset not found");
       return;
     }
 
     // Resolve blob path
-    const { hash, mimeType: blobMimeType, size } = artifact.blob;
+    const { hash, mimeType: blobMimeType, size } = artifact;
     const blobsDir = path.join(movieDir, "blobs");
     const prefix = hash.slice(0, 2);
 
@@ -139,7 +152,7 @@ export async function streamBuildAsset(
       return;
     }
 
-    // Use the MIME type from the manifest or infer from extension
+    // Use the MIME type from stored build state or infer from extension
     const ext = path.extname(filePath).slice(1).toLowerCase();
     const mimeTypes: Record<string, string> = {
       png: "image/png",

@@ -19,13 +19,20 @@ vi.mock('@gorenku/core', () => ({
     resolve: (...parts: string[]) => parts.join('/'),
   })),
   initializeMovieStorage: vi.fn(async () => {}),
-  createManifestService: vi.fn(() => ({})),
+  createBuildStateService: vi.fn(() => ({})),
   createEventLog: vi.fn(() => ({})),
   createPlanningService: vi.fn(() => ({
     generatePlan: generatePlanMock,
   })),
   createMovieMetadataService: vi.fn(() => ({
     merge: vi.fn(async () => {}),
+  })),
+  createRunRecordService: vi.fn(() => ({
+    writeInputSnapshot: vi.fn(async () => ({
+      path: 'runs/rev-0001-inputs.yaml',
+      hash: 'input-snapshot-hash',
+    })),
+    write: vi.fn(async () => {}),
   })),
   validatePreparedBlueprintTree: vi.fn(async () => ({
     context: { graph: { nodes: [], edges: [] } },
@@ -54,7 +61,8 @@ vi.mock('@gorenku/core', () => ({
     BLUEPRINT_VALIDATION_FAILED: 'V001',
   },
   isCanonicalProducerId: vi.fn((id: string) => id.startsWith('Producer:')),
-  copyManifestToMemory: vi.fn(async () => {}),
+  copyRunArchivesToMemory: vi.fn(async () => {}),
+  copyPlansToMemory: vi.fn(async () => {}),
   copyEventsToMemory: vi.fn(async () => {}),
   copyBlobsFromMemoryToLocal: vi.fn(async () => {}),
   buildProviderMetadata: vi.fn(async (providerOptions: Map<string, unknown>) => providerOptions),
@@ -114,7 +122,7 @@ function createCorePlanResult() {
   return {
     plan: {
       revision: 'rev-0001',
-      manifestBaseHash: 'hash',
+      baselineHash: 'hash',
       layers: [
         [
           {
@@ -131,7 +139,7 @@ function createCorePlanResult() {
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 4,
     },
-    manifest: {
+    buildState: {
       revision: 'rev-0000',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -139,7 +147,11 @@ function createCorePlanResult() {
       artifacts: {},
       timeline: {},
     },
-    manifestHash: null,
+    baselineHash: null,
+    executionState: {
+      inputHashes: new Map(),
+      artifactHashes: new Map(),
+    },
     inputEvents: [],
     resolvedInputs: {},
     producerScheduling: [

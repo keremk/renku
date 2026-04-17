@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
 	createEventLog,
-	createManifestService,
+	createBuildStateService,
 	createRunner,
 	createStorageContext,
 	initializeMovieStorage,
@@ -211,7 +211,7 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 		});
 		await initializeMovieStorage(storage, storageMovieId);
 		const eventLog = createEventLog(storage);
-		const manifestService = createManifestService(storage);
+		const buildStateService = createBuildStateService(storage);
 
 		// Custom produce function that returns controlled data
 		const produce: ProduceFn = vi.fn(
@@ -292,10 +292,9 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 		const runner = createRunner();
 		const result = await runner.execute(planResult.plan, {
 			movieId: storageMovieId,
-			manifest: planResult.manifest,
+			buildState: planResult.buildState,
 			storage,
 			eventLog,
-			manifestService,
 			produce,
 			logger,
 		});
@@ -326,7 +325,7 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
 		// PHASE 4: Verify artifacts in manifest
 		// ============================================================
 
-		const manifest = await result.buildManifest();
+		const manifest = await result.buildStateSnapshot();
 		const artifactIds = Object.keys(manifest.artifacts);
 
 		// Verify we have the expected number of artifacts

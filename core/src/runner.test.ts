@@ -3,19 +3,18 @@ import { describe, expect, it, vi } from 'vitest';
 import { TextEncoder } from 'util';
 import { createRunner } from './runner.js';
 import { createEventLog } from './event-log.js';
-import { createManifestService } from './manifest.js';
 import { createStorageContext, initializeMovieStorage } from './storage.js';
 import { formatBlobFileName } from './blob-utils.js';
 import type {
   ArtifactEvent,
+  BuildState,
   ExecutionPlan,
   JobDescriptor,
-  Manifest,
   ProduceRequest,
   ProduceResult,
 } from './types.js';
 
-const baseManifest: Manifest = {
+const baseManifest: BuildState = {
   revision: 'rev-0000',
   baseRevision: null,
   createdAt: '2024-01-01T00:00:00.000Z',
@@ -25,7 +24,7 @@ const baseManifest: Manifest = {
 
 const plan: ExecutionPlan = {
   revision: 'rev-0001',
-  manifestBaseHash: 'hash-0000',
+  baselineHash: 'hash-0000',
   layers: [
     [
       {
@@ -59,7 +58,6 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-123');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
 
     const produce = vi.fn(
       async (request: ProduceRequest): Promise<ProduceResult> => {
@@ -97,10 +95,9 @@ describe('createRunner', () => {
     const runner = createRunner();
     const result = await runner.execute(plan, {
       movieId: 'movie-123',
-      manifest: baseManifest,
+      buildState: baseManifest,
       storage,
       eventLog,
-      manifestService,
       produce,
     });
 
@@ -137,12 +134,12 @@ describe('createRunner', () => {
       Array.from(new TextEncoder().encode('AUDIO_DATA'))
     );
 
-    const manifest = await result.buildManifest();
-    expect(manifest.revision).toBe('rev-0001');
-    expect(Object.keys(manifest.artifacts)).toContain(
+    const buildStateSnapshot = await result.buildStateSnapshot();
+    expect(buildStateSnapshot.revision).toBe('rev-0001');
+    expect(Object.keys(buildStateSnapshot.artifacts)).toContain(
       'Artifact:NarrationScript'
     );
-    expect(Object.keys(manifest.artifacts)).toContain(
+    expect(Object.keys(buildStateSnapshot.artifacts)).toContain(
       'Artifact:SegmentAudio[segment=0]'
     );
   });
@@ -151,15 +148,13 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-456');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
 
     const runner = createRunner();
     const result = await runner.execute(plan, {
       movieId: 'movie-456',
-      manifest: baseManifest,
+      buildState: baseManifest,
       storage,
       eventLog,
-      manifestService,
     });
 
     expect(result.status).toBe('succeeded');
@@ -170,7 +165,6 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-error');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
 
     const produce = vi.fn(
       async (request: ProduceRequest): Promise<ProduceResult> => {
@@ -196,10 +190,9 @@ describe('createRunner', () => {
     const runner = createRunner();
     const result = await runner.execute(plan, {
       movieId: 'movie-error',
-      manifest: baseManifest,
+      buildState: baseManifest,
       storage,
       eventLog,
-      manifestService,
       produce,
     });
 
@@ -213,7 +206,6 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-recovery');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
 
     const produce = vi.fn(
       async (request: ProduceRequest): Promise<ProduceResult> => {
@@ -251,10 +243,9 @@ describe('createRunner', () => {
     const runner = createRunner();
     await runner.execute(plan, {
       movieId: 'movie-recovery',
-      manifest: baseManifest,
+      buildState: baseManifest,
       storage,
       eventLog,
-      manifestService,
       produce,
     });
 
@@ -280,7 +271,6 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-alias');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
     const aliasText = 'aliased text';
     const aliasBlobHash = 'aliastext123';
     const aliasBlobRef: ArtifactEvent['output']['blob'] = {
@@ -357,7 +347,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -369,8 +359,7 @@ describe('createRunner', () => {
       movieId: 'movie-alias',
       storage,
       eventLog,
-      manifest,
-      manifestService,
+      buildState: manifest,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -387,7 +376,6 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-fanin');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
 
     let observedResolvedInputs: Record<string, unknown> | undefined;
 
@@ -452,7 +440,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -464,8 +452,7 @@ describe('createRunner', () => {
       movieId: 'movie-fanin',
       storage,
       eventLog,
-      manifest,
-      manifestService,
+      buildState: manifest,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -496,7 +483,6 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-conditional-fanin');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
 
     // Store video artifacts that will be unconditional fanIn members
     const videoData = new TextEncoder().encode('video-data');
@@ -596,7 +582,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -608,8 +594,7 @@ describe('createRunner', () => {
       movieId: 'movie-conditional-fanin',
       storage,
       eventLog,
-      manifest,
-      manifestService,
+      buildState: manifest,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -624,7 +609,6 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-all-conditional');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
 
     let jobWasExecuted = false;
 
@@ -683,7 +667,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -695,8 +679,7 @@ describe('createRunner', () => {
       movieId: 'movie-all-conditional',
       storage,
       eventLog,
-      manifest,
-      manifestService,
+      buildState: manifest,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -711,7 +694,6 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-conditional-bindings');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
 
     const appendArtifact = async (
       artifactId: string,
@@ -847,7 +829,7 @@ describe('createRunner', () => {
       },
     };
 
-    const manifest: Manifest = {
+    const manifest: BuildState = {
       revision: 'rev-0001',
       baseRevision: null,
       createdAt: new Date().toISOString(),
@@ -859,8 +841,7 @@ describe('createRunner', () => {
       movieId: 'movie-conditional-bindings',
       storage,
       eventLog,
-      manifest,
-      manifestService,
+      buildState: manifest,
       layerIndex: 0,
       attempt: 1,
       revision: 'rev-0002',
@@ -880,14 +861,13 @@ describe('createRunner', () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-fanin-assets');
     const eventLog = createEventLog(storage);
-    const manifestService = createManifestService(storage);
 
     const audioPayload = new TextEncoder().encode('fan-in audio');
     let observedResolvedInputs: Record<string, unknown> | undefined;
 
     const fanInPlan: ExecutionPlan = {
       revision: 'rev-0003',
-      manifestBaseHash: 'hash-0002',
+      baselineHash: 'hash-0002',
       layers: [
         [
           {
@@ -962,10 +942,9 @@ describe('createRunner', () => {
 
     await runner.execute(fanInPlan, {
       movieId: 'movie-fanin-assets',
-      manifest: baseManifest,
+      buildState: baseManifest,
       storage,
       eventLog,
-      manifestService,
     });
 
     const payload =

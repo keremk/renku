@@ -5,7 +5,7 @@ import {
   type ProviderOptionEntry,
 } from '../orchestration/planning-service.js';
 import { createStorageContext, initializeMovieStorage, planStore } from '../storage.js';
-import { createManifestService } from '../manifest.js';
+import { createBuildStateService } from '../build-state.js';
 import { createEventLog } from '../event-log.js';
 import type { BlueprintTreeNode, ProducerCatalog } from '../types.js';
 
@@ -79,7 +79,7 @@ describe('planning service', () => {
   });
 
   it('generates a plan and persists it to storage', async () => {
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
     const eventLog = createEventLog(storage);
     const planningService = createPlanningService();
 
@@ -93,7 +93,7 @@ describe('planning service', () => {
       providerCatalog: catalog,
       providerOptions: buildProviderOptions(),
       storage,
-      manifestService,
+      buildStateService,
       eventLog,
     });
 
@@ -102,14 +102,14 @@ describe('planning service', () => {
       storage.resolve(movieId, 'runs', `${result.targetRevision}-plan.json`),
     );
     expect(result.resolvedInputs['Input:InquiryPrompt']).toBe('Tell me a story');
-    expect(result.manifest.revision).toBe('rev-0000');
+    expect(result.buildState.revision).toBe('rev-0000');
 
     const stored = await planStore.load(movieId, result.targetRevision, storage);
     expect(stored).not.toBeNull();
   });
 
   it('records pending artifact drafts in the event log', async () => {
-    const manifestService = createManifestService(storage);
+    const buildStateService = createBuildStateService(storage);
     const eventLog = createEventLog(storage);
     const planningService = createPlanningService();
 
@@ -138,7 +138,7 @@ describe('planning service', () => {
       providerCatalog: catalog,
       providerOptions: buildProviderOptions(),
       storage,
-      manifestService,
+      buildStateService,
       eventLog,
       pendingArtifacts: pending,
     });

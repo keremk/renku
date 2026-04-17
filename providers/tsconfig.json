@@ -15,6 +15,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "types": ["node"],
     "typeRoots": [
       "./node_modules/@types",
       "../node_modules/@types"

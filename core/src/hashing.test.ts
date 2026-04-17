@@ -26,13 +26,19 @@ describe('hashing utilities', () => {
   });
 
   it('hashes input contents deterministically regardless of input order', () => {
+    const createdAt = '2025-01-01T00:00:00.000Z';
     const manifest = {
       inputs: {
-        'Input:a': { hash: 'hash-a' },
-        'Input:b': { hash: 'hash-b' },
+        'Input:a': { hash: 'hash-a', payloadDigest: 'digest-a', createdAt },
+        'Input:b': { hash: 'hash-b', payloadDigest: 'digest-b', createdAt },
       },
       artifacts: {
-        'Artifact:c': { hash: 'hash-c' },
+        'Artifact:c': {
+          hash: 'hash-c',
+          producedBy: 'Producer:C',
+          status: 'succeeded' as const,
+          createdAt,
+        },
       },
     };
     const hashA = hashInputContents(

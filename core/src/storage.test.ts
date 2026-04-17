@@ -31,7 +31,6 @@ describe('initializeMovieStorage', () => {
     const expectedDirs = [
       'builds',
       'builds/demo',
-      'builds/demo/manifests',
       'builds/demo/events',
       'builds/demo/runs',
       'builds/demo/blobs',
@@ -46,17 +45,7 @@ describe('initializeMovieStorage', () => {
     expect(await storage.fileExists('builds/demo/events/artifacts.log')).toBe(
       true
     );
-    expect(await storage.fileExists('builds/demo/current.json')).toBe(true);
-
-    const pointer = JSON.parse(
-      await storage.readToString('builds/demo/current.json')
-    );
-    expect(pointer).toEqual({
-      revision: null,
-      manifestPath: null,
-      hash: null,
-      updatedAt: null,
-    });
+    expect(await storage.fileExists('builds/demo/current.json')).toBe(false);
   });
 });
 
@@ -114,7 +103,7 @@ describe('planStore', () => {
 
     const plan: ExecutionPlan = {
       revision: 'rev-0001',
-      manifestBaseHash: 'sha:123',
+      baselineHash: 'sha:123',
       layers: [],
       createdAt: new Date().toISOString(),
       blueprintLayerCount: 0,

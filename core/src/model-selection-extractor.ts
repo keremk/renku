@@ -1,6 +1,6 @@
 /**
  * Utility for extracting model selections from flat input keys.
- * Used by the viewer API to parse manifest inputs into structured model selections.
+ * Used by the viewer API to parse build-state inputs into structured model selections.
  */
 
 /**
@@ -29,7 +29,7 @@ export interface ExtractModelSelectionsResult {
  * - ProducerName.sttProvider (for nested STT config)
  * - ProducerName.sttModel (for nested STT config)
  *
- * @param inputs - Flat key-value pairs from manifest inputs
+ * @param inputs - Flat key-value pairs from build-state inputs
  * @returns Object with modelSelections array and remainingInputs (non-model inputs)
  */
 export function extractModelSelectionsFromInputs(

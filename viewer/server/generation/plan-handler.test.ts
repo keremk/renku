@@ -3,7 +3,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { ExecutionPlan, JobDescriptor, Manifest } from '@gorenku/core';
+import type {
+  BuildState,
+  ExecutionPlan,
+  ExecutionState,
+  JobDescriptor,
+} from '@gorenku/core';
 import type { PlanCostSummary, JobCostEstimate } from '@gorenku/providers';
 import type { CachedPlan } from './types.js';
 import { buildPlanResponse } from './plan-handler.js';
@@ -43,7 +48,7 @@ function createMockCachedPlan(
 ): { cachedPlan: CachedPlan; plan: ExecutionPlan } {
   const plan: ExecutionPlan = {
     revision: 'rev-test',
-    manifestBaseHash: 'hash-test',
+    baselineHash: 'hash-test',
     layers,
     createdAt: new Date().toISOString(),
     blueprintLayerCount: 5, // Total blueprint layers (for dropdown)
@@ -60,7 +65,7 @@ function createMockCachedPlan(
     missingProviders: [],
   };
 
-  const mockManifest: Manifest = {
+  const mockBuildState: BuildState = {
     artifacts: {},
     revision: 'rev-test1',
     baseRevision: null,
@@ -72,8 +77,12 @@ function createMockCachedPlan(
     planId: 'plan-test',
     movieId: 'movie-test',
     plan,
-    manifest: mockManifest,
-    manifestHash: 'hash123',
+    buildState: mockBuildState,
+    executionState: {
+      inputHashes: new Map(),
+      artifactHashes: new Map(),
+    } as ExecutionState,
+    baselineHash: 'hash123',
     resolvedInputs: {},
     providerOptions: new Map(),
     blueprintPath: '/test/blueprint.yaml',

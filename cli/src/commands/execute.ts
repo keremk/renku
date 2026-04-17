@@ -109,9 +109,6 @@ export interface ExecuteResult {
 	/** Dry-run validation coverage summary (present for dry-runs). */
 	dryRunValidation?: BlueprintDryRunValidationResult;
 
-	/** Path to manifest file (if build succeeded) */
-	manifestPath?: string;
-
 	/** Path to movie storage directory */
 	storagePath: string;
 
@@ -294,8 +291,9 @@ export async function runExecute(
 					cliConfig,
 					movieId: storageMovieId,
 					plan: planResult.plan,
-					manifest: planResult.manifest,
-					manifestHash: planResult.manifestHash,
+					buildState: planResult.buildState,
+					baselineHash: planResult.baselineHash,
+					executionState: planResult.executionState,
 					providerOptions: planResult.providerOptions,
 					resolvedInputs: planResult.resolvedInputs,
 					catalog: planResult.modelCatalog,
@@ -317,7 +315,6 @@ export async function runExecute(
 		build: buildResult.summary,
 		isDryRun: buildResult.dryRun,
 		dryRunValidation,
-		manifestPath: buildResult.manifestPath,
 		storagePath: movieDir,
 		rootOutputBindings: planResult.plan.rootOutputBindings,
 		finalStageProducerJobIds: planResult.plan.finalStageProducerJobIds,
@@ -381,7 +378,7 @@ async function executeDryRunWithValidation(args: {
 		baseVaryingHints: varyingHints,
 	});
 
-	let manifestHashCursor = args.planResult.manifestHash;
+	let baselineHashCursor = args.planResult.baselineHash;
 	let primaryBuildResult: Awaited<ReturnType<typeof executeBuild>> | undefined;
 
 	const storage = createStorageContext({
@@ -399,8 +396,9 @@ async function executeDryRunWithValidation(args: {
 				cliConfig: args.cliConfig,
 				movieId: args.storageMovieId,
 				plan: args.planResult.plan,
-				manifest: args.planResult.manifest,
-				manifestHash: manifestHashCursor,
+				buildState: args.planResult.buildState,
+				baselineHash: baselineHashCursor,
+				executionState: args.planResult.executionState,
 				providerOptions: args.planResult.providerOptions,
 				resolvedInputs: args.planResult.resolvedInputs,
 				catalog: args.planResult.modelCatalog,
@@ -414,7 +412,7 @@ async function executeDryRunWithValidation(args: {
 					caseDefinition.conditionHints ?? args.planResult.conditionHints,
 			});
 
-			manifestHashCursor = buildResult.manifestHash;
+			baselineHashCursor = buildResult.baselineHash;
 			if (caseIndex === 0) {
 				primaryBuildResult = buildResult;
 			}
@@ -422,12 +420,12 @@ async function executeDryRunWithValidation(args: {
 			return {
 				movieId: args.storageMovieId,
 				failedJobs: collectFailedJobsFromSummary(buildResult.summary),
-				artifactIds: Object.keys(buildResult.manifest.artifacts),
+				artifactIds: Object.keys(buildResult.buildState.artifacts),
 				readArtifactText: async (artifactId: string): Promise<string> => {
-					const entry = buildResult.manifest.artifacts[artifactId];
+					const entry = buildResult.buildState.artifacts[artifactId];
 					if (!entry) {
 						throw new Error(
-							`Missing manifest artifact ${artifactId} in dry-run case ${caseDefinition.id}.`
+							`Missing build-state artifact ${artifactId} in dry-run case ${caseDefinition.id}.`
 						);
 					}
 					if (!entry.blob) {
@@ -453,8 +451,9 @@ async function executeDryRunWithValidation(args: {
 			cliConfig: args.cliConfig,
 			movieId: args.storageMovieId,
 			plan: args.planResult.plan,
-			manifest: args.planResult.manifest,
-			manifestHash: manifestHashCursor,
+			buildState: args.planResult.buildState,
+			baselineHash: baselineHashCursor,
+			executionState: args.planResult.executionState,
 			providerOptions: args.planResult.providerOptions,
 			resolvedInputs: args.planResult.resolvedInputs,
 			catalog: args.planResult.modelCatalog,
@@ -468,7 +467,7 @@ async function executeDryRunWithValidation(args: {
 				baselineCase.conditionHints ?? args.planResult.conditionHints,
 		});
 
-		manifestHashCursor = baselineBuildResult.manifestHash;
+		baselineHashCursor = baselineBuildResult.baselineHash;
 		primaryBuildResult = baselineBuildResult;
 	}
 
@@ -632,7 +631,6 @@ async function handleCostsOnly(args: {
 		targetRevision: planResult.targetRevision,
 		build: undefined,
 		isDryRun: undefined,
-		manifestPath: undefined,
 		storagePath: movieDir,
 		resolvedInputs: planResult.resolvedInputs,
 		cleanedUp,
@@ -697,7 +695,6 @@ async function handleExplain(args: {
 		targetRevision: planResult.targetRevision,
 		build: undefined,
 		isDryRun: undefined,
-		manifestPath: undefined,
 		storagePath: movieDir,
 		resolvedInputs: planResult.resolvedInputs,
 		cleanedUp,
@@ -746,7 +743,6 @@ async function handleCancellation(args: {
 		targetRevision: planResult.targetRevision,
 		build: undefined,
 		isDryRun: undefined,
-		manifestPath: undefined,
 		storagePath: movieDir,
 		resolvedInputs: planResult.resolvedInputs,
 		cleanedUp,

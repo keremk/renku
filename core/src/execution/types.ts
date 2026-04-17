@@ -1,12 +1,12 @@
 import type { StorageContext } from '../storage.js';
 import type { EventLog } from '../event-log.js';
-import type { ManifestService } from '../manifest.js';
 import type { Logger } from '../logger.js';
 import type { NotificationBus } from '../notifications.js';
 import type {
+  BuildState,
   Clock,
   ExecutionPlan,
-  Manifest,
+  ExecutionState,
   ProduceFn,
   RunResult,
 } from '../types.js';
@@ -16,10 +16,10 @@ import type {
  */
 export interface PlanExecutionContext {
   movieId: string;
-  manifest: Manifest;
+  buildState: BuildState;
+  executionState?: ExecutionState;
   storage: StorageContext;
   eventLog: EventLog;
-  manifestService: ManifestService;
   /** ProduceFn injected by caller (from providers package) */
   produce: ProduceFn;
   logger?: Partial<Logger>;
@@ -55,8 +55,9 @@ export interface PreparePlanOptions {
 export interface ExecutePlanOptions {
   movieId: string;
   plan: ExecutionPlan;
-  manifest: Manifest;
-  manifestHash: string | null;
+  buildState: BuildState;
+  baselineHash: string | null;
+  executionState?: ExecutionState;
   /** ProduceFn injected by caller (from providers package) */
   produce: ProduceFn;
   resolvedInputs: Record<string, unknown>;
@@ -85,9 +86,8 @@ export interface JobSummary {
 export interface ExecutePlanResult {
   status: 'succeeded' | 'failed' | 'cancelled';
   run: RunResult;
-  manifest: Manifest;
-  manifestPath: string;
-  manifestHash: string;
+  buildState: BuildState;
+  baselineHash: string;
   jobs: JobSummary[];
   dryRun: boolean;
 }

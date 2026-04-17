@@ -6,7 +6,11 @@ import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import type { HandlerFactory } from '../../types.js';
 import type { ResolvedInputsAccessor } from '../../sdk/types.js';
-import { createStorageContext } from '@gorenku/core';
+import {
+  createEventLog,
+  createStorageContext,
+  resolveArtifactsFromEventLog,
+} from '@gorenku/core';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_DOCKER_IMAGE =
@@ -17,24 +21,6 @@ interface Mp4ExporterConfig {
   width?: number;
   height?: number;
   fps?: number;
-}
-
-interface ManifestPointer {
-  revision: string | null;
-  manifestPath: string | null;
-}
-
-interface ManifestFile {
-  artifacts?: Record<
-    string,
-    {
-      blob: {
-        hash: string;
-        size: number;
-        mimeType?: string;
-      };
-    }
-  >;
 }
 
 const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
@@ -214,31 +200,17 @@ async function loadTimeline(
   storage: ReturnType<typeof createStorageContext>,
   movieId: string
 ): Promise<void> {
-  const pointerPath = storage.resolve(movieId, 'current.json');
-  const pointerRaw = await storage.storage.readToString(pointerPath);
-  const pointer = JSON.parse(pointerRaw) as ManifestPointer;
-  if (!pointer.manifestPath) {
-    throw createProviderError(
-      SdkErrorCode.MISSING_MANIFEST,
-      `Manifest pointer missing path for movie ${movieId}.`,
-      { kind: 'user_input', causedByUser: true }
-    );
-  }
-  const manifestPath = storage.resolve(movieId, pointer.manifestPath);
-  const manifestRaw = await storage.storage.readToString(manifestPath);
-  const manifest = JSON.parse(manifestRaw) as ManifestFile;
-  const artifact = manifest.artifacts?.[TIMELINE_ARTIFACT_ID];
+  const artifacts = await resolveArtifactsFromEventLog({
+    artifactIds: [TIMELINE_ARTIFACT_ID],
+    eventLog: createEventLog(storage),
+    storage,
+    movieId,
+  });
+  const artifact = artifacts[TIMELINE_ARTIFACT_ID];
   if (!artifact) {
     throw createProviderError(
       SdkErrorCode.MISSING_TIMELINE,
       `Timeline artifact not found for movie ${movieId}.`,
-      { kind: 'user_input', causedByUser: true }
-    );
-  }
-  if (!artifact.blob) {
-    throw createProviderError(
-      SdkErrorCode.MISSING_TIMELINE_BLOB,
-      `Timeline artifact for movie ${movieId} is missing blob metadata.`,
       { kind: 'user_input', causedByUser: true }
     );
   }

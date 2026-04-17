@@ -79,7 +79,8 @@ describe('end-to-end: video stitcher fan-in dry run', () => {
       'Artifact:VideoProducer.GeneratedVideo[1]'
     );
 
-    expect(result.build.jobs.every((job) => job.status === 'succeeded')).toBe(
+    expect(result.build.jobs).toBeDefined();
+    expect(result.build.jobs?.every((job) => job.status === 'succeeded')).toBe(
       true
     );
   });
