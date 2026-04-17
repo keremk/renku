@@ -15,7 +15,7 @@ Renku is a pnpm workspace with 5 packages:
 
 ### Published Packages
 - `core/` (`@gorenku/core`) is the foundation TypeScript library for orchestrating AI-based movie asset generation and planning. Source lives under `src/`, with published entry points in `src/index.ts`. Build artifacts go to `dist/`. All other packages depend on core.
-- `cli/` (`@gorenku/cli`) provides a command-line workflow for generating movies, backed by the core package. Built with Ink (React for terminals) and MCP SDK. Keep the main entry point in `src/cli.tsx` and organise reusable UI under `src/`.
+- `cli/` (`@gorenku/cli`) provides a command-line workflow for generating movies, backed by the core package. Built with Ink (React for terminals). Keep the main entry point in `src/cli.tsx` and organise reusable UI under `src/`.
 - `compositions/` (`@gorenku/compositions`) contains shared Remotion compositions and renderers for video output. Supports browser and Node.js execution. Source in `src/`, build artifacts in `dist/`.
 - `providers/` (`@gorenku/providers`) integrates external AI services (OpenAI, Replicate, ElevenLabs). Implements producer interfaces backed by the core package. Source in `src/`, build artifacts in `dist/`.
 

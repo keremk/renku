@@ -8,7 +8,7 @@ Renku is a pnpm workspace monorepo with 5 packages:
 
 ### Published Packages
 - **@gorenku/core** (`core/`): Core library for planning, managing, and running movie generation flows. Includes blueprint loading, planning engine, manifest management, and event logging.
-- **@gorenku/cli** (`cli/`): Command-line interface for movie generation. Built with Ink (React for terminals) and MCP (Model Context Protocol) integration.
+- **@gorenku/cli** (`cli/`): Command-line interface for movie generation. Built with Ink (React for terminals).
 - **@gorenku/compositions** (`compositions/`): Shared Remotion compositions and renderers for video generation. Supports both browser and Node.js environments.
 - **@gorenku/providers** (`providers/`): AI provider integrations (OpenAI, Replicate, ElevenLabs). Includes producer implementations and provider registry.
 
@@ -58,7 +58,7 @@ pnpm package:cli                     # Package CLI for distribution
 
 ## Key Technologies
 
-- **CLI**: Ink (React for terminals), MCP SDK, TypeScript
+- **CLI**: Ink (React for terminals), TypeScript
 - **Core**: TypeScript, Vitest (testing), event-driven architecture
 - **Compositions**: Remotion 4.0+, React 19, TypeScript
 - **Providers**: AI provider SDKs (OpenAI, Replicate, ElevenLabs), TypeScript
