@@ -8,7 +8,7 @@ import {
   hashInputPayload,
 } from './event-log.js';
 import { createStorageContext, initializeMovieStorage } from './storage.js';
-import type { ArtifactEvent, InputEvent } from './types.js';
+import type { ArtifactEvent, InputEvent, RunLifecycleEvent } from './types.js';
 
 function memoryContext() {
   return createStorageContext({ kind: 'memory', basePath: 'builds' });
@@ -105,6 +105,40 @@ describe('EventLog', () => {
 
     expect(collected).toHaveLength(1);
     expect(collected[0]).toEqual(artifactEvent);
+  });
+
+  it('appends run lifecycle events and streams them back', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+
+    const runEvents: RunLifecycleEvent[] = [
+      {
+        type: 'run-planned',
+        revision: 'rev-0004',
+        createdAt: new Date().toISOString(),
+        runConfig: { concurrency: 2 },
+        inputSnapshotPath: 'runs/rev-0004-inputs.yaml',
+        inputSnapshotHash: 'snapshot-hash',
+        planPath: 'runs/rev-0004-plan.json',
+      },
+      {
+        type: 'run-started',
+        revision: 'rev-0004',
+        startedAt: new Date().toISOString(),
+      },
+    ];
+
+    for (const event of runEvents) {
+      await eventLog.appendRun('demo', event);
+    }
+
+    const collected: RunLifecycleEvent[] = [];
+    for await (const evt of eventLog.streamRuns('demo')) {
+      collected.push(evt);
+    }
+
+    expect(collected).toEqual(runEvents);
   });
 
   it('produces stable hashes for equivalent payloads', () => {

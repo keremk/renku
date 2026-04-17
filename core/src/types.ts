@@ -708,7 +708,7 @@ export type SurgicalRegenerationScope = 'lineage-plus-dirty' | 'lineage-strict';
 
 /**
  * Configuration options used when running a generation.
- * Stored with the build state / run record to record how a run was invoked.
+ * Stored in run lifecycle events and mirrored into reconstructed build state.
  */
 export interface RunConfig {
   /** Limit execution to layers 0 through this index (inclusive) */
@@ -734,22 +734,58 @@ export interface RunSummary {
   layers: number;
 }
 
-export type RunRecordStatus =
+export type RunLifecycleStatus =
   | 'planned'
+  | 'started'
   | 'succeeded'
   | 'failed'
   | 'cancelled';
 
-export interface RunRecord {
+export interface RunPlannedEvent {
+  type: 'run-planned';
   revision: RevisionId;
   createdAt: IsoDatetime;
-  blueprintPath?: string;
-  sourceInputsPath?: string;
+  runConfig: RunConfig;
+  inputSnapshotPath: string;
+  inputSnapshotHash: string;
+  planPath: string;
+}
+
+export interface RunStartedEvent {
+  type: 'run-started';
+  revision: RevisionId;
+  startedAt: IsoDatetime;
+  runConfig?: RunConfig;
+}
+
+export interface RunCompletedEvent {
+  type: 'run-completed';
+  revision: RevisionId;
+  completedAt: IsoDatetime;
+  status: RunStatus;
+  summary: RunSummary;
+}
+
+export interface RunCancelledEvent {
+  type: 'run-cancelled';
+  revision: RevisionId;
+  completedAt: IsoDatetime;
+}
+
+export type RunLifecycleEvent =
+  | RunPlannedEvent
+  | RunStartedEvent
+  | RunCompletedEvent
+  | RunCancelledEvent;
+
+export interface RunProjection {
+  revision: RevisionId;
+  createdAt: IsoDatetime;
   inputSnapshotPath: string;
   inputSnapshotHash: string;
   planPath: string;
   runConfig: RunConfig;
-  status: RunRecordStatus;
+  status: RunLifecycleStatus;
   startedAt?: IsoDatetime;
   completedAt?: IsoDatetime;
   summary?: RunSummary;
@@ -802,6 +838,7 @@ export interface ExecutionState {
 
 export interface EventLogState {
   latestRevision: RevisionId | null;
+  revisionCreatedAtByRevision: Map<RevisionId, IsoDatetime>;
   latestInputsById: Map<string, InputEvent>;
   latestArtifactsById: Map<string, ArtifactEvent>;
   latestSucceededArtifactIds: Set<string>;

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { createEventLog } from './event-log.js';
 import {
   buildBuildStateFromEventLogState,
+  readEventLogStateAtRevision,
   readEventLogState,
 } from './event-log-state.js';
 import {
@@ -10,8 +11,7 @@ import {
   type ErrorSeverity,
   type RenkuError,
 } from './errors/index.js';
-import { latestRevisionId } from './revisions.js';
-import { createRunRecordService } from './run-record.js';
+import { createRunLifecycleService } from './run-lifecycle.js';
 import type { StorageContext } from './storage.js';
 import type { BuildState, Clock, RevisionId } from './types.js';
 
@@ -41,7 +41,7 @@ export function createBuildStateService(
   storage: StorageContext
 ): BuildStateService {
   const eventLog = createEventLog(storage);
-  const runRecordService = createRunRecordService(storage);
+  const runLifecycleService = createRunLifecycleService(storage);
 
   return {
     async loadCurrent(movieId) {
@@ -49,28 +49,31 @@ export function createBuildStateService(
         eventLog,
         movieId,
       });
-      const latestRunRecord = await runRecordService.loadLatest(movieId);
+      const latestRun = await runLifecycleService.loadLatest(movieId);
 
       if (
         !eventLogState.latestRevision &&
-        !latestRunRecord &&
+        !latestRun &&
         eventLogState.latestInputsById.size === 0 &&
         eventLogState.latestArtifactsById.size === 0
       ) {
         throw new BuildStateNotFoundError(movieId);
       }
 
-      const revision =
-        latestRevisionId(
-          eventLogState.latestRevision,
-          latestRunRecord?.revision
-        ) ?? 'rev-0000';
-      const createdAt = latestRunRecord?.createdAt ?? new Date().toISOString();
+      const revision = eventLogState.latestRevision ?? latestRun?.revision ?? 'rev-0000';
+      const revisionRun =
+        eventLogState.latestRevision
+          ? await runLifecycleService.load(movieId, eventLogState.latestRevision)
+          : latestRun;
+      const createdAt =
+        revisionRun?.createdAt ??
+        eventLogState.revisionCreatedAtByRevision.get(revision) ??
+        new Date().toISOString();
       const buildState = buildBuildStateFromEventLogState({
         eventLogState,
         targetRevision: revision,
         createdAt,
-        runConfig: latestRunRecord?.runConfig,
+        runConfig: revisionRun?.runConfig,
       });
 
       return {
@@ -85,20 +88,24 @@ export function createBuildStateService(
       baseRevision = null,
       clock,
     }) {
-      const eventLogState = await readEventLogState({
+      const eventLogState = await readEventLogStateAtRevision({
         eventLog,
         movieId,
+        targetRevision,
       });
-      const latestRunRecord = await runRecordService.loadLatest(movieId);
+      const runProjection = await runLifecycleService.load(movieId, targetRevision);
       const createdAt =
-        latestRunRecord?.createdAt ?? clock?.now() ?? new Date().toISOString();
+        runProjection?.createdAt ??
+        eventLogState.revisionCreatedAtByRevision.get(targetRevision) ??
+        clock?.now() ??
+        new Date().toISOString();
 
       return buildBuildStateFromEventLogState({
         eventLogState,
         targetRevision,
         baseRevision,
         createdAt,
-        runConfig: latestRunRecord?.runConfig,
+        runConfig: runProjection?.runConfig,
       });
     },
   };

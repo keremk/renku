@@ -1,13 +1,8 @@
 #!/usr/bin/env node
-import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import {
-  extractModelSelectionsFromInputs,
-  serializeInputsToYaml,
-} from '../core/dist/index.js';
 
 const DEFAULT_ROOT = resolve(homedir(), 'videos');
 const REVISION_COLLATOR = new Intl.Collator(undefined, {
@@ -54,23 +49,17 @@ function createSummary(root, write) {
     root,
     write,
     buildsScanned: 0,
-    eligibleBuilds: 0,
-    skippedIncompleteBuilds: 0,
-    failedBuilds: 0,
+    buildsWithRunRecords: 0,
     buildsChanged: 0,
+    buildsAlreadyMigrated: 0,
+    buildsSkipped: 0,
+    buildsFailed: 0,
     revisionsScanned: 0,
-    revisionsChanged: 0,
-    runRecordsWritten: 0,
-    snapshotsWritten: 0,
-    alreadyBackfilledRevisions: 0,
-    skippedBuilds: [],
+    eventsAppended: 0,
     changedBuilds: [],
+    skippedBuilds: [],
     failures: [],
   };
-}
-
-function hashContent(content) {
-  return createHash('sha256').update(content).digest('hex');
 }
 
 function compareRevisions(left, right) {
@@ -81,7 +70,15 @@ async function listBuildDirectories(root) {
   const buildDirectories = [];
 
   async function visit(directory) {
-    const entries = await readdir(directory, { withFileTypes: true });
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch (error) {
+      if (isPermissionError(error)) {
+        return;
+      }
+      throw error;
+    }
     entries.sort((left, right) => left.name.localeCompare(right.name));
 
     for (const entry of entries) {
@@ -120,6 +117,15 @@ async function listBuildDirectories(root) {
   return buildDirectories;
 }
 
+function isPermissionError(error) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'EACCES'
+  );
+}
+
 async function readJsonFile(filePath, label) {
   try {
     return JSON.parse(await readFile(filePath, 'utf8'));
@@ -128,6 +134,40 @@ async function readJsonFile(filePath, label) {
       `${label}: invalid JSON: ${error instanceof Error ? error.message : String(error)}`
     );
   }
+}
+
+function summarizePlan(planPath, plan) {
+  if (typeof plan !== 'object' || plan === null) {
+    throw new Error(`${planPath}: plan must be an object.`);
+  }
+  if (!Array.isArray(plan.layers)) {
+    throw new Error(`${planPath}: missing a valid "layers" array.`);
+  }
+
+  const jobIds = [];
+  for (const [layerIndex, layer] of plan.layers.entries()) {
+    if (!Array.isArray(layer)) {
+      throw new Error(`${planPath}: layer ${layerIndex} must be an array.`);
+    }
+    for (const [jobIndex, job] of layer.entries()) {
+      if (typeof job !== 'object' || job === null) {
+        throw new Error(
+          `${planPath}: job ${jobIndex} in layer ${layerIndex} must be an object.`
+        );
+      }
+      if (typeof job.jobId !== 'string' || job.jobId.length === 0) {
+        throw new Error(
+          `${planPath}: job ${jobIndex} in layer ${layerIndex} is missing a valid "jobId".`
+        );
+      }
+      jobIds.push(job.jobId);
+    }
+  }
+
+  return {
+    layers: plan.layers.length,
+    jobIds,
+  };
 }
 
 async function readJsonLines(filePath, label) {
@@ -163,7 +203,7 @@ async function readJsonLines(filePath, label) {
   return records;
 }
 
-async function listPlanFiles(buildDir) {
+async function listRunRecordFiles(buildDir) {
   const runsDir = join(buildDir, 'runs');
   if (!existsSync(runsDir)) {
     return [];
@@ -173,306 +213,306 @@ async function listPlanFiles(buildDir) {
   entries.sort((left, right) => compareRevisions(left.name, right.name));
 
   return entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith('-plan.json'))
+    .filter((entry) => entry.isFile() && entry.name.endsWith('-run.json'))
     .map((entry) => join(runsDir, entry.name));
 }
 
-function getRevisionFromPlanPath(planPath) {
-  const fileName = basename(planPath);
-  if (!fileName.endsWith('-plan.json')) {
-    throw new Error(`Plan file name must end with "-plan.json", received "${fileName}".`);
-  }
-  return fileName.slice(0, -'-plan.json'.length);
-}
-
-async function readBuildMetadata(buildDir) {
-  const metadataPaths = [
-    join(buildDir, 'metadata.json'),
-    join(buildDir, 'movie-metadata.json'),
-  ];
-
-  for (const metadataPath of metadataPaths) {
-    if (existsSync(metadataPath)) {
-      return {
-        path: metadataPath,
-        value: await readJsonFile(metadataPath, metadataPath),
-      };
-    }
+function validateRunRecord(record, filePath) {
+  if (typeof record !== 'object' || record === null) {
+    throw new Error(`${filePath}: run record must be an object.`);
   }
 
-  return null;
-}
-
-function evaluateBuildEligibility(buildDir, metadata, planPaths) {
-  const inputsLogPath = join(buildDir, 'events', 'inputs.log');
-  const artifactsLogPath = join(buildDir, 'events', 'artifacts.log');
-
-  if (!existsSync(inputsLogPath)) {
-    return {
-      eligible: false,
-      reason: 'missing events/inputs.log',
-    };
+  if (typeof record.revision !== 'string' || record.revision.length === 0) {
+    throw new Error(`${filePath}: missing a valid "revision".`);
   }
 
-  if (!existsSync(artifactsLogPath)) {
-    return {
-      eligible: false,
-      reason: 'missing events/artifacts.log',
-    };
-  }
-
-  if (planPaths.length === 0) {
-    return {
-      eligible: false,
-      reason: 'missing runs/*-plan.json',
-    };
-  }
-
-  if (!metadata) {
-    return {
-      eligible: false,
-      reason: 'missing metadata.json or movie-metadata.json',
-    };
+  if (typeof record.createdAt !== 'string' || record.createdAt.length === 0) {
+    throw new Error(`${filePath}: missing a valid "createdAt".`);
   }
 
   if (
-    typeof metadata.value.blueprintPath !== 'string' ||
-    metadata.value.blueprintPath.length === 0
+    typeof record.inputSnapshotPath !== 'string' ||
+    record.inputSnapshotPath.length === 0
   ) {
-    return {
-      eligible: false,
-      reason: `${metadata.path}: missing a valid "blueprintPath"`,
-    };
+    throw new Error(`${filePath}: missing a valid "inputSnapshotPath".`);
   }
 
-  if (!existsSync(metadata.value.blueprintPath)) {
-    return {
-      eligible: false,
-      reason: `${metadata.path}: blueprint does not exist: ${metadata.value.blueprintPath}`,
-    };
+  if (
+    typeof record.inputSnapshotHash !== 'string' ||
+    record.inputSnapshotHash.length === 0
+  ) {
+    throw new Error(`${filePath}: missing a valid "inputSnapshotHash".`);
+  }
+
+  if (typeof record.planPath !== 'string' || record.planPath.length === 0) {
+    throw new Error(`${filePath}: missing a valid "planPath".`);
+  }
+
+  if (typeof record.runConfig !== 'object' || record.runConfig === null) {
+    throw new Error(`${filePath}: missing a valid "runConfig" object.`);
+  }
+
+  if (
+    record.status !== 'planned' &&
+    record.status !== 'succeeded' &&
+    record.status !== 'failed' &&
+    record.status !== 'cancelled'
+  ) {
+    throw new Error(`${filePath}: unsupported status "${String(record.status)}".`);
+  }
+
+  if (record.startedAt !== undefined && typeof record.startedAt !== 'string') {
+    throw new Error(`${filePath}: "startedAt" must be a string when present.`);
+  }
+
+  if (record.completedAt !== undefined && typeof record.completedAt !== 'string') {
+    throw new Error(`${filePath}: "completedAt" must be a string when present.`);
+  }
+}
+
+function deriveCompletedAt(args) {
+  if (args.record.completedAt) {
+    return args.record.completedAt;
+  }
+
+  const artifactEvents = args.artifactEventsByRevision.get(args.record.revision) ?? [];
+  const latestArtifactTimestamp = artifactEvents.reduce((latest, event) => {
+    if (typeof event.createdAt !== 'string' || event.createdAt.length === 0) {
+      return latest;
+    }
+    return latest === null || event.createdAt > latest ? event.createdAt : latest;
+  }, null);
+
+  return latestArtifactTimestamp ?? args.record.createdAt;
+}
+
+function deriveSummary(args) {
+  if (typeof args.record.summary === 'object' && args.record.summary !== null) {
+    return args.record.summary;
+  }
+
+  const counts = {
+    succeeded: 0,
+    failed: 0,
+    skipped: 0,
+  };
+
+  const latestStatusByJobId = new Map();
+  const artifactEvents = args.artifactEventsByRevision.get(args.record.revision) ?? [];
+
+  for (const event of artifactEvents) {
+    if (typeof event.producedBy !== 'string' || event.producedBy.length === 0) {
+      continue;
+    }
+    if (
+      event.status !== 'succeeded' &&
+      event.status !== 'failed' &&
+      event.status !== 'skipped'
+    ) {
+      continue;
+    }
+    latestStatusByJobId.set(event.producedBy, event.status);
+  }
+
+  for (const jobId of args.planSummary.jobIds) {
+    const status = latestStatusByJobId.get(jobId);
+    if (status === 'succeeded') {
+      counts.succeeded += 1;
+      continue;
+    }
+    if (status === 'failed') {
+      counts.failed += 1;
+      continue;
+    }
+    counts.skipped += 1;
   }
 
   return {
-    eligible: true,
-    inputsLogPath,
-    artifactsLogPath,
+    jobCount: args.planSummary.jobIds.length,
+    counts,
+    layers: args.planSummary.layers,
   };
 }
 
-function buildRevisionInputs(inputEventLines, revisions, buildDir) {
-  const sortedEvents = inputEventLines
-    .map((line, index) => ({
-      index,
-      lineNumber: line.lineNumber,
-      value: line.value,
-    }))
-    .sort((left, right) => {
-      const revisionOrder = compareRevisions(
-        String(left.value.revision ?? ''),
-        String(right.value.revision ?? '')
-      );
-      if (revisionOrder !== 0) {
-        return revisionOrder;
-      }
-      return left.index - right.index;
+function buildDesiredEventsFromRunRecord(args) {
+  const { record } = args;
+  const events = [
+    {
+      type: 'run-planned',
+      revision: args.record.revision,
+      createdAt: args.record.createdAt,
+      inputSnapshotPath: args.record.inputSnapshotPath,
+      inputSnapshotHash: args.record.inputSnapshotHash,
+      planPath: args.record.planPath,
+      runConfig: args.record.runConfig,
+    },
+  ];
+
+  if (record.startedAt) {
+    events.push({
+      type: 'run-started',
+      revision: args.record.revision,
+      startedAt: args.record.startedAt,
+      ...(Object.keys(args.record.runConfig).length > 0
+        ? { runConfig: args.record.runConfig }
+        : {}),
     });
-
-  const revisionInputs = new Map();
-  const currentInputs = new Map();
-  let eventIndex = 0;
-
-  for (const revision of revisions) {
-    while (
-      eventIndex < sortedEvents.length &&
-      compareRevisions(String(sortedEvents[eventIndex].value.revision ?? ''), revision) <= 0
-    ) {
-      const event = sortedEvents[eventIndex].value;
-      if (typeof event.id !== 'string' || event.id.length === 0) {
-        throw new Error(
-          `${buildDir}/events/inputs.log line ${sortedEvents[eventIndex].lineNumber}: input event is missing a valid "id".`
-        );
-      }
-
-      if (typeof event.revision !== 'string' || event.revision.length === 0) {
-        throw new Error(
-          `${buildDir}/events/inputs.log line ${sortedEvents[eventIndex].lineNumber}: input event is missing a valid "revision".`
-        );
-      }
-
-      currentInputs.set(event.id, event.payload);
-      eventIndex += 1;
-    }
-
-    if (currentInputs.size === 0) {
-      throw new Error(
-        `${buildDir}: no input events are available at or before revision "${revision}".`
-      );
-    }
-
-    revisionInputs.set(revision, Object.fromEntries(currentInputs.entries()));
   }
 
-  return revisionInputs;
+  if (args.record.status === 'cancelled') {
+    events.push({
+      type: 'run-cancelled',
+      revision: args.record.revision,
+      completedAt: deriveCompletedAt(args),
+    });
+  } else if (args.record.status === 'succeeded' || args.record.status === 'failed') {
+    events.push({
+      type: 'run-completed',
+      revision: args.record.revision,
+      completedAt: deriveCompletedAt(args),
+      status: args.record.status,
+      summary: deriveSummary(args),
+    });
+  }
+
+  return events;
 }
 
-function groupArtifactEventsByRevision(artifactEventLines, buildDir) {
-  const eventsByRevision = new Map();
+function groupExistingRunEvents(eventLines) {
+  const grouped = new Map();
 
-  for (const line of artifactEventLines) {
+  for (const line of eventLines) {
     const event = line.value;
+    if (typeof event !== 'object' || event === null) {
+      throw new Error(
+        `events/runs.log line ${line.lineNumber}: run lifecycle event must be an object.`
+      );
+    }
     if (typeof event.revision !== 'string' || event.revision.length === 0) {
       throw new Error(
-        `${buildDir}/events/artifacts.log line ${line.lineNumber}: artifact event is missing a valid "revision".`
+        `events/runs.log line ${line.lineNumber}: missing a valid "revision".`
+      );
+    }
+    if (typeof event.type !== 'string' || event.type.length === 0) {
+      throw new Error(
+        `events/runs.log line ${line.lineNumber}: missing a valid "type".`
       );
     }
 
-    const revisionEvents = eventsByRevision.get(event.revision) ?? [];
+    const revisionEvents = grouped.get(event.revision) ?? [];
     revisionEvents.push(event);
-    eventsByRevision.set(event.revision, revisionEvents);
+    grouped.set(event.revision, revisionEvents);
   }
 
-  return eventsByRevision;
+  return grouped;
 }
 
-function buildSnapshotYaml(revisionInputs) {
-  const normalizedInputs = {};
-
-  for (const [inputId, value] of Object.entries(revisionInputs)) {
-    const cleanKey = inputId.startsWith('Input:')
-      ? inputId.slice('Input:'.length)
-      : inputId;
-    normalizedInputs[cleanKey] = value;
-  }
-
-  const { modelSelections, remainingInputs } =
-    extractModelSelectionsFromInputs(normalizedInputs);
-
-  return serializeInputsToYaml({
-    inputs: remainingInputs,
-    models: modelSelections,
-  });
-}
-
-function determineRunStatus(revision, artifactEventsByRevision) {
-  const events = artifactEventsByRevision.get(revision) ?? [];
-  if (events.length === 0) {
-    return 'planned';
-  }
-
-  if (events.some((event) => event.status === 'failed')) {
-    return 'failed';
-  }
-
-  return 'succeeded';
-}
-
-async function ensureNoPartialBackfill(snapshotPath, runRecordPath) {
-  const hasSnapshot = existsSync(snapshotPath);
-  const hasRunRecord = existsSync(runRecordPath);
-
-  if (hasSnapshot && hasRunRecord) {
-    return 'already-backfilled';
-  }
-
-  if (hasSnapshot || hasRunRecord) {
+function assertExistingEventsAreCompatible(buildDir, revision, existingEvents, desiredEvents) {
+  if (existingEvents.length > desiredEvents.length) {
     throw new Error(
-      `Refusing partial migration because only one backfill file exists:\n` +
-        `- snapshot: ${snapshotPath} (${hasSnapshot ? 'present' : 'missing'})\n` +
-        `- run record: ${runRecordPath} (${hasRunRecord ? 'present' : 'missing'})`
+      `${buildDir}: revision "${revision}" already has ${existingEvents.length} lifecycle events, but the legacy run record only maps to ${desiredEvents.length}.`
     );
   }
 
-  return 'needs-backfill';
+  for (let index = 0; index < existingEvents.length; index += 1) {
+    const existingSerialized = JSON.stringify(existingEvents[index]);
+    const desiredSerialized = JSON.stringify(desiredEvents[index]);
+    if (existingSerialized !== desiredSerialized) {
+      throw new Error(
+        `${buildDir}: revision "${revision}" has existing lifecycle event #${index + 1} that does not match the legacy run record.\n` +
+          `existing: ${existingSerialized}\n` +
+          `desired:  ${desiredSerialized}`
+      );
+    }
+  }
 }
 
-async function writeTextFile(targetPath, content) {
-  await mkdir(dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, content, 'utf8');
+async function appendRunEvents(logPath, events) {
+  if (events.length === 0) {
+    return;
+  }
+
+  await mkdir(dirname(logPath), { recursive: true });
+  const payload = `${events.map((event) => JSON.stringify(event)).join('\n')}\n`;
+  await appendFile(logPath, payload, 'utf8');
 }
 
 async function migrateBuild(buildDir, options) {
-  const metadata = await readBuildMetadata(buildDir);
-  const planPaths = await listPlanFiles(buildDir);
-  const eligibility = evaluateBuildEligibility(buildDir, metadata, planPaths);
-
-  if (!eligibility.eligible) {
+  const runRecordPaths = await listRunRecordFiles(buildDir);
+  if (runRecordPaths.length === 0) {
     return {
       kind: 'skipped',
-      reason: eligibility.reason,
+      reason: 'no legacy runs/*-run.json files found',
       buildDir,
     };
   }
 
-  const inputEventLines = await readJsonLines(eligibility.inputsLogPath, eligibility.inputsLogPath);
-  const artifactEventLines = await readJsonLines(
-    eligibility.artifactsLogPath,
-    eligibility.artifactsLogPath
+  const runsLogPath = join(buildDir, 'events', 'runs.log');
+  const artifactsLogPath = join(buildDir, 'events', 'artifacts.log');
+  const existingEventLines = await readJsonLines(runsLogPath, runsLogPath);
+  const artifactEventLines = await readJsonLines(artifactsLogPath, artifactsLogPath);
+  const existingEventsByRevision = groupExistingRunEvents(existingEventLines);
+  const artifactEventsByRevision = groupExistingRunEvents(
+    artifactEventLines.map((line) => ({
+      ...line,
+      value: {
+        ...line.value,
+        type: line.value.status,
+      },
+    }))
   );
 
-  const revisions = planPaths.map((planPath) => getRevisionFromPlanPath(planPath));
-  const revisionInputs = buildRevisionInputs(inputEventLines, revisions, buildDir);
-  const artifactEventsByRevision = groupArtifactEventsByRevision(artifactEventLines, buildDir);
+  const pendingWrites = [];
+  let revisionsScanned = 0;
 
-  const buildChanges = [];
-  let alreadyBackfilledRevisions = 0;
+  for (const runRecordPath of runRecordPaths) {
+    const record = await readJsonFile(runRecordPath, runRecordPath);
+    validateRunRecord(record, runRecordPath);
+    revisionsScanned += 1;
 
-  for (const planPath of planPaths) {
-    const revision = getRevisionFromPlanPath(planPath);
-    const snapshotPath = join(buildDir, 'runs', `${revision}-inputs.yaml`);
-    const runRecordPath = join(buildDir, 'runs', `${revision}-run.json`);
-    const partialState = await ensureNoPartialBackfill(snapshotPath, runRecordPath);
-
-    if (partialState === 'already-backfilled') {
-      alreadyBackfilledRevisions += 1;
-      continue;
-    }
-
+    const planPath = join(buildDir, record.planPath);
     const plan = await readJsonFile(planPath, planPath);
-    if (typeof plan.createdAt !== 'string' || plan.createdAt.length === 0) {
-      throw new Error(`${planPath}: missing a valid "createdAt" timestamp.`);
-    }
+    const planSummary = summarizePlan(planPath, plan);
 
-    const snapshotContent = buildSnapshotYaml(revisionInputs.get(revision));
-    const snapshotHash = hashContent(snapshotContent);
-    const relativeSnapshotPath = `runs/${revision}-inputs.yaml`;
-    const relativePlanPath = `runs/${revision}-plan.json`;
-    const runRecord = {
-      revision,
-      createdAt: plan.createdAt,
-      blueprintPath: metadata.value.blueprintPath,
-      inputSnapshotPath: relativeSnapshotPath,
-      inputSnapshotHash: snapshotHash,
-      planPath: relativePlanPath,
-      runConfig: {},
-      status: determineRunStatus(revision, artifactEventsByRevision),
-    };
-
-    buildChanges.push({
-      revision,
-      snapshotPath,
-      snapshotContent,
-      runRecordPath,
-      runRecordContent: JSON.stringify(runRecord, null, 2),
+    const desiredEvents = buildDesiredEventsFromRunRecord({
+      record,
+      artifactEventsByRevision,
+      planSummary,
     });
+    const existingEvents = existingEventsByRevision.get(record.revision) ?? [];
+    assertExistingEventsAreCompatible(
+      buildDir,
+      record.revision,
+      existingEvents,
+      desiredEvents
+    );
+
+    const eventsToAppend = desiredEvents.slice(existingEvents.length);
+    if (eventsToAppend.length > 0) {
+      pendingWrites.push({
+        revision: record.revision,
+        events: eventsToAppend,
+      });
+    }
   }
 
   if (options.write) {
-    for (const change of buildChanges) {
-      await writeTextFile(change.snapshotPath, change.snapshotContent);
-      await writeTextFile(change.runRecordPath, change.runRecordContent);
+    for (const change of pendingWrites) {
+      await appendRunEvents(runsLogPath, change.events);
     }
   }
 
   return {
-    kind: 'migrated',
+    kind: pendingWrites.length === 0 ? 'already-migrated' : 'migrated',
     buildDir,
-    revisionsScanned: revisions.length,
-    revisionsChanged: buildChanges.length,
-    alreadyBackfilledRevisions,
-    changes: buildChanges.map((change) => ({
+    revisionsScanned,
+    eventsAppended: pendingWrites.reduce(
+      (total, change) => total + change.events.length,
+      0
+    ),
+    changes: pendingWrites.map((change) => ({
       revision: change.revision,
-      snapshotPath: change.snapshotPath,
-      runRecordPath: change.runRecordPath,
+      eventTypes: change.events.map((event) => event.type),
     })),
   };
 }
@@ -493,7 +533,7 @@ async function main() {
       const result = await migrateBuild(buildDir, options);
 
       if (result.kind === 'skipped') {
-        summary.skippedIncompleteBuilds += 1;
+        summary.buildsSkipped += 1;
         summary.skippedBuilds.push({
           buildDir: result.buildDir,
           reason: result.reason,
@@ -501,23 +541,23 @@ async function main() {
         continue;
       }
 
-      summary.eligibleBuilds += 1;
+      summary.buildsWithRunRecords += 1;
       summary.revisionsScanned += result.revisionsScanned;
-      summary.revisionsChanged += result.revisionsChanged;
-      summary.runRecordsWritten += result.revisionsChanged;
-      summary.snapshotsWritten += result.revisionsChanged;
-      summary.alreadyBackfilledRevisions += result.alreadyBackfilledRevisions;
 
-      if (result.revisionsChanged > 0) {
-        summary.buildsChanged += 1;
-        summary.changedBuilds.push({
-          buildDir: result.buildDir,
-          revisionsChanged: result.revisionsChanged,
-          changes: result.changes,
-        });
+      if (result.kind === 'already-migrated') {
+        summary.buildsAlreadyMigrated += 1;
+        continue;
       }
+
+      summary.buildsChanged += 1;
+      summary.eventsAppended += result.eventsAppended;
+      summary.changedBuilds.push({
+        buildDir: result.buildDir,
+        eventsAppended: result.eventsAppended,
+        changes: result.changes,
+      });
     } catch (error) {
-      summary.failedBuilds += 1;
+      summary.buildsFailed += 1;
       summary.failures.push({
         buildDir,
         error: error instanceof Error ? error.message : String(error),
@@ -527,7 +567,7 @@ async function main() {
 
   printSummary(summary);
 
-  if (summary.failedBuilds > 0) {
+  if (summary.buildsFailed > 0) {
     process.exitCode = 1;
   }
 }

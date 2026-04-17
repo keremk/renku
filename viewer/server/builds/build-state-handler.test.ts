@@ -7,7 +7,13 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { RuntimeErrorCode } from '@gorenku/core';
+import {
+  createEventLog,
+  createRunLifecycleService,
+  createStorageContext,
+  initializeMovieStorage,
+  RuntimeErrorCode,
+} from '@gorenku/core';
 import { getBuildState } from './build-state-handler.js';
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -53,11 +59,10 @@ describe('getBuildState', () => {
     expect(result.artifacts).toEqual([]);
   });
 
-  it('surfaces malformed run record JSON instead of returning an empty response', async () => {
-    await fs.mkdir(path.join(movieDir, 'runs'), { recursive: true });
+  it('surfaces malformed run lifecycle JSON instead of returning an empty response', async () => {
     await fs.writeFile(
-      path.join(movieDir, 'runs', 'rev-0001-run.json'),
-      '{"revision":',
+      path.join(movieDir, 'events', 'runs.log'),
+      '{"type":"run-planned"',
       'utf8'
     );
 
@@ -125,6 +130,265 @@ describe('getBuildState', () => {
         },
       },
     ]);
+  });
+
+  it('keeps snapshot-backed inputs after an artifact-only revision', async () => {
+    await fs.mkdir(path.join(movieDir, 'runs'), { recursive: true });
+    await fs.writeFile(
+      path.join(movieDir, 'events', 'runs.log'),
+      [
+        JSON.stringify({
+          type: 'run-planned',
+          revision: 'rev-0001',
+          createdAt: '2024-01-01T00:00:00Z',
+          inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
+          inputSnapshotHash: 'snapshot-hash-1',
+          planPath: 'runs/rev-0001-plan.json',
+          runConfig: {},
+        }),
+        '',
+      ].join('\n')
+    );
+    await fs.writeFile(
+      path.join(movieDir, 'runs', 'rev-0001-inputs.yaml'),
+      ['inputs:', '  InquiryPrompt: "Hello from snapshot"', '  Duration: 30', ''].join(
+        '\n'
+      ),
+      'utf8'
+    );
+    await fs.writeFile(
+      path.join(movieDir, 'events', 'artifacts.log'),
+      [
+        JSON.stringify({
+          artifactId: 'Artifact:ImageGen.Output',
+          revision: 'rev-0002',
+          inputsHash: 'image-inputs',
+          output: {
+            blob: { hash: 'imgHash123', size: 500, mimeType: 'image/png' },
+          },
+          status: 'succeeded',
+          producedBy: 'Producer:ImageGen[0]',
+          producerId: 'Producer:ImageGen',
+          createdAt: '2024-01-02T00:00:00Z',
+          editedBy: 'user',
+          originalHash: 'imgHash000',
+        }),
+        '',
+      ].join('\n')
+    );
+
+    const result = await getBuildState(blueprintFolder, movieId);
+
+    expect(result.revision).toBe('rev-0002');
+    expect(result.inputs).toEqual({
+      InquiryPrompt: 'Hello from snapshot',
+      Duration: 30,
+    });
+  });
+
+  it('keeps planned-only revisions out of the displayed build state', async () => {
+    const storage = createStorageContext({
+      kind: 'local',
+      rootDir: blueprintFolder,
+      basePath: 'builds',
+    });
+    await initializeMovieStorage(storage, movieId);
+
+    await fs.writeFile(
+      path.join(movieDir, 'inputs.yaml'),
+      ['inputs:', '  InquiryPrompt: "Draft only"', '  Duration: 30', ''].join(
+        '\n'
+      ),
+      'utf8'
+    );
+
+    const eventLog = createEventLog(storage);
+    await eventLog.appendInput(movieId, {
+      id: 'Input:InquiryPrompt',
+      revision: 'rev-0003',
+      hash: 'draft-hash',
+      payload: 'Draft only',
+      editedBy: 'user',
+      createdAt: '2024-01-03T00:00:00Z',
+    });
+
+    const runLifecycleService = createRunLifecycleService(storage);
+    await runLifecycleService.appendPlanned(movieId, {
+      type: 'run-planned',
+      revision: 'rev-0003',
+      createdAt: '2024-01-03T00:00:00Z',
+      inputSnapshotPath: 'runs/rev-0003-inputs.yaml',
+      inputSnapshotHash: 'snapshot-hash-3',
+      planPath: 'runs/rev-0003-plan.json',
+      runConfig: {},
+    });
+
+    const result = await getBuildState(blueprintFolder, movieId);
+
+    expect(result.revision).toBeNull();
+    expect(result.inputs).toEqual({
+      InquiryPrompt: 'Draft only',
+      Duration: 30,
+    });
+  });
+
+  it('does not use a snapshot from a run newer than the displayed revision', async () => {
+    await fs.mkdir(path.join(movieDir, 'runs'), { recursive: true });
+    await fs.writeFile(
+      path.join(movieDir, 'events', 'runs.log'),
+      [
+        JSON.stringify({
+          type: 'run-planned',
+          revision: 'rev-0001',
+          createdAt: '2024-01-01T00:00:00Z',
+          inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
+          inputSnapshotHash: 'snapshot-hash-1',
+          planPath: 'runs/rev-0001-plan.json',
+          runConfig: {},
+        }),
+        JSON.stringify({
+          type: 'run-planned',
+          revision: 'rev-0003',
+          createdAt: '2024-01-03T00:00:00Z',
+          inputSnapshotPath: 'runs/rev-0003-inputs.yaml',
+          inputSnapshotHash: 'snapshot-hash-3',
+          planPath: 'runs/rev-0003-plan.json',
+          runConfig: {},
+        }),
+        '',
+      ].join('\n')
+    );
+    await fs.writeFile(
+      path.join(movieDir, 'runs', 'rev-0001-inputs.yaml'),
+      ['inputs:', '  InquiryPrompt: "Older snapshot"', '  Duration: 30', ''].join(
+        '\n'
+      ),
+      'utf8'
+    );
+    await fs.writeFile(
+      path.join(movieDir, 'runs', 'rev-0003-inputs.yaml'),
+      ['inputs:', '  InquiryPrompt: "Future snapshot"', '  Duration: 90', ''].join(
+        '\n'
+      ),
+      'utf8'
+    );
+    await fs.writeFile(
+      path.join(movieDir, 'events', 'artifacts.log'),
+      [
+        JSON.stringify({
+          artifactId: 'Artifact:ImageGen.Output',
+          revision: 'rev-0002',
+          inputsHash: 'image-inputs',
+          output: {
+            blob: { hash: 'imgHash123', size: 500, mimeType: 'image/png' },
+          },
+          status: 'succeeded',
+          producedBy: 'Producer:ImageGen[0]',
+          producerId: 'Producer:ImageGen',
+          createdAt: '2024-01-02T00:00:00Z',
+        }),
+        '',
+      ].join('\n')
+    );
+
+    const result = await getBuildState(blueprintFolder, movieId);
+
+    expect(result.revision).toBe('rev-0002');
+    expect(result.inputs).toEqual({
+      InquiryPrompt: 'Older snapshot',
+      Duration: 30,
+    });
+  });
+
+  it('does not advance the displayed revision when a newer plan only records input events', async () => {
+    const storage = createStorageContext({
+      kind: 'local',
+      rootDir: blueprintFolder,
+      basePath: 'builds',
+    });
+    await initializeMovieStorage(storage, movieId);
+
+    const eventLog = createEventLog(storage);
+    await eventLog.appendArtifact(movieId, {
+      artifactId: 'Artifact:ImageGen.Output',
+      revision: 'rev-0002',
+      inputsHash: 'image-inputs',
+      output: {
+        blob: { hash: 'imgHash123', size: 500, mimeType: 'image/png' },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:ImageGen[0]',
+      producerId: 'Producer:ImageGen',
+      createdAt: '2024-01-02T00:00:00Z',
+    });
+    await eventLog.appendInput(movieId, {
+      id: 'Input:InquiryPrompt',
+      revision: 'rev-0003',
+      hash: 'future-input-hash',
+      payload: 'Future draft',
+      editedBy: 'user',
+      createdAt: '2024-01-03T00:00:00Z',
+    });
+
+    const runLifecycleService = createRunLifecycleService(storage);
+    const olderSnapshot = await runLifecycleService.writeInputSnapshot(
+      movieId,
+      'rev-0002',
+      Buffer.from(
+        ['inputs:', '  InquiryPrompt: "Older snapshot"', '  Duration: 30', ''].join(
+          '\n'
+        ),
+        'utf8'
+      )
+    );
+    const futureSnapshot = await runLifecycleService.writeInputSnapshot(
+      movieId,
+      'rev-0003',
+      Buffer.from(
+        ['inputs:', '  InquiryPrompt: "Future snapshot"', '  Duration: 90', ''].join(
+          '\n'
+        ),
+        'utf8'
+      )
+    );
+
+    await runLifecycleService.appendPlanned(movieId, {
+      type: 'run-planned',
+      revision: 'rev-0002',
+      createdAt: '2024-01-02T00:00:00Z',
+      inputSnapshotPath: olderSnapshot.path,
+      inputSnapshotHash: olderSnapshot.hash,
+      planPath: 'runs/rev-0002-plan.json',
+      runConfig: {},
+    });
+    await runLifecycleService.appendCompleted(movieId, {
+      type: 'run-completed',
+      revision: 'rev-0002',
+      completedAt: '2024-01-02T00:10:00Z',
+      status: 'succeeded',
+      summary: {
+        jobCount: 1,
+        counts: { succeeded: 1, failed: 0, skipped: 0 },
+        layers: 1,
+      },
+    });
+    await runLifecycleService.appendPlanned(movieId, {
+      type: 'run-planned',
+      revision: 'rev-0003',
+      createdAt: '2024-01-03T00:00:00Z',
+      inputSnapshotPath: futureSnapshot.path,
+      inputSnapshotHash: futureSnapshot.hash,
+      planPath: 'runs/rev-0003-plan.json',
+      runConfig: {},
+    });
+
+    const result = await getBuildState(blueprintFolder, movieId);
+
+    expect(result.revision).toBe('rev-0002');
+    expect(result.inputs).toEqual({
+      InquiryPrompt: 'Older snapshot',
+      Duration: 30,
+    });
   });
 
   it('returns artifacts from the event log', async () => {

@@ -8,14 +8,14 @@
 
 ### Source of truth & filesystem
 - CLI `init` ensures `${root}/builds`. Each movie run writes under `builds/<movieId>` (see `core/src/storage.ts`).
-- The current `BuildState` is reconstructed from `events/` plus the latest run record, not loaded from a persisted manifest snapshot.
+- The current `BuildState` is reconstructed from event history. Input/artifact events define the runtime state, and explicit run lifecycle events provide per-run metadata such as plan paths, snapshots, and status.
 - Timeline artifact (e.g. `Artifact:TimelineComposer.Timeline`) is resolved from the latest succeeded artifact event and then loaded from `blobs/<prefix>/<hash>`.
 - Workspaces hold user edits but aren’t the source of truth; viewer always reads from `builds/`.
 
 ### Runtime configuration & routes
 1. **Configuration**
    - Env var `VITE_TUTOPANDA_ROOT=/absolute/path/to/root` (set by CLI or developer) tells the viewer where `builds/` lives.
-   - Vite `server.fs.allow` includes that root so middleware can read build-state inputs, run records, event logs, and blobs during dev. For the production bundle we mount the same middleware inside a lightweight Node server.
+   - Vite `server.fs.allow` includes that root so middleware can read build-state inputs, lifecycle logs, event logs, and blobs during dev. For the production bundle we mount the same middleware inside a lightweight Node server.
 2. **Routes**
    - `/movies/:movieId` renders the viewer for a specific build/timeline.
    - `/` may later list movies; for now it can instruct users to navigate directly.
@@ -25,7 +25,7 @@ Browser code never touches the filesystem directly; Vite middleware exposes a sc
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /viewer-api/movies/:movieId/build-state` | Builds the current artifact/input view from event logs, run records, and authored inputs. |
+| `GET /viewer-api/movies/:movieId/build-state` | Builds the current artifact/input view from event logs, run lifecycle events, and authored inputs. |
 | `GET /viewer-api/movies/:movieId/timeline` | Convenience endpoint that pulls `Artifact:TimelineComposer.Timeline` (inline or blob) and returns parsed `TimelineDocument`. |
 | `GET /viewer-api/movies/:movieId/assets/:canonicalId` | Resolves canonical artifact IDs to either inline text (for prompts) or a streamed blob. |
 | `GET /viewer-api/movies/:movieId/files/:hash` | Direct blob access when we already know the artifact hash. |

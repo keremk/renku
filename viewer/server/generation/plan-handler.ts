@@ -30,7 +30,7 @@ import {
   convertArtifactOverridesToDrafts,
   persistArtifactOverrideBlobs,
   deriveSurgicalInfoArray,
-  createRunRecordService,
+  createRunLifecycleService,
   createRuntimeError,
   type BuildState,
   type ExecutionPlan,
@@ -96,17 +96,17 @@ export async function resolveExistingBuildInputsPath(
     rootDir: blueprintFolder,
     basePath: 'builds',
   });
-  const runRecordService = createRunRecordService(storage);
-  const latestRunRecord = await runRecordService.loadLatest(movieId);
+  const runLifecycleService = createRunLifecycleService(storage);
+  const latestRun = await runLifecycleService.loadLatest(movieId);
 
-  if (!latestRunRecord) {
+  if (!latestRun) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_REQUIRED_INPUT,
       `Build "${movieId}" has no editable inputs.yaml and no saved input snapshot.`,
       {
         suggestion:
           `Expected either "${blueprintFolder}/builds/${movieId}/inputs.yaml" ` +
-          `or a latest run record with a valid input snapshot.`,
+          `or a latest run lifecycle entry with a valid input snapshot.`,
       }
     );
   }
@@ -115,13 +115,13 @@ export async function resolveExistingBuildInputsPath(
     blueprintFolder,
     'builds',
     movieId,
-    latestRunRecord.inputSnapshotPath
+    latestRun.inputSnapshotPath
   );
 
   if (!existsSync(snapshotInputsPath)) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_REQUIRED_INPUT,
-      `Build "${movieId}" is missing its saved input snapshot for revision "${latestRunRecord.revision}".`,
+      `Build "${movieId}" is missing its saved input snapshot for revision "${latestRun.revision}".`,
       {
         suggestion:
           `Expected snapshot at "${snapshotInputsPath}". Re-enable editing for the build ` +
@@ -607,18 +607,17 @@ async function generatePlan(
       });
 
       const inputSnapshotBytes = await readFile(inputsPath);
-      const runRecordService = createRunRecordService(localStorageContext);
+      const runLifecycleService = createRunLifecycleService(localStorageContext);
       const { path: inputSnapshotPath, hash: inputSnapshotHash } =
-        await runRecordService.writeInputSnapshot(
+        await runLifecycleService.writeInputSnapshot(
           movieId,
           planResult.plan.revision,
           inputSnapshotBytes
         );
-      await runRecordService.write(movieId, {
+      await runLifecycleService.appendPlanned(movieId, {
+        type: 'run-planned',
         revision: planResult.plan.revision,
         createdAt: planResult.plan.createdAt,
-        blueprintPath,
-        sourceInputsPath: inputsPath,
         inputSnapshotPath,
         inputSnapshotHash,
         planPath: `runs/${planResult.plan.revision}-plan.json`,
@@ -630,7 +629,6 @@ async function generatePlan(
             ? { regenerateIds: planningControls.surgical.regenerateIds }
             : {}),
         },
-        status: 'planned',
       });
     },
   };

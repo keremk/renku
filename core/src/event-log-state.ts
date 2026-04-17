@@ -2,7 +2,7 @@ import { isCanonicalArtifactId, isCanonicalInputId } from './canonical-ids.js';
 import type { EventLog } from './event-log.js';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import { hashPayload } from './hashing.js';
-import { latestRevisionId } from './revisions.js';
+import { compareRevisionIds, latestRevisionId } from './revisions.js';
 import type {
   ArtifactEvent,
   BuildState,
@@ -18,10 +18,30 @@ export async function readEventLogState(args: {
   eventLog: EventLog;
   movieId: string;
 }): Promise<EventLogState> {
+  return readEventLogStateWithinRevisionWindow(args);
+}
+
+export async function readEventLogStateAtRevision(args: {
+  eventLog: EventLog;
+  movieId: string;
+  targetRevision: RevisionId;
+}): Promise<EventLogState> {
+  return readEventLogStateWithinRevisionWindow(args);
+}
+
+async function readEventLogStateWithinRevisionWindow(args: {
+  eventLog: EventLog;
+  movieId: string;
+  targetRevision?: RevisionId;
+}): Promise<EventLogState> {
   const latestInputsById = new Map<string, InputEvent>();
+  const revisionCreatedAtByRevision = new Map<RevisionId, string>();
   let latestRevision: RevisionId | null = null;
 
   for await (const event of args.eventLog.streamInputs(args.movieId)) {
+    if (isAfterTargetRevision(event.revision, args.targetRevision)) {
+      continue;
+    }
     if (!isCanonicalInputId(event.id)) {
       throw createRuntimeError(
         RuntimeErrorCode.NON_CANONICAL_INPUT_ID,
@@ -30,6 +50,11 @@ export async function readEventLogState(args: {
       );
     }
     latestInputsById.set(event.id, event);
+    recordRevisionCreatedAt(
+      revisionCreatedAtByRevision,
+      event.revision,
+      event.createdAt
+    );
     latestRevision = latestRevisionId(latestRevision, event.revision);
   }
 
@@ -38,6 +63,9 @@ export async function readEventLogState(args: {
   const latestFailedArtifactIds = new Set<string>();
 
   for await (const event of args.eventLog.streamArtifacts(args.movieId)) {
+    if (isAfterTargetRevision(event.revision, args.targetRevision)) {
+      continue;
+    }
     if (!isCanonicalArtifactId(event.artifactId)) {
       throw createRuntimeError(
         RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
@@ -46,6 +74,11 @@ export async function readEventLogState(args: {
       );
     }
     latestArtifactsById.set(event.artifactId, event);
+    recordRevisionCreatedAt(
+      revisionCreatedAtByRevision,
+      event.revision,
+      event.createdAt
+    );
     latestRevision = latestRevisionId(latestRevision, event.revision);
   }
 
@@ -61,11 +94,34 @@ export async function readEventLogState(args: {
 
   return {
     latestRevision,
+    revisionCreatedAtByRevision,
     latestInputsById,
     latestArtifactsById,
     latestSucceededArtifactIds,
     latestFailedArtifactIds,
   };
+}
+
+function isAfterTargetRevision(
+  revision: RevisionId,
+  targetRevision?: RevisionId
+): boolean {
+  if (!targetRevision) {
+    return false;
+  }
+
+  return compareRevisionIds(revision, targetRevision) > 0;
+}
+
+function recordRevisionCreatedAt(
+  revisionCreatedAtByRevision: Map<RevisionId, string>,
+  revision: RevisionId,
+  createdAt: string
+): void {
+  const existing = revisionCreatedAtByRevision.get(revision);
+  if (!existing || createdAt < existing) {
+    revisionCreatedAtByRevision.set(revision, createdAt);
+  }
 }
 
 export function buildBuildStateFromEventLogState(args: {

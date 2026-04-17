@@ -13,7 +13,7 @@ import type {
   JobDescriptor,
 } from '@gorenku/core';
 import {
-  createRunRecordService,
+  createRunLifecycleService,
   createStorageContext,
   initializeMovieStorage,
   RuntimeErrorCode,
@@ -484,22 +484,20 @@ describe('resolveExistingBuildInputsPath', () => {
       });
       await initializeMovieStorage(storage, movieId);
 
-      const runRecordService = createRunRecordService(storage);
-      const snapshot = await runRecordService.writeInputSnapshot(
+      const runLifecycleService = createRunLifecycleService(storage);
+      const snapshot = await runLifecycleService.writeInputSnapshot(
         movieId,
         'rev-0007',
         Buffer.from('Prompt: snapshot\n', 'utf8')
       );
-      await runRecordService.write(movieId, {
+      await runLifecycleService.appendPlanned(movieId, {
+        type: 'run-planned',
         revision: 'rev-0007',
         createdAt: '2026-01-01T00:00:00.000Z',
-        blueprintPath: '/tmp/blueprint.yaml',
-        sourceInputsPath: '/tmp/inputs.yaml',
         inputSnapshotPath: snapshot.path,
         inputSnapshotHash: snapshot.hash,
         planPath: 'runs/rev-0007-plan.json',
         runConfig: {},
-        status: 'planned',
       });
 
       await expect(

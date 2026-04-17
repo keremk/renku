@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  createRunRecordService,
+  createRunLifecycleService,
   createStorageContext,
   initializeMovieStorage,
   RuntimeErrorCode,
@@ -26,22 +26,20 @@ describe("enableBuildEditing", () => {
       });
       await initializeMovieStorage(storage, movieId);
 
-      const runRecordService = createRunRecordService(storage);
-      const snapshot = await runRecordService.writeInputSnapshot(
+      const runLifecycleService = createRunLifecycleService(storage);
+      const snapshot = await runLifecycleService.writeInputSnapshot(
         movieId,
         "rev-0001",
         Buffer.from("Prompt: snapshot-value\n", "utf8"),
       );
-      await runRecordService.write(movieId, {
+      await runLifecycleService.appendPlanned(movieId, {
+        type: "run-planned",
         revision: "rev-0001",
         createdAt: "2026-01-01T00:00:00.000Z",
-        blueprintPath: "/tmp/blueprint.yaml",
-        sourceInputsPath: "/tmp/inputs.yaml",
         inputSnapshotPath: snapshot.path,
         inputSnapshotHash: snapshot.hash,
         planPath: "runs/rev-0001-plan.json",
         runConfig: {},
-        status: "planned",
       });
 
       await enableBuildEditing(blueprintFolder, movieId);
@@ -78,22 +76,20 @@ describe("enableBuildEditing", () => {
       const inputsPath = path.join(buildDir, "inputs.yaml");
       await writeFile(inputsPath, "Prompt: keep-me\n", "utf8");
 
-      const runRecordService = createRunRecordService(storage);
-      const snapshot = await runRecordService.writeInputSnapshot(
+      const runLifecycleService = createRunLifecycleService(storage);
+      const snapshot = await runLifecycleService.writeInputSnapshot(
         movieId,
         "rev-0002",
         Buffer.from("Prompt: snapshot-value\n", "utf8"),
       );
-      await runRecordService.write(movieId, {
+      await runLifecycleService.appendPlanned(movieId, {
+        type: "run-planned",
         revision: "rev-0002",
         createdAt: "2026-01-01T00:00:00.000Z",
-        blueprintPath: "/tmp/blueprint.yaml",
-        sourceInputsPath: "/tmp/inputs.yaml",
         inputSnapshotPath: snapshot.path,
         inputSnapshotHash: snapshot.hash,
         planPath: "runs/rev-0002-plan.json",
         runConfig: {},
-        status: "planned",
       });
 
       await enableBuildEditing(blueprintFolder, movieId);
@@ -106,7 +102,7 @@ describe("enableBuildEditing", () => {
     }
   });
 
-  it("fails fast when the build has no saved run record", async () => {
+  it("fails fast when the build has no saved run lifecycle entry", async () => {
     const blueprintFolder = await mkdtemp(
       path.join(tmpdir(), "viewer-enable-editing-"),
     );
@@ -144,17 +140,15 @@ describe("enableBuildEditing", () => {
       });
       await initializeMovieStorage(storage, movieId);
 
-      const runRecordService = createRunRecordService(storage);
-      await runRecordService.write(movieId, {
+      const runLifecycleService = createRunLifecycleService(storage);
+      await runLifecycleService.appendPlanned(movieId, {
+        type: "run-planned",
         revision: "rev-0003",
         createdAt: "2026-01-01T00:00:00.000Z",
-        blueprintPath: "/tmp/blueprint.yaml",
-        sourceInputsPath: "/tmp/inputs.yaml",
         inputSnapshotPath: "runs/rev-0003-inputs.yaml",
         inputSnapshotHash: "snapshot-hash",
         planPath: "runs/rev-0003-plan.json",
         runConfig: {},
-        status: "planned",
       });
 
       await expect(enableBuildEditing(blueprintFolder, movieId)).rejects.toMatchObject(

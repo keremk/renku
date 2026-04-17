@@ -122,9 +122,9 @@ describe('runExecute (edit flow)', () => {
 		expect(editResult.targetRevision).toBe('rev-0002');
 		expect(editResult.isDryRun).toBeFalsy();
 		expect(editResult.build?.status).toBe('succeeded');
-		expect(editResult.build?.runRecordPath).toBeDefined();
-		const runRecordStats = await stat(editResult.build!.runRecordPath);
-		expect(runRecordStats.isFile()).toBe(true);
+		expect(editResult.build?.runLogPath).toBeDefined();
+		const runLogStats = await stat(editResult.build!.runLogPath);
+		expect(runLogStats.isFile()).toBe(true);
 	});
 
 	it('supports dry run mode', async () => {

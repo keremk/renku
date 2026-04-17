@@ -175,6 +175,7 @@ export async function initializeMovieStorage(
 
   await ensureFile(storage, path.join(eventsDir, 'inputs.log'), '');
   await ensureFile(storage, path.join(eventsDir, 'artifacts.log'), '');
+  await ensureFile(storage, path.join(eventsDir, 'runs.log'), '');
 }
 
 export const planStore = {

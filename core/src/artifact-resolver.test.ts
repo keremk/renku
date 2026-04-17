@@ -420,8 +420,12 @@ function createMockEventLog(events: ArtifactEvent[]): EventLog {
         yield event;
       }
     },
+    async *streamRuns() {
+      // Not needed for these tests
+    },
     async appendInput() {},
     async appendArtifact() {},
+    async appendRun() {},
   };
 }
 

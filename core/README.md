@@ -5,7 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/@gorenku/core.svg)](https://www.npmjs.com/package/@gorenku/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The core library for Renku - handles blueprint loading, execution planning, job orchestration, event logging, run records, and dynamic `BuildState` reconstruction. This package is the foundation for building AI-powered video generation workflows.
+The core library for Renku - handles blueprint loading, execution planning, job orchestration, event logging, run lifecycle tracking, and dynamic `BuildState` reconstruction. This package is the foundation for building AI-powered video generation workflows.
 
 Authoring and runtime terminology in core is intentionally split:
 
@@ -20,7 +20,7 @@ Authoring and runtime terminology in core is intentionally split:
 - **Blueprint parsing and validation** - Load and validate YAML workflow definitions
 - **Execution planning** - Build dependency graphs and create layered execution plans
 - **Job orchestration** - Run jobs in parallel with automatic dependency resolution
-- **State management** - Rebuild current runtime state from event logs and run records whenever core needs a current view
+- **State management** - Rebuild current runtime state from event logs and run lifecycle history whenever core needs a current view
 - **Storage abstraction** - Local filesystem and S3 cloud storage support
 
 This is a developer-focused package. If you're looking to generate videos from the command line, use [@gorenku/cli](../cli/README.md) instead.
@@ -62,8 +62,8 @@ pnpm add @gorenku/core
 - `createCloudStorageContext()` - S3-based cloud storage entry point
 - `createEventLog()` - Records input and artifact events for execution history, debugging, and auditing
 - `BuildState` - In-memory snapshot of the latest known inputs, artifacts, revision, and run configuration
-- `createBuildStateService()` - Rebuilds the latest `BuildState` view from persisted event history and run records
-- `createRunRecordService()` - Reads and writes per-run metadata such as plan paths, input snapshots, status, and summaries
+- `createBuildStateService()` - Rebuilds the latest `BuildState` view from persisted event history plus run lifecycle metadata
+- `createRunLifecycleService()` - Appends and reads explicit run lifecycle events plus snapshot references
 
 ### Types
 
@@ -103,19 +103,19 @@ The runner executes the plan layer by layer, running independent jobs in paralle
 
 - input events in the event log
 - artifact events in the event log
-- run records for per-run metadata such as plan paths, input snapshot paths, status, and summaries
+- run lifecycle events for per-run metadata such as plan paths, input snapshot paths, status, and summaries
 
 Core rebuilds `BuildState` from that history whenever planning, execution, or read APIs need the current state. That means the snapshot always comes from the same persisted history the runtime just wrote.
 
-This matters especially after a run. Execution appends new input events, artifact events, and run-record data first, and only then exposes a fresh `BuildState` snapshot. In other words, `runResult.buildStateSnapshot()` is a rebuild from the updated source of truth, not a lightly patched copy of the state that was passed into the run.
+This matters especially after a run. Execution appends new input events, artifact events, and run lifecycle events first, and only then exposes a fresh `BuildState` snapshot. In other words, `runResult.buildStateSnapshot()` is a rebuild from the updated source of truth, not a lightly patched copy of the state that was passed into the run.
 
 ### Event Log
 
 The event log records the runtime history of a movie: input edits, artifact production attempts, failures, and resulting revisions. It is the canonical history stream used to reconstruct current state.
 
-### Run Records
+### Run Lifecycle
 
-Run records store per-revision metadata that does not belong in the event stream itself, such as:
+Explicit run lifecycle events store per-revision metadata alongside the rest of the runtime history, such as:
 
 - plan file paths
 - input snapshot paths and hashes
@@ -123,7 +123,7 @@ Run records store per-revision metadata that does not belong in the event stream
 - run summaries
 - run configuration
 
-Together, event logs and run records let core rebuild a current `BuildState` snapshot without treating that snapshot as the source of truth.
+Together, input events, artifact events, and run lifecycle events let core rebuild a current `BuildState` snapshot without treating that snapshot as the source of truth.
 
 ## Usage Example
 
@@ -171,7 +171,7 @@ const runResult = await runner.execute(planResult.plan, {
 const nextBuildState = await runResult.buildStateSnapshot();
 ```
 
-In that flow, `buildState` is just the planner and runner's current working snapshot. The durable record is still the event log plus run records written during execution, and `nextBuildState` is reconstructed from those persisted writes.
+In that flow, `buildState` is just the planner and runner's current working snapshot. The durable record is still the event history written during execution, and `nextBuildState` is reconstructed from those persisted writes.
 
 ## Development
 
@@ -232,9 +232,9 @@ The core package is organized into several key directories:
   - `planner.ts` - Main planning engine
   - `dirty-checker.ts` - Determines what needs regeneration
 
-- **`build-state.ts`, `event-log.ts`, `run-record.ts`** - Runtime history storage and current-state reconstruction
+- **`build-state.ts`, `event-log.ts`, `run-lifecycle.ts`** - Runtime history storage and current-state reconstruction
   - `event-log.ts` - Append and read runtime events
-  - `run-record.ts` - Persist per-run metadata
+  - `run-lifecycle.ts` - Append and read explicit run lifecycle events
   - `build-state.ts` - Rebuild the latest `BuildState` view from persisted history
 
 - **`orchestration/`** - High-level service coordination

@@ -8,15 +8,17 @@ import path from 'node:path';
 import {
   canonicalizeAuthoredProducerId,
   createBuildStateService,
-  createRunRecordService,
+  createRunLifecycleService,
   createStorageContext,
   isRenkuError,
   loadYamlBlueprintTree,
   parseInputsForDisplay,
   RuntimeErrorCode,
+  type RevisionId,
 } from '@gorenku/core';
 import type { ArtifactInfo, BuildStateResponse } from './types.js';
 import { normalizeNestedModelSelections } from './model-selection-normalizer.js';
+import { resolveDisplayedRevision } from './displayed-revision.js';
 
 const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
@@ -174,7 +176,7 @@ export async function getBuildState(
     basePath: 'builds',
   });
   const buildStateService = createBuildStateService(storage);
-  const runRecordService = createRunRecordService(storage);
+  const runLifecycleService = createRunLifecycleService(storage);
 
   try {
     let buildState: {
@@ -205,8 +207,20 @@ export async function getBuildState(
         throw error;
       }
     }
-    const latestRunRecord = await runRecordService.loadLatest(movieId);
-    const revision = buildState?.revision ?? latestRunRecord?.revision ?? null;
+    const { displayedRevision, latestRunRevision } =
+      await resolveDisplayedRevision({
+        movieDir,
+        movieId,
+        runLifecycleService,
+      });
+    const revision: RevisionId | null = displayedRevision;
+    const displayedRun =
+      revision ? await runLifecycleService.load(movieId, revision) : null;
+    const snapshotSourceRun = revision
+      ? await runLifecycleService.loadLatestAtOrBefore(movieId, revision)
+      : latestRunRevision
+        ? await runLifecycleService.loadLatestAtOrBefore(movieId, latestRunRevision)
+        : null;
 
     const { latestEvents, latestSucceededEvents } =
       await readArtifactHistoryState(movieDir);
@@ -214,8 +228,8 @@ export async function getBuildState(
     let parsedInputs: Record<string, unknown> = {};
     let modelSelections: NonNullable<BuildStateResponse['models']> = [];
     const editableInputsPath = path.join(movieDir, 'inputs.yaml');
-    const snapshotPath = latestRunRecord
-      ? path.join(movieDir, latestRunRecord.inputSnapshotPath)
+    const snapshotPath = snapshotSourceRun
+      ? path.join(movieDir, snapshotSourceRun.inputSnapshotPath)
       : null;
     const authoredInputsPath = existsSync(editableInputsPath)
       ? editableInputsPath
@@ -283,7 +297,7 @@ export async function getBuildState(
           ? canonicalModelSelections
           : undefined,
       artifacts: parsedArtifacts,
-      createdAt: latestRunRecord?.createdAt ?? buildState?.createdAt ?? null,
+      createdAt: displayedRun?.createdAt ?? buildState?.createdAt ?? null,
     };
   } catch (error) {
     if (error instanceof Error) {

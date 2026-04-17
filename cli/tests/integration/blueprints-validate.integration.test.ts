@@ -264,7 +264,7 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 				outputPath: profilePath,
 			});
 
-			expect(profileResult.caseCount).toBeGreaterThan(0);
+			expect(profileResult.caseCount).toBeGreaterThan(1);
 			expect(profileResult.conditionFieldCount).toBeGreaterThan(0);
 
 			const profileContents = await readFile(profilePath, 'utf8');
@@ -300,6 +300,13 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 			expect(result.dryRunValidation?.failedCases).toBe(0);
 			expect(result.dryRunValidation?.failures).toHaveLength(0);
 			expect(result.dryRunValidation?.totalCases).toBeGreaterThan(0);
+
+			const runLifecycleLog = await readFile(
+				resolve(result.storagePath, 'events', 'runs.log'),
+				'utf8'
+			);
+			expect(runLifecycleLog).not.toContain('"type":"run-started"');
+			expect(runLifecycleLog).not.toContain('"type":"run-completed"');
 
 			const buildState = await readBuildState(result.storagePath);
 

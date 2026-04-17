@@ -157,9 +157,9 @@ describe('runGenerate (new runs)', () => {
 		).toBe(true);
 
 		expect(result.build?.status).toBe('succeeded');
-		expect(result.build?.runRecordPath).toBeDefined();
-		const runRecordStats = await stat(result.build!.runRecordPath);
-		expect(runRecordStats.isFile()).toBe(true);
+		expect(result.build?.runLogPath).toBeDefined();
+		const runLogStats = await stat(result.build!.runLogPath);
+		expect(runLogStats.isFile()).toBe(true);
 		const artifactsStats = await stat(result.artifactsRoot ?? '');
 		expect(artifactsStats.isDirectory()).toBe(true);
 		expect(result.rootOutputs).toBeDefined();

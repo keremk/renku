@@ -78,7 +78,11 @@ export async function copyEventsToMemory(
   memoryCtx: StorageContext,
   movieId: string,
 ): Promise<void> {
-  const eventFiles = ['events/inputs.log', 'events/artifacts.log'];
+  const eventFiles = [
+    'events/inputs.log',
+    'events/artifacts.log',
+    'events/runs.log',
+  ];
   for (const eventFile of eventFiles) {
     const localPath = localCtx.resolve(movieId, eventFile);
     if (await localCtx.storage.fileExists(localPath)) {

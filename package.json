@@ -86,6 +86,7 @@
     "bundle:catalog": "node scripts/prepare-catalog-bundle.mjs",
     "catalog:check": "node scripts/check-catalog-sync.mjs",
     "catalog:audit-mappings": "node scripts/audit-producer-mappings.mjs",
+    "migrate:videos:run-lifecycle": "node scripts/migrate-videos-run-records.mjs --write",
     "build:desktop": "pnpm build:workspace && node scripts/prepare-desktop-bundle.mjs && pnpm --filter renku-desktop build",
     "package:desktop": "pnpm build:desktop && pnpm --filter renku-desktop package",
     "package:desktop:dev": "pnpm build:desktop && pnpm --filter renku-desktop package:dev",

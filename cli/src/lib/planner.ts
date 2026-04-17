@@ -23,7 +23,7 @@ import {
 	analyzeConditions,
 	conditionAnalysisToVaryingHints,
 	recoverFailedArtifactsBeforePlanning,
-	createRunRecordService,
+	createRunLifecycleService,
 	type RecoveryPrepassSummary,
 	type RecoveryPrepassDependencies,
 	type BuildState,
@@ -380,18 +380,17 @@ export async function generatePlan(
 			});
 
 			const inputSnapshotBytes = await readFile(options.inputsPath);
-			const runRecordService = createRunRecordService(localStorageContext);
+			const runLifecycleService = createRunLifecycleService(localStorageContext);
 			const { path: inputSnapshotPath, hash: inputSnapshotHash } =
-				await runRecordService.writeInputSnapshot(
+				await runLifecycleService.writeInputSnapshot(
 					movieId,
 					planResult.targetRevision,
 					inputSnapshotBytes
 				);
-			await runRecordService.write(movieId, {
+			await runLifecycleService.appendPlanned(movieId, {
+				type: 'run-planned',
 				revision: planResult.targetRevision,
 				createdAt: planResult.plan.createdAt,
-				blueprintPath,
-				sourceInputsPath: options.inputsPath,
 				inputSnapshotPath,
 				inputSnapshotHash,
 				planPath: `runs/${planResult.targetRevision}-plan.json`,
@@ -403,7 +402,6 @@ export async function generatePlan(
 						? { regenerateIds: planningControls.surgical.regenerateIds }
 						: {}),
 				},
-				status: 'planned',
 			});
 		},
 	};

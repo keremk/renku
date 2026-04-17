@@ -137,6 +137,7 @@ export const RuntimeErrorCode = {
   // R001-R009: Build State
   BUILD_STATE_NOT_FOUND: 'R001',
   INVALID_BUILD_HISTORY_JSON: 'R002',
+  INVALID_RUN_LIFECYCLE_EVENT: 'R003',
 
   // R010-R019: Planning
   CYCLIC_DEPENDENCY: 'R010',

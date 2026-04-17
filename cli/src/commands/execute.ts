@@ -387,30 +387,37 @@ async function executeDryRunWithValidation(args: {
 		basePath: args.cliConfig.storage.basePath,
 	});
 
+	const executeDryRunBuild = async (
+		conditionHints = args.planResult.conditionHints
+	) =>
+		executeBuild({
+			cliConfig: args.cliConfig,
+			movieId: args.storageMovieId,
+			plan: args.planResult.plan,
+			buildState: args.planResult.buildState,
+			baselineHash: baselineHashCursor,
+			executionState: args.planResult.executionState,
+			providerOptions: args.planResult.providerOptions,
+			resolvedInputs: args.planResult.resolvedInputs,
+			catalog: args.planResult.modelCatalog,
+			catalogModelsDir: args.planResult.catalogModelsDir,
+			logger: args.logger,
+			concurrency: args.concurrency,
+			upToLayer: args.upToLayer,
+			regenerateIds: args.regenerateIds,
+			dryRun: true,
+			persistRunLifecycle: false,
+			conditionHints,
+		});
+
 	const dryRunValidation = await runBlueprintDryRunValidation({
 		conditionAnalysis,
 		cases,
 		sourceTestFilePath: loadedScenario?.path,
 		executeCase: async ({ caseDefinition, caseIndex }) => {
-			const buildResult = await executeBuild({
-				cliConfig: args.cliConfig,
-				movieId: args.storageMovieId,
-				plan: args.planResult.plan,
-				buildState: args.planResult.buildState,
-				baselineHash: baselineHashCursor,
-				executionState: args.planResult.executionState,
-				providerOptions: args.planResult.providerOptions,
-				resolvedInputs: args.planResult.resolvedInputs,
-				catalog: args.planResult.modelCatalog,
-				catalogModelsDir: args.planResult.catalogModelsDir,
-				logger: args.logger,
-				concurrency: args.concurrency,
-				upToLayer: args.upToLayer,
-				regenerateIds: args.regenerateIds,
-				dryRun: true,
-				conditionHints:
-					caseDefinition.conditionHints ?? args.planResult.conditionHints,
-			});
+			const buildResult = await executeDryRunBuild(
+				caseDefinition.conditionHints ?? args.planResult.conditionHints
+			);
 
 			baselineHashCursor = buildResult.baselineHash;
 			if (caseIndex === 0) {
@@ -447,25 +454,9 @@ async function executeDryRunWithValidation(args: {
 
 	if (cases.length > 1) {
 		const baselineCase = cases[0]!;
-		const baselineBuildResult = await executeBuild({
-			cliConfig: args.cliConfig,
-			movieId: args.storageMovieId,
-			plan: args.planResult.plan,
-			buildState: args.planResult.buildState,
-			baselineHash: baselineHashCursor,
-			executionState: args.planResult.executionState,
-			providerOptions: args.planResult.providerOptions,
-			resolvedInputs: args.planResult.resolvedInputs,
-			catalog: args.planResult.modelCatalog,
-			catalogModelsDir: args.planResult.catalogModelsDir,
-			logger: args.logger,
-			concurrency: args.concurrency,
-			upToLayer: args.upToLayer,
-			regenerateIds: args.regenerateIds,
-			dryRun: true,
-			conditionHints:
-				baselineCase.conditionHints ?? args.planResult.conditionHints,
-		});
+		const baselineBuildResult = await executeDryRunBuild(
+			baselineCase.conditionHints ?? args.planResult.conditionHints
+		);
 
 		baselineHashCursor = baselineBuildResult.baselineHash;
 		primaryBuildResult = baselineBuildResult;

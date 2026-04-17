@@ -8,7 +8,7 @@ import {
   createEventLog,
   createBuildStateService,
   createMovieMetadataService,
-  createRunRecordService,
+  createRunLifecycleService,
   createStorageContext,
   initializeMovieStorage,
   resolveBlobRefsToInputs,
@@ -25,7 +25,6 @@ import {
   type ExecutionPlan,
   type ExecutionState,
   type RevisionId,
-  type RunConfig,
   type Logger,
   type NotificationBus,
 } from '@gorenku/core';
@@ -146,7 +145,7 @@ interface ExecuteOptions {
   dryRun?: boolean;
 }
 
-function createPersistedRunRecordService(args: {
+function createPersistedRunLifecycleService(args: {
   cliConfig: {
     storage: {
       root: string;
@@ -160,10 +159,10 @@ function createPersistedRunRecordService(args: {
     basePath: args.basePath,
   });
 
-  return createRunRecordService(storage);
+  return createRunLifecycleService(storage);
 }
 
-export async function finalizeCancelledRunRecord(args: {
+export async function finalizeCancelledRun(args: {
   cliConfig: {
     storage: {
       root: string;
@@ -176,25 +175,21 @@ export async function finalizeCancelledRunRecord(args: {
     };
     basePath: string;
   };
-  startedAt?: string;
 }): Promise<void> {
-  const runRecordService = createPersistedRunRecordService({
+  const runLifecycleService = createPersistedRunLifecycleService({
     cliConfig: args.cliConfig,
     basePath: args.cachedPlan.basePath,
   });
-  const existing = await runRecordService.load(
+  const existing = await runLifecycleService.load(
     args.cachedPlan.movieId,
     args.cachedPlan.plan.revision
   );
-  if (!existing) {
+  if (!existing || existing.status === 'cancelled') {
     return;
   }
-
-  await runRecordService.finalize({
-    movieId: args.cachedPlan.movieId,
+  await runLifecycleService.appendCancelled(args.cachedPlan.movieId, {
+    type: 'run-cancelled',
     revision: args.cachedPlan.plan.revision,
-    status: 'cancelled',
-    ...(args.startedAt ? { startedAt: args.startedAt } : {}),
     completedAt: new Date().toISOString(),
   });
 }
@@ -225,6 +220,10 @@ async function executeJobAsync(
   const jobManager = getJobManager();
   const { dryRun = false } = options;
   let runStartedAt: string | undefined;
+  const persistedRunLifecycleService = createPersistedRunLifecycleService({
+    cliConfig,
+    basePath: cachedPlan.basePath,
+  });
 
   // Create logger and notifications for provider execution
   const logger: Logger = createLogger({
@@ -273,7 +272,7 @@ async function executeJobAsync(
     jobManager.removePlan(cachedPlan.planId);
 
     if (jobManager.isJobCancelled(jobId)) {
-      await finalizeCancelledRunRecord({
+      await finalizeCancelledRun({
         cliConfig,
         cachedPlan,
       });
@@ -284,6 +283,21 @@ async function executeJobAsync(
     // Update status to running
     jobManager.updateJobStatus(jobId, 'running');
     runStartedAt = new Date().toISOString();
+    const concurrency = normalizeConcurrency(
+      options.concurrency ?? cliConfig.concurrency
+    );
+    await persistedRunLifecycleService.appendStarted(cachedPlan.movieId, {
+      type: 'run-started',
+      revision: cachedPlan.plan.revision,
+      startedAt: runStartedAt,
+      runConfig: {
+        ...(options.upToLayer !== undefined
+          ? { upToLayer: options.upToLayer }
+          : {}),
+        ...(dryRun ? { dryRun: true } : {}),
+        ...(concurrency !== undefined ? { concurrency } : {}),
+      },
+    });
 
     // Create storage context using the blueprint-relative basePath
     const storage = createStorageContext({
@@ -296,7 +310,6 @@ async function executeJobAsync(
 
     const eventLog = createEventLog(storage);
     const buildStateService = createBuildStateService(storage);
-    const runRecordService = createRunRecordService(storage);
 
     // Load model catalog if available
     const modelCatalog = cachedPlan.catalogModelsDir
@@ -346,10 +359,6 @@ async function executeJobAsync(
       notifications,
       undefined,
       await readLlmInvocationSettings()
-    );
-
-    const concurrency = normalizeConcurrency(
-      options.concurrency ?? cliConfig.concurrency
     );
 
     // Track layer results for summary
@@ -470,17 +479,6 @@ async function executeJobAsync(
       baseRevision: cachedPlan.buildState.revision,
     });
 
-    // Record run configuration
-    const runConfig: RunConfig = {};
-    if (options.upToLayer !== undefined) {
-      runConfig.upToLayer = options.upToLayer;
-    }
-    if (dryRun) {
-      runConfig.dryRun = true;
-    }
-    if (concurrency !== undefined) {
-      runConfig.concurrency = concurrency;
-    }
     if (!dryRun) {
       const artifactsConfig = getCliArtifactsConfig(cliConfig);
       if (artifactsConfig.enabled) {
@@ -503,10 +501,9 @@ async function executeJobAsync(
     }
 
     if (jobManager.isJobCancelled(jobId)) {
-      await finalizeCancelledRunRecord({
+      await finalizeCancelledRun({
         cliConfig,
         cachedPlan,
-        startedAt: run.startedAt,
       });
       jobManager.finalizeCancelledJob(jobId);
       return;
@@ -514,18 +511,16 @@ async function executeJobAsync(
 
     // Build summary
     const summary = summarizeRun(run);
-    await runRecordService.finalize({
-      movieId: cachedPlan.movieId,
+    await persistedRunLifecycleService.appendCompleted(cachedPlan.movieId, {
+      type: 'run-completed',
       revision: run.revision,
-      status: run.status,
-      startedAt: run.startedAt,
       completedAt: run.completedAt,
+      status: run.status,
       summary: {
         jobCount: summary.jobCount,
         counts: summary.counts,
         layers: cachedPlan.plan.layers.length,
       },
-      runConfig,
     });
     jobManager.setJobSummary(jobId, summary);
     jobManager.updateJobProgress(jobId, 100, cachedPlan.plan.layers.length);
@@ -542,14 +537,32 @@ async function executeJobAsync(
     });
   } catch (error) {
     if (jobManager.isJobCancelled(jobId)) {
-      await finalizeCancelledRunRecord({
+      await finalizeCancelledRun({
         cliConfig,
         cachedPlan,
-        startedAt: runStartedAt,
       });
       jobManager.finalizeCancelledJob(jobId);
       return;
     }
+
+    await persistedRunLifecycleService.appendCompleted(cachedPlan.movieId, {
+      type: 'run-completed',
+      revision: cachedPlan.plan.revision,
+      completedAt: new Date().toISOString(),
+      status: 'failed',
+      summary: {
+        jobCount: cachedPlan.plan.layers.reduce(
+          (total, layer) => total + layer.length,
+          0
+        ),
+        counts: {
+          succeeded: 0,
+          failed: 0,
+          skipped: 0,
+        },
+        layers: cachedPlan.plan.layers.length,
+      },
+    });
 
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

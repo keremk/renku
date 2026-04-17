@@ -9,7 +9,7 @@ export * from './blueprint-build.js';
 export * from './event-log.js';
 export * from './event-log-state.js';
 export * from './build-state.js';
-export * from './run-record.js';
+export * from './run-lifecycle.js';
 export * from './execution-state.js';
 export * from './hashing.js';
 export * from './planning/planner.js';

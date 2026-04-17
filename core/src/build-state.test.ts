@@ -5,7 +5,7 @@ import {
   BuildStateNotFoundError,
 } from './build-state.js';
 import { isRenkuError, RuntimeErrorCode } from './errors/index.js';
-import { createRunRecordService } from './run-record.js';
+import { createRunLifecycleService } from './run-lifecycle.js';
 import { createStorageContext, initializeMovieStorage } from './storage.js';
 import type {
   ArtifactEvent,
@@ -27,7 +27,7 @@ describe('BuildStateService', () => {
     await initializeMovieStorage(ctx, 'demo');
     const buildStateService = createBuildStateService(ctx);
     const eventLog = createEventLog(ctx);
-    const runRecordService = createRunRecordService(ctx);
+    const runLifecycleService = createRunLifecycleService(ctx);
 
     await eventLog.appendInput('demo', {
       id: 'Input:InquiryPrompt',
@@ -53,14 +53,14 @@ describe('BuildStateService', () => {
       producerId: 'Producer:ScriptProducer',
       createdAt: clock.now(),
     });
-    await runRecordService.write('demo', {
+    await runLifecycleService.appendPlanned('demo', {
+      type: 'run-planned',
       revision: 'rev-0001',
       createdAt: clock.now(),
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash',
       planPath: 'runs/rev-0001-plan.json',
       runConfig: {},
-      status: 'planned',
     });
 
     const first = await buildStateService.loadCurrent('demo');
@@ -69,12 +69,80 @@ describe('BuildStateService', () => {
     expect(second.hash).toBe(first.hash);
   });
 
-  it('loads current build state from event logs and latest run record', async () => {
+  it('keeps artifact-only revisions deterministic when no matching run exists', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
     const buildStateService = createBuildStateService(ctx);
     const eventLog = createEventLog(ctx);
-    const runRecordService = createRunRecordService(ctx);
+    const runLifecycleService = createRunLifecycleService(ctx);
+
+    await eventLog.appendInput('demo', {
+      id: 'Input:InquiryPrompt',
+      revision: 'rev-0001',
+      hash: hashInputPayload({ prompt: 'hello' }),
+      payload: { prompt: 'hello' },
+      editedBy: 'user',
+      createdAt: '2025-01-01T00:00:00.000Z',
+    });
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:ScriptProducer.GeneratedScript[0]',
+      revision: 'rev-0001',
+      inputsHash: 'inputs:hash',
+      output: {
+        blob: {
+          hash: 'script-v1-hash',
+          size: 8,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:ScriptProducer[0]',
+      producerId: 'Producer:ScriptProducer',
+      createdAt: '2025-01-01T00:00:00.000Z',
+    });
+    await runLifecycleService.appendPlanned('demo', {
+      type: 'run-planned',
+      revision: 'rev-0001',
+      createdAt: '2025-01-01T00:00:00.000Z',
+      inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
+      inputSnapshotHash: 'snapshot-hash',
+      planPath: 'runs/rev-0001-plan.json',
+      runConfig: {},
+    });
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:ScriptProducer.GeneratedScript[0]',
+      revision: 'rev-0002',
+      inputsHash: 'inputs:hash',
+      output: {
+        blob: {
+          hash: 'script-v2-hash',
+          size: 8,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:ScriptProducer[0]',
+      producerId: 'Producer:ScriptProducer',
+      createdAt: '2025-01-02T12:34:56.000Z',
+      editedBy: 'user',
+      originalHash: 'script-v1-hash',
+    });
+
+    const first = await buildStateService.loadCurrent('demo');
+    const second = await buildStateService.loadCurrent('demo');
+
+    expect(first.buildState.revision).toBe('rev-0002');
+    expect(first.buildState.createdAt).toBe('2025-01-02T12:34:56.000Z');
+    expect(second.buildState.createdAt).toBe('2025-01-02T12:34:56.000Z');
+    expect(second.hash).toBe(first.hash);
+  });
+
+  it('loads current build state from event logs and matching run lifecycle metadata', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const buildStateService = createBuildStateService(ctx);
+    const eventLog = createEventLog(ctx);
+    const runLifecycleService = createRunLifecycleService(ctx);
 
     await eventLog.appendInput('demo', {
       id: 'Input:InquiryPrompt',
@@ -100,14 +168,14 @@ describe('BuildStateService', () => {
       producerId: 'Producer:ScriptProducer',
       createdAt: clock.now(),
     });
-    await runRecordService.write('demo', {
+    await runLifecycleService.appendPlanned('demo', {
+      type: 'run-planned',
       revision: 'rev-0001',
       createdAt: clock.now(),
       inputSnapshotPath: 'runs/rev-0001-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash',
       planPath: 'runs/rev-0001-plan.json',
       runConfig: { concurrency: 2 },
-      status: 'planned',
     });
 
     const { buildState, hash } = await buildStateService.loadCurrent('demo');
@@ -120,12 +188,12 @@ describe('BuildStateService', () => {
     expect(hash.length).toBeGreaterThan(0);
   });
 
-  it('picks the numerically latest revision across event logs and run records', async () => {
+  it('keeps current build state pinned to the latest event-backed revision', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
     const buildStateService = createBuildStateService(ctx);
     const eventLog = createEventLog(ctx);
-    const runRecordService = createRunRecordService(ctx);
+    const runLifecycleService = createRunLifecycleService(ctx);
 
     await eventLog.appendInput('demo', {
       id: 'Input:InquiryPrompt',
@@ -135,28 +203,29 @@ describe('BuildStateService', () => {
       editedBy: 'user',
       createdAt: clock.now(),
     });
-    await runRecordService.write('demo', {
+    await runLifecycleService.appendPlanned('demo', {
+      type: 'run-planned',
       revision: 'rev-9999',
       createdAt: clock.now(),
       inputSnapshotPath: 'runs/rev-9999-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash-9999',
       planPath: 'runs/rev-9999-plan.json',
       runConfig: {},
-      status: 'planned',
     });
-    await runRecordService.write('demo', {
+    await runLifecycleService.appendPlanned('demo', {
+      type: 'run-planned',
       revision: 'rev-10000',
       createdAt: clock.now(),
       inputSnapshotPath: 'runs/rev-10000-inputs.yaml',
       inputSnapshotHash: 'snapshot-hash-10000',
       planPath: 'runs/rev-10000-plan.json',
-      runConfig: {},
-      status: 'planned',
+      runConfig: { concurrency: 4 },
     });
 
     const { buildState } = await buildStateService.loadCurrent('demo');
 
-    expect(buildState.revision).toBe('rev-10000');
+    expect(buildState.revision).toBe('rev-9999');
+    expect(buildState.runConfig).toEqual({});
   });
 
   it('derives build state from the event log', async () => {
@@ -222,7 +291,102 @@ describe('BuildStateService', () => {
     expect(Object.keys(buildState.artifacts)).toEqual([]);
     expect(buildState.revision).toBe('rev-0003');
     expect(buildState.baseRevision).toBe('rev-0002');
-    expect(buildState.createdAt).toBe(clock.now());
+    expect(buildState.createdAt).toBe('2024-12-31T02:00:00.000Z');
+  });
+
+  it('rebuilds inputs from the requested revision instead of newer input events', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const buildStateService = createBuildStateService(ctx);
+    const eventLog = createEventLog(ctx);
+
+    await eventLog.appendInput('demo', {
+      id: 'Input:InquiryPrompt',
+      revision: 'rev-0001',
+      hash: hashInputPayload({ prompt: 'first' }),
+      payload: { prompt: 'first' },
+      editedBy: 'user',
+      createdAt: '2025-01-01T00:00:00.000Z',
+    });
+    await eventLog.appendInput('demo', {
+      id: 'Input:InquiryPrompt',
+      revision: 'rev-0002',
+      hash: hashInputPayload({ prompt: 'second' }),
+      payload: { prompt: 'second' },
+      editedBy: 'user',
+      createdAt: '2025-01-02T00:00:00.000Z',
+    });
+
+    const buildState = await buildStateService.buildFromEvents({
+      movieId: 'demo',
+      targetRevision: 'rev-0001',
+      baseRevision: null,
+    });
+
+    expect(buildState.revision).toBe('rev-0001');
+    expect(buildState.inputs['Input:InquiryPrompt']).toEqual({
+      hash: hashInputPayload({ prompt: 'first' }),
+      payloadDigest: hashPayload({ prompt: 'first' }).canonical,
+      createdAt: '2025-01-01T00:00:00.000Z',
+    });
+  });
+
+  it('rebuilds artifacts from the requested revision instead of newer artifact events', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const buildStateService = createBuildStateService(ctx);
+    const eventLog = createEventLog(ctx);
+
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:ScriptProducer.GeneratedScript[0]',
+      revision: 'rev-0001',
+      inputsHash: 'inputs:hash',
+      output: {
+        blob: {
+          hash: 'script-v1-hash',
+          size: 8,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:ScriptProducer[0]',
+      producerId: 'Producer:ScriptProducer',
+      createdAt: '2025-01-01T00:00:00.000Z',
+    });
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:ScriptProducer.GeneratedScript[0]',
+      revision: 'rev-0002',
+      inputsHash: 'inputs:hash',
+      output: {},
+      status: 'failed',
+      producedBy: 'Producer:ScriptProducer[0]',
+      producerId: 'Producer:ScriptProducer',
+      createdAt: '2025-01-02T00:00:00.000Z',
+    });
+
+    const buildState = await buildStateService.buildFromEvents({
+      movieId: 'demo',
+      targetRevision: 'rev-0001',
+      baseRevision: null,
+    });
+
+    expect(buildState.revision).toBe('rev-0001');
+    expect(buildState.artifacts['Artifact:ScriptProducer.GeneratedScript[0]']).toEqual({
+      hash: 'script-v1-hash',
+      blob: {
+        hash: 'script-v1-hash',
+        size: 8,
+        mimeType: 'text/plain',
+      },
+      producedBy: 'Producer:ScriptProducer[0]',
+      producerId: 'Producer:ScriptProducer',
+      status: 'succeeded',
+      diagnostics: undefined,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      editedBy: undefined,
+      originalHash: undefined,
+      inputsHash: 'inputs:hash',
+    });
   });
 
   it('excludes stale succeeded artifact when latest event is failed', async () => {
@@ -324,6 +488,47 @@ describe('BuildStateService', () => {
     ).toBe('Producer:AudioProducer');
   });
 
+  it('uses the event timestamp when building an event-only revision without a run', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const buildStateService = createBuildStateService(ctx);
+    const eventLog = createEventLog(ctx);
+
+    await eventLog.appendInput('demo', {
+      id: 'Input:InquiryPrompt',
+      revision: 'rev-0001',
+      hash: hashInputPayload({ prompt: 'hello' }),
+      payload: { prompt: 'hello' },
+      editedBy: 'user',
+      createdAt: '2025-01-01T00:00:00.000Z',
+    });
+    await eventLog.appendArtifact('demo', {
+      artifactId: 'Artifact:ScriptProducer.GeneratedScript[0]',
+      revision: 'rev-0002',
+      inputsHash: 'inputs:hash',
+      output: {
+        blob: {
+          hash: 'script-v2-hash',
+          size: 8,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:ScriptProducer[0]',
+      producerId: 'Producer:ScriptProducer',
+      createdAt: '2025-01-02T12:34:56.000Z',
+      editedBy: 'user',
+    });
+
+    const buildState = await buildStateService.buildFromEvents({
+      movieId: 'demo',
+      targetRevision: 'rev-0002',
+      baseRevision: 'rev-0001',
+    });
+
+    expect(buildState.createdAt).toBe('2025-01-02T12:34:56.000Z');
+  });
+
   it('errors when loading build state without event or run data', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo', { seedCurrentJson: false });
@@ -334,13 +539,13 @@ describe('BuildStateService', () => {
     );
   });
 
-  it('surfaces malformed run record JSON as a numbered runtime error', async () => {
+  it('surfaces malformed run lifecycle JSON as a numbered runtime error', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo', { seedCurrentJson: false });
     await ctx.storage.write(
-      ctx.resolve('demo', 'runs', 'rev-0001-run.json'),
-      '{"revision":',
-      { mimeType: 'application/json' }
+      ctx.resolve('demo', 'events', 'runs.log'),
+      '{"type":"run-planned"',
+      { mimeType: 'application/x-ndjson' }
     );
 
     const buildStateService = createBuildStateService(ctx);

@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && pnpm run build:server && vite build",
-    "build:server": "tsc --project tsconfig.server.json",
+    "clean:server": "node -e \"require('node:fs').rmSync('server-dist', { recursive: true, force: true })\"",
+    "build:server": "pnpm run clean:server && tsc --project tsconfig.server.json",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

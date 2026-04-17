@@ -1,6 +1,11 @@
 import type { StorageContext } from './storage.js';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
-import type { ArtifactEvent, InputEvent, RevisionId } from './types.js';
+import type {
+  ArtifactEvent,
+  InputEvent,
+  RevisionId,
+  RunLifecycleEvent,
+} from './types.js';
 import { hashArtifactOutput, hashInputPayload } from './hashing.js';
 import { compareRevisionIds } from './revisions.js';
 
@@ -14,8 +19,13 @@ export interface EventLog {
     movieId: string,
     sinceRevision?: RevisionId
   ): AsyncIterable<ArtifactEvent>;
+  streamRuns(
+    movieId: string,
+    sinceRevision?: RevisionId
+  ): AsyncIterable<RunLifecycleEvent>;
   appendInput(movieId: string, event: InputEvent): Promise<void>;
   appendArtifact(movieId: string, event: ArtifactEvent): Promise<void>;
+  appendRun(movieId: string, event: RunLifecycleEvent): Promise<void>;
 }
 
 const JSONL_MIME = 'application/jsonl';
@@ -29,12 +39,20 @@ export function createEventLog(storage: StorageContext): EventLog {
       const path = storage.resolve(movieId, 'events', 'artifacts.log');
       return iterateEvents<ArtifactEvent>(storage, path, sinceRevision);
     },
+    streamRuns(movieId, sinceRevision) {
+      const path = storage.resolve(movieId, 'events', 'runs.log');
+      return iterateEvents<RunLifecycleEvent>(storage, path, sinceRevision);
+    },
     async appendInput(movieId, event) {
       const path = storage.resolve(movieId, 'events', 'inputs.log');
       await appendEvent(storage, path, event);
     },
     async appendArtifact(movieId, event) {
       const path = storage.resolve(movieId, 'events', 'artifacts.log');
+      await appendEvent(storage, path, event);
+    },
+    async appendRun(movieId, event) {
+      const path = storage.resolve(movieId, 'events', 'runs.log');
       await appendEvent(storage, path, event);
     },
   };
