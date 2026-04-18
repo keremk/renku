@@ -17,9 +17,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Eye, EyeOff } from 'lucide-react';
 
-import { InputNode } from './nodes/input-node';
 import { ProducerNode } from './nodes/producer-node';
-import { OutputNode } from './nodes/output-node';
 import { ConditionalEdge } from './edges/conditional-edge';
 import {
   ProducerDetailsDialog,
@@ -42,9 +40,7 @@ import type {
 import { useDarkMode } from '@/hooks/use-dark-mode';
 
 const nodeTypes: NodeTypes = {
-  inputNode: InputNode,
   producerNode: ProducerNode,
-  outputNode: OutputNode,
   fitBoundsAnchor: FitBoundsAnchor,
 };
 
@@ -213,8 +209,7 @@ function buildLayerGuides(
 
   const layerBounds = Array.from({ length: layerCount }, (_, layerIndex) => {
     const bounds = layerNodeBounds.get(layerIndex);
-    const fallbackX =
-      (layerIndex + 1) * defaultBlueprintLayoutConfig.horizontalSpacing;
+    const fallbackX = layerIndex * defaultBlueprintLayoutConfig.horizontalSpacing;
 
     return {
       minX: bounds?.minX ?? fallbackX,

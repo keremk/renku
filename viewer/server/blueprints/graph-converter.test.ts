@@ -483,20 +483,12 @@ describe('collectNodesAndEdges', () => {
     expect(edges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          source: 'Inputs',
-          target: 'Producer:ImageProducer',
-        }),
-        expect.objectContaining({
           source: 'Producer:ImagePromptProducer',
           target: 'Producer:ImageProducer',
         }),
         expect.objectContaining({
           source: 'Producer:ImageProducer',
           target: 'Producer:TimelineComposer',
-        }),
-        expect.objectContaining({
-          source: 'Producer:ImageProducer',
-          target: 'Outputs',
         }),
       ])
     );
@@ -574,9 +566,15 @@ describe('convertTreeToGraph', () => {
         }),
       ])
     );
-
-    const inputsNode = graph.nodes.find((node) => node.id === 'Inputs');
-    expect(inputsNode?.description).toBe('1 input');
+    expect(graph.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'Producer:AudioGen',
+          type: 'producer',
+        }),
+      ])
+    );
+    expect(graph.nodes.every((node) => node.type === 'producer')).toBe(true);
   });
 
   it('marks derived system inputs as non-user-supplied in metadata', () => {

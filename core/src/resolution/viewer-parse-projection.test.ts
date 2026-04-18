@@ -417,14 +417,6 @@ describe('viewer-parse-projection helpers', () => {
     const conditionalOutputBinding = producerNode?.outputBindings?.find(
       (binding) => binding.to === 'Output.HeroImage'
     );
-    const conditionalInputEdge = graph.edges.find(
-      (edge) =>
-        edge.source === 'Inputs' && edge.target === 'Producer:ImageProducer'
-    );
-    const conditionalOutputEdge = graph.edges.find(
-      (edge) =>
-        edge.source === 'Producer:ImageProducer' && edge.target === 'Outputs'
-    );
 
     expect(conditionalInputBinding).toEqual(
       expect.objectContaining({
@@ -433,18 +425,6 @@ describe('viewer-parse-projection helpers', () => {
       })
     );
     expect(conditionalOutputBinding).toEqual(
-      expect.objectContaining({
-        isConditional: true,
-        conditionName: 'ShouldExportImage',
-      })
-    );
-    expect(conditionalInputEdge).toEqual(
-      expect.objectContaining({
-        isConditional: true,
-        conditionName: 'ShouldGenerateImage',
-      })
-    );
-    expect(conditionalOutputEdge).toEqual(
       expect.objectContaining({
         isConditional: true,
         conditionName: 'ShouldExportImage',
@@ -466,6 +446,9 @@ describe('viewer-parse-projection helpers', () => {
     });
 
     const celebrityGraph = convertTreeToGraph(celebrityContext.root);
+    expect(celebrityGraph.nodes.every((node) => node.type === 'producer')).toBe(
+      true
+    );
     const producerNodeIds = celebrityGraph.nodes
       .filter((node) => node.type === 'producer')
       .map((node) => node.id);

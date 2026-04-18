@@ -275,18 +275,6 @@ export function collectNodesAndEdges(
   const doc = node.document;
   const context = createProjectionGraphContext(node);
 
-  const rootInputNames = new Set(doc.inputs.map((input) => input.name));
-  for (const systemInputName of collectReferencedSystemInputs(node)) {
-    rootInputNames.add(systemInputName);
-  }
-
-  nodes.push({
-    id: 'Inputs',
-    type: 'input',
-    label: 'Inputs',
-    description: `${rootInputNames.size} input${rootInputNames.size !== 1 ? 's' : ''}`,
-  });
-
   const producerNodeById = new Map<string, BlueprintParseGraphNode>();
 
   for (const producerGraphNode of context.producerGraphNodes) {
@@ -329,21 +317,6 @@ export function collectNodesAndEdges(
     producerNodeById.set(producerGraphNode.id, producerNode);
   }
 
-  nodes.push({
-    id: 'Outputs',
-    type: 'output',
-    label: 'Outputs',
-    description: `${doc.outputs.length} output${doc.outputs.length !== 1 ? 's' : ''}`,
-  });
-
-  const inputEdgeTargets = new Map<
-    string,
-    Pick<BlueprintParseGraphEdge, 'isConditional' | 'conditionName'>
-  >();
-  const outputEdgeSources = new Map<
-    string,
-    Pick<BlueprintParseGraphEdge, 'isConditional' | 'conditionName'>
-  >();
   const addedEdges = new Map<string, BlueprintParseGraphEdge>();
 
   for (const producerGraphNode of context.producerGraphNodes) {
@@ -369,23 +342,6 @@ export function collectNodesAndEdges(
 
     for (const binding of inputBindings) {
       if (
-        binding.sourceType === 'input' &&
-        binding.targetType === 'producer' &&
-        binding.targetEndpoint.producerId
-      ) {
-        const producerId = binding.targetEndpoint.producerId;
-        const existing = inputEdgeTargets.get(producerId);
-        inputEdgeTargets.set(producerId, {
-          isConditional:
-            Boolean(existing?.isConditional) || binding.isConditional,
-          conditionName: mergeConditionName(
-            existing?.conditionName,
-            binding.conditionName
-          ),
-        });
-      }
-
-      if (
         binding.sourceType === 'producer' &&
         binding.targetType === 'producer' &&
         binding.sourceEndpoint.producerId &&
@@ -404,23 +360,6 @@ export function collectNodesAndEdges(
     for (const binding of outputBindings) {
       if (
         binding.sourceType === 'producer' &&
-        binding.targetType === 'output' &&
-        binding.sourceEndpoint.producerId
-      ) {
-        const producerId = binding.sourceEndpoint.producerId;
-        const existing = outputEdgeSources.get(producerId);
-        outputEdgeSources.set(producerId, {
-          isConditional:
-            Boolean(existing?.isConditional) || binding.isConditional,
-          conditionName: mergeConditionName(
-            existing?.conditionName,
-            binding.conditionName
-          ),
-        });
-      }
-
-      if (
-        binding.sourceType === 'producer' &&
         binding.targetType === 'producer' &&
         binding.sourceEndpoint.producerId &&
         binding.targetEndpoint.producerId
@@ -434,26 +373,6 @@ export function collectNodesAndEdges(
         );
       }
     }
-  }
-
-  for (const [producerId, edgeMetadata] of inputEdgeTargets) {
-    addRenderedEdge(
-      addedEdges,
-      'Inputs',
-      producerId,
-      Boolean(edgeMetadata.isConditional),
-      edgeMetadata.conditionName
-    );
-  }
-
-  for (const [producerId, edgeMetadata] of outputEdgeSources) {
-    addRenderedEdge(
-      addedEdges,
-      producerId,
-      'Outputs',
-      Boolean(edgeMetadata.isConditional),
-      edgeMetadata.conditionName
-    );
   }
 
   edges.push(...Array.from(addedEdges.values()));

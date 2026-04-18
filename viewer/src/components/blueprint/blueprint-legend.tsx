@@ -1,6 +1,6 @@
 /**
  * Legend component for the blueprint flow visualization.
- * Shows node types (Input, Producer, Output) and edge types (Connection, Conditional).
+ * Shows edge types and producer run states for the blueprint flow.
  */
 
 interface LegendItemProps {
@@ -23,25 +23,12 @@ export function BlueprintLegend() {
     <div className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground px-4 py-2 border-t border-border/30 shrink-0">
       <div className="flex flex-wrap items-center gap-6">
         <LegendItem
-          icon={<div className="w-4 h-4 rounded-full bg-blue-500/30 dark:bg-blue-500/45 border border-blue-500/50 dark:border-blue-400/60" />}
-          label="Input"
-        />
-        <LegendItem
-          icon={<div className="w-4 h-3 rounded bg-card border border-border/60" />}
-          label="Producer"
-        />
-        <LegendItem
-          icon={<div className="w-4 h-4 rounded-full bg-purple-500/30 dark:bg-purple-500/45 border border-purple-500/50 dark:border-purple-400/60" />}
-          label="Output"
-        />
-        <LegendItem
           icon={<div className="w-8 h-0 border-t border-gray-400" />}
-          label="Connection"
-          className="ml-4"
+          label="Dependency"
         />
         <LegendItem
           icon={<div className="w-8 h-0 border-t border-dashed border-amber-400" />}
-          label="Conditional"
+          label="Conditional dependency"
         />
       </div>
       <div className="h-4 w-px bg-border/40" />

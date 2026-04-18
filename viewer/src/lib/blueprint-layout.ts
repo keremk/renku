@@ -32,37 +32,14 @@ export function layoutBlueprintGraph(
 ): LayoutResult {
   const { nodes: graphNodes, edges: graphEdges } = data;
 
-  // Separate nodes by type
-  const inputNodes = graphNodes.filter((n) => n.type === 'input');
   const producerNodes = graphNodes.filter((n) => n.type === 'producer');
-  const outputNodes = graphNodes.filter((n) => n.type === 'output');
 
   // Use pre-computed layer assignments from server
   const producerLayers: Map<string, number> = new Map(
     Object.entries(data.layerAssignments ?? {})
   );
 
-  // Position nodes in columns: inputs (left) -> producers (center) -> outputs (right)
   const nodes: Node[] = [];
-
-  // Position inputs in the left column
-  inputNodes.forEach((node, index) => {
-    nodes.push({
-      id: node.id,
-      type: 'inputNode',
-      position: {
-        x: 0,
-        y: index * config.verticalSpacing,
-      },
-      style: {
-        width: config.nodeWidth,
-      },
-      data: {
-        label: node.label,
-        description: node.description,
-      },
-    });
-  });
 
   // Position producers in the middle columns based on their layer
   // Sort by layer for consistent ordering within each layer
@@ -90,7 +67,7 @@ export function layoutBlueprintGraph(
       id: node.id,
       type: 'producerNode',
       position: {
-        x: (layer + 1) * config.horizontalSpacing,
+        x: layer * config.horizontalSpacing,
         y: layerIndex * config.verticalSpacing,
       },
       style: {
@@ -108,28 +85,6 @@ export function layoutBlueprintGraph(
         status: producerStatuses?.[node.id] ?? 'not-run-yet',
         inputBindings: node.inputBindings,
         outputBindings: node.outputBindings,
-      },
-    });
-  });
-
-  // Determine the rightmost layer
-  const maxLayer = Math.max(0, ...Array.from(producerLayers.values()));
-
-  // Position outputs in the right column
-  outputNodes.forEach((node, index) => {
-    nodes.push({
-      id: node.id,
-      type: 'outputNode',
-      position: {
-        x: (maxLayer + 2) * config.horizontalSpacing,
-        y: index * config.verticalSpacing,
-      },
-      style: {
-        width: config.nodeWidth,
-      },
-      data: {
-        label: node.label,
-        description: node.description,
       },
     });
   });
