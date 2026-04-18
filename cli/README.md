@@ -184,7 +184,6 @@ This opens the Renku app, starts a local server if needed, and opens your browse
 ### Utilities
 
 - `renku list` - List builds in current project (shows dry-run vs completed)
-- `renku clean` - Remove build artifacts (dry-runs only by default, `--all` for everything)
 - `renku export` - Export movie to MP4/MP3 format
   - `--movie-id=<id>` / `--id=<id>` - Movie to export
   - `--inputs=<file>` - Export config YAML file (for advanced settings)
@@ -227,7 +226,7 @@ When you run `renku generate` from a project folder:
         └── ...
 ```
 
-Use `renku list` to see builds in the current project and `renku clean` to remove dry-run builds.
+Use `renku list` to see builds in the current project.
 
 ### Config File
 

@@ -5,6 +5,7 @@ import {
 	access,
 	copyFile,
 	mkdtemp,
+	readdir,
 	readFile,
 	rm,
 	stat,
@@ -79,6 +80,21 @@ async function createTempRoot(): Promise<string> {
 	const dir = await mkdtemp(join(tmpdir(), 'renku-generate-'));
 	tmpRoots.push(dir);
 	return dir;
+}
+
+async function listFilesRecursively(rootDir: string): Promise<string[]> {
+	const entries = await readdir(rootDir, { withFileTypes: true });
+	const files = await Promise.all(
+		entries.map(async (entry) => {
+			const fullPath = join(rootDir, entry.name);
+			if (entry.isDirectory()) {
+				const nestedFiles = await listFilesRecursively(fullPath);
+				return nestedFiles.map((file) => join(entry.name, file));
+			}
+			return [entry.name];
+		})
+	);
+	return files.flat().sort();
 }
 
 describe('runGenerate (new runs)', () => {
@@ -268,6 +284,53 @@ describe('runGenerate (new runs)', () => {
 			resolve(result.savedDryRunPath ?? '', 'events', 'runs.log')
 		);
 		expect(runsLogStats.isFile()).toBe(true);
+	});
+
+	it('copies existing blobs into saved dry-run snapshots for existing builds', async () => {
+		const root = await createTempRoot();
+		const cliConfigPath = join(root, 'cli-config.json');
+		process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
+
+		const inputsPath = await createInputsFile({
+			root,
+			prompt: 'Reuse existing artifacts',
+			models: AUDIO_ONLY_MODELS,
+			includeDefaults: false,
+			overrides: AUDIO_ONLY_OVERRIDES,
+		});
+		const first = await runGenerate({
+			...LOG_DEFAULTS,
+			inputsPath,
+			nonInteractive: true,
+			blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+			storageOverride: { root, basePath: 'builds' },
+		});
+
+		const originalBlobFiles = await listFilesRecursively(
+			resolve(root, 'builds', first.storageMovieId, 'blobs')
+		);
+		expect(originalBlobFiles.length).toBeGreaterThan(0);
+
+		const savedDryRun = await runGenerate({
+			...LOG_DEFAULTS,
+			inputsPath,
+			movieId: first.storageMovieId,
+			dryRun: true,
+			saveDryRun: true,
+			nonInteractive: true,
+			storageOverride: { root, basePath: 'builds' },
+		});
+
+		const savedBlobFiles = await listFilesRecursively(
+			resolve(savedDryRun.savedDryRunPath ?? '', 'blobs')
+		);
+		expect(savedBlobFiles).toEqual(expect.arrayContaining(originalBlobFiles));
 	});
 
 	it('rejects --save-dry-run without --dry-run', async () => {

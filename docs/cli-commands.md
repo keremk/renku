@@ -339,8 +339,7 @@ renku list
 **Behavior:**
 
 - Scans `builds/` in the current working directory
-- Shows which builds have artifacts (completed runs) vs. dry-run only builds
-- Suggests running `renku clean` to remove dry-run builds
+- Shows which builds have artifacts (completed runs) vs. builds that do not
 
 **Example Output:**
 
@@ -348,51 +347,8 @@ renku list
 Builds in current project:
 
   ✓ movie-abc123 (has artifacts)
-  ○ movie-def456 (dry-run, no artifacts)
-  ○ movie-ghi789 (dry-run, no artifacts)
-
-Run `renku clean` to remove 2 dry-run build(s).
-```
-
----
-
-### `renku clean`
-
-Remove build artifacts from the current project. By default, only removes dry-run builds (builds without artifacts).
-
-**Usage:**
-
-```bash
-renku clean [--movie-id=<id>] [--all] [--dry-run]
-```
-
-**Options:**
-
-- `--movie-id`, `--id`: Clean a specific movie by ID
-- `--all`: Clean all builds including those with artifacts (requires confirmation)
-- `--dry-run`: Show what would be cleaned without actually deleting
-- `--non-interactive`: Skip confirmation prompts
-
-**Behavior:**
-
-- Without options: Removes all dry-run builds (builds without corresponding `artifacts/` folder)
-- With `--movie-id`: Removes only the specified build (protected if it has artifacts unless `--all` is used)
-- With `--all`: Removes all builds including those with artifacts
-
-**Examples:**
-
-```bash
-# Clean only dry-run builds (safe default)
-renku clean
-
-# Preview what would be cleaned
-renku clean --dry-run
-
-# Clean a specific movie
-renku clean --movie-id=movie-abc123
-
-# Clean everything including completed builds
-renku clean --all
+  ○ movie-def456 (no artifacts)
+  ○ movie-ghi789 (no artifacts)
 ```
 
 ---

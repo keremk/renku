@@ -8,6 +8,7 @@ import {
   createStorageContext,
   initializeMovieStorage,
 } from "@gorenku/core";
+import { createBuild } from "./create-handler.js";
 import { listBuilds } from "./list-handler.js";
 
 describe("listBuilds", () => {
@@ -43,6 +44,35 @@ describe("listBuilds", () => {
 
       const result = await listBuilds(blueprintFolder);
       expect(result.builds).toHaveLength(0);
+    } finally {
+      await rm(blueprintFolder, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps newly created editable builds visible before first execution", async () => {
+    const blueprintFolder = await mkdtemp(
+      path.join(tmpdir(), "viewer-build-list-")
+    );
+
+    try {
+      await writeFile(
+        path.join(blueprintFolder, "input-template.yaml"),
+        "inputs:\n  Prompt: hello\nmodels: []\n",
+        "utf8"
+      );
+
+      const created = await createBuild(blueprintFolder, "First Draft");
+
+      const result = await listBuilds(blueprintFolder);
+      expect(result.builds).toHaveLength(1);
+      expect(result.builds[0]).toMatchObject({
+        movieId: created.movieId,
+        revision: null,
+        hasBuildState: false,
+        hasInputSnapshot: false,
+        hasInputsFile: true,
+        displayName: "First Draft",
+      });
     } finally {
       await rm(blueprintFolder, { recursive: true, force: true });
     }

@@ -682,6 +682,11 @@ async function persistDryRunSnapshotToTemp(args: {
 		target: localStorageContext,
 		movieId: args.storageMovieId,
 	});
+	await copyBlobsBetweenContexts({
+		source: workspaceStorageContext,
+		target: localStorageContext,
+		movieId: args.storageMovieId,
+	});
 	const metadataService = createMovieMetadataService(localStorageContext);
 	await metadataService.merge(args.storageMovieId, {
 		blueprintPath: args.blueprintPath,

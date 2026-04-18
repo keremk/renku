@@ -16,7 +16,8 @@ import type { BuildInfo, BuildsListResponse } from "./types.js";
 /**
  * Lists all builds in the builds/ subfolder of the blueprint folder.
  * Sorted by updatedAt (most recent first).
- * Filters out builds that have neither succeeded artifacts nor saved inputs.
+ * Shows executed builds plus newly created editable builds.
+ * Hides preview-only leftovers that never became a real build.
  */
 export async function listBuilds(blueprintFolder: string): Promise<BuildsListResponse> {
   const buildsDir = path.join(blueprintFolder, "builds");
@@ -75,8 +76,10 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
 
         // Read displayName from metadata using the core service
         let displayName: string | null = null;
+        let hasSavedMetadata = false;
         try {
           const metadata = await metadataService.read(movieId);
+          hasSavedMetadata = metadata !== null;
           displayName = metadata?.displayName ?? null;
         } catch {
           // Ignore read errors
@@ -84,10 +87,11 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
 
         const hasRealBuild =
           currentBuildRevision !== null || snapshotSourceRun !== null;
+        const hasEditableBuild = hasInputsFile && hasSavedMetadata;
 
-        // Only show real execution-backed builds. Preview-only leftovers and
-        // inputs-only folders are not real builds and should stay hidden.
-        if (!hasRealBuild) {
+        // Keep executed builds and user-created editable builds visible, but
+        // hide transient leftovers that were never persisted as real builds.
+        if (!hasRealBuild && !hasEditableBuild) {
           continue;
         }
 
