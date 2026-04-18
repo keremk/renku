@@ -439,6 +439,9 @@ async function generatePlan(
     basePath,
   });
   await initializeMovieStorage(memoryStorageContext, movieId);
+  let conditionFallbackStorage:
+    | ReturnType<typeof createStorageContext>
+    | undefined;
 
   // For edits (isNew: false), load existing run archives and events from disk
   if (!isNew) {
@@ -447,6 +450,7 @@ async function generatePlan(
       rootDir: storageRoot,
       basePath,
     });
+    conditionFallbackStorage = localStorageContext;
     await recoverFailedArtifactsBeforePlanning({
       storage: localStorageContext,
       movieId,
@@ -546,6 +550,7 @@ async function generatePlan(
     providerOptions: providerMetadata,
     resolutionContext: preparedValidation.context,
     storage: memoryStorageContext,
+    conditionFallbackStorage,
     buildStateService,
     eventLog,
     pendingArtifacts:

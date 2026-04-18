@@ -14,7 +14,9 @@ function createRuntimeError(code: string, message: string): Error & { code: stri
 }
 
 vi.mock('@gorenku/core', () => ({
-  createStorageContext: vi.fn(() => ({
+  createStorageContext: vi.fn((config: { kind: string; basePath?: string }) => ({
+    storageKind: config.kind,
+    basePath: config.basePath ?? 'builds',
     storage: {},
     resolve: (...parts: string[]) => parts.join('/'),
   })),
@@ -254,5 +256,63 @@ describe('handleProducerSchedulingRequest integration', () => {
     expect(generatePlanMock).toHaveBeenCalledTimes(2);
     expect(generatePlanMock.mock.calls[0]?.[0]?.userControls?.scope?.upToLayer).toBe(2);
     expect(generatePlanMock.mock.calls[1]?.[0]?.userControls?.scope?.upToLayer).toBe(0);
+  });
+
+  it('forwards local fallback storage when probing an existing build', async () => {
+    const req = createMockRequest({
+      blueprint: 'style-cartoon',
+      inputs: '/tmp/existing-inputs.yaml',
+      movieId: 'movie-existing',
+      producerId: 'Producer:StoryboardImageProducer',
+      producerLayer: 2,
+      planningControls: {
+        scope: {
+          producerDirectives: [
+            { producerId: 'Producer:StoryboardImageProducer', count: 2 },
+          ],
+        },
+      },
+    });
+    const res = createMockResponse();
+
+    const handled = await handleProducerSchedulingRequest(req, res);
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(generatePlanMock).toHaveBeenCalledTimes(2);
+    expect(generatePlanMock.mock.calls[0]?.[0]?.storage?.storageKind).toBe(
+      'memory'
+    );
+    expect(
+      generatePlanMock.mock.calls[0]?.[0]?.conditionFallbackStorage?.storageKind
+    ).toBe('local');
+  });
+
+  it('omits fallback storage when probing a new build', async () => {
+    const req = createMockRequest({
+      blueprint: 'style-cartoon',
+      producerId: 'Producer:StoryboardImageProducer',
+      producerLayer: 2,
+      planningControls: {
+        scope: {
+          producerDirectives: [
+            { producerId: 'Producer:StoryboardImageProducer', count: 2 },
+          ],
+        },
+      },
+    });
+    const res = createMockResponse();
+
+    const handled = await handleProducerSchedulingRequest(req, res);
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(generatePlanMock).toHaveBeenCalledTimes(2);
+    expect(generatePlanMock.mock.calls[0]?.[0]?.storage?.storageKind).toBe(
+      'memory'
+    );
+    expect(
+      generatePlanMock.mock.calls[0]?.[0]?.conditionFallbackStorage
+    ).toBeUndefined();
   });
 });

@@ -1,4 +1,5 @@
 /* eslint-env node */
+import { createHash } from 'node:crypto';
 import process from 'node:process';
 import '../commands/__testutils__/simulated-providers.js';
 import { Buffer } from 'node:buffer';
@@ -8,6 +9,10 @@ import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runInit } from '../commands/init.js';
 import { runGenerate } from '../commands/generate.js';
+import {
+	appendConditionArtifactEvent,
+	createExistingConditionBuild,
+} from '../commands/__testutils__/condition-builds.js';
 import { createInputsFile } from '../commands/__testutils__/inputs.js';
 import { generatePlan } from './planner.js';
 import type { CliConfig } from './cli-config.js';
@@ -15,6 +20,7 @@ import {
 	createBuildStateService,
 	createStorageContext,
 	createEventLog,
+	RuntimeErrorCode,
 	type ArtifactEvent,
 	type FalRecoveryStatusResult,
 } from '@gorenku/core';
@@ -25,6 +31,18 @@ import {
 
 const AUDIO_ONLY_BLUEPRINT_PATH = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop',
 	'audio-narration-loop.yaml'
+);
+const CONDITIONAL_FANIN_BLUEPRINT_PATH = resolve(
+	CLI_FIXTURES_BLUEPRINTS,
+	'conditional-logic',
+	'conditional-multi-source-fanin',
+	'conditional-multi-source-fanin.yaml'
+);
+const CONDITIONAL_FANIN_INPUTS_PATH = resolve(
+	CLI_FIXTURES_BLUEPRINTS,
+	'conditional-logic',
+	'conditional-multi-source-fanin',
+	'input-template.yaml'
 );
 
 const AUDIO_ONLY_MODELS = [
@@ -224,6 +242,104 @@ describe('generatePlan recovery prepass', () => {
 		expect(jobIds).toContain('Producer:AudioProducer[0]');
 		expect(jobIds).toContain('Producer:AudioProducer[2]');
 		expect(jobIds).not.toContain('Producer:AudioProducer[1]');
+	});
+});
+
+describe('generatePlan condition artifact fallback reuse', () => {
+	it('reads legacy condition blobs from fallback storage for existing-build replans', async () => {
+		const fixture = await createExistingConditionBuild({
+			root: await createTempRoot(),
+			catalogRoot: CLI_FIXTURES_CATALOG,
+			blueprintPath: CONDITIONAL_FANIN_BLUEPRINT_PATH,
+			inputsPath: CONDITIONAL_FANIN_INPUTS_PATH,
+			blobHash: 'ab0123456789legacy-condition',
+			blobContents: 'false',
+			legacyFileName: true,
+		});
+
+		const planResult = await generatePlan({
+			cliConfig: fixture.cliConfig,
+			movieId: fixture.movieId,
+			isNew: false,
+			inputsPath: fixture.inputsPath,
+			usingBlueprint: fixture.blueprintPath,
+		});
+
+		const jobIds = planResult.plan.layers.flat().map((job) => job.jobId);
+		expect(jobIds).not.toContain('Producer:TransitionVideoProducer[0]');
+		expect(jobIds).toContain('Producer:TransitionVideoProducer[1]');
+	});
+
+	it('does not reuse stale successful condition values after a later failed retry', async () => {
+		const fixture = await createExistingConditionBuild({
+			root: await createTempRoot(),
+			catalogRoot: CLI_FIXTURES_CATALOG,
+			blueprintPath: CONDITIONAL_FANIN_BLUEPRINT_PATH,
+			inputsPath: CONDITIONAL_FANIN_INPUTS_PATH,
+			blobHash: 'cd0123456789retry-condition',
+			blobContents: 'false',
+		});
+		await appendConditionArtifactEvent(fixture, {
+			revision: 'rev-0002',
+			status: 'failed',
+		});
+
+		const planResult = await generatePlan({
+			cliConfig: fixture.cliConfig,
+			movieId: fixture.movieId,
+			isNew: false,
+			inputsPath: fixture.inputsPath,
+			usingBlueprint: fixture.blueprintPath,
+		});
+
+		const jobIds = planResult.plan.layers.flat().map((job) => job.jobId);
+		expect(jobIds).toContain('Producer:TransitionVideoProducer[0]');
+	});
+
+	it('fails fast when a reusable non-literal condition blob is missing', async () => {
+		const fixture = await createExistingConditionBuild({
+			root: await createTempRoot(),
+			catalogRoot: CLI_FIXTURES_CATALOG,
+			blueprintPath: CONDITIONAL_FANIN_BLUEPRINT_PATH,
+			inputsPath: CONDITIONAL_FANIN_INPUTS_PATH,
+			blobHash: 'ef0123456789missing-condition',
+			writeBlob: false,
+		});
+
+		await expect(
+			generatePlan({
+				cliConfig: fixture.cliConfig,
+				movieId: fixture.movieId,
+				isNew: false,
+				inputsPath: fixture.inputsPath,
+				usingBlueprint: fixture.blueprintPath,
+			})
+		).rejects.toMatchObject({
+			code: RuntimeErrorCode.CONDITION_EVALUATION_ERROR,
+		});
+	});
+
+	it('keeps literal-hash inference when condition payload blobs are absent', async () => {
+		const falseHash = createHash('sha256').update('false').digest('hex');
+		const fixture = await createExistingConditionBuild({
+			root: await createTempRoot(),
+			catalogRoot: CLI_FIXTURES_CATALOG,
+			blueprintPath: CONDITIONAL_FANIN_BLUEPRINT_PATH,
+			inputsPath: CONDITIONAL_FANIN_INPUTS_PATH,
+			blobHash: falseHash,
+			writeBlob: false,
+		});
+
+		const planResult = await generatePlan({
+			cliConfig: fixture.cliConfig,
+			movieId: fixture.movieId,
+			isNew: false,
+			inputsPath: fixture.inputsPath,
+			usingBlueprint: fixture.blueprintPath,
+		});
+
+		const jobIds = planResult.plan.layers.flat().map((job) => job.jobId);
+		expect(jobIds).not.toContain('Producer:TransitionVideoProducer[0]');
 	});
 });
 

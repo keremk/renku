@@ -360,6 +360,7 @@ async function prepareRerunSurgicalPreviewContext(
     providerOptions: providerMetadata,
     resolutionContext,
     storage: memoryStorageContext,
+    conditionFallbackStorage: localStorageContext,
     buildStateService,
     eventLog,
     pendingArtifacts:

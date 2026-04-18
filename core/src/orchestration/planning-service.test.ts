@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it, beforeEach } from 'vitest';
 import type {
   BlueprintOutputDefinition,
@@ -20,8 +21,9 @@ import { buildBlueprintGraph } from '../resolution/canonical-graph.js';
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
 import { createBuildStateService } from '../build-state.js';
 import { createEventLog } from '../event-log.js';
+import { formatBlobFileName } from '../blob-utils.js';
 import { RuntimeErrorCode } from '../errors/index.js';
-import { hashInputContents } from '../hashing.js';
+import { hashInputContents, hashPayload } from '../hashing.js';
 import { DRAFT_REVISION_ID } from '../revisions.js';
 
 describe('applyOutputSchemasToBlueprintTree', () => {
@@ -468,6 +470,59 @@ describe('createPlanningService', () => {
     },
   };
 
+  async function appendStoredInput(args: {
+    eventLog: ReturnType<typeof createEventLog>;
+    prompt: string;
+    revision?: string;
+  }): Promise<void> {
+    const createdAt = new Date().toISOString();
+    await args.eventLog.appendInput(movieId, {
+      id: 'Input:Prompt',
+      revision: args.revision ?? 'rev-0001',
+      payload: args.prompt,
+      hash: hashPayload(args.prompt).hash,
+      editedBy: 'user',
+      createdAt,
+    });
+  }
+
+  async function appendStoredArtifact(args: {
+    eventLog: ReturnType<typeof createEventLog>;
+    artifactId: string;
+    revision: string;
+    status?: 'succeeded' | 'failed' | 'skipped';
+    blob?: { hash: string; size: number; mimeType?: string };
+  }): Promise<void> {
+    await args.eventLog.appendArtifact(movieId, {
+      artifactId: args.artifactId,
+      revision: args.revision,
+      inputsHash: `inputs-${args.revision}`,
+      output: args.blob ? { blob: args.blob } : {},
+      status: args.status ?? 'succeeded',
+      producedBy: 'Producer:UpstreamProducer',
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async function writeBlobPayload(args: {
+    storage: ReturnType<typeof createStorageContext>;
+    hash: string;
+    mimeType?: string;
+    contents: string;
+    legacyFileName?: boolean;
+  }): Promise<void> {
+    const prefix = args.hash.slice(0, 2);
+    const fileName = args.legacyFileName
+      ? args.hash
+      : formatBlobFileName(args.hash, args.mimeType);
+    const blobPath = args.storage.resolve(movieId, 'blobs', prefix, fileName);
+    await args.storage.storage.write(
+      blobPath,
+      Buffer.from(args.contents, 'utf8'),
+      { mimeType: args.mimeType }
+    );
+  }
+
   function createDefaultOptions(
     aliases: string[]
   ): Map<string, ProviderOptionEntry> {
@@ -534,6 +589,132 @@ describe('createPlanningService', () => {
         ],
       }
     );
+    return makeTreeNode(
+      rootDoc,
+      [],
+      new Map([
+        ['UpstreamProducer', makeTreeNode(upstreamDoc, ['UpstreamProducer'])],
+        ['DownstreamProducer', makeTreeNode(downstreamDoc, ['DownstreamProducer'])],
+      ])
+    );
+  }
+
+  function createStringConditionDependencyBlueprint(): BlueprintTreeNode {
+    const upstreamDoc = makeBlueprintDocument(
+      'UpstreamProducer',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [
+        { name: 'Intermediate', type: 'string' },
+        { name: 'GateFlag', type: 'string' },
+      ],
+      [{ name: 'UpstreamProducer' }],
+      [],
+      undefined,
+      { kind: 'producer' }
+    );
+
+    const downstreamDoc = makeBlueprintDocument(
+      'DownstreamProducer',
+      [{ name: 'Intermediate', type: 'string', required: true }],
+      [{ name: 'FinalOutput', type: 'string' }],
+      [{ name: 'DownstreamProducer' }],
+      [],
+      undefined,
+      { kind: 'producer' }
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'StringConditionDependencyBlueprint',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [
+        { name: 'Intermediate', type: 'string' },
+        { name: 'GateFlag', type: 'string' },
+        { name: 'FinalOutput', type: 'string' },
+      ],
+      [],
+      [
+        { from: 'Prompt', to: 'UpstreamProducer.Prompt' },
+        { from: 'UpstreamProducer.Intermediate', to: 'Intermediate' },
+        { from: 'UpstreamProducer.GateFlag', to: 'GateFlag' },
+        {
+          from: 'Intermediate',
+          to: 'DownstreamProducer.Intermediate',
+          conditions: { when: 'Artifact:UpstreamProducer.GateFlag', is: 'enabled' },
+        },
+        { from: 'DownstreamProducer.FinalOutput', to: 'FinalOutput' },
+      ],
+      undefined,
+      {
+        imports: [
+          { name: 'UpstreamProducer', producer: 'test/upstream-producer' },
+          { name: 'DownstreamProducer', producer: 'test/downstream-producer' },
+        ],
+      }
+    );
+
+    return makeTreeNode(
+      rootDoc,
+      [],
+      new Map([
+        ['UpstreamProducer', makeTreeNode(upstreamDoc, ['UpstreamProducer'])],
+        ['DownstreamProducer', makeTreeNode(downstreamDoc, ['DownstreamProducer'])],
+      ])
+    );
+  }
+
+  function createBooleanConditionDependencyBlueprint(): BlueprintTreeNode {
+    const upstreamDoc = makeBlueprintDocument(
+      'UpstreamProducer',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [
+        { name: 'Intermediate', type: 'string' },
+        { name: 'GateFlag', type: 'json' },
+      ],
+      [{ name: 'UpstreamProducer' }],
+      [],
+      undefined,
+      { kind: 'producer' }
+    );
+
+    const downstreamDoc = makeBlueprintDocument(
+      'DownstreamProducer',
+      [{ name: 'Intermediate', type: 'string', required: true }],
+      [{ name: 'FinalOutput', type: 'string' }],
+      [{ name: 'DownstreamProducer' }],
+      [],
+      undefined,
+      { kind: 'producer' }
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'BooleanConditionDependencyBlueprint',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [
+        { name: 'Intermediate', type: 'string' },
+        { name: 'GateFlag', type: 'json' },
+        { name: 'FinalOutput', type: 'string' },
+      ],
+      [],
+      [
+        { from: 'Prompt', to: 'UpstreamProducer.Prompt' },
+        { from: 'UpstreamProducer.Intermediate', to: 'Intermediate' },
+        { from: 'UpstreamProducer.GateFlag', to: 'GateFlag' },
+        {
+          from: 'Intermediate',
+          to: 'DownstreamProducer.Intermediate',
+          conditions: { when: 'Artifact:UpstreamProducer.GateFlag', is: false },
+        },
+        { from: 'DownstreamProducer.FinalOutput', to: 'FinalOutput' },
+      ],
+      undefined,
+      {
+        imports: [
+          { name: 'UpstreamProducer', producer: 'test/upstream-producer' },
+          { name: 'DownstreamProducer', producer: 'test/downstream-producer' },
+        ],
+      }
+    );
+
     return makeTreeNode(
       rootDoc,
       [],
@@ -1505,7 +1686,9 @@ describe('createPlanningService', () => {
         },
       });
 
-      expect(result.plan.layers.flat()).toEqual([]);
+      expect(result.plan.layers.flat().map((job) => job.jobId)).not.toContain(
+        'Producer:DownstreamProducer'
+      );
     });
 
     it('does not fail with R137 when required upstream artifacts are already reusable', async () => {
@@ -1549,6 +1732,205 @@ describe('createPlanningService', () => {
       expect(result.plan.layers.flat().map((job) => job.jobId)).toEqual([
         'Producer:DownstreamProducer',
       ]);
+    });
+  });
+
+  describe('condition artifact resolution', () => {
+    it('reads condition artifacts from fallback storage using legacy blob filenames', async () => {
+      const service = createPlanningService();
+      const buildStateService = createBuildStateService(storage);
+      const eventLog = createEventLog(storage);
+      const fallbackStorage = createStorageContext({
+        kind: 'memory',
+        basePath: 'test-builds',
+      });
+      await initializeMovieStorage(fallbackStorage, movieId);
+
+      await appendStoredInput({ eventLog, prompt: 'Keep current state' });
+      await appendStoredArtifact({
+        eventLog,
+        artifactId: 'Artifact:UpstreamProducer.Intermediate',
+        revision: 'rev-0001',
+      });
+      await appendStoredArtifact({
+        eventLog,
+        artifactId: 'Artifact:UpstreamProducer.GateFlag',
+        revision: 'rev-0001',
+        blob: {
+          hash: 'ab0123456789fallback',
+          size: 8,
+          mimeType: 'text/plain',
+        },
+      });
+      await writeBlobPayload({
+        storage: fallbackStorage,
+        hash: 'ab0123456789fallback',
+        mimeType: 'text/plain',
+        contents: 'disabled',
+        legacyFileName: true,
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createStringConditionDependencyBlueprint(),
+        inputValues: { 'Input:Prompt': 'Keep current state' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions([
+          'UpstreamProducer',
+          'DownstreamProducer',
+        ]),
+        storage,
+        conditionFallbackStorage: fallbackStorage,
+        buildStateService,
+        eventLog,
+      });
+
+      expect(result.plan.layers.flat().map((job) => job.jobId)).not.toContain(
+        'Producer:DownstreamProducer'
+      );
+    });
+
+    it('treats the latest overall condition event as authoritative when a later retry fails', async () => {
+      const service = createPlanningService();
+      const buildStateService = createBuildStateService(storage);
+      const eventLog = createEventLog(storage);
+      const fallbackStorage = createStorageContext({
+        kind: 'memory',
+        basePath: 'test-builds',
+      });
+      await initializeMovieStorage(fallbackStorage, movieId);
+
+      await appendStoredInput({ eventLog, prompt: 'Keep current state' });
+      await appendStoredArtifact({
+        eventLog,
+        artifactId: 'Artifact:UpstreamProducer.Intermediate',
+        revision: 'rev-0001',
+      });
+      await appendStoredArtifact({
+        eventLog,
+        artifactId: 'Artifact:UpstreamProducer.GateFlag',
+        revision: 'rev-0001',
+        blob: {
+          hash: 'cd0123456789retry',
+          size: 8,
+          mimeType: 'text/plain',
+        },
+      });
+      await appendStoredArtifact({
+        eventLog,
+        artifactId: 'Artifact:UpstreamProducer.GateFlag',
+        revision: 'rev-0002',
+        status: 'failed',
+      });
+      await writeBlobPayload({
+        storage: fallbackStorage,
+        hash: 'cd0123456789retry',
+        mimeType: 'text/plain',
+        contents: 'disabled',
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createStringConditionDependencyBlueprint(),
+        inputValues: { 'Input:Prompt': 'Keep current state' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions([
+          'UpstreamProducer',
+          'DownstreamProducer',
+        ]),
+        storage,
+        conditionFallbackStorage: fallbackStorage,
+        buildStateService,
+        eventLog,
+      });
+
+      expect(result.plan.layers.flat().map((job) => job.jobId)).toEqual([
+        'Producer:UpstreamProducer',
+        'Producer:DownstreamProducer',
+      ]);
+    });
+
+    it('fails fast when a reusable non-literal condition blob is missing', async () => {
+      const service = createPlanningService();
+      const buildStateService = createBuildStateService(storage);
+      const eventLog = createEventLog(storage);
+
+      await appendStoredInput({ eventLog, prompt: 'Keep current state' });
+      await appendStoredArtifact({
+        eventLog,
+        artifactId: 'Artifact:UpstreamProducer.Intermediate',
+        revision: 'rev-0001',
+      });
+      await appendStoredArtifact({
+        eventLog,
+        artifactId: 'Artifact:UpstreamProducer.GateFlag',
+        revision: 'rev-0001',
+        blob: {
+          hash: 'ef0123456789missing',
+          size: 8,
+          mimeType: 'text/plain',
+        },
+      });
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createStringConditionDependencyBlueprint(),
+          inputValues: { 'Input:Prompt': 'Keep current state' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions([
+            'UpstreamProducer',
+            'DownstreamProducer',
+          ]),
+          storage,
+          buildStateService,
+          eventLog,
+        })
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.CONDITION_EVALUATION_ERROR,
+      });
+    });
+
+    it('keeps literal-hash condition inference when the blob payload is absent', async () => {
+      const service = createPlanningService();
+      const buildStateService = createBuildStateService(storage);
+      const eventLog = createEventLog(storage);
+      const trueHash = createHash('sha256').update('true').digest('hex');
+
+      await appendStoredInput({ eventLog, prompt: 'Keep current state' });
+      await appendStoredArtifact({
+        eventLog,
+        artifactId: 'Artifact:UpstreamProducer.Intermediate',
+        revision: 'rev-0001',
+      });
+      await appendStoredArtifact({
+        eventLog,
+        artifactId: 'Artifact:UpstreamProducer.GateFlag',
+        revision: 'rev-0001',
+        blob: {
+          hash: trueHash,
+          size: 4,
+          mimeType: 'text/plain',
+        },
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createBooleanConditionDependencyBlueprint(),
+        inputValues: { 'Input:Prompt': 'Keep current state' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions([
+          'UpstreamProducer',
+          'DownstreamProducer',
+        ]),
+        storage,
+        buildStateService,
+        eventLog,
+      });
+
+      expect(result.plan.layers.flat().map((job) => job.jobId)).not.toContain(
+        'Producer:DownstreamProducer'
+      );
     });
   });
 

@@ -142,6 +142,9 @@ export async function generatePlan(
 	// For edits (isNew: false), we need to load existing run archives and events from disk
 	// For new movies, we use empty in-memory state
 	let recoverySummary: RecoveryPrepassSummary | undefined;
+	let conditionFallbackStorage:
+		| ReturnType<typeof createStorageContext>
+		| undefined;
 	if (!options.isNew) {
 		// Load existing run archives and events from local storage into memory context
 		const localStorageContext = createStorageContext({
@@ -149,6 +152,7 @@ export async function generatePlan(
 			rootDir: storageRoot,
 			basePath,
 		});
+		conditionFallbackStorage = localStorageContext;
 		recoverySummary = await recoverFailedArtifactsBeforePlanning({
 			storage: localStorageContext,
 			movieId,
@@ -297,6 +301,7 @@ export async function generatePlan(
 		providerOptions: providerMetadata,
 		resolutionContext: preparedValidation.context,
 		storage: memoryStorageContext,
+		conditionFallbackStorage,
 		buildStateService,
 		eventLog,
 		pendingArtifacts:

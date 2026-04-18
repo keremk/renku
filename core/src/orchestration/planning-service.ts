@@ -96,6 +96,8 @@ export interface GeneratePlanArgs {
   providerOptions: Map<string, ProviderOptionEntry>;
   resolutionContext?: BlueprintResolutionContext;
   storage: StorageContext;
+  /** Optional persistent storage used to read reusable condition blobs for existing-build replans. */
+  conditionFallbackStorage?: StorageContext;
   buildStateService: BuildStateService;
   eventLog: EventLog;
   pendingArtifacts?: PendingArtifactDraft[];
@@ -237,6 +239,7 @@ export function createPlanningService(
               artifactIds: Array.from(requiredConditionArtifactIds),
               eventLog: args.eventLog,
               storage: args.storage,
+              fallbackStorage: args.conditionFallbackStorage,
               movieId: args.movieId,
             })
           : undefined;
@@ -758,6 +761,7 @@ async function resolveConditionArtifactsForPlanning(args: {
   artifactIds: string[];
   eventLog: EventLog;
   storage: StorageContext;
+  fallbackStorage?: StorageContext;
   movieId: string;
 }): Promise<Record<string, unknown>> {
   if (args.artifactIds.length === 0) {
@@ -767,9 +771,6 @@ async function resolveConditionArtifactsForPlanning(args: {
   const requested = new Set(args.artifactIds);
   const latestEvents = new Map<string, ArtifactEvent>();
   for await (const event of args.eventLog.streamArtifacts(args.movieId)) {
-    if (event.status !== 'succeeded') {
-      continue;
-    }
     if (!requested.has(event.artifactId)) {
       continue;
     }
@@ -778,33 +779,112 @@ async function resolveConditionArtifactsForPlanning(args: {
 
   const resolved: Record<string, unknown> = {};
   for (const [artifactId, event] of latestEvents) {
+    if (event.status !== 'succeeded') {
+      continue;
+    }
+
     const blob = event.output.blob;
     if (!blob) {
       continue;
     }
 
-    const prefix = blob.hash.slice(0, 2);
-    const fileName = formatBlobFileName(blob.hash, blob.mimeType);
-    const blobPath = args.storage.resolve(
-      args.movieId,
-      'blobs',
-      prefix,
-      fileName
-    );
-
-    try {
-      const payload = await args.storage.storage.readToUint8Array(blobPath);
-      resolved[artifactId] = decodeConditionPayload(payload, blob.mimeType);
-      continue;
-    } catch {
+    const payload = await readConditionBlobPayload({
+      artifactId,
+      blob,
+      movieId: args.movieId,
+      storages: [args.storage, args.fallbackStorage].filter(
+        (storage): storage is StorageContext => storage !== undefined
+      ),
+    });
+    if (payload === null) {
       const inferred = inferConditionLiteralFromHash(blob.hash, blob.mimeType);
       if (inferred !== undefined) {
         resolved[artifactId] = inferred;
+        continue;
       }
+
+      throw createRuntimeError(
+        RuntimeErrorCode.CONDITION_EVALUATION_ERROR,
+        `Condition artifact "${artifactId}" points to blob "${blob.hash}" but its payload could not be found in planning or persistent storage.`,
+        {
+          context: `movieId=${args.movieId}`,
+          suggestion:
+            'Restore the missing blob or regenerate the upstream artifact before replanning.',
+        }
+      );
+    }
+
+    try {
+      resolved[artifactId] = decodeConditionPayload(payload, blob.mimeType);
+    } catch (error) {
+      throw createRuntimeError(
+        RuntimeErrorCode.CONDITION_EVALUATION_ERROR,
+        `Failed to decode condition artifact "${artifactId}" from blob "${blob.hash}".`,
+        {
+          context: `movieId=${args.movieId}`,
+          cause: error,
+        }
+      );
     }
   }
 
   return resolved;
+}
+
+async function readConditionBlobPayload(args: {
+  artifactId: string;
+  blob: { hash: string; mimeType?: string };
+  movieId: string;
+  storages: StorageContext[];
+}): Promise<Uint8Array | null> {
+  for (const storage of args.storages) {
+    const blobPath = await resolveConditionBlobPath({
+      storage,
+      movieId: args.movieId,
+      hash: args.blob.hash,
+      mimeType: args.blob.mimeType,
+    });
+    if (!blobPath) {
+      continue;
+    }
+
+    try {
+      return await storage.storage.readToUint8Array(blobPath);
+    } catch (error) {
+      throw createRuntimeError(
+        RuntimeErrorCode.CONDITION_EVALUATION_ERROR,
+        `Failed to read condition artifact "${args.artifactId}" blob at "${blobPath}".`,
+        {
+          context: `movieId=${args.movieId}`,
+          filePath: blobPath,
+          cause: error,
+        }
+      );
+    }
+  }
+
+  return null;
+}
+
+async function resolveConditionBlobPath(args: {
+  storage: StorageContext;
+  movieId: string;
+  hash: string;
+  mimeType?: string;
+}): Promise<string | null> {
+  const prefix = args.hash.slice(0, 2);
+  const fileName = formatBlobFileName(args.hash, args.mimeType);
+  const primaryPath = args.storage.resolve(args.movieId, 'blobs', prefix, fileName);
+  if (await args.storage.storage.fileExists(primaryPath)) {
+    return primaryPath;
+  }
+
+  const legacyPath = args.storage.resolve(args.movieId, 'blobs', prefix, args.hash);
+  if (legacyPath !== primaryPath && (await args.storage.storage.fileExists(legacyPath))) {
+    return legacyPath;
+  }
+
+  return null;
 }
 
 function decodeConditionPayload(
