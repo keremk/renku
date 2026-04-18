@@ -1,6 +1,8 @@
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { evaluateCondition } from '../condition-evaluator.js';
 import {
+  canonicalProducerIdToAlias,
+  canonicalProducerInstanceIdToProducerId,
   formatCanonicalProducerId,
   parseCanonicalArtifactId,
 } from '../parsing/canonical-ids.js';
@@ -606,7 +608,7 @@ function findNearestUpstreamProducerIds(args: {
 }
 
 function stripProducerIndices(canonicalProducerId: string): string {
-  return canonicalProducerId.replace(/\[\d+\]/g, '');
+  return canonicalProducerInstanceIdToProducerId(canonicalProducerId);
 }
 
 function stripCanonicalIndices(canonicalId: string): string {
@@ -617,7 +619,7 @@ function isProducerInternalSource(
   sourceId: string,
   producerBaseId: string
 ): boolean {
-  const producerAlias = producerBaseId.slice('Producer:'.length);
+  const producerAlias = canonicalProducerIdToAlias(producerBaseId);
   const strippedSourceId = stripCanonicalIndices(sourceId);
   return (
     strippedSourceId === `Input:${producerAlias}` ||

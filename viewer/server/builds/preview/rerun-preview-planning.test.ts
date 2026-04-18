@@ -1,8 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const generatePlanMock = vi.fn();
+const {
+  getProducerOptionsForCanonicalProducerIdMock,
+  readLatestArtifactEventMock,
+  setProducerOptionsForCanonicalProducerIdMock,
+} = vi.hoisted(() => ({
+  getProducerOptionsForCanonicalProducerIdMock: vi.fn(),
+  readLatestArtifactEventMock: vi.fn(),
+  setProducerOptionsForCanonicalProducerIdMock: vi.fn(),
+}));
 
 vi.mock('@gorenku/core', () => ({
+  RuntimeErrorCode: {
+    ARTIFACT_RESOLUTION_FAILED: 'R021',
+    INVALID_INPUT_BINDING: 'R041',
+    MISSING_REQUIRED_INPUT: 'R042',
+    NO_PRODUCER_OPTIONS: 'R032',
+    VIEWER_CONFIG_MISSING: 'R114',
+    MODELS_PANE_DESCRIPTOR_MISSING_FOR_MODEL: 'R115',
+  },
   buildArtifactOwnershipIndex: vi.fn(() => new Map()),
   buildProducerCatalog: vi.fn(() => ({})),
   buildProviderMetadata: vi.fn(async () => new Map()),
@@ -13,6 +30,10 @@ vi.mock('@gorenku/core', () => ({
   createEventLog: vi.fn(() => ({})),
   createLogger: vi.fn(() => ({})),
   createBuildStateService: vi.fn(() => ({})),
+  createRuntimeError: vi.fn(
+    (code: string, message: string, details?: Record<string, unknown>) =>
+      Object.assign(new Error(message), { code, details })
+  ),
   createMovieMetadataService: vi.fn(() => ({
     read: vi.fn(async () => ({
       blueprintPath: '/tmp/blueprint.yaml',
@@ -53,10 +74,10 @@ vi.mock('@gorenku/core', () => ({
   findLatestSucceededArtifactEvent: vi.fn(() => null),
   findSurgicalTargetLayer: vi.fn(() => 0),
   formatBlobFileName: vi.fn((hash: string) => hash),
-  formatCanonicalProducerPath: vi.fn((alias: string) => `Producer:${alias}`),
   formatProducerScopedInputIdForCanonicalProducerId: vi.fn(
     (producerId: string, field: string) => `${producerId}.${field}`
   ),
+  getProducerOptionsForCanonicalProducerId: getProducerOptionsForCanonicalProducerIdMock,
   initializeMovieStorage: vi.fn(async () => {}),
   injectAllSystemInputs: vi.fn((inputs: Record<string, unknown>) => inputs),
   isCanonicalArtifactId: vi.fn((id: string) => id.startsWith('Artifact:')),
@@ -84,9 +105,12 @@ vi.mock('@gorenku/core', () => ({
       inputs: Record<string, unknown>
     ) => inputs
   ),
-  resolveMappingsForModel: vi.fn(() => ({})),
+  resolveMappingsForModel: vi.fn(() => ({
+    Prompt: { field: 'prompt' },
+  })),
   resolveMovieInputsPath: vi.fn(async () => '/tmp/inputs.yaml'),
   resolveStorageBasePathForBlueprint: vi.fn(() => 'viewer/builds'),
+  setProducerOptionsForCanonicalProducerId: setProducerOptionsForCanonicalProducerIdMock,
   sliceExecutionPlanThroughLayer: vi.fn((plan: unknown) => plan),
 }));
 
@@ -120,30 +144,42 @@ vi.mock('../../generation/config.js', () => ({
 }));
 
 vi.mock('../artifact-edit-handler.js', () => ({
-  readLatestArtifactEvent: vi.fn(async () => ({
-    producerJobId: 'Producer:SceneVideoProducer[0]',
-    producerId: 'Producer:SceneVideoProducer',
-    lastRevisionBy: 'producer',
-    inputsHash: 'inputs-hash',
-    output: {
-      blob: {
-        hash: 'artifact-blob',
-        size: 4,
-        mimeType: 'text/plain',
-      },
-    },
-  })),
+  readLatestArtifactEvent: readLatestArtifactEventMock,
 }));
 
 vi.mock('./input-override-resolver.js', () => ({
   resolveInputOverrideTargets: vi.fn(() => []),
 }));
 
+import { RuntimeErrorCode } from '@gorenku/core';
 import { estimateRerunPreview } from './rerun-preview.js';
 
 describe('estimateRerunPreview planning', () => {
   beforeEach(() => {
+    readLatestArtifactEventMock.mockReset();
+    readLatestArtifactEventMock.mockResolvedValue({
+      producerJobId: 'Producer:SceneVideoProducer[0]',
+      producerId: 'Producer:SceneVideoProducer',
+      lastRevisionBy: 'producer',
+      inputsHash: 'inputs-hash',
+      output: {
+        blob: {
+          hash: 'artifact-blob',
+          size: 4,
+          mimeType: 'text/plain',
+        },
+      },
+    });
     generatePlanMock.mockReset();
+    getProducerOptionsForCanonicalProducerIdMock.mockReset();
+    setProducerOptionsForCanonicalProducerIdMock.mockReset();
+    getProducerOptionsForCanonicalProducerIdMock.mockReturnValue([
+      {
+        provider: 'fal-ai',
+        model: 'veo3-fast',
+        sdkMapping: {},
+      },
+    ]);
     generatePlanMock.mockResolvedValue({
       plan: {
         revision: 'rev-0001',
@@ -192,5 +228,56 @@ describe('estimateRerunPreview planning', () => {
     expect(generatePlanMock.mock.calls[0]?.[0]?.surgicalRegenerationScope).toBe(
       'lineage-strict'
     );
+  });
+
+  it('uses canonical producerId instead of parsing producerJobId during rerun model overrides', async () => {
+    await estimateRerunPreview({
+      blueprintFolder: '/tmp/blueprint-folder',
+      movieId: 'movie-test',
+      artifactId: 'Artifact:SceneVideoProducer.GeneratedVideo[0]',
+      mode: 'rerun',
+      prompt: '',
+      model: {
+        provider: 'fal-ai',
+        model: 'veo3-fast',
+      },
+    });
+
+    expect(getProducerOptionsForCanonicalProducerIdMock).toHaveBeenCalledWith(
+      expect.any(Map),
+      'Producer:SceneVideoProducer'
+    );
+    expect(setProducerOptionsForCanonicalProducerIdMock).toHaveBeenCalledWith(
+      expect.any(Map),
+      'Producer:SceneVideoProducer',
+      expect.any(Array)
+    );
+  });
+
+  it('throws a Renku runtime error code when canonical producer ownership is missing', async () => {
+    readLatestArtifactEventMock.mockResolvedValueOnce({
+      producerJobId: 'Producer:SceneVideoProducer[0]',
+      lastRevisionBy: 'producer',
+      inputsHash: 'inputs-hash',
+      output: {
+        blob: {
+          hash: 'artifact-blob',
+          size: 4,
+          mimeType: 'text/plain',
+        },
+      },
+    });
+
+    await expect(
+      estimateRerunPreview({
+        blueprintFolder: '/tmp/blueprint-folder',
+        movieId: 'movie-test',
+        artifactId: 'Artifact:SceneVideoProducer.GeneratedVideo[0]',
+        mode: 'rerun',
+        prompt: '',
+      })
+    ).rejects.toMatchObject({
+      code: RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+    });
   });
 });

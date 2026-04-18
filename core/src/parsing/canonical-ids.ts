@@ -142,6 +142,26 @@ export function parseCanonicalProducerId(id: string): ParsedCanonicalId {
   return parseIdBody('Producer', body);
 }
 
+export function canonicalProducerIdToAlias(canonicalProducerId: string): string {
+  const parsed = parseCanonicalProducerId(canonicalProducerId);
+  if (parsed.name.includes('[') || parsed.path.some((segment) => segment.includes('['))) {
+    throw createParserError(
+      ParserErrorCode.INVALID_CANONICAL_ID,
+      `Expected canonical producer family ID without indices, got "${canonicalProducerId}".`,
+    );
+  }
+  return [...parsed.path, parsed.name].join('.');
+}
+
+export function canonicalProducerInstanceIdToProducerId(
+  producerInstanceId: string
+): string {
+  assertCanonicalProducerId(producerInstanceId);
+  const familyId = producerInstanceId.replace(/\[\d+\]/g, '');
+  assertCanonicalProducerId(familyId);
+  return familyId;
+}
+
 /**
  * Parses a canonical Artifact ID into its components, including dimension indices.
  * Throws if the ID is not a valid canonical Artifact ID.

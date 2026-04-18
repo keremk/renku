@@ -28,6 +28,8 @@ export {
   formatCanonicalProducerPath,
   formatProducerScopedInputId,
   formatProducerScopedInputIdForCanonicalProducerId,
+  canonicalProducerIdToAlias,
+  canonicalProducerInstanceIdToProducerId,
   // Utilities
   collectCanonicalInputs,
   createInputIdResolver,

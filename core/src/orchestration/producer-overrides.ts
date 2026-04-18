@@ -1,4 +1,5 @@
 import {
+  canonicalProducerInstanceIdToProducerId,
   isCanonicalArtifactId,
   isCanonicalProducerId,
 } from '../parsing/canonical-ids.js';
@@ -291,8 +292,7 @@ export function deriveProducerFamilyId(jobId: string): string {
     );
   }
 
-  const body = jobId.slice('Producer:'.length);
-  return `Producer:${body.replace(/\[\d+\]/g, '')}`;
+  return canonicalProducerInstanceIdToProducerId(jobId);
 }
 
 function uniqueCount(values: number[]): number {

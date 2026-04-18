@@ -13,6 +13,7 @@ import {
   createMovieMetadataService,
   createNotificationBus,
   createPlanningService,
+  createRuntimeError,
   createStorageContext,
   createProducerGraph,
   expandBlueprintResolutionContext,
@@ -20,8 +21,8 @@ import {
   findLatestSucceededArtifactEvent,
   findSurgicalTargetLayer,
   formatBlobFileName,
-  formatCanonicalProducerPath,
   formatProducerScopedInputIdForCanonicalProducerId,
+  getProducerOptionsForCanonicalProducerId,
   injectAllSystemInputs,
   initializeMovieStorage,
   isCanonicalArtifactId,
@@ -38,9 +39,11 @@ import {
   resolveStorageBasePathForBlueprint,
   sliceExecutionPlanThroughLayer,
   readLlmInvocationSettings,
+  setProducerOptionsForCanonicalProducerId,
   type BuildState,
   type PendingArtifactDraft,
   type ProducerOptionsMap,
+  RuntimeErrorCode,
 } from '@gorenku/core';
 import {
   createProviderProduce,
@@ -168,12 +171,18 @@ export async function generateRerunPreview(
           return `${job.jobId} (${reason})`;
         })
         .join('; ');
-      throw new Error(
+      throw createRuntimeError(
+        RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
         `Re-run preview execution failed.${
           failureDetails.length > 0
             ? ` Failed jobs: ${failureDetails}`
             : ' Failed jobs were reported without diagnostics.'
-        }`
+        }`,
+        {
+          context: `movieId=${body.movieId}, artifactId=${body.artifactId}`,
+          suggestion:
+            'Inspect the failed upstream preview jobs and fix the underlying producer or input issue before retrying Re-run preview.',
+        }
       );
     }
 
@@ -182,8 +191,14 @@ export async function generateRerunPreview(
       body.artifactId
     );
     if (!targetArtifact?.output.blob) {
-      throw new Error(
-        `Re-run preview did not produce succeeded output for artifact ${body.artifactId}.`
+      throw createRuntimeError(
+        RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+        `Re-run preview did not produce succeeded output for artifact ${body.artifactId}.`,
+        {
+          context: `movieId=${body.movieId}, artifactId=${body.artifactId}`,
+          suggestion:
+            'Ensure the targeted artifact is produced by the preview plan and that the upstream jobs complete successfully.',
+        }
       );
     }
 
@@ -217,15 +232,25 @@ async function prepareRerunSurgicalPreviewContext(
   const cliConfig = await requireCliConfig();
   const catalogRoot = cliConfig.catalog?.root;
   if (!catalogRoot) {
-    throw new Error(
-      'Renku catalog root is not configured. Run "renku init" first.'
+    throw createRuntimeError(
+      RuntimeErrorCode.VIEWER_CONFIG_MISSING,
+      'Renku catalog root is not configured. Run "renku init" first.',
+      {
+        suggestion:
+          'Initialize the workspace so the viewer can resolve catalog assets before requesting Re-run preview.',
+      }
     );
   }
 
   const catalogModelsDir = getCatalogModelsDir(cliConfig);
   if (!catalogModelsDir) {
-    throw new Error(
-      'Renku catalog models directory is not configured. Run "renku init" first.'
+    throw createRuntimeError(
+      RuntimeErrorCode.VIEWER_CONFIG_MISSING,
+      'Renku catalog models directory is not configured. Run "renku init" first.',
+      {
+        suggestion:
+          'Initialize the workspace so the viewer can resolve model catalog metadata before requesting Re-run preview.',
+      }
     );
   }
 
@@ -264,8 +289,14 @@ async function prepareRerunSurgicalPreviewContext(
     body.movieId
   );
   if (!metadata?.blueprintPath) {
-    throw new Error(
-      `Build ${body.movieId} metadata is missing blueprintPath. Cannot run Re-run preview.`
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      `Build ${body.movieId} metadata is missing blueprintPath. Cannot run Re-run preview.`,
+      {
+        context: `movieId=${body.movieId}`,
+        suggestion:
+          'Persist build metadata with blueprintPath before using Re-run preview for this build.',
+      }
     );
   }
 
@@ -427,7 +458,7 @@ async function applyRerunModelOverride(args: {
   blueprintFolder: string;
   movieId: string;
   artifactId: string;
-}): Promise<{ producerAlias: string; sourceJobId: string } | null> {
+}): Promise<{ producerId: string; sourceJobId: string } | null> {
   const {
     request,
     blueprintTree,
@@ -449,31 +480,62 @@ async function applyRerunModelOverride(args: {
   );
   const sourceJobId = latestTargetEvent?.producerJobId;
   if (!sourceJobId) {
-    throw new Error(
-      `Cannot apply rerun model override because artifact ${artifactId} has no source producer event.`
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+      `Cannot apply rerun model override because artifact ${artifactId} has no source producer event.`,
+      {
+        context: `artifactId=${artifactId}`,
+        suggestion:
+          'Persist canonical artifact ownership before using Re-run model overrides.',
+      }
+    );
+  }
+  const producerId = latestTargetEvent?.producerId;
+  if (!producerId) {
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+      `Cannot apply rerun model override because artifact ${artifactId} has no canonical producer ownership.`,
+      {
+        context: `artifactId=${artifactId}`,
+        suggestion:
+          'Persist canonical producerId ownership on the source artifact before using Re-run model overrides.',
+      }
     );
   }
 
-  const producerAlias = parseProducerAliasFromJobId(sourceJobId);
-
   if (!request.model) {
-    return { producerAlias, sourceJobId };
+    return { producerId, sourceJobId };
   }
-  const currentEntries = providerOptions.get(producerAlias);
+  const currentEntries = getProducerOptionsForCanonicalProducerId(
+    providerOptions,
+    producerId
+  );
   if (!currentEntries || currentEntries.length === 0) {
-    throw new Error(
-      `Provider options are missing for producer ${producerAlias}.`
+    throw createRuntimeError(
+      RuntimeErrorCode.NO_PRODUCER_OPTIONS,
+      `Provider options are missing for producer ${producerId}.`,
+      {
+        context: `producerId=${producerId}`,
+        suggestion:
+          'Load producer options from the current inputs.yaml before applying a Re-run model override.',
+      }
     );
   }
 
   const sdkMapping = resolveMappingsForModel(blueprintTree, {
     provider: request.model.provider,
     model: request.model.model,
-    producerId: formatCanonicalProducerPath(producerAlias),
+    producerId,
   });
   if (!sdkMapping || Object.keys(sdkMapping).length === 0) {
-    throw new Error(
-      `Model ${request.model.provider}/${request.model.model} is not mapped for producer ${producerAlias}.`
+    throw createRuntimeError(
+      RuntimeErrorCode.MODELS_PANE_DESCRIPTOR_MISSING_FOR_MODEL,
+      `Model ${request.model.provider}/${request.model.model} is not mapped for producer ${producerId}.`,
+      {
+        context: `producerId=${producerId}, provider=${request.model.provider}, model=${request.model.model}`,
+        suggestion:
+          'Add an explicit SDK mapping for the selected producer/model pair before using it in Re-run preview.',
+      }
     );
   }
 
@@ -484,24 +546,23 @@ async function applyRerunModelOverride(args: {
     model: request.model.model,
     sdkMapping,
   };
-  providerOptions.set(producerAlias, [
+  setProducerOptionsForCanonicalProducerId(providerOptions, producerId, [
     updatedPrimary,
     ...currentEntries.slice(1),
   ]);
 
-  const canonicalProducerId = formatCanonicalProducerPath(producerAlias);
   const providerInputId = formatProducerScopedInputIdForCanonicalProducerId(
-    canonicalProducerId,
+    producerId,
     'provider'
   );
   const modelInputId = formatProducerScopedInputIdForCanonicalProducerId(
-    canonicalProducerId,
+    producerId,
     'model'
   );
   resolvedInputs[providerInputId] = request.model.provider;
   resolvedInputs[modelInputId] = request.model.model;
 
-  return { producerAlias, sourceJobId };
+  return { producerId, sourceJobId };
 }
 
 async function applyRerunInputOverrides(args: {
@@ -536,8 +597,13 @@ async function applyRerunInputOverrides(args: {
   }
 
   if (!sourceJobId) {
-    throw new Error(
-      'Cannot apply rerun input overrides because source producer job id is missing.'
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+      'Cannot apply rerun input overrides because source producer job id is missing.',
+      {
+        suggestion:
+          'Resolve the target artifact to a concrete producer job before applying Re-run input overrides.',
+      }
     );
   }
 
@@ -564,8 +630,14 @@ async function applyRerunInputOverrides(args: {
 
     if (isCanonicalArtifactId(target.canonicalId)) {
       if (artifactEventMeta.has(target.canonicalId)) {
-        throw new Error(
-          `Input overrides map multiple fields to source artifact ${target.canonicalId}.`
+        throw createRuntimeError(
+          RuntimeErrorCode.INVALID_INPUT_BINDING,
+          `Input overrides map multiple fields to source artifact ${target.canonicalId}.`,
+          {
+            context: `artifactId=${target.canonicalId}`,
+            suggestion:
+              'Each Re-run input override must bind to one unique source artifact.',
+          }
         );
       }
 
@@ -575,8 +647,14 @@ async function applyRerunInputOverrides(args: {
         target.canonicalId
       );
       if (!latestSourceEvent?.output.blob?.mimeType) {
-        throw new Error(
-          `Cannot apply input override "${target.inputName}" because source artifact ${target.canonicalId} has no latest blob metadata.`
+        throw createRuntimeError(
+          RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+          `Cannot apply input override "${target.inputName}" because source artifact ${target.canonicalId} has no latest blob metadata.`,
+          {
+            context: `inputName=${target.inputName}, artifactId=${target.canonicalId}`,
+            suggestion:
+              'Only artifacts with persisted blob metadata can be used as Re-run input override sources.',
+          }
         );
       }
       const ownership = resolveArtifactOwnershipFromEvent({
@@ -600,8 +678,14 @@ async function applyRerunInputOverrides(args: {
       continue;
     }
 
-    throw new Error(
-      `Override binding for "${target.inputName}" resolved to unsupported id "${target.canonicalId}".`
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_BINDING,
+      `Override binding for "${target.inputName}" resolved to unsupported id "${target.canonicalId}".`,
+      {
+        context: `inputName=${target.inputName}, canonicalId=${target.canonicalId}`,
+        suggestion:
+          'Re-run input overrides must resolve to canonical Input:... or Artifact:... IDs.',
+      }
     );
   }
 
@@ -617,14 +701,26 @@ async function applyRerunInputOverrides(args: {
   const drafts = artifactOverrides.map((override, index) => {
     const meta = artifactEventMeta.get(override.artifactId);
     if (!meta) {
-      throw new Error(
-        `Missing source event metadata for overridden artifact ${override.artifactId}.`
+      throw createRuntimeError(
+        RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+        `Missing source event metadata for overridden artifact ${override.artifactId}.`,
+        {
+          context: `artifactId=${override.artifactId}`,
+          suggestion:
+            'Resolve source artifact ownership and inputsHash before persisting Re-run artifact overrides.',
+        }
       );
     }
     const persistedOverride = persisted[index];
     if (!persistedOverride) {
-      throw new Error(
-        `Persisted override is missing for artifact ${override.artifactId}.`
+      throw createRuntimeError(
+        RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+        `Persisted override is missing for artifact ${override.artifactId}.`,
+        {
+          context: `artifactId=${override.artifactId}`,
+          suggestion:
+            'Persist override blobs for every Re-run artifact override before converting them into draft events.',
+        }
       );
     }
 
@@ -645,8 +741,14 @@ async function applyRerunInputOverrides(args: {
   return drafts.map((draft) => {
     const meta = artifactEventMeta.get(draft.artifactId);
     if (!meta) {
-      throw new Error(
-        `Missing source event metadata for overridden artifact ${draft.artifactId}.`
+      throw createRuntimeError(
+        RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+        `Missing source event metadata for overridden artifact ${draft.artifactId}.`,
+        {
+          context: `artifactId=${draft.artifactId}`,
+          suggestion:
+            'Carry forward source artifact ownership and inputsHash when finalizing Re-run override drafts.',
+        }
       );
     }
 
@@ -685,20 +787,6 @@ export function resolveRerunInputOverrideTargets(args: {
   });
 }
 
-function parseProducerAliasFromJobId(jobId: string): string {
-  if (!jobId.startsWith('Producer:')) {
-    throw new Error(`Expected producer job id, got ${jobId}.`);
-  }
-
-  const jobBody = jobId.slice('Producer:'.length);
-  const alias = jobBody.replace(/\[[^\]]+\]/g, '');
-  if (alias.length === 0) {
-    throw new Error(`Producer alias is empty in job id ${jobId}.`);
-  }
-
-  return alias;
-}
-
 async function buildRerunPromptOverrideDraft(args: {
   request: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest;
   blueprintFolder: string;
@@ -712,7 +800,14 @@ async function buildRerunPromptOverrideDraft(args: {
   }
 
   if (!request.promptArtifactId) {
-    throw new Error('Re-run prompt override requires promptArtifactId.');
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      'Re-run prompt override requires promptArtifactId.',
+      {
+        suggestion:
+          'Provide the canonical promptArtifactId when submitting a Re-run prompt override.',
+      }
+    );
   }
 
   const latestPromptEvent = await readLatestArtifactEvent(
@@ -721,8 +816,14 @@ async function buildRerunPromptOverrideDraft(args: {
     request.promptArtifactId
   );
   if (!latestPromptEvent?.output.blob?.mimeType) {
-    throw new Error(
-      `Prompt artifact ${request.promptArtifactId} has no latest blob metadata for Re-run override.`
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+      `Prompt artifact ${request.promptArtifactId} has no latest blob metadata for Re-run override.`,
+      {
+        context: `artifactId=${request.promptArtifactId}`,
+        suggestion:
+          'Only prompt artifacts with persisted blob metadata can be overridden in Re-run preview.',
+      }
     );
   }
   const ownership = resolveArtifactOwnershipFromEvent({
@@ -758,8 +859,14 @@ async function buildRerunPromptOverrideDraft(args: {
     ]),
   });
   if (!draft) {
-    throw new Error(
-      'Failed to create prompt override draft for Re-run preview.'
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+      'Failed to create prompt override draft for Re-run preview.',
+      {
+        context: `artifactId=${request.promptArtifactId}`,
+        suggestion:
+          'Persist the prompt override blob and resolve ownership before generating the Re-run preview draft.',
+      }
     );
   }
 

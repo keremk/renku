@@ -19,6 +19,7 @@ import type {
   ProviderEnvironment,
 } from '../types.js';
 import {
+  canonicalProducerIdToAlias,
   formatCanonicalProducerPath,
   formatProducerAlias,
 } from '../parsing/canonical-ids.js';
@@ -68,6 +69,21 @@ export interface LoadedProducerOption {
 }
 
 export type ProducerOptionsMap = Map<string, LoadedProducerOption[]>;
+
+export function getProducerOptionsForCanonicalProducerId(
+  options: ProducerOptionsMap,
+  producerId: string
+): LoadedProducerOption[] | undefined {
+  return options.get(canonicalProducerIdToAlias(producerId));
+}
+
+export function setProducerOptionsForCanonicalProducerId(
+  options: ProducerOptionsMap,
+  producerId: string,
+  nextOptions: LoadedProducerOption[]
+): void {
+  options.set(canonicalProducerIdToAlias(producerId), nextOptions);
+}
 
 export interface BuildProducerOptionsContext {
   /** Base directory for resolving relative paths (typically the input file directory) */

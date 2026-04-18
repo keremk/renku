@@ -1,5 +1,7 @@
 # Agent Rules (Always Obey)
 
+> **EXTREMELY IMPORTANT** You should never parse or infer any thing from Canonical IDs. Treat them as if they are GUIDs. They are not parsable, they happen to be human readable strings for debugging purposes only. No string manipulations on them are allowed. If you need additional data properly introduce as part of a data structure. You cannot violate this LAW. It is a LAW of this codebase.
+
 > **EXTREMELY IMPORTANT** Never guess. Never infer bindings from naming patterns, partial matches, or “close enough” aliases. Resolve inputs only through the exact declared binding. If the binding is missing, fail fast with a numbered Renku error so the blueprint or producer contract can be fixed explicitly.
 
 > **EXTREMELY IMPORTANT** Absolutely no fallbacks: never quietly substitute defaults or best guesses when inputs or mappings are missing. Fail fast, surface the missing value, and stop before calling any SDK so issues can be fixed explicitly.

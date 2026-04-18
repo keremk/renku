@@ -22,6 +22,8 @@ import {
   formatCanonicalProducerId,
   formatProducerScopedInputId,
   formatProducerScopedInputIdForCanonicalProducerId,
+  canonicalProducerIdToAlias,
+  canonicalProducerInstanceIdToProducerId,
   // Utilities
   parseQualifiedProducerName,
   createInputIdResolver,
@@ -193,6 +195,30 @@ describe('Parsers', () => {
 
     it('throws for non-Producer ID', () => {
       expect(() => parseCanonicalProducerId('Input:Topic')).toThrow('Expected canonical Producer ID');
+    });
+  });
+
+  describe('canonicalProducerIdToAlias', () => {
+    it('converts canonical producer family IDs to aliases', () => {
+      expect(
+        canonicalProducerIdToAlias('Producer:CelebrityVideoProducer.MeetingVideoProducer')
+      ).toBe('CelebrityVideoProducer.MeetingVideoProducer');
+    });
+
+    it('rejects indexed producer instance IDs', () => {
+      expect(() =>
+        canonicalProducerIdToAlias('Producer:SceneVideoProducer[1]')
+      ).toThrow('Expected canonical producer family ID without indices');
+    });
+  });
+
+  describe('canonicalProducerInstanceIdToProducerId', () => {
+    it('converts producer instance IDs to canonical producer family IDs', () => {
+      expect(
+        canonicalProducerInstanceIdToProducerId(
+          'Producer:CelebrityVideoProducer.MeetingVideoProducer[1]'
+        )
+      ).toBe('Producer:CelebrityVideoProducer.MeetingVideoProducer');
     });
   });
 

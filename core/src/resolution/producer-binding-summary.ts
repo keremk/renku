@@ -1,9 +1,9 @@
 import type { BlueprintTreeNode } from '../types.js';
 import {
+  canonicalProducerIdToAlias,
   formatCanonicalArtifactId,
   formatCanonicalInputId,
   isCanonicalId,
-  parseCanonicalProducerId,
 } from '../parsing/canonical-ids.js';
 import { parseDimensionSelector } from '../parsing/dimension-selectors.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
@@ -220,11 +220,6 @@ export function buildProducerRuntimeBindingSnapshot(args: {
     instances,
     resolvedInputs,
   };
-}
-
-function canonicalProducerIdToAlias(canonicalProducerId: string): string {
-  const parsed = parseCanonicalProducerId(canonicalProducerId);
-  return [...parsed.path, parsed.name].join('.');
 }
 
 function resolveArgsContext(args: {
