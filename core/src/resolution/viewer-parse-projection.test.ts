@@ -162,6 +162,115 @@ describe('viewer-parse-projection helpers', () => {
     );
   });
 
+  it('ignores collapsed self-edges from loop-carried producer dependencies', () => {
+    const root = makeTreeNode({
+      meta: { id: 'id', name: 'loop-continuity-test' },
+      inputs: [{ name: 'Prompt', type: 'text', required: true }],
+      producers: [],
+      imports: [
+        { name: 'ScriptProducer', producer: 'prompt/director' },
+        { name: 'VideoProducer', producer: 'video/image-to-video', loop: 'scene' },
+        { name: 'TimelineComposer', producer: 'composition/timeline-composer' },
+      ],
+      loops: [
+        { name: 'scene', countInput: 'NumOfSegments' },
+      ],
+      outputs: [{ name: 'Timeline', type: 'json' }],
+      edges: [
+        { from: 'Prompt', to: 'ScriptProducer.Prompt' },
+        {
+          from: 'ScriptProducer.SceneVideoPrompt[scene]',
+          to: 'VideoProducer[scene].Prompt',
+        },
+        {
+          from: 'VideoProducer[scene-1].LastFrame',
+          to: 'VideoProducer[scene].StartImage',
+        },
+        {
+          from: 'VideoProducer[scene].GeneratedVideo',
+          to: 'TimelineComposer.VideoSegments',
+        },
+        {
+          from: 'TimelineComposer.Timeline',
+          to: 'Timeline',
+        },
+      ],
+    });
+
+    root.children.set(
+      'ScriptProducer',
+      makeTreeNode({
+        meta: { id: 'ScriptProducer', name: 'Script Producer', kind: 'producer' },
+        inputs: [{ name: 'Prompt', type: 'text', required: true }],
+        producers: [{ name: 'ScriptProducer' }],
+        imports: [],
+        outputs: [{ name: 'SceneVideoPrompt', type: 'text' }],
+        edges: [],
+      }, ['ScriptProducer'])
+    );
+    root.children.set(
+      'VideoProducer',
+      makeTreeNode({
+        meta: { id: 'VideoProducer', name: 'Video Producer', kind: 'producer' },
+        inputs: [
+          { name: 'Prompt', type: 'text', required: true },
+          { name: 'StartImage', type: 'image', required: false },
+        ],
+        producers: [{ name: 'VideoProducer' }],
+        imports: [],
+        outputs: [
+          { name: 'GeneratedVideo', type: 'video' },
+          { name: 'LastFrame', type: 'image' },
+        ],
+        edges: [],
+      }, ['VideoProducer'])
+    );
+    root.children.set(
+      'TimelineComposer',
+      makeTreeNode({
+        meta: {
+          id: 'TimelineComposer',
+          name: 'Timeline Composer',
+          kind: 'producer',
+        },
+        inputs: [{ name: 'VideoSegments', type: 'video', required: false }],
+        producers: [{ name: 'TimelineComposer' }],
+        imports: [],
+        outputs: [{ name: 'Timeline', type: 'json' }],
+        edges: [],
+      }, ['TimelineComposer'])
+    );
+
+    const graph = convertTreeToGraph(root);
+
+    expect(graph.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: 'Producer:ScriptProducer',
+          target: 'Producer:VideoProducer',
+        }),
+        expect.objectContaining({
+          source: 'Producer:VideoProducer',
+          target: 'Producer:TimelineComposer',
+        }),
+      ])
+    );
+    expect(graph.edges).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: 'Producer:VideoProducer',
+          target: 'Producer:VideoProducer',
+        }),
+      ])
+    );
+    expect(graph.layerCount).toBe(3);
+    expect(graph.layerAssignments).toMatchObject({
+      'Producer:ScriptProducer': 0,
+      'Producer:VideoProducer': 1,
+      'Producer:TimelineComposer': 2,
+    });
+  });
+
   it('preserves named if conditions on bindings and rendered edges', () => {
     const root = makeTreeNode({
       meta: { id: 'id', name: 'conditional-test' },
@@ -377,6 +486,40 @@ describe('viewer-parse-projection helpers', () => {
     );
     expect(producerNodeIds).not.toContain('Producer:CelebrityVideoProducer');
     expect(celebrityGraph.layerCount).toBe(7);
+  });
+
+  it('keeps looped historical-story topology acyclic at the alias layer', async () => {
+    const historicalStoryPath = resolve(
+      CATALOG_ROOT,
+      'blueprints/short-video-documentary/historical-story.yaml'
+    );
+    const { root } = await loadYamlBlueprintTree(historicalStoryPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+    const context = await prepareBlueprintResolutionContext({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+    });
+
+    const graph = convertTreeToGraph(context.root);
+
+    expect(graph.edges).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: 'Producer:VideoProducer',
+          target: 'Producer:VideoProducer',
+        }),
+      ])
+    );
+    expect(graph.layerCount).toBe(6);
+    expect(graph.layerAssignments).toMatchObject({
+      'Producer:HistoryScriptwriter': 0,
+      'Producer:InitialImageProducer': 1,
+      'Producer:VideoProducer': 2,
+      'Producer:TimelineComposer': 3,
+      'Producer:TranscriptionProducer': 4,
+      'Producer:VideoExporter': 5,
+    });
   });
 });
 

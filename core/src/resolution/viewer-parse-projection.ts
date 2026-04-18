@@ -989,6 +989,14 @@ function addRenderedEdge(
   isConditional: boolean,
   conditionName?: string
 ): void {
+  // Collapsed alias graphs intentionally represent each producer family once.
+  // Loop-carried links like VideoProducer[segment-1] -> VideoProducer[segment]
+  // become self-edges at that level, which are not renderable and would be
+  // misclassified as cycles by layer computation.
+  if (source === target) {
+    return;
+  }
+
   const edgeId = `${source}->${target}`;
   const existing = edgesById.get(edgeId);
   if (existing) {
