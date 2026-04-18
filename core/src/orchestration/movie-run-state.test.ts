@@ -131,7 +131,7 @@ describe('copyLatestSucceededArtifactBlobsToMemory', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ImageProducer',
+      producerJobId: 'Producer:ImageProducer',
       createdAt: new Date().toISOString(),
     };
     await eventLog.appendArtifact(movieId, event);
@@ -195,7 +195,7 @@ describe('copyLatestSucceededArtifactBlobsToMemory', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ImageProducer',
+      producerJobId: 'Producer:ImageProducer',
       createdAt: new Date().toISOString(),
     };
     await eventLog.appendArtifact(movieId, event);

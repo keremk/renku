@@ -68,3 +68,4 @@ export * from './workspace.js';
 export * from './workspace-service.js';
 export * from './settings-service.js';
 export * from './artifact-materialization.js';
+export * from './artifact-ownership.js';

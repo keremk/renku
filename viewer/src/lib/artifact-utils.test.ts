@@ -115,10 +115,10 @@ describe('groupArtifactsByProducer', () => {
     expect(groups.get('Producer:ProducerB')?.length).toBe(1);
   });
 
-  it('groups canonical producedBy artifacts without guessing', () => {
+  it('groups canonical producerJobId artifacts without guessing', () => {
     const artifacts: ArtifactInfo[] = [
       makeArtifact('Artifact:ValidProducer.Output', {
-        producedBy: 'Producer:ValidProducer',
+        producerJobId: 'Producer:ValidProducer',
       }),
       makeArtifact('InvalidFormat'),
     ];

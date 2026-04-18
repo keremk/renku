@@ -36,7 +36,7 @@ function stripCanonicalArtifactPrefix(artifactId: string): string {
  */
 interface ArtifactEvent {
   artifactId: string;
-  producedBy?: string;
+  producerJobId?: string;
   producerId?: string;
   output: {
     blob?: {
@@ -47,8 +47,8 @@ interface ArtifactEvent {
   };
   status: 'succeeded' | 'failed' | 'skipped';
   createdAt: string;
-  editedBy?: 'producer' | 'user';
-  originalHash?: string;
+  lastRevisionBy?: 'producer' | 'user';
+  preEditArtifactHash?: string;
   /** Diagnostics from provider (may include recovery info) */
   diagnostics?: {
     provider?: string;
@@ -186,7 +186,7 @@ export async function getBuildState(
         {
           hash: string;
           blob?: { hash: string; size: number; mimeType?: string };
-          producedBy: string;
+          producerJobId: string;
           producerId?: string;
           status: string;
           createdAt: string;
@@ -264,7 +264,7 @@ export async function getBuildState(
       parsedArtifacts.push({
         id: artifactId,
         name: cleanName,
-        producedBy: event.producedBy,
+        producerJobId: event.producerJobId,
         ...(producerNodeId ? { producerNodeId } : {}),
         hash: displayEvent?.output?.blob?.hash ?? '',
         size: displayEvent?.output?.blob?.size ?? 0,
@@ -272,8 +272,8 @@ export async function getBuildState(
           displayEvent?.output?.blob?.mimeType ?? 'application/octet-stream',
         status: event.status,
         createdAt: event.createdAt ?? null,
-        editedBy: displayEvent?.editedBy,
-        originalHash: displayEvent?.originalHash,
+        lastRevisionBy: displayEvent?.lastRevisionBy,
+        preEditArtifactHash: displayEvent?.preEditArtifactHash,
         ...(event.status !== 'succeeded' && displayEvent?.output?.blob?.hash
           ? { showingPreviousOutput: true }
           : {}),

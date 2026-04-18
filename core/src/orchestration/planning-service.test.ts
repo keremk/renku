@@ -499,8 +499,10 @@ describe('createPlanningService', () => {
       inputsHash: `inputs-${args.revision}`,
       output: args.blob ? { blob: args.blob } : {},
       status: args.status ?? 'succeeded',
-      producedBy: 'Producer:UpstreamProducer',
+      producerJobId: 'Producer:UpstreamProducer',
+      producerId: 'Producer:UpstreamProducer',
       createdAt: new Date().toISOString(),
+      lastRevisionBy: 'producer',
     });
   }
 
@@ -1159,7 +1161,9 @@ describe('createPlanningService', () => {
       const pendingArtifacts: PendingArtifactDraft[] = [
         {
           artifactId: 'Artifact:Output',
-          producedBy: 'Producer:TestProducer',
+          producerJobId: 'Producer:TestProducer',
+          producerId: 'Producer:TestProducer',
+          lastRevisionBy: 'user',
           output: {
             blob: { hash: 'abc123', size: 100, mimeType: 'text/plain' },
           },
@@ -1307,8 +1311,10 @@ describe('createPlanningService', () => {
         inputsHash: 'inputs-hash',
         output: {},
         status: 'failed',
-        producedBy: 'Producer:TestProducer',
+        producerJobId: 'Producer:TestProducer',
+        producerId: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
+        lastRevisionBy: 'producer',
       });
 
       const result = await service.generatePlan({
@@ -1422,8 +1428,10 @@ describe('createPlanningService', () => {
           blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
         },
         status: 'succeeded',
-        producedBy: 'Producer:TestProducer',
+        producerJobId: 'Producer:TestProducer',
+        producerId: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
+        lastRevisionBy: 'producer',
       });
 
       await expect(
@@ -1460,8 +1468,10 @@ describe('createPlanningService', () => {
           blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
         },
         status: 'succeeded',
-        producedBy: 'Producer:TestProducer',
+        producerJobId: 'Producer:TestProducer',
+        producerId: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
+        lastRevisionBy: 'producer',
       });
 
       await expect(
@@ -1500,8 +1510,10 @@ describe('createPlanningService', () => {
           blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
         },
         status: 'succeeded',
-        producedBy: 'Producer:TestProducer',
+        producerJobId: 'Producer:TestProducer',
+        producerId: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
+        lastRevisionBy: 'producer',
       });
 
       const result = await service.generatePlan({
@@ -1539,8 +1551,10 @@ describe('createPlanningService', () => {
           blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
         },
         status: 'succeeded',
-        producedBy: 'Producer:TestProducer',
+        producerJobId: 'Producer:TestProducer',
+        producerId: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
+        lastRevisionBy: 'producer',
       });
 
       const result = await service.generatePlan({
@@ -1704,8 +1718,10 @@ describe('createPlanningService', () => {
           blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
         },
         status: 'succeeded',
-        producedBy: 'Producer:UpstreamProducer',
+        producerJobId: 'Producer:UpstreamProducer',
+        producerId: 'Producer:UpstreamProducer',
         createdAt: new Date().toISOString(),
+        lastRevisionBy: 'producer',
       });
 
       const result = await service.generatePlan({
@@ -1994,7 +2010,9 @@ describe('createPlanningService', () => {
         pendingArtifacts: [
           {
             artifactId: 'Artifact:Output',
-            producedBy: 'Producer:TestProducer',
+            producerJobId: 'Producer:TestProducer',
+            producerId: 'Producer:TestProducer',
+            lastRevisionBy: 'user',
             output: {},
           },
         ],
@@ -2027,7 +2045,9 @@ describe('createPlanningService', () => {
         pendingArtifacts: [
           {
             artifactId: 'Artifact:Output',
-            producedBy: 'Producer:TestProducer',
+            producerJobId: 'Producer:TestProducer',
+            producerId: 'Producer:TestProducer',
+            lastRevisionBy: 'user',
             output: {},
             status: 'skipped',
           },
@@ -2059,7 +2079,9 @@ describe('createPlanningService', () => {
         pendingArtifacts: [
           {
             artifactId: 'Artifact:Output',
-            producedBy: 'Producer:TestProducer',
+            producerJobId: 'Producer:TestProducer',
+            producerId: 'Producer:TestProducer',
+            lastRevisionBy: 'user',
             output: {},
           },
         ],
@@ -2088,8 +2110,10 @@ describe('createPlanningService', () => {
           blob: { hash: 'old-hash', size: 10, mimeType: 'text/plain' },
         },
         status: 'succeeded',
-        producedBy: 'Producer:TestProducer',
+        producerJobId: 'Producer:TestProducer',
+        producerId: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
+        lastRevisionBy: 'producer',
       });
 
       const result = await service.generatePlan({
@@ -2104,7 +2128,9 @@ describe('createPlanningService', () => {
         pendingArtifacts: [
           {
             artifactId: 'Artifact:Output',
-            producedBy: 'Producer:TestProducer',
+            producerJobId: 'Producer:TestProducer',
+            producerId: 'Producer:TestProducer',
+            lastRevisionBy: 'user',
             output: {
               blob: { hash: 'new-hash', size: 20, mimeType: 'text/plain' },
             },
@@ -2130,8 +2156,10 @@ describe('createPlanningService', () => {
           blob: { hash: 'old-hash', size: 10, mimeType: 'text/plain' },
         },
         status: 'succeeded',
-        producedBy: 'Producer:TestProducer',
+        producerJobId: 'Producer:TestProducer',
+        producerId: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
+        lastRevisionBy: 'producer',
       });
 
       const result = await service.generatePlan({
@@ -2146,7 +2174,9 @@ describe('createPlanningService', () => {
         pendingArtifacts: [
           {
             artifactId: 'Artifact:Output',
-            producedBy: 'Producer:TestProducer',
+            producerJobId: 'Producer:TestProducer',
+            producerId: 'Producer:TestProducer',
+            lastRevisionBy: 'user',
             output: {},
             status: 'skipped',
           },
@@ -2171,8 +2201,10 @@ describe('createPlanningService', () => {
           blob: { hash: 'old-hash', size: 10, mimeType: 'text/plain' },
         },
         status: 'succeeded',
-        producedBy: 'Producer:UpstreamProducer',
+        producerJobId: 'Producer:UpstreamProducer',
+        producerId: 'Producer:UpstreamProducer',
         createdAt: new Date().toISOString(),
+        lastRevisionBy: 'producer',
       });
 
       const result = await service.generatePlan({
@@ -2190,7 +2222,9 @@ describe('createPlanningService', () => {
         pendingArtifacts: [
           {
             artifactId: 'Artifact:UpstreamProducer.Intermediate',
-            producedBy: 'Producer:UpstreamProducer',
+            producerJobId: 'Producer:UpstreamProducer',
+            producerId: 'Producer:UpstreamProducer',
+            lastRevisionBy: 'user',
             output: {
               blob: { hash: 'new-hash', size: 20, mimeType: 'text/plain' },
             },

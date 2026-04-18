@@ -117,7 +117,7 @@ describe('findLatestSucceededArtifactEvent', () => {
               },
             },
             status: 'failed',
-            producedBy: 'Producer:A',
+            producerJobId: 'Producer:A',
             createdAt: new Date().toISOString(),
           },
         ],
@@ -143,7 +143,7 @@ describe('findLatestSucceededArtifactEvent', () => {
               },
             },
             status: 'succeeded',
-            producedBy: 'Producer:B',
+            producerJobId: 'Producer:B',
             createdAt: new Date().toISOString(),
           },
         ],
@@ -160,6 +160,6 @@ describe('findLatestSucceededArtifactEvent', () => {
     );
 
     expect(event?.status).toBe('succeeded');
-    expect(event?.producedBy).toBe('Producer:B');
+    expect(event?.producerJobId).toBe('Producer:B');
   });
 });

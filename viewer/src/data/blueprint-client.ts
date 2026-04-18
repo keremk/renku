@@ -545,8 +545,8 @@ export function parseFileRef(value: unknown): string | null {
 export interface ArtifactEditResponse {
   success: boolean;
   newHash: string;
-  originalHash?: string;
-  editedBy: 'user';
+  preEditArtifactHash?: string;
+  lastRevisionBy: 'user';
 }
 
 /**

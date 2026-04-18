@@ -235,34 +235,34 @@ function createSucceededBuildState(
   baseline: InputEvent[],
   options?: {
     revision?: RevisionId;
-    artifacts?: Record<string, { hash: string; producedBy: string }>;
+    artifacts?: Record<string, { hash: string; producerJobId: string }>;
   }
 ): BuildState {
   const revision = options?.revision ?? 'rev-0001';
   const artifactCreatedAt = new Date().toISOString();
 
   // Default artifacts for the standard test graph
-  const defaultArtifacts: Record<string, { hash: string; producedBy: string }> =
+  const defaultArtifacts: Record<string, { hash: string; producerJobId: string }> =
     {
       'Artifact:NarrationScript[0]': {
         hash: 'h0',
-        producedBy: 'Producer:ScriptProducer',
+        producerJobId: 'Producer:ScriptProducer',
       },
       'Artifact:NarrationScript[1]': {
         hash: 'h1',
-        producedBy: 'Producer:ScriptProducer',
+        producerJobId: 'Producer:ScriptProducer',
       },
       'Artifact:SegmentAudio[0]': {
         hash: 'h2',
-        producedBy: 'Producer:AudioProducer[0]',
+        producerJobId: 'Producer:AudioProducer[0]',
       },
       'Artifact:SegmentAudio[1]': {
         hash: 'h3',
-        producedBy: 'Producer:AudioProducer[1]',
+        producerJobId: 'Producer:AudioProducer[1]',
       },
       'Artifact:FinalVideo': {
         hash: 'h4',
-        producedBy: 'Producer:TimelineAssembler',
+        producerJobId: 'Producer:TimelineAssembler',
       },
     };
 
@@ -271,7 +271,7 @@ function createSucceededBuildState(
   for (const [id, def] of Object.entries(artifactDefs)) {
     artifacts[id] = {
       hash: def.hash,
-      producedBy: def.producedBy,
+      producerJobId: def.producerJobId,
       status: 'succeeded',
       createdAt: artifactCreatedAt,
     };
@@ -351,31 +351,31 @@ describe('planner', () => {
       artifacts: {
         'Artifact:NarrationScript[0]': {
           hash: 'hash-script-0',
-          producedBy: 'Producer:ScriptProducer',
+          producerJobId: 'Producer:ScriptProducer',
           status: 'succeeded',
           createdAt: artifactCreatedAt,
         },
         'Artifact:NarrationScript[1]': {
           hash: 'hash-script-1',
-          producedBy: 'Producer:ScriptProducer',
+          producerJobId: 'Producer:ScriptProducer',
           status: 'succeeded',
           createdAt: artifactCreatedAt,
         },
         'Artifact:SegmentAudio[0]': {
           hash: 'hash-audio-0',
-          producedBy: 'Producer:AudioProducer[0]',
+          producerJobId: 'Producer:AudioProducer[0]',
           status: 'succeeded',
           createdAt: artifactCreatedAt,
         },
         'Artifact:SegmentAudio[1]': {
           hash: 'hash-audio-1',
-          producedBy: 'Producer:AudioProducer[1]',
+          producerJobId: 'Producer:AudioProducer[1]',
           status: 'succeeded',
           createdAt: artifactCreatedAt,
         },
         'Artifact:FinalVideo': {
           hash: 'hash-final-video',
-          producedBy: 'Producer:TimelineAssembler',
+          producerJobId: 'Producer:TimelineAssembler',
           status: 'succeeded',
           createdAt: artifactCreatedAt,
         },
@@ -415,11 +415,11 @@ describe('planner', () => {
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
-          producedBy: 'Producer:DirectorProducer',
+          producerJobId: 'Producer:DirectorProducer',
         },
         'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
           hash: 'transition-hash',
-          producedBy: 'Producer:TransitionVideoProducer[0]',
+          producerJobId: 'Producer:TransitionVideoProducer[0]',
         },
       },
     });
@@ -456,15 +456,15 @@ describe('planner', () => {
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
-          producedBy: 'Producer:DirectorProducer',
+          producerJobId: 'Producer:DirectorProducer',
         },
         'Artifact:DirectorProducer.Script.Characters[0].HasTransition': {
           hash: 'has-transition-hash',
-          producedBy: 'Producer:DirectorProducer',
+          producerJobId: 'Producer:DirectorProducer',
         },
         'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
           hash: 'transition-hash',
-          producedBy: 'Producer:TransitionVideoProducer[0]',
+          producerJobId: 'Producer:TransitionVideoProducer[0]',
         },
       },
     });
@@ -500,11 +500,11 @@ describe('planner', () => {
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
-          producedBy: 'Producer:DirectorProducer',
+          producerJobId: 'Producer:DirectorProducer',
         },
         'Artifact:DirectorProducer.Script.Characters[0].HasTransition': {
           hash: 'has-transition-hash',
-          producedBy: 'Producer:DirectorProducer',
+          producerJobId: 'Producer:DirectorProducer',
         },
       },
     });
@@ -547,11 +547,11 @@ describe('planner', () => {
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
-          producedBy: 'Producer:DirectorProducer',
+          producerJobId: 'Producer:DirectorProducer',
         },
         'Artifact:DirectorProducer.Script.Characters[0].HasTransition': {
           hash: 'has-transition-hash',
-          producedBy: 'Producer:DirectorProducer',
+          producerJobId: 'Producer:DirectorProducer',
         },
       },
     });
@@ -597,11 +597,11 @@ describe('planner', () => {
       artifacts: {
         'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
           hash: 'meeting-hash',
-          producedBy: 'Producer:DirectorProducer',
+          producerJobId: 'Producer:DirectorProducer',
         },
         'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
           hash: 'transition-hash',
-          producedBy: 'Producer:TransitionVideoProducer[0]',
+          producerJobId: 'Producer:TransitionVideoProducer[0]',
         },
       },
     });
@@ -619,7 +619,7 @@ describe('planner', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:DirectorProducer',
+      producerJobId: 'Producer:DirectorProducer',
       createdAt: new Date().toISOString(),
     });
 
@@ -745,31 +745,31 @@ describe('planner', () => {
       artifacts: {
         [scriptArtifactId]: {
           hash: originalHash,
-          producedBy: 'Producer:ScriptProducer',
+          producerJobId: 'Producer:ScriptProducer',
           status: 'succeeded',
           createdAt: baselineArtifactTimestamp,
         },
         'Artifact:NarrationScript[1]': {
           hash: originalScriptOneHash,
-          producedBy: 'Producer:ScriptProducer',
+          producerJobId: 'Producer:ScriptProducer',
           status: 'succeeded',
           createdAt: baselineArtifactTimestamp,
         },
         'Artifact:SegmentAudio[0]': {
           hash: 'hash-audio-0',
-          producedBy: 'Producer:AudioProducer[0]',
+          producerJobId: 'Producer:AudioProducer[0]',
           status: 'succeeded',
           createdAt: baselineArtifactTimestamp,
         },
         'Artifact:SegmentAudio[1]': {
           hash: 'hash-audio-1',
-          producedBy: 'Producer:AudioProducer[1]',
+          producerJobId: 'Producer:AudioProducer[1]',
           status: 'succeeded',
           createdAt: baselineArtifactTimestamp,
         },
         'Artifact:FinalVideo': {
           hash: 'hash-final-video',
-          producedBy: 'Producer:TimelineAssembler',
+          producerJobId: 'Producer:TimelineAssembler',
           status: 'succeeded',
           createdAt: baselineArtifactTimestamp,
         },
@@ -789,7 +789,7 @@ describe('planner', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'manual-edit',
+      producerJobId: 'manual-edit',
       createdAt: new Date().toISOString(),
     });
 
@@ -840,7 +840,7 @@ describe('planner', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:AudioProducer[0]',
+      producerJobId: 'Producer:AudioProducer[0]',
       createdAt: new Date(Date.now() - 1_000).toISOString(),
     });
 
@@ -850,7 +850,7 @@ describe('planner', () => {
       inputsHash: 'manual-fail',
       output: {},
       status: 'failed',
-      producedBy: 'Producer:AudioProducer[0]',
+      producerJobId: 'Producer:AudioProducer[0]',
       diagnostics: {
         error: {
           name: 'Error',
@@ -945,7 +945,7 @@ describe('planner', () => {
       inputsHash: 'hash-a',
       output: { blob: { hash: 'blob-a', size: 1, mimeType: 'text/plain' } },
       status: 'succeeded',
-      producedBy: 'Producer:A',
+      producerJobId: 'Producer:A',
       createdAt: artifactCreatedAt,
     });
     await eventLog.appendArtifact('demo', {
@@ -954,7 +954,7 @@ describe('planner', () => {
       inputsHash: 'hash-b',
       output: { blob: { hash: 'blob-b', size: 1, mimeType: 'text/plain' } },
       status: 'succeeded',
-      producedBy: 'Producer:B',
+      producerJobId: 'Producer:B',
       createdAt: artifactCreatedAt,
     });
 
@@ -975,13 +975,13 @@ describe('planner', () => {
       artifacts: {
         'Artifact:A': {
           hash: 'blob-a',
-          producedBy: 'Producer:A',
+          producerJobId: 'Producer:A',
           status: 'succeeded',
           createdAt: artifactCreatedAt,
         },
         'Artifact:B': {
           hash: 'blob-b',
-          producedBy: 'Producer:B',
+          producerJobId: 'Producer:B',
           status: 'succeeded',
           createdAt: artifactCreatedAt,
         },
@@ -1071,7 +1071,7 @@ describe('planner', () => {
       inputsHash: 'hash-a',
       output: { blob: { hash: 'blob-a', size: 1, mimeType: 'text/plain' } },
       status: 'succeeded',
-      producedBy: 'Producer:A',
+      producerJobId: 'Producer:A',
       createdAt: artifactCreatedAt,
     });
     await eventLog.appendArtifact('demo', {
@@ -1080,7 +1080,7 @@ describe('planner', () => {
       inputsHash: 'hash-b',
       output: { blob: { hash: 'blob-b', size: 1, mimeType: 'text/plain' } },
       status: 'succeeded',
-      producedBy: 'Producer:B',
+      producerJobId: 'Producer:B',
       createdAt: artifactCreatedAt,
     });
 
@@ -1101,13 +1101,13 @@ describe('planner', () => {
       artifacts: {
         'Artifact:A': {
           hash: 'blob-a',
-          producedBy: 'Producer:A',
+          producerJobId: 'Producer:A',
           status: 'succeeded',
           createdAt: artifactCreatedAt,
         },
         'Artifact:B': {
           hash: 'blob-b',
-          producedBy: 'Producer:B',
+          producerJobId: 'Producer:B',
           status: 'succeeded',
           createdAt: artifactCreatedAt,
         },
@@ -1588,19 +1588,19 @@ describe('planner', () => {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
           },
           'Artifact:NarrationScript[1]': {
             hash: 'h1',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'h2',
-            producedBy: 'Producer:AudioProducer[0]',
+            producerJobId: 'Producer:AudioProducer[0]',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
           },
@@ -1679,19 +1679,19 @@ describe('planner', () => {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
           },
           'Artifact:NarrationScript[1]': {
             hash: 'h1',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'h2',
-            producedBy: 'Producer:AudioProducer[0]',
+            producerJobId: 'Producer:AudioProducer[0]',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
           },
@@ -2338,8 +2338,8 @@ describe('planner', () => {
       const buildState = createSucceededBuildState(baseline, {
         revision: 'rev-0001',
         artifacts: {
-          'Artifact:A': { hash: 'ha', producedBy: 'Producer:A' },
-          'Artifact:B': { hash: 'hb', producedBy: 'Producer:B' },
+          'Artifact:A': { hash: 'ha', producerJobId: 'Producer:A' },
+          'Artifact:B': { hash: 'hb', producerJobId: 'Producer:B' },
         },
       });
       return { ctx, eventLog, buildState, graph };
@@ -2583,35 +2583,35 @@ describe('planner', () => {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'hash-script-0',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: scriptInputsHash,
           },
           'Artifact:NarrationScript[1]': {
             hash: 'hash-script-1',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: scriptInputsHash,
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'hash-audio-0',
-            producedBy: 'Producer:AudioProducer[0]',
+            producerJobId: 'Producer:AudioProducer[0]',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: audioInputsHash0,
           },
           'Artifact:SegmentAudio[1]': {
             hash: 'hash-audio-1',
-            producedBy: 'Producer:AudioProducer[1]',
+            producerJobId: 'Producer:AudioProducer[1]',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: audioInputsHash1,
           },
           'Artifact:FinalVideo': {
             hash: 'hash-final-video',
-            producedBy: 'Producer:TimelineAssembler',
+            producerJobId: 'Producer:TimelineAssembler',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: timelineInputsHash,
@@ -2635,14 +2635,14 @@ describe('planner', () => {
           },
         },
         status: 'succeeded',
-        producedBy: 'Producer:ScriptProducer',
+        producerJobId: 'Producer:ScriptProducer',
         createdAt: new Date().toISOString(),
       });
 
       // Update build state to reflect the new artifact hash (as if it was rebuilt from events)
       buildState.artifacts['Artifact:NarrationScript[0]'] = {
         hash: 'NEW-hash-script-0',
-        producedBy: 'Producer:ScriptProducer',
+        producerJobId: 'Producer:ScriptProducer',
         status: 'succeeded',
         createdAt: artifactCreatedAt,
         inputsHash: scriptInputsHash,
@@ -2721,7 +2721,7 @@ describe('planner', () => {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'hash-script-0',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
@@ -2731,7 +2731,7 @@ describe('planner', () => {
           },
           'Artifact:NarrationScript[1]': {
             hash: 'hash-script-1',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
@@ -2741,7 +2741,7 @@ describe('planner', () => {
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'hash-audio-0',
-            producedBy: 'Producer:AudioProducer[0]',
+            producerJobId: 'Producer:AudioProducer[0]',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
@@ -2751,7 +2751,7 @@ describe('planner', () => {
           },
           'Artifact:SegmentAudio[1]': {
             hash: 'hash-audio-1',
-            producedBy: 'Producer:AudioProducer[1]',
+            producerJobId: 'Producer:AudioProducer[1]',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
@@ -2761,7 +2761,7 @@ describe('planner', () => {
           },
           'Artifact:FinalVideo': {
             hash: 'hash-final-video',
-            producedBy: 'Producer:TimelineAssembler',
+            producerJobId: 'Producer:TimelineAssembler',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(
@@ -2901,14 +2901,14 @@ describe('planner', () => {
         artifacts: {
           'Artifact:A': {
             hash: 'new-hash-a', // hash changed (re-run produced new content)
-            producedBy: 'Producer:A',
+            producerJobId: 'Producer:A',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(['Input:Prompt'], buildStateData),
           },
           'Artifact:B': {
             hash: 'hash-b',
-            producedBy: 'Producer:B',
+            producerJobId: 'Producer:B',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             // inputsHash was computed with old Artifact:A hash
@@ -3158,14 +3158,14 @@ describe('planner', () => {
         artifacts: {
           'Artifact:A': {
             hash: 'new-hash-a', // changed
-            producedBy: 'Producer:A',
+            producerJobId: 'Producer:A',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             inputsHash: hashInputContents(['Input:Prompt'], oldBuildStateData),
           },
           'Artifact:B': {
             hash: 'hash-b',
-            producedBy: 'Producer:B',
+            producerJobId: 'Producer:B',
             status: 'succeeded',
             createdAt: artifactCreatedAt,
             // inputsHash was computed with old Artifact:A hash
@@ -3316,19 +3316,19 @@ describe('planner', () => {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
           },
           'Artifact:NarrationScript[1]': {
             hash: 'h1',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'h2',
-            producedBy: 'Producer:AudioProducer[0]',
+            producerJobId: 'Producer:AudioProducer[0]',
           },
           'Artifact:FinalVideo': {
             hash: 'h4',
-            producedBy: 'Producer:TimelineAssembler',
+            producerJobId: 'Producer:TimelineAssembler',
           },
         },
       });
@@ -3643,15 +3643,15 @@ describe('planner', () => {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
           },
           'Artifact:NarrationScript[1]': {
             hash: 'h1',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'h2',
-            producedBy: 'Producer:AudioProducer[0]',
+            producerJobId: 'Producer:AudioProducer[0]',
           },
         },
       });
@@ -3748,15 +3748,15 @@ describe('planner', () => {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
           },
           'Artifact:NarrationScript[1]': {
             hash: 'h1',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'h2',
-            producedBy: 'Producer:AudioProducer[0]',
+            producerJobId: 'Producer:AudioProducer[0]',
           },
         },
       });
@@ -3802,19 +3802,19 @@ describe('planner', () => {
         artifacts: {
           'Artifact:NarrationScript[0]': {
             hash: 'h0',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
           },
           'Artifact:NarrationScript[1]': {
             hash: 'h1',
-            producedBy: 'Producer:ScriptProducer',
+            producerJobId: 'Producer:ScriptProducer',
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'h2',
-            producedBy: 'Producer:AudioProducer[0]',
+            producerJobId: 'Producer:AudioProducer[0]',
           },
           'Artifact:SegmentAudio[1]': {
             hash: 'h3',
-            producedBy: 'Producer:AudioProducer[1]',
+            producerJobId: 'Producer:AudioProducer[1]',
           },
         },
       });

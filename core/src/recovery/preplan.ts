@@ -2,6 +2,7 @@ import { Buffer } from 'node:buffer';
 import { createEventLog } from '../event-log.js';
 import { parseCanonicalArtifactId } from '../canonical-ids.js';
 import { persistBlobToStorage } from '../blob-utils.js';
+import { resolveArtifactOwnershipFromEvent } from '../artifact-ownership.js';
 import type { ArtifactEvent } from '../types.js';
 import type { StorageContext } from '../storage.js';
 
@@ -200,13 +201,19 @@ export async function recoverFailedArtifactsBeforePlanning(
       });
 
       const recoveredAt = now();
+      const ownership = resolveArtifactOwnershipFromEvent({
+        artifactId: candidate.artifactId,
+        event: candidate.event,
+        context: `recovery.preplan artifact=${candidate.artifactId}`,
+      });
       const recoveredEvent: ArtifactEvent = {
         artifactId: candidate.artifactId,
         revision: candidate.event.revision,
         inputsHash: candidate.event.inputsHash,
         output: { blob },
         status: 'succeeded',
-        producedBy: candidate.event.producedBy,
+        producerJobId: ownership.producerJobId,
+        producerId: ownership.producerId,
         diagnostics: {
           provider: 'fal-ai',
           model: candidate.model,
@@ -215,6 +222,7 @@ export async function recoverFailedArtifactsBeforePlanning(
           recoveredAt,
         },
         createdAt: recoveredAt,
+        lastRevisionBy: 'producer',
       };
 
       await eventLog.appendArtifact(movieId, recoveredEvent);

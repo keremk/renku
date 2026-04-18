@@ -50,7 +50,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       producerId: 'Producer:ScriptProducer',
       createdAt: clock.now(),
     });
@@ -97,7 +97,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       producerId: 'Producer:ScriptProducer',
       createdAt: '2025-01-01T00:00:00.000Z',
     });
@@ -122,7 +122,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       producerId: 'Producer:ScriptProducer',
       createdAt: '2025-01-02T12:34:56.000Z',
       editedBy: 'user',
@@ -165,7 +165,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       producerId: 'Producer:ScriptProducer',
       createdAt: clock.now(),
     });
@@ -264,7 +264,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'script_producer',
+      producerJobId: 'script_producer',
       producerId: 'Producer:ScriptProducer',
       createdAt: new Date('2024-12-31T01:00:00Z').toISOString(),
     };
@@ -350,7 +350,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       producerId: 'Producer:ScriptProducer',
       createdAt: '2025-01-01T00:00:00.000Z',
     });
@@ -360,7 +360,7 @@ describe('BuildStateService', () => {
       inputsHash: 'inputs:hash',
       output: {},
       status: 'failed',
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       producerId: 'Producer:ScriptProducer',
       createdAt: '2025-01-02T00:00:00.000Z',
     });
@@ -379,7 +379,7 @@ describe('BuildStateService', () => {
         size: 8,
         mimeType: 'text/plain',
       },
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       producerId: 'Producer:ScriptProducer',
       status: 'succeeded',
       diagnostics: undefined,
@@ -408,7 +408,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
     };
     await eventLog.appendArtifact('demo', succeededEvent);
@@ -425,7 +425,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:AudioProducer[0]',
+      producerJobId: 'Producer:AudioProducer[0]',
       createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
     });
 
@@ -472,7 +472,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:AudioProducer[0]',
+      producerJobId: 'Producer:AudioProducer[0]',
       producerId: 'Producer:AudioProducer',
       createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
     });
@@ -515,7 +515,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       producerId: 'Producer:ScriptProducer',
       createdAt: '2025-01-02T12:34:56.000Z',
       editedBy: 'user',
@@ -580,7 +580,7 @@ describe('BuildStateService', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptProducer[0]',
+      producerJobId: 'Producer:ScriptProducer[0]',
       producerId: 'Producer:ScriptProducer',
       createdAt: '2025-01-03T00:00:00.000Z',
     });

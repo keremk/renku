@@ -14,6 +14,7 @@ function createRuntimeError(code: string, message: string): Error & { code: stri
 }
 
 vi.mock('@gorenku/core', () => ({
+  buildArtifactOwnershipIndex: vi.fn(() => new Map()),
   createStorageContext: vi.fn((config: { kind: string; basePath?: string }) => ({
     storageKind: config.kind,
     basePath: config.basePath ?? 'builds',
@@ -71,6 +72,11 @@ vi.mock('@gorenku/core', () => ({
   copyEventsToMemory: vi.fn(async () => {}),
   copyBlobsFromMemoryToLocal: vi.fn(async () => {}),
   buildProviderMetadata: vi.fn(async (providerOptions: Map<string, unknown>) => providerOptions),
+  prepareBlueprintResolutionContext: vi.fn(async () => ({ canonical: { nodes: [], edges: [] } })),
+  expandBlueprintResolutionContext: vi.fn((context: { canonical?: unknown }) => ({
+    canonical: context.canonical ?? { nodes: [], edges: [] },
+  })),
+  createProducerGraph: vi.fn(() => ({ nodes: [], edges: [] })),
   convertArtifactOverridesToDrafts: vi.fn(() => []),
   persistArtifactOverrideBlobs: vi.fn(async () => []),
   deriveSurgicalInfoArray: vi.fn(() => []),

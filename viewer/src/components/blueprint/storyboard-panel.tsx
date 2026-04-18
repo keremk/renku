@@ -146,7 +146,7 @@ export function StoryboardPanel({
     const artifactKey = artifacts
       .map(
         (artifact) =>
-          `${artifact.id}:${artifact.hash}:${artifact.status}:${artifact.editedBy ?? 'producer'}`
+          `${artifact.id}:${artifact.hash}:${artifact.status}:${artifact.lastRevisionBy ?? 'producer'}`
       )
       .join('|');
     const inputKey = buildInputs ? JSON.stringify(buildInputs) : 'no-build-inputs';
@@ -794,7 +794,7 @@ function StoryboardArtifactMediaCard({
     ? getBlobUrl(blueprintFolder, movieId, promptArtifact.hash)
     : undefined;
   const displayName = item.label;
-  const isEdited = artifact.editedBy === 'user';
+  const isEdited = artifact.lastRevisionBy === 'user';
   const artifactProducerNodeId = resolveArtifactProducerNodeId(artifact);
   const availableRerunModels = artifactProducerNodeId
     ? (producerModels[artifactProducerNodeId]?.availableModels ?? [])
@@ -1281,7 +1281,7 @@ function StoryboardArtifactTextCard({
       : null;
   const displayName =
     item?.label ?? fallbackTitle ?? humanizePromptArtifactLabel(artifact.id);
-  const isEdited = artifact.editedBy === 'user';
+  const isEdited = artifact.lastRevisionBy === 'user';
 
   useEffect(() => {
     if (!url) {

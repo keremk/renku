@@ -618,7 +618,7 @@ export function resolveArtifactToJob(
 ): ArtifactRegenerationConfig {
   const entry = buildState.artifacts[artifactId];
   const latestEvent = latestById?.get(artifactId);
-  const sourceJobId = entry?.producedBy ?? latestEvent?.producedBy;
+  const sourceJobId = entry?.producerJobId ?? latestEvent?.producerJobId;
 
   if (!sourceJobId) {
     throw createRuntimeError(

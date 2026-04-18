@@ -33,7 +33,7 @@ export interface Artifact {
   kind: ArtifactKind;
   version: number;
   createdAt: IsoDatetime;
-  producedBy: Id; // Producer.id
+  producerJobId: Id; // Producer.id
   payloadRef: string; // blob/key/URL; never inline raw bytes
   meta?: Record<string, unknown>;
 }
@@ -537,7 +537,7 @@ export interface ProducerJobContext {
   /** The producer alias - the reference name used in blueprint connections */
   producerAlias: string;
   /** Canonical producer family/node ID for this job's leaf producer. */
-  producerId?: Id;
+  producerId: Id;
   inputs: Id[];
   /** Canonical Artifact:... IDs only. Output connectors must never appear here. */
   produces: Id[];
@@ -794,16 +794,16 @@ export interface BuildStateInputEntry {
 export interface BuildStateArtifactEntry {
   hash: string;
   blob?: BlobRef;
-  producedBy: Id;
+  producerJobId: Id;
   /** Canonical producer family/node ID mirrored from the artifact event. */
-  producerId?: Id;
+  producerId: Id;
   status: ArtifactEventStatus;
   diagnostics?: Record<string, unknown>;
   createdAt: IsoDatetime;
   /** Source of this artifact - 'producer' for generated, 'user' for edited */
-  editedBy?: ArtifactEventEditedBy;
+  lastRevisionBy: ArtifactEventEditedBy;
   /** The first producer-generated blob hash (preserved across edits for restore) */
-  originalHash?: string;
+  preEditArtifactHash?: string;
   /** Content-aware hash of inputs used to produce this artifact */
   inputsHash?: string;
 }
@@ -887,15 +887,15 @@ export interface ArtifactEvent {
   inputsHash: string;
   output: ArtifactEventOutput;
   status: ArtifactEventStatus;
-  producedBy: Id;
+  producerJobId: Id;
   /** Canonical producer family/node ID written alongside the exact producer job ID. */
-  producerId?: Id;
+  producerId: Id;
   diagnostics?: Record<string, unknown>;
   createdAt: IsoDatetime;
   /** Source of this artifact - 'producer' for generated, 'user' for edited */
-  editedBy?: ArtifactEventEditedBy;
+  lastRevisionBy: ArtifactEventEditedBy;
   /** The first producer-generated blob hash (preserved across edits for restore) */
-  originalHash?: string;
+  preEditArtifactHash?: string;
 }
 
 export interface SerializedError {

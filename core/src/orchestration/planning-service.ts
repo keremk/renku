@@ -43,6 +43,11 @@ import { formatBlobFileName } from '../blob-utils.js';
 import { applyOutputSchemasFromProviderOptionsToBlueprintTree } from './output-schema-hydration.js';
 import { deriveProducerFamilyId } from './producer-overrides.js';
 import {
+  buildArtifactOwnershipIndex,
+  resolveArtifactOwnershipFromGraph,
+  type ArtifactOwnership,
+} from '../artifact-ownership.js';
+import {
   buildResolvedProducerSummaries,
   resolvePlanningControls,
 } from './planning-controls.js';
@@ -81,11 +86,14 @@ export type ProviderOptionEntry = {
 
 export interface PendingArtifactDraft {
   artifactId: string;
-  producedBy: string;
+  producerJobId: string;
+  producerId: string;
+  lastRevisionBy: 'producer' | 'user';
   output: ArtifactEventOutput;
   inputsHash?: string;
   status?: ArtifactEventStatus;
   diagnostics?: Record<string, unknown>;
+  preEditArtifactHash?: string;
 }
 
 export interface GeneratePlanArgs {
@@ -197,13 +205,6 @@ export function createPlanningService(
       const resolvedInputs = buildResolvedInputMap(inputEvents);
       // Note: Blueprint defaults are no longer applied - model JSON schemas are the source of truth
 
-      const artifactEvents = (args.pendingArtifacts ?? []).map((draft) =>
-        makeArtifactEvent(draft, DRAFT_REVISION_ID, now())
-      );
-      for (const artifactEvent of artifactEvents) {
-        await args.eventLog.appendArtifact(args.movieId, artifactEvent);
-      }
-
       const expanded = expandBlueprintResolutionContext(
         context,
         inputsWithDerived
@@ -214,9 +215,21 @@ export function createPlanningService(
         args.providerCatalog,
         args.providerOptions
       );
+      const ownershipByArtifactId = buildArtifactOwnershipIndex(producerGraph);
       const finalStageProducerJobIds = collectFinalStageProducerJobIds(
         producerGraph
       );
+
+      const artifactEvents = (args.pendingArtifacts ?? []).map((draft) =>
+        makeArtifactEvent(
+          ensurePendingArtifactOwnership(draft, ownershipByArtifactId),
+          DRAFT_REVISION_ID,
+          now()
+        )
+      );
+      for (const artifactEvent of artifactEvents) {
+        await args.eventLog.appendArtifact(args.movieId, artifactEvent);
+      }
 
       const latestArtifactSnapshot = await readLatestArtifactSnapshot(
         args.eventLog,
@@ -460,10 +473,41 @@ function makeArtifactEvent(
     inputsHash: draft.inputsHash ?? 'manual-edit',
     output: draft.output,
     status: draft.status ?? 'succeeded',
-    producedBy: draft.producedBy,
+    producerJobId: draft.producerJobId,
+    producerId: draft.producerId,
     diagnostics: draft.diagnostics,
     createdAt,
+    lastRevisionBy: draft.lastRevisionBy,
+    preEditArtifactHash: draft.preEditArtifactHash,
   };
+}
+
+function ensurePendingArtifactOwnership(
+  draft: PendingArtifactDraft,
+  ownershipByArtifactId: Map<string, ArtifactOwnership>
+): PendingArtifactDraft {
+  const ownership = resolveArtifactOwnershipFromGraph({
+    artifactId: draft.artifactId,
+    ownershipByArtifactId,
+    context: `planning draft artifact=${draft.artifactId}`,
+  });
+
+  if (
+    draft.producerJobId !== ownership.producerJobId ||
+    draft.producerId !== ownership.producerId
+  ) {
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+      `Draft artifact ${draft.artifactId} has ownership that does not match the current producer graph.`,
+      {
+        context: `artifactId=${draft.artifactId}`,
+        suggestion:
+          'Keep draft artifact lineage aligned with the canonical producer graph instead of rewriting ownership for overrides.',
+      }
+    );
+  }
+
+  return draft;
 }
 
 async function transformInputBlobsToRefs(

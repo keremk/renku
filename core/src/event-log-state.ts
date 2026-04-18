@@ -178,13 +178,13 @@ function toBuildStateArtifactEntry(
   return {
     hash: deriveArtifactHash(event),
     blob: event.output.blob,
-    producedBy: event.producedBy,
+    producerJobId: event.producerJobId,
     producerId: event.producerId,
     status: event.status,
     diagnostics: event.diagnostics,
     createdAt: event.createdAt,
-    editedBy: event.editedBy,
-    originalHash: event.originalHash,
+    lastRevisionBy: event.lastRevisionBy,
+    preEditArtifactHash: event.preEditArtifactHash,
     inputsHash: event.inputsHash,
   };
 }

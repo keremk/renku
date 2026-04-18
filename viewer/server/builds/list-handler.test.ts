@@ -105,9 +105,10 @@ describe("listBuilds", () => {
           },
         },
         status: "succeeded",
-        producedBy: "Producer:ImageProducer[0]",
+        producerJobId: "Producer:ImageProducer[0]",
         producerId: "Producer:ImageProducer",
         createdAt: "2026-01-01T00:00:00.000Z",
+        lastRevisionBy: "producer",
       });
 
       const runLifecycle = createRunLifecycleService(storage);
@@ -228,9 +229,10 @@ describe("listBuilds", () => {
           },
         },
         status: "succeeded",
-        producedBy: "Producer:ImageProducer[0]",
+        producerJobId: "Producer:ImageProducer[0]",
         producerId: "Producer:ImageProducer",
         createdAt: "2026-01-01T00:00:00.000Z",
+        lastRevisionBy: "producer",
       });
       await eventLog.appendInput(movieId, {
         id: "Input:Prompt",

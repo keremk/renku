@@ -407,8 +407,11 @@ async function appendFailedArtifactEvent(
 	if (!artifact.inputsHash) {
 		throw new Error(`Artifact ${artifactId} is missing inputsHash.`);
 	}
-	if (!artifact.producedBy) {
-		throw new Error(`Artifact ${artifactId} is missing producedBy.`);
+	if (!artifact.producerJobId) {
+		throw new Error(`Artifact ${artifactId} is missing producerJobId.`);
+	}
+	if (!artifact.producerId) {
+		throw new Error(`Artifact ${artifactId} is missing producerId.`);
 	}
 
 	const eventLog = createEventLog(storage);
@@ -419,9 +422,11 @@ async function appendFailedArtifactEvent(
 		inputsHash: artifact.inputsHash,
 		output: {},
 		status: 'failed',
-		producedBy: artifact.producedBy,
+		producerJobId: artifact.producerJobId,
+		producerId: artifact.producerId,
 		diagnostics,
 		createdAt: new Date().toISOString(),
+		lastRevisionBy: 'producer',
 	};
 
 	await eventLog.appendArtifact(seed.storageMovieId, failedEvent);

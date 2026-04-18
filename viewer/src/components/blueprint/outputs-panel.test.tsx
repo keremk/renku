@@ -245,7 +245,7 @@ describe('OutputsPanel', () => {
     expect(groupedProducerButton.getAttribute('aria-current')).toBe('true');
   });
 
-  it('does not leak producedBy instance IDs into the producer list', () => {
+  it('does not leak producerJobId instance IDs into the producer list', () => {
     const artifacts: ArtifactInfo[] = [
       {
         id: 'Artifact:ThenImageProducer.GeneratedImage[0]',
@@ -253,7 +253,7 @@ describe('OutputsPanel', () => {
         hash: 'hash-then-0',
         size: 256,
         mimeType: 'image/png',
-        producedBy: 'Producer:ThenImageProducer[0]',
+        producerJobId: 'Producer:ThenImageProducer[0]',
         status: 'succeeded',
         createdAt: '2026-03-07T00:00:00.000Z',
       },
@@ -263,7 +263,7 @@ describe('OutputsPanel', () => {
         hash: 'hash-then-1',
         size: 256,
         mimeType: 'image/png',
-        producedBy: 'Producer:ThenImageProducer[1]',
+        producerJobId: 'Producer:ThenImageProducer[1]',
         status: 'succeeded',
         createdAt: '2026-03-07T00:00:01.000Z',
       },

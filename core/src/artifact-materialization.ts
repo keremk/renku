@@ -17,7 +17,8 @@ export interface MaterializedArtifactInfo {
   artifactPath: string;
   sourcePath: string;
   hash: string;
-  producedBy: string;
+  producerJobId: string;
+  producerId: string;
   mimeType?: string;
 }
 
@@ -59,7 +60,7 @@ export async function materializeBuildStateArtifacts(
 
     const artifactName = toArtifactFileName(artifactId, entry.blob.mimeType);
     const producerFolder = producerFolderNameFromCanonicalProducerId(
-      entry.producedBy
+      entry.producerId
     );
     const artifactPath = resolve(artifactsRoot, producerFolder, artifactName);
     await mkdir(dirname(artifactPath), { recursive: true });
@@ -90,7 +91,8 @@ export async function materializeBuildStateArtifacts(
       artifactPath,
       sourcePath,
       hash: entry.hash,
-      producedBy: entry.producedBy,
+      producerJobId: entry.producerJobId,
+      producerId: entry.producerId,
       mimeType: entry.blob.mimeType,
     });
   }
@@ -174,12 +176,12 @@ export function resolveExpectedArtifactPath(args: {
   storageBasePath: string;
   artifactsMovieFolderName: string;
   artifactId: string;
-  producedBy: string;
+  producerId: string;
   mimeType?: string;
 }): string {
   const artifactName = toArtifactFileName(args.artifactId, args.mimeType);
   const producerFolder = producerFolderNameFromCanonicalProducerId(
-    args.producedBy
+    args.producerId
   );
   return resolve(
     resolveArtifactsMovieRoot(
@@ -204,20 +206,20 @@ export function producerFolderNameFromProducerName(
   return normalized;
 }
 
-function producerFolderNameFromCanonicalProducerId(producedBy: string): string {
-  if (!isCanonicalProducerId(producedBy)) {
+function producerFolderNameFromCanonicalProducerId(producerId: string): string {
+  if (!isCanonicalProducerId(producerId)) {
     throw new Error(
-      `Expected canonical Producer ID (Producer:...), got "${producedBy}".`
+      `Expected canonical Producer ID (Producer:...), got "${producerId}".`
     );
   }
-  const parsed = parseCanonicalProducerId(producedBy);
+  const parsed = parseCanonicalProducerId(producerId);
   const segments = [...parsed.path, parsed.name].map((segment) =>
     stripDimensionTokens(segment)
   );
   const normalized = toKebabCase(segments.join('-'));
   if (!normalized) {
     throw new Error(
-      `Unable to derive producer folder name from "${producedBy}".`
+      `Unable to derive producer folder name from "${producerId}".`
     );
   }
   return normalized;

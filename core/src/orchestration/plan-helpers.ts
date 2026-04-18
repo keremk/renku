@@ -9,6 +9,10 @@
 
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
+import {
+  resolveArtifactOwnershipFromGraph,
+  type ArtifactOwnership,
+} from '../artifact-ownership.js';
 import type { StorageContext } from '../storage.js';
 import { inferMimeType } from '../blob-utils.js';
 import { persistInputBlob } from '../input-blob-storage.js';
@@ -180,8 +184,16 @@ export async function buildProviderMetadata(
  * Convert artifact overrides from inputs to PendingArtifactDraft objects.
  * Computes blob hash from the data for dirty tracking.
  */
-export function convertArtifactOverridesToDrafts(overrides: ArtifactOverride[]): PendingArtifactDraft[] {
-  return overrides.map((override) => {
+export function convertArtifactOverridesToDrafts(args: {
+  overrides: ArtifactOverride[];
+  ownershipByArtifactId: Map<string, ArtifactOwnership>;
+}): PendingArtifactDraft[] {
+  return args.overrides.map((override) => {
+    const ownership = resolveArtifactOwnershipFromGraph({
+      artifactId: override.artifactId,
+      ownershipByArtifactId: args.ownershipByArtifactId,
+      context: `artifact override ${override.artifactId}`,
+    });
     const buffer = Buffer.isBuffer(override.blob.data)
       ? override.blob.data
       : Buffer.from(override.blob.data);
@@ -189,7 +201,9 @@ export function convertArtifactOverridesToDrafts(overrides: ArtifactOverride[]):
 
     return {
       artifactId: override.artifactId,
-      producedBy: 'user-override',
+      producerJobId: ownership.producerJobId,
+      producerId: ownership.producerId,
+      lastRevisionBy: 'user',
       output: {
         blob: {
           hash,
@@ -239,7 +253,7 @@ export function deriveSurgicalInfoArray(
     }
     results.push({
       targetArtifactId: artifactId,
-      sourceJobId: entry.producedBy,
+      sourceJobId: entry.producerJobId,
     });
   }
   return results.length > 0 ? results : undefined;

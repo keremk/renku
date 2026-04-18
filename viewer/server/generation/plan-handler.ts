@@ -19,6 +19,7 @@ import {
   loadYamlBlueprintTree,
   loadInputs,
   buildProducerCatalog,
+  buildArtifactOwnershipIndex,
   isRenkuError,
   createValidationError,
   ValidationErrorCode,
@@ -29,6 +30,9 @@ import {
   copyBlobsFromMemoryToLocal,
   buildProviderMetadata,
   convertArtifactOverridesToDrafts,
+  prepareBlueprintResolutionContext,
+  expandBlueprintResolutionContext,
+  createProducerGraph,
   persistArtifactOverrideBlobs,
   isDraftRevisionId,
   deriveSurgicalInfoArray,
@@ -516,16 +520,31 @@ async function generatePlan(
     movieId
   );
 
-  // Convert artifact overrides to PendingArtifactDraft objects
-  const overrideDrafts = convertArtifactOverridesToDrafts(persistedOverrides);
-  const allPendingArtifacts = overrideDrafts;
-
   // Build provider metadata with schemas
   const providerMetadata = await buildProviderMetadata(
     providerOptions,
     { catalogModelsDir, modelCatalog },
     loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
   );
+  const resolutionContext = await prepareBlueprintResolutionContext({
+    root: blueprintRoot,
+    schemaSource: {
+      kind: 'provider-options',
+      providerOptions: providerMetadata,
+    },
+  });
+  const expanded = expandBlueprintResolutionContext(
+    resolutionContext,
+    inputValues
+  );
+  const ownershipByArtifactId = buildArtifactOwnershipIndex(
+    createProducerGraph(expanded.canonical, catalog, providerMetadata)
+  );
+  const overrideDrafts = convertArtifactOverridesToDrafts({
+    overrides: persistedOverrides,
+    ownershipByArtifactId,
+  });
+  const allPendingArtifacts = overrideDrafts;
   const preparedValidation = await validatePreparedBlueprintTree({
     root: blueprintRoot,
     schemaSource: {

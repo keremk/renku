@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const generatePlanMock = vi.fn();
 
 vi.mock('@gorenku/core', () => ({
+  buildArtifactOwnershipIndex: vi.fn(() => new Map()),
   buildProducerCatalog: vi.fn(() => ({})),
   buildProviderMetadata: vi.fn(async () => new Map()),
   copyLatestSucceededArtifactBlobsToMemory: vi.fn(async () => {}),
@@ -120,7 +121,9 @@ vi.mock('../../generation/config.js', () => ({
 
 vi.mock('../artifact-edit-handler.js', () => ({
   readLatestArtifactEvent: vi.fn(async () => ({
-    producedBy: 'Producer:SceneVideoProducer[0]',
+    producerJobId: 'Producer:SceneVideoProducer[0]',
+    producerId: 'Producer:SceneVideoProducer',
+    lastRevisionBy: 'producer',
     inputsHash: 'inputs-hash',
     output: {
       blob: {

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import {
+  buildArtifactOwnershipIndex,
   buildProducerCatalog,
   buildProviderMetadata,
   copyLatestSucceededArtifactBlobsToMemory,
@@ -31,6 +32,7 @@ import {
   type BlueprintResolutionContext,
   persistArtifactOverrideBlobs,
   resolveBlobRefsToInputs,
+  resolveArtifactOwnershipFromEvent,
   resolveMappingsForModel,
   resolveMovieInputsPath,
   resolveStorageBasePathForBlueprint,
@@ -321,7 +323,17 @@ async function prepareRerunSurgicalPreviewContext(
     memoryStorageContext,
     body.movieId
   );
-  const pendingArtifacts = convertArtifactOverridesToDrafts(persistedOverrides);
+  const expanded = expandBlueprintResolutionContext(
+    resolutionContext,
+    inputValues
+  );
+  const ownershipByArtifactId = buildArtifactOwnershipIndex(
+    createProducerGraph(expanded.canonical, providerCatalog, providerMetadata)
+  );
+  const pendingArtifacts = convertArtifactOverridesToDrafts({
+    overrides: persistedOverrides,
+    ownershipByArtifactId,
+  });
 
   const promptOverrideDraft = await buildRerunPromptOverrideDraft({
     request: body,
@@ -435,7 +447,7 @@ async function applyRerunModelOverride(args: {
     movieId,
     artifactId
   );
-  const sourceJobId = latestTargetEvent?.producedBy;
+  const sourceJobId = latestTargetEvent?.producerJobId;
   if (!sourceJobId) {
     throw new Error(
       `Cannot apply rerun model override because artifact ${artifactId} has no source producer event.`
@@ -541,7 +553,7 @@ async function applyRerunInputOverrides(args: {
   const artifactOverrides: import('@gorenku/core').ArtifactOverride[] = [];
   const artifactEventMeta = new Map<
     string,
-    { producedBy: string; inputsHash: string }
+    { producerJobId: string; producerId: string; inputsHash: string }
   >();
 
   for (const target of resolvedTargets) {
@@ -567,9 +579,15 @@ async function applyRerunInputOverrides(args: {
           `Cannot apply input override "${target.inputName}" because source artifact ${target.canonicalId} has no latest blob metadata.`
         );
       }
+      const ownership = resolveArtifactOwnershipFromEvent({
+        artifactId: target.canonicalId,
+        event: latestSourceEvent,
+        context: `rerun input override ${target.canonicalId}`,
+      });
 
       artifactEventMeta.set(target.canonicalId, {
-        producedBy: latestSourceEvent.producedBy,
+        producerJobId: ownership.producerJobId,
+        producerId: ownership.producerId,
         inputsHash: latestSourceEvent.inputsHash,
       });
       artifactOverrides.push({
@@ -596,7 +614,33 @@ async function applyRerunInputOverrides(args: {
     storage,
     movieId
   );
-  const drafts = convertArtifactOverridesToDrafts(persisted);
+  const drafts = artifactOverrides.map((override, index) => {
+    const meta = artifactEventMeta.get(override.artifactId);
+    if (!meta) {
+      throw new Error(
+        `Missing source event metadata for overridden artifact ${override.artifactId}.`
+      );
+    }
+    const persistedOverride = persisted[index];
+    if (!persistedOverride) {
+      throw new Error(
+        `Persisted override is missing for artifact ${override.artifactId}.`
+      );
+    }
+
+    return convertArtifactOverridesToDrafts({
+      overrides: [persistedOverride],
+      ownershipByArtifactId: new Map([
+        [
+          override.artifactId,
+          {
+            producerJobId: meta.producerJobId,
+            producerId: meta.producerId,
+          },
+        ],
+      ]),
+    })[0];
+  });
 
   return drafts.map((draft) => {
     const meta = artifactEventMeta.get(draft.artifactId);
@@ -608,7 +652,9 @@ async function applyRerunInputOverrides(args: {
 
     return {
       ...draft,
-      producedBy: meta.producedBy,
+      producerJobId: meta.producerJobId,
+      producerId: meta.producerId,
+      lastRevisionBy: 'user',
       inputsHash: meta.inputsHash,
     };
   });
@@ -679,6 +725,11 @@ async function buildRerunPromptOverrideDraft(args: {
       `Prompt artifact ${request.promptArtifactId} has no latest blob metadata for Re-run override.`
     );
   }
+  const ownership = resolveArtifactOwnershipFromEvent({
+    artifactId: request.promptArtifactId,
+    event: latestPromptEvent,
+    context: `rerun prompt override ${request.promptArtifactId}`,
+  });
 
   const blob = await persistArtifactOverrideBlobs(
     [
@@ -694,7 +745,18 @@ async function buildRerunPromptOverrideDraft(args: {
     movieId
   );
 
-  const [draft] = convertArtifactOverridesToDrafts(blob);
+  const [draft] = convertArtifactOverridesToDrafts({
+    overrides: blob,
+    ownershipByArtifactId: new Map([
+      [
+        request.promptArtifactId,
+        {
+          producerJobId: ownership.producerJobId,
+          producerId: ownership.producerId,
+        },
+      ],
+    ]),
+  });
   if (!draft) {
     throw new Error(
       'Failed to create prompt override draft for Re-run preview.'
@@ -703,7 +765,9 @@ async function buildRerunPromptOverrideDraft(args: {
 
   return {
     ...draft,
-    producedBy: latestPromptEvent.producedBy,
+    producerJobId: ownership.producerJobId,
+    producerId: ownership.producerId,
+    lastRevisionBy: 'user',
     inputsHash: latestPromptEvent.inputsHash,
   };
 }

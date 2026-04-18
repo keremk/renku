@@ -91,7 +91,7 @@ describe('EventLog', () => {
         },
       },
       status: 'succeeded',
-      producedBy: 'script_producer',
+      producerJobId: 'script_producer',
       diagnostics: { latencyMs: 1200 },
       createdAt: new Date().toISOString(),
     };
@@ -175,7 +175,7 @@ describe('EventLog', () => {
             },
           },
           status: 'succeeded',
-          producedBy: 'script_producer',
+          producerJobId: 'script_producer',
           createdAt: new Date(Date.now() + index).toISOString(),
         })
       );

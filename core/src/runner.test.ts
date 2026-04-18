@@ -35,6 +35,14 @@ const plan: ExecutionPlan = {
         provider: 'openai',
         providerModel: 'openai/GPT-5',
         rateKey: 'llm:script',
+        context: {
+          namespacePath: [],
+          indices: {},
+          producerAlias: 'ScriptProducer',
+          producerId: 'Producer:ScriptProducer',
+          inputs: [],
+          produces: ['Artifact:NarrationScript'],
+        },
       },
     ],
     [
@@ -46,6 +54,14 @@ const plan: ExecutionPlan = {
         provider: 'replicate',
         providerModel: 'elevenlabs/turbo-v2.5',
         rateKey: 'audio:elevenlabs-turbo',
+        context: {
+          namespacePath: [],
+          indices: {},
+          producerAlias: 'AudioProducer',
+          producerId: 'Producer:AudioProducer',
+          inputs: ['Artifact:NarrationScript'],
+          produces: ['Artifact:SegmentAudio[segment=0]'],
+        },
       },
     ],
   ],
@@ -300,7 +316,7 @@ describe('createRunner', () => {
       inputsHash: 'hash',
       output: { blob: aliasBlobRef },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptGeneration[segment=0]',
+      producerJobId: 'Producer:ScriptGeneration[segment=0]',
       createdAt: new Date().toISOString(),
     };
 
@@ -515,7 +531,7 @@ describe('createRunner', () => {
       inputsHash: 'hash',
       output: { blob: videoBlobRef },
       status: 'succeeded',
-      producedBy: 'Producer:VideoProducer[0]',
+      producerJobId: 'Producer:VideoProducer[0]',
       createdAt: new Date().toISOString(),
     });
 
@@ -726,7 +742,7 @@ describe('createRunner', () => {
         inputsHash: 'hash',
         output: { blob: blobRef },
         status: 'succeeded',
-        producedBy: 'Producer:Upstream',
+        producerJobId: 'Producer:Upstream',
         createdAt: new Date().toISOString(),
       });
     };
@@ -878,6 +894,14 @@ describe('createRunner', () => {
             provider: 'replicate',
             providerModel: 'audio/model',
             rateKey: 'audio:model',
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'AudioProducer',
+              producerId: 'Producer:AudioProducer',
+              inputs: [],
+              produces: ['Artifact:AudioGenerator.SegmentAudio[0]'],
+            },
           },
         ],
         [
@@ -893,6 +917,7 @@ describe('createRunner', () => {
               namespacePath: ['TimelineComposer'],
               indices: {},
               producerAlias: 'TimelineComposer.TimelineProducer',
+              producerId: 'Producer:TimelineComposer',
               inputs: ['Input:TimelineComposer.AudioSegments'],
               produces: ['Artifact:TimelineComposer.Timeline'],
               fanIn: {

@@ -19,7 +19,8 @@ function createFailedEvent(
     inputsHash: 'inputs-hash',
     output: {},
     status: 'failed',
-    producedBy: 'Producer:MeetingVideoProducer[0]',
+    producerJobId: 'Producer:MeetingVideoProducer[0]',
+    producerId: 'Producer:MeetingVideoProducer',
     diagnostics: {
       provider: 'fal-ai',
       model: 'fal-ai/kling-video',
@@ -27,6 +28,7 @@ function createFailedEvent(
       recoverable: true,
     },
     createdAt: '2026-02-16T12:00:00.000Z',
+    lastRevisionBy: 'producer',
     ...overrides,
   };
 }

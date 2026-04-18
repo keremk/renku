@@ -10,6 +10,7 @@ import {
 	createMovieMetadataService,
 	validatePreparedBlueprintTree,
 	buildProducerCatalog,
+	buildArtifactOwnershipIndex,
 	copyRunArchivesToMemory,
 	copyPlansToMemory,
 	copyEventsToMemory,
@@ -17,6 +18,9 @@ import {
 	buildProviderMetadata,
 	convertArtifactOverridesToDrafts,
 	persistArtifactOverrideBlobs,
+	prepareBlueprintResolutionContext,
+	expandBlueprintResolutionContext,
+	createProducerGraph,
 	deriveSurgicalInfoArray,
 	createValidationError,
 	ValidationErrorCode,
@@ -253,13 +257,6 @@ export async function generatePlan(
 		movieId
 	);
 
-	// Convert artifact overrides to PendingArtifactDraft objects
-	const overrideDrafts = convertArtifactOverridesToDrafts(persistedOverrides);
-	const allPendingArtifacts = [
-		...(options.pendingArtifacts ?? []),
-		...overrideDrafts,
-	];
-
 	if (artifactOverrides.length > 0) {
 		logger.info(
 			`${chalk.bold('Artifact overrides:')} ${artifactOverrides.length} artifact(s) will be replaced`
@@ -275,6 +272,28 @@ export async function generatePlan(
 		{ catalogModelsDir, modelCatalog },
 		loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
 	);
+	const resolutionContext = await prepareBlueprintResolutionContext({
+		root: blueprintRoot,
+		schemaSource: {
+			kind: 'provider-options',
+			providerOptions: providerMetadata,
+		},
+	});
+	const expanded = expandBlueprintResolutionContext(
+		resolutionContext,
+		inputValues
+	);
+	const ownershipByArtifactId = buildArtifactOwnershipIndex(
+		createProducerGraph(expanded.canonical, catalog, providerMetadata)
+	);
+	const overrideDrafts = convertArtifactOverridesToDrafts({
+		overrides: persistedOverrides,
+		ownershipByArtifactId,
+	});
+	const allPendingArtifacts = [
+		...(options.pendingArtifacts ?? []),
+		...overrideDrafts,
+	];
 	const preparedValidation = await validatePreparedBlueprintTree({
 		root: blueprintRoot,
 		schemaSource: {

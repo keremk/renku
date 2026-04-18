@@ -36,6 +36,14 @@ const makeJob = (jobId: string): JobDescriptor => ({
   provider: 'openai' as ProviderName,
   providerModel: 'test-model',
   rateKey: 'openai:test-model',
+  context: {
+    namespacePath: [],
+    indices: {},
+    producerAlias: jobId,
+    producerId: `Producer:${jobId}`,
+    inputs: [],
+    produces: [`Artifact:${jobId}`],
+  },
 });
 
 describe('executePlanWithConcurrency', () => {

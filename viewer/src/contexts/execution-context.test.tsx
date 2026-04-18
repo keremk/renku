@@ -1619,7 +1619,7 @@ describe('ExecutionContext', () => {
       );
     });
 
-    it('ignores producedBy-only artifacts without canonical producerNodeId', () => {
+    it('ignores producerJobId-only artifacts without canonical producerNodeId', () => {
       const { result } = renderHook(() => useExecution(), {
         wrapper: createWrapper(),
       });
@@ -1629,7 +1629,7 @@ describe('ExecutionContext', () => {
           createMockArtifact({
             id: 'Artifact:ProducerA.Output[0]',
             producerNodeId: undefined,
-            producedBy: 'Producer:ProducerA[0]',
+            producerJobId: 'Producer:ProducerA[0]',
             status: 'failed',
           }),
           createMockArtifact({

@@ -29,7 +29,8 @@ export interface ArtifactInfo {
 	artifactPath: string;
 	sourcePath: string;
 	hash: string;
-	producedBy: string;
+	producerJobId: string;
+	producerId: string;
 	mimeType?: string;
 	kind: 'blob';
 }
@@ -38,7 +39,7 @@ export interface MaterializedRootOutput {
 	outputId: string;
 	artifactId: string;
 	artifactPath: string;
-	producedBy: string;
+	producerJobId: string;
 	mimeType?: string;
 }
 
@@ -82,7 +83,7 @@ export function resolveMaterializedRootOutputs(args: {
 			outputId: binding.outputId,
 			artifactId: artifact.artifactId,
 			artifactPath: artifact.artifactPath,
-			producedBy: artifact.producedBy,
+			producerJobId: artifact.producerJobId,
 			mimeType: artifact.mimeType,
 		});
 	}
@@ -99,7 +100,7 @@ export function selectFinalStageOutputs(args: {
 	}
 
 	const finalStageJobIds = new Set(args.finalStageProducerJobIds);
-	return args.rootOutputs.filter((output) => finalStageJobIds.has(output.producedBy));
+	return args.rootOutputs.filter((output) => finalStageJobIds.has(output.producerJobId));
 }
 
 export async function loadCurrentBuildState(
@@ -206,7 +207,9 @@ export async function prepareArtifactsPreflight(args: {
 
 		pending.push({
 			artifactId: entry.artifactId,
-			producedBy: entry.producedBy,
+			producerJobId: entry.producerJobId,
+			producerId: entry.producerId,
+			lastRevisionBy: 'user',
 			output: { blob: blobRef },
 			diagnostics: { source: 'artifact-edit' },
 		});
@@ -260,7 +263,7 @@ async function collectArtifactsContext(args: {
 			storageBasePath: cliConfig.storage.basePath,
 			artifactsMovieFolderName,
 			artifactId: artifactId,
-			producedBy: entry.producedBy,
+			producerId: entry.producerId,
 			mimeType: entry.blob.mimeType,
 		});
 		await mkdir(dirname(artifactPath), { recursive: true });
@@ -291,7 +294,8 @@ async function collectArtifactsContext(args: {
 			artifactPath,
 			sourcePath: shardedPath,
 			hash: entry.hash,
-			producedBy: entry.producedBy,
+			producerJobId: entry.producerJobId,
+			producerId: entry.producerId,
 			mimeType: entry.blob.mimeType,
 			kind: 'blob',
 		});

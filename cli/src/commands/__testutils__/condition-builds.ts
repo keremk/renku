@@ -93,8 +93,10 @@ export async function appendConditionArtifactEvent(
 		inputsHash: `inputs-${args.revision}`,
 		output: args.blob ? { blob: args.blob } : {},
 		status: args.status,
-		producedBy: 'Producer:DirectorProducer',
+		producerJobId: 'Producer:DirectorProducer',
+		producerId: 'Producer:DirectorProducer',
 		createdAt: new Date().toISOString(),
+		lastRevisionBy: 'producer',
 	});
 }
 

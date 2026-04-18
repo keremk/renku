@@ -3,6 +3,7 @@
  * Handles editing artifacts (replacing content) and restoring originals.
  */
 
+import { resolveArtifactOwnershipFromEvent } from '@gorenku/core';
 import { existsSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -49,8 +50,8 @@ const DERIVED_VIDEO_ARTIFACT_BASE_NAMES = new Set([
 export interface ArtifactEditResponse {
   success: boolean;
   newHash: string;
-  originalHash?: string;
-  editedBy: 'user';
+  preEditArtifactHash?: string;
+  lastRevisionBy: 'user';
 }
 
 /**
@@ -96,11 +97,12 @@ export interface ArtifactEvent {
     };
   };
   status: 'succeeded' | 'failed' | 'skipped';
-  producedBy: string;
+  producerJobId: string;
+  producerId: string;
   diagnostics?: Record<string, unknown>;
   createdAt: string;
-  editedBy?: 'producer' | 'user';
-  originalHash?: string;
+  lastRevisionBy: 'producer' | 'user';
+  preEditArtifactHash?: string;
 }
 
 /**
@@ -230,7 +232,7 @@ function collectDerivedVideoArtifactIdsForFamily(
     if (candidateArtifactId === artifactId) {
       continue;
     }
-    if (event.producedBy !== sourceProducedBy) {
+    if (event.producerJobId !== sourceProducedBy) {
       continue;
     }
 
@@ -571,23 +573,31 @@ export async function applyArtifactEditFromBuffer(
   data: Buffer,
   mimeType: string
 ): Promise<ArtifactEditResponse> {
-  // Read the latest event for this artifact to get originalHash
+  // Read the latest event for this artifact to get preEditArtifactHash
   const latestEvent = await readLatestArtifactEvent(
     blueprintFolder,
     movieId,
     artifactId
   );
+  if (!latestEvent) {
+    throw new Error(`Artifact ${artifactId} not found`);
+  }
+  const ownership = resolveArtifactOwnershipFromEvent({
+    artifactId,
+    event: latestEvent,
+    context: `viewer artifact edit ${artifactId}`,
+  });
 
-  // Determine the originalHash:
-  // - If latest event has originalHash, preserve it (already edited before)
-  // - If no originalHash, use the current blob hash (this is the first edit)
-  let originalHash: string | undefined;
-  if (latestEvent?.originalHash) {
+  // Determine the preEditArtifactHash:
+  // - If latest event has preEditArtifactHash, preserve it (already edited before)
+  // - If no preEditArtifactHash, use the current blob hash (this is the first edit)
+  let preEditArtifactHash: string | undefined;
+  if (latestEvent.preEditArtifactHash) {
     // Already edited before - preserve the original
-    originalHash = latestEvent.originalHash;
-  } else if (latestEvent?.output.blob?.hash) {
+    preEditArtifactHash = latestEvent.preEditArtifactHash;
+  } else if (latestEvent.output.blob?.hash) {
     // First edit - use the current producer-generated hash as original
-    originalHash = latestEvent.output.blob.hash;
+    preEditArtifactHash = latestEvent.output.blob.hash;
   }
 
   // Save the new blob
@@ -611,10 +621,11 @@ export async function applyArtifactEditFromBuffer(
       },
     },
     status: 'succeeded',
-    producedBy: latestEvent?.producedBy ?? 'user',
+    producerJobId: ownership.producerJobId,
+    producerId: ownership.producerId,
     createdAt: new Date().toISOString(),
-    editedBy: 'user',
-    originalHash,
+    lastRevisionBy: 'user',
+    preEditArtifactHash,
   };
 
   // Append to event log
@@ -623,8 +634,8 @@ export async function applyArtifactEditFromBuffer(
   return {
     success: true,
     newHash,
-    originalHash,
-    editedBy: 'user',
+    preEditArtifactHash,
+    lastRevisionBy: 'user',
   };
 }
 
@@ -669,14 +680,18 @@ export async function applyArtifactEditWithDerivedArtifactsFromBuffer(
     throw new Error(`Artifact ${artifactId} not found`);
   }
 
-  const producedBy = latestEvent.producedBy;
+  const ownership = resolveArtifactOwnershipFromEvent({
+    artifactId,
+    event: latestEvent,
+    context: `viewer artifact edit with derived ${artifactId}`,
+  });
   const latestEvents = await readLatestSucceededArtifactEvents(
     blueprintFolder,
     movieId
   );
   const derivedArtifactIds = collectDerivedVideoArtifactIdsForFamily(
     artifactId,
-    producedBy,
+    ownership.producerJobId,
     latestEvents
   );
 
@@ -742,12 +757,17 @@ async function restoreArtifactToOriginalHash(args: {
     return null;
   }
 
-  if (!latestEvent.originalHash) {
+  if (!latestEvent.preEditArtifactHash) {
     if (failIfNotEdited) {
       throw new Error(`Artifact ${artifactId} has not been edited`);
     }
     return null;
   }
+  const ownership = resolveArtifactOwnershipFromEvent({
+    artifactId,
+    event: latestEvent,
+    context: `viewer artifact restore ${artifactId}`,
+  });
 
   const eventsDir = getEventsDir(blueprintFolder, movieId);
   const logPath = path.join(eventsDir, 'artifacts.log');
@@ -763,7 +783,7 @@ async function restoreArtifactToOriginalHash(args: {
       const event = JSON.parse(line) as ArtifactEvent;
       if (
         event.artifactId === artifactId &&
-        event.output.blob?.hash === latestEvent.originalHash
+        event.output.blob?.hash === latestEvent.preEditArtifactHash
       ) {
         originalMimeType = event.output.blob.mimeType;
         originalSize = event.output.blob.size;
@@ -780,20 +800,22 @@ async function restoreArtifactToOriginalHash(args: {
     inputsHash: latestEvent.inputsHash,
     output: {
       blob: {
-        hash: latestEvent.originalHash,
+        hash: latestEvent.preEditArtifactHash,
         size: originalSize,
         mimeType: originalMimeType,
       },
     },
     status: 'succeeded',
-    producedBy: latestEvent.producedBy,
+    producerJobId: ownership.producerJobId,
+    producerId: ownership.producerId,
     createdAt: new Date().toISOString(),
+    lastRevisionBy: 'producer',
   };
 
   await appendArtifactEvent(blueprintFolder, movieId, event);
 
   return {
-    restoredHash: latestEvent.originalHash,
+    restoredHash: latestEvent.preEditArtifactHash,
   };
 }
 
@@ -826,7 +848,7 @@ export async function handleArtifactRestore(
       return;
     }
 
-    if (!latestEvent.originalHash) {
+    if (!latestEvent.preEditArtifactHash) {
       res.statusCode = 400;
       res.end(JSON.stringify({ error: 'Artifact has not been edited' }));
       return;
@@ -842,7 +864,7 @@ export async function handleArtifactRestore(
     )
       ? collectDerivedVideoArtifactIdsForFamily(
           artifactId,
-          latestEvent.producedBy,
+          latestEvent.producerJobId,
           latestEvents
         )
       : [];

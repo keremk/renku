@@ -191,7 +191,7 @@ describe('runGenerate (new runs)', () => {
 					outputId: expect.stringMatching(/^Output:/),
 					artifactId: expect.stringMatching(/^Artifact:/),
 					artifactPath: expect.any(String),
-					producedBy: expect.stringMatching(/^Producer:/),
+					producerJobId: expect.stringMatching(/^Producer:/),
 				}),
 			])
 		);
@@ -203,7 +203,7 @@ describe('runGenerate (new runs)', () => {
 					outputId: expect.stringMatching(/^Output:/),
 					artifactId: expect.stringMatching(/^Artifact:/),
 					artifactPath: expect.any(String),
-					producedBy: expect.stringMatching(/^Producer:/),
+					producerJobId: expect.stringMatching(/^Producer:/),
 				}),
 			])
 		);

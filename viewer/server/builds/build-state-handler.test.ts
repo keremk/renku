@@ -167,11 +167,11 @@ describe('getBuildState', () => {
             blob: { hash: 'imgHash123', size: 500, mimeType: 'image/png' },
           },
           status: 'succeeded',
-          producedBy: 'Producer:ImageGen[0]',
+          producerJobId: 'Producer:ImageGen[0]',
           producerId: 'Producer:ImageGen',
           createdAt: '2024-01-02T00:00:00Z',
-          editedBy: 'user',
-          originalHash: 'imgHash000',
+          lastRevisionBy: 'user',
+          preEditArtifactHash: 'imgHash000',
         }),
         '',
       ].join('\n')
@@ -271,11 +271,12 @@ describe('getBuildState', () => {
           output: {
             blob: { hash: 'imgHash123', size: 500, mimeType: 'image/png' },
           },
-          status: 'succeeded',
-          producedBy: 'Producer:ImageGen[0]',
-          producerId: 'Producer:ImageGen',
-          createdAt: '2024-01-02T00:00:00Z',
-        }),
+        status: 'succeeded',
+        producerJobId: 'Producer:ImageGen[0]',
+        producerId: 'Producer:ImageGen',
+        createdAt: '2024-01-02T00:00:00Z',
+        lastRevisionBy: 'producer',
+      }),
         '',
       ].join('\n')
     );
@@ -306,9 +307,10 @@ describe('getBuildState', () => {
         blob: { hash: 'imgHash123', size: 500, mimeType: 'image/png' },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ImageGen[0]',
+      producerJobId: 'Producer:ImageGen[0]',
       producerId: 'Producer:ImageGen',
       createdAt: '2024-01-02T00:00:00Z',
+      lastRevisionBy: 'producer',
     });
     await eventLog.appendInput(movieId, {
       id: 'Input:InquiryPrompt',
@@ -370,7 +372,7 @@ describe('getBuildState', () => {
           output: {
             blob: { hash: 'abc123', size: 100, mimeType: 'image/png' },
           },
-          producedBy: 'Producer:TestProducer[0]',
+          producerJobId: 'Producer:TestProducer[0]',
           producerId: 'Producer:TestProducer',
           status: 'succeeded',
           createdAt: '2024-01-01T00:00:00Z',
@@ -426,7 +428,7 @@ describe('getBuildState', () => {
             blob: { hash: 'existingHash', size: 50, mimeType: 'text/plain' },
           },
           status: 'succeeded',
-          producedBy: 'Producer:ExistingProducer[0]',
+          producerJobId: 'Producer:ExistingProducer[0]',
           producerId: 'Producer:ExistingProducer',
           createdAt: '2024-01-01T00:00:00Z',
         }),
@@ -438,7 +440,7 @@ describe('getBuildState', () => {
             blob: { hash: 'newHash789', size: 300, mimeType: 'audio/mpeg' },
           },
           status: 'succeeded',
-          producedBy: 'Producer:NewProducer[0]',
+          producerJobId: 'Producer:NewProducer[0]',
           producerId: 'Producer:NewProducer',
           createdAt: '2024-01-02T00:00:00Z',
         }),
@@ -473,8 +475,8 @@ describe('getBuildState', () => {
       },
       status: 'succeeded',
       createdAt: '2024-01-02T00:00:00Z',
-      editedBy: 'user',
-      originalHash: 'oldHash',
+      lastRevisionBy: 'user',
+      preEditArtifactHash: 'oldHash',
     };
     await fs.writeFile(
       path.join(movieDir, 'events', 'artifacts.log'),
@@ -486,8 +488,8 @@ describe('getBuildState', () => {
     expect(result.artifacts.length).toBe(1);
     expect(result.artifacts[0].hash).toBe('newEditedHash');
     expect(result.artifacts[0].size).toBe(150);
-    expect(result.artifacts[0].editedBy).toBe('user');
-    expect(result.artifacts[0].originalHash).toBe('oldHash');
+    expect(result.artifacts[0].lastRevisionBy).toBe('user');
+    expect(result.artifacts[0].preEditArtifactHash).toBe('oldHash');
   });
 
   it('preserves original hash tracking for edited artifacts', async () => {
@@ -498,8 +500,8 @@ describe('getBuildState', () => {
       },
       status: 'succeeded',
       createdAt: '2024-01-02T00:00:00Z',
-      editedBy: 'user',
-      originalHash: 'originalHash',
+      lastRevisionBy: 'user',
+      preEditArtifactHash: 'preEditArtifactHash',
     };
     await fs.writeFile(
       path.join(movieDir, 'events', 'artifacts.log'),
@@ -508,8 +510,8 @@ describe('getBuildState', () => {
 
     const result = await getBuildState(blueprintFolder, movieId);
 
-    expect(result.artifacts[0].editedBy).toBe('user');
-    expect(result.artifacts[0].originalHash).toBe('originalHash');
+    expect(result.artifacts[0].lastRevisionBy).toBe('user');
+    expect(result.artifacts[0].preEditArtifactHash).toBe('preEditArtifactHash');
   });
 
   it('includes failed events in the artifact list with status', async () => {
@@ -548,7 +550,7 @@ describe('getBuildState', () => {
           },
         },
         status: 'succeeded',
-        producedBy: 'Producer:ImageProducer[0]',
+        producerJobId: 'Producer:ImageProducer[0]',
         producerId: 'Producer:ImageProducer',
         createdAt: '2024-01-01T00:00:00Z',
       },
@@ -558,7 +560,7 @@ describe('getBuildState', () => {
         inputsHash: 'hash-2',
         output: {},
         status: 'failed',
-        producedBy: 'Producer:ImageProducer[0]',
+        producerJobId: 'Producer:ImageProducer[0]',
         producerId: 'Producer:ImageProducer',
         createdAt: '2024-01-02T00:00:00Z',
       },
@@ -701,7 +703,7 @@ describe('getBuildState', () => {
         blob: { hash: 'imgHash123', size: 500, mimeType: 'image/png' },
       },
       status: 'succeeded',
-      producedBy: 'Producer:ImageGen[0]',
+      producerJobId: 'Producer:ImageGen[0]',
       producerId: 'Producer:ImageGen',
       createdAt: '2024-01-01T12:00:00Z',
     };
@@ -713,7 +715,7 @@ describe('getBuildState', () => {
         blob: { hash: 'audioHash456', size: 1000, mimeType: 'audio/mpeg' },
       },
       status: 'succeeded',
-      producedBy: 'Producer:AudioGen[0]',
+      producerJobId: 'Producer:AudioGen[0]',
       producerId: 'Producer:AudioGen',
       createdAt: '2024-01-01T12:01:00Z',
     };
@@ -769,7 +771,7 @@ describe('getBuildState', () => {
 
     const eventLogEntry = {
       artifactId: 'Artifact:ImageGen.GeneratedImage[0]',
-      producedBy: 'Producer:ImageGen[0]',
+      producerJobId: 'Producer:ImageGen[0]',
       producerId: 'Producer:ImageGen',
       output: {
         blob: { hash: 'loopedHash123', size: 500, mimeType: 'image/png' },
@@ -792,7 +794,7 @@ describe('getBuildState', () => {
     expect(result.artifacts[0]).toEqual(
       expect.objectContaining({
         id: 'Artifact:ImageGen.GeneratedImage[0]',
-        producedBy: 'Producer:ImageGen[0]',
+        producerJobId: 'Producer:ImageGen[0]',
         producerNodeId: 'Producer:ImageGen',
         hash: 'loopedHash123',
       })
@@ -808,7 +810,7 @@ describe('getBuildState', () => {
         blob: { hash: 'hash789', size: 250, mimeType: 'text/plain' },
       },
       status: 'succeeded',
-      producedBy: 'Producer:Producer[0]',
+      producerJobId: 'Producer:Producer[0]',
       producerId: 'Producer:Producer',
       createdAt: '2024-01-01T12:00:00Z',
     };

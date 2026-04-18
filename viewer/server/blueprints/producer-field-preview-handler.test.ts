@@ -222,13 +222,13 @@ describe('getProducerFieldPreview', () => {
         artifactId:
           'Artifact:DirectorProducer.Script.Characters[0].TogetherImagePrompt',
         text: 'Compose the younger and older celebrity standing together in the same scene.',
-        producedBy: 'Producer:DirectorProducer',
+        producerJobId: 'Producer:DirectorProducer',
       },
       {
         artifactId:
           'Artifact:DirectorProducer.Script.Characters[1].TogetherImagePrompt',
         text: 'Create a reunion portrait with both eras of the celebrity sharing the frame.',
-        producedBy: 'Producer:DirectorProducer',
+        producerJobId: 'Producer:DirectorProducer',
       },
     ] as const;
     const imageArtifacts = [
@@ -261,8 +261,10 @@ describe('getProducerFieldPreview', () => {
         inputsHash: 'inputs-preview',
         output: { blob },
         status: 'succeeded',
-        producedBy: promptArtifact.producedBy,
+        producerJobId: promptArtifact.producerJobId,
+        producerId: 'Producer:DirectorProducer',
         createdAt: '2026-04-14T12:00:00Z',
+        lastRevisionBy: 'producer',
       });
     }
 
@@ -279,8 +281,10 @@ describe('getProducerFieldPreview', () => {
         inputsHash: 'inputs-preview',
         output: { blob },
         status: 'succeeded',
-        producedBy: 'Producer:ThenImageProducer',
+        producerJobId: 'Producer:ThenImageProducer',
+        producerId: 'Producer:ThenImageProducer',
         createdAt: '2026-04-14T12:00:00Z',
+        lastRevisionBy: 'producer',
       });
     }
 

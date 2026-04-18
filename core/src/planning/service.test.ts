@@ -115,7 +115,9 @@ describe('planning service', () => {
     const pending: PendingArtifactDraft[] = [
       {
         artifactId: 'Artifact:NarrationScript',
-        producedBy: 'manual-edit',
+        producerJobId: 'Producer:ScriptProducer',
+        producerId: 'Producer:ScriptProducer',
+        lastRevisionBy: 'user',
         output: {
           blob: {
             hash: 'patched-value-hash',
@@ -148,7 +150,8 @@ describe('planning service', () => {
     }
     expect(artifactEvents).toHaveLength(1);
     expect(artifactEvents[0]?.artifactId).toBe('Artifact:NarrationScript');
-    expect(artifactEvents[0]?.producedBy).toBe('manual-edit');
+    expect(artifactEvents[0]?.producerJobId).toBe('Producer:ScriptProducer');
+    expect(artifactEvents[0]?.lastRevisionBy).toBe('user');
   });
 
 });

@@ -32,15 +32,15 @@ export interface ArtifactInfo {
   hash: string;
   size: number;
   mimeType: string;
-  producedBy?: string;
+  producerJobId?: string;
   producerNodeId?: string;
   /** Artifact status: succeeded, failed, or skipped */
   status: 'succeeded' | 'failed' | 'skipped' | string;
   createdAt: string | null;
   /** Source of this artifact - 'producer' for generated, 'user' for edited */
-  editedBy?: 'producer' | 'user';
+  lastRevisionBy?: 'producer' | 'user';
   /** The first producer-generated blob hash (preserved across edits for restore) */
-  originalHash?: string;
+  preEditArtifactHash?: string;
   /** Why the artifact failed or was skipped */
   failureReason?: ArtifactFailureReason;
   /** Whether failed artifact can be recovered via recheck (e.g., job still running on provider) */

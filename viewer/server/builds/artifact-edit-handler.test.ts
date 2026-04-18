@@ -75,8 +75,8 @@ describe("artifact-edit-handler", () => {
         revision: "rev-2",
         status: "succeeded",
         createdAt: new Date().toISOString(),
-        editedBy: "user",
-        originalHash: "abc123",
+        lastRevisionBy: "user",
+        preEditArtifactHash: "abc123",
       };
 
       // Write events
@@ -92,13 +92,13 @@ describe("artifact-edit-handler", () => {
       const parsed2 = JSON.parse(lines[1]);
 
       expect(parsed1.artifactId).toBe("Artifact:Test.Output");
-      expect(parsed1.editedBy).toBeUndefined();
+      expect(parsed1.lastRevisionBy).toBeUndefined();
 
-      expect(parsed2.editedBy).toBe("user");
-      expect(parsed2.originalHash).toBe("abc123");
+      expect(parsed2.lastRevisionBy).toBe("user");
+      expect(parsed2.preEditArtifactHash).toBe("abc123");
     });
 
-    it("preserves originalHash across multiple edits", async () => {
+    it("preserves preEditArtifactHash across multiple edits", async () => {
       const eventsDir = path.join(tempDir, "events");
       await fs.mkdir(eventsDir, { recursive: true });
       const logPath = path.join(eventsDir, "artifacts.log");
@@ -109,7 +109,7 @@ describe("artifact-edit-handler", () => {
         revision: "rev-1",
         output: { blob: { hash: "original-hash-aaa", size: 100, mimeType: "image/png" } },
         status: "succeeded",
-        producedBy: "Test",
+        producerJobId: "Test",
         createdAt: new Date().toISOString(),
       };
 
@@ -119,22 +119,22 @@ describe("artifact-edit-handler", () => {
         revision: "rev-2",
         output: { blob: { hash: "edited-hash-bbb", size: 120, mimeType: "image/png" } },
         status: "succeeded",
-        producedBy: "Test",
+        producerJobId: "Test",
         createdAt: new Date().toISOString(),
-        editedBy: "user" as const,
-        originalHash: "original-hash-aaa", // Points to producer's hash
+        lastRevisionBy: "user" as const,
+        preEditArtifactHash: "original-hash-aaa", // Points to producer's hash
       };
 
-      // Second user edit - originalHash should be preserved
+      // Second user edit - preEditArtifactHash should be preserved
       const userEdit2 = {
         artifactId: "Artifact:Test.Output",
         revision: "rev-3",
         output: { blob: { hash: "edited-hash-ccc", size: 130, mimeType: "image/png" } },
         status: "succeeded",
-        producedBy: "Test",
+        producerJobId: "Test",
         createdAt: new Date().toISOString(),
-        editedBy: "user" as const,
-        originalHash: "original-hash-aaa", // Still points to original producer hash!
+        lastRevisionBy: "user" as const,
+        preEditArtifactHash: "original-hash-aaa", // Still points to original producer hash!
       };
 
       // Write events
@@ -150,10 +150,10 @@ describe("artifact-edit-handler", () => {
       // Latest event should still have the original producer hash
       const latest = events[events.length - 1];
       expect(latest.output.blob.hash).toBe("edited-hash-ccc");
-      expect(latest.originalHash).toBe("original-hash-aaa");
+      expect(latest.preEditArtifactHash).toBe("original-hash-aaa");
     });
 
-    it("restore event clears editedBy and originalHash", async () => {
+    it("restore event clears lastRevisionBy and preEditArtifactHash", async () => {
       const eventsDir = path.join(tempDir, "events");
       await fs.mkdir(eventsDir, { recursive: true });
       const logPath = path.join(eventsDir, "artifacts.log");
@@ -164,21 +164,21 @@ describe("artifact-edit-handler", () => {
         revision: "rev-1",
         output: { blob: { hash: "edited-hash", size: 100, mimeType: "image/png" } },
         status: "succeeded",
-        producedBy: "Test",
+        producerJobId: "Test",
         createdAt: new Date().toISOString(),
-        editedBy: "user" as const,
-        originalHash: "original-hash",
+        lastRevisionBy: "user" as const,
+        preEditArtifactHash: "original-hash",
       };
 
-      // Restore event - points back to original, no editedBy/originalHash
+      // Restore event - points back to original, no lastRevisionBy/preEditArtifactHash
       const restoreEvent = {
         artifactId: "Artifact:Test.Output",
         revision: "rev-2",
         output: { blob: { hash: "original-hash", size: 90, mimeType: "image/png" } },
         status: "succeeded",
-        producedBy: "Test",
+        producerJobId: "Test",
         createdAt: new Date().toISOString(),
-        // No editedBy or originalHash - restored to producer state
+        // No lastRevisionBy or preEditArtifactHash - restored to producer state
       };
 
       await fs.writeFile(logPath, JSON.stringify(editEvent) + "\n");
@@ -190,8 +190,8 @@ describe("artifact-edit-handler", () => {
 
       const latest = events[events.length - 1];
       expect(latest.output.blob.hash).toBe("original-hash");
-      expect(latest.editedBy).toBeUndefined();
-      expect(latest.originalHash).toBeUndefined();
+      expect(latest.lastRevisionBy).toBeUndefined();
+      expect(latest.preEditArtifactHash).toBeUndefined();
     });
   });
 

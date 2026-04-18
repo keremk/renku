@@ -35,7 +35,7 @@ describe('hashing utilities', () => {
       artifacts: {
         'Artifact:c': {
           hash: 'hash-c',
-          producedBy: 'Producer:C',
+          producerJobId: 'Producer:C',
           status: 'succeeded' as const,
           createdAt,
         },

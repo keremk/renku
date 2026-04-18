@@ -18,6 +18,7 @@ import {
 import { buildRunResultBuildStateSnapshot } from './run-result-build-state.js';
 import type { StorageContext } from './storage.js';
 import { persistBlobToStorage } from './blob-utils.js';
+import { requireArtifactOwnership } from './artifact-ownership.js';
 import {
   isBlobRef,
   type EdgeConditionClause,
@@ -323,19 +324,26 @@ async function executeJob(
 
       // Record failed artifacts for this job due to upstream failure
       for (const artifactId of expectedArtifacts) {
+        const ownership = requireArtifactOwnership({
+          artifactId,
+          producerJobId: job.jobId,
+          producerId: job.context?.producerId,
+          context: `runner upstream_failure job=${job.jobId}`,
+        });
         const event: ArtifactEvent = {
           artifactId,
           revision,
           inputsHash,
           output: {},
           status: 'failed',
-          producedBy: job.jobId,
-          producerId: job.context?.producerId,
+          producerJobId: ownership.producerJobId,
+          producerId: ownership.producerId,
           diagnostics: {
             reason: 'upstream_failure',
             failedUpstreamArtifacts: failedUpstream,
           },
           createdAt: clock.now(),
+          lastRevisionBy: 'producer',
         };
         await eventLog.appendArtifact(movieId, event);
       }
@@ -544,15 +552,23 @@ async function executeJob(
     // Record failed artifacts for observability even when produce throws.
     try {
       for (const artifactId of expectedArtifacts) {
+        const ownership = requireArtifactOwnership({
+          artifactId,
+          producerJobId: job.jobId,
+          producerId: job.context?.producerId,
+          context: `runner thrown_error job=${job.jobId}`,
+        });
         const event: ArtifactEvent = {
           artifactId,
           revision,
           inputsHash,
           output: {},
           status: 'failed',
-          producedBy: job.jobId,
+          producerJobId: ownership.producerJobId,
+          producerId: ownership.producerId,
           diagnostics: failureDiagnostics,
           createdAt: clock.now(),
+          lastRevisionBy: 'producer',
         };
         await eventLog.appendArtifact(movieId, event);
       }
@@ -636,16 +652,24 @@ async function materializeArtifacts(
       );
     }
 
+    const ownership = requireArtifactOwnership({
+      artifactId: artifact.artifactId,
+      producerJobId: context.job.jobId,
+      producerId: context.job.context?.producerId,
+      context: `runner materialize job=${context.job.jobId}`,
+    });
+
     const event: ArtifactEvent = {
       artifactId: artifact.artifactId,
       revision: context.revision,
       inputsHash: context.inputsHash,
       output,
       status,
-      producedBy: context.job.jobId,
-      producerId: context.job.context?.producerId,
+      producerJobId: ownership.producerJobId,
+      producerId: ownership.producerId,
       diagnostics: artifact.diagnostics,
       createdAt: context.clock.now(),
+      lastRevisionBy: 'producer',
     };
 
     await context.eventLog.appendArtifact(context.movieId, event);
@@ -911,13 +935,18 @@ function mergeResolvedArtifacts(
   resolvedArtifacts: Record<string, unknown>
 ): JobDescriptor {
   const hasResolvedArtifacts = Object.keys(resolvedArtifacts).length > 0;
-  const jobContext: ProducerJobContext = job.context ?? {
-    namespacePath: [],
-    indices: {},
-    producerAlias: typeof job.producer === 'string' ? job.producer : job.jobId,
-    inputs: job.inputs,
-    produces: job.produces,
-  };
+  if (!job.context) {
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+      `Job ${job.jobId} is missing producer context.`,
+      {
+        context: `jobId=${job.jobId}`,
+        suggestion:
+          'Ensure the producer graph includes canonical job context for every scheduled job.',
+      }
+    );
+  }
+  const jobContext: ProducerJobContext = job.context;
   const hasFanIn = Boolean(
     jobContext.fanIn && Object.keys(jobContext.fanIn).length > 0
   );
@@ -984,13 +1013,18 @@ function mergeAssetBlobPaths(
     return job;
   }
 
-  const jobContext: ProducerJobContext = job.context ?? {
-    namespacePath: [],
-    indices: {},
-    producerAlias: typeof job.producer === 'string' ? job.producer : job.jobId,
-    inputs: job.inputs,
-    produces: job.produces,
-  };
+  if (!job.context) {
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+      `Job ${job.jobId} is missing producer context.`,
+      {
+        context: `jobId=${job.jobId}`,
+        suggestion:
+          'Ensure the producer graph includes canonical job context for every scheduled job.',
+      }
+    );
+  }
+  const jobContext: ProducerJobContext = job.context;
   const existingExtras: ProducerJobContextExtras = jobContext.extras ?? {};
 
   return {

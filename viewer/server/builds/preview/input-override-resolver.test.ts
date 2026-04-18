@@ -17,6 +17,7 @@ function createProducerGraph(): ProducerGraph {
           namespacePath: [],
           indices: { scene: 3 },
           producerAlias: 'NarrationProducer',
+          producerId: 'Producer:NarrationProducer',
           inputs: [],
           produces: ['Artifact:NarrationProducer.GeneratedAudio[3]'],
           inputBindings: {

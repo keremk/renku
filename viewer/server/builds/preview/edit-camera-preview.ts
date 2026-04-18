@@ -594,6 +594,7 @@ function createPreviewJobDescriptor(params: {
       namespacePath: [],
       indices: {},
       producerAlias: producerSpec.producerId,
+      producerId: `Producer:${producerSpec.producerId}`,
       inputs: uniqueInputIds,
       produces: [artifactId],
       inputBindings,

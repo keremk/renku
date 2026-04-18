@@ -1250,7 +1250,7 @@ function MediaArtifactCard({
     ? getBlobUrl(blueprintFolder, movieId, promptArtifact.hash)
     : undefined;
   const displayName = getArtifactLabel(artifact.id, subGroup);
-  const isEdited = artifact.editedBy === 'user';
+  const isEdited = artifact.lastRevisionBy === 'user';
   const artifactProducerNodeId = resolveArtifactProducerNodeId(artifact);
   const availableRerunModels = artifactProducerNodeId
     ? (producerModels?.[artifactProducerNodeId]?.availableModels ?? [])
@@ -1670,7 +1670,7 @@ function TextArtifactSmartCard({
   const [isSaving, setIsSaving] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
   const displayName = getArtifactLabel(artifact.id, subGroup);
-  const isEdited = artifact.editedBy === 'user';
+  const isEdited = artifact.lastRevisionBy === 'user';
 
   useEffect(() => {
     let cancelled = false;

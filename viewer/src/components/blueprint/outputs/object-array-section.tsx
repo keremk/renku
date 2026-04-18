@@ -135,7 +135,7 @@ export function ObjectArraySection({
     displayType: c.displayType,
     content: c.content,
     mimeType: c.artifact.mimeType,
-    isEdited: c.artifact.editedBy === 'user',
+    isEdited: c.artifact.lastRevisionBy === 'user',
   }));
 
   return (
@@ -198,7 +198,7 @@ function ContentCard({
 
   const isSelected = isArtifactSelected(artifact.id);
   const isPinned = isArtifactPinned(artifact.id);
-  const isEdited = artifact.editedBy === 'user';
+  const isEdited = artifact.lastRevisionBy === 'user';
 
   const isJson = artifact.mimeType === 'application/json';
   const displayContent = isJson

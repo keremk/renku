@@ -62,7 +62,7 @@ describe('resolveArtifactsFromEventLog', () => {
       inputsHash: 'hash-1',
       output: { blob: blobRef },
       status: 'succeeded',
-      producedBy: 'job-1',
+      producerJobId: 'job-1',
       createdAt: '2025-01-01T00:00:00Z',
     };
 
@@ -97,7 +97,7 @@ describe('resolveArtifactsFromEventLog', () => {
       inputsHash: 'hash-1',
       output: { blob: blobRef },
       status: 'succeeded',
-      producedBy: 'job-1',
+      producerJobId: 'job-1',
       createdAt: '2025-01-01T00:00:00Z',
     };
 
@@ -139,7 +139,7 @@ describe('resolveArtifactsFromEventLog', () => {
         inputsHash: 'hash-1',
         output: { blob: audioBlobRef },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -148,7 +148,7 @@ describe('resolveArtifactsFromEventLog', () => {
         inputsHash: 'hash-2',
         output: { blob: titleBlobRef },
         status: 'succeeded',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -185,7 +185,7 @@ describe('resolveArtifactsFromEventLog', () => {
           blob: { hash: 'old123', size: 2, mimeType: 'image/png' },
         },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -196,7 +196,7 @@ describe('resolveArtifactsFromEventLog', () => {
           blob: { hash: 'new456', size: 2, mimeType: 'image/png' },
         },
         status: 'succeeded',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -228,7 +228,7 @@ describe('resolveArtifactsFromEventLog', () => {
       inputsHash: 'hash-1',
       output: {},
       status: 'failed',
-      producedBy: 'job-1',
+      producerJobId: 'job-1',
       createdAt: '2025-01-01T00:00:00Z',
       },
     ];
@@ -265,7 +265,7 @@ describe('resolveArtifactsFromEventLog', () => {
       inputsHash: 'hash-1',
       output: { blob: imageBlobRef },
       status: 'succeeded',
-      producedBy: 'job-1',
+      producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -274,7 +274,7 @@ describe('resolveArtifactsFromEventLog', () => {
       inputsHash: 'hash-2',
       output: { blob: audioBlobRef },
       status: 'succeeded',
-      producedBy: 'job-2',
+      producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -311,7 +311,7 @@ describe('readLatestSucceededArtifactEvents', () => {
           blob: { hash: 'old123', size: 2, mimeType: 'image/png' },
         },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -320,7 +320,7 @@ describe('readLatestSucceededArtifactEvents', () => {
         inputsHash: 'hash-2',
         output: {},
         status: 'failed',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -346,7 +346,7 @@ describe('readLatestSucceededArtifactEvents', () => {
           blob: { hash: 'audio123', size: 2, mimeType: 'audio/mpeg' },
         },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -355,7 +355,7 @@ describe('readLatestSucceededArtifactEvents', () => {
         inputsHash: 'hash-2',
         output: {},
         status: 'skipped',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -383,7 +383,7 @@ describe('readLatestArtifactEvents', () => {
           blob: { hash: 'old123', size: 2, mimeType: 'image/png' },
         },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -392,7 +392,7 @@ describe('readLatestArtifactEvents', () => {
         inputsHash: 'hash-2',
         output: {},
         status: 'failed',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -477,7 +477,7 @@ describe('resolveArtifactBlobPaths', () => {
       inputsHash: 'hash-1',
       output: { blob: blobRef },
       status: 'succeeded',
-      producedBy: 'job-1',
+      producerJobId: 'job-1',
       createdAt: '2025-01-01T00:00:00Z',
     };
 
@@ -515,7 +515,7 @@ describe('resolveArtifactBlobPaths', () => {
         inputsHash: 'hash-1',
         output: { blob: videoBlobRef },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -524,7 +524,7 @@ describe('resolveArtifactBlobPaths', () => {
         inputsHash: 'hash-2',
         output: { blob: audioBlobRef },
         status: 'succeeded',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -567,7 +567,7 @@ describe('resolveArtifactBlobPaths', () => {
         inputsHash: 'hash-1',
         output: { blob: oldBlobRef },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -576,7 +576,7 @@ describe('resolveArtifactBlobPaths', () => {
         inputsHash: 'hash-2',
         output: { blob: newBlobRef },
         status: 'succeeded',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -605,7 +605,7 @@ describe('resolveArtifactBlobPaths', () => {
         inputsHash: 'hash-1',
         output: {},
         status: 'failed',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
     ];
@@ -642,7 +642,7 @@ describe('resolveArtifactBlobPaths', () => {
         inputsHash: 'hash-1',
         output: { blob: videoBlobRef },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -651,7 +651,7 @@ describe('resolveArtifactBlobPaths', () => {
         inputsHash: 'hash-2',
         output: { blob: audioBlobRef },
         status: 'succeeded',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -680,7 +680,7 @@ describe('resolveArtifactBlobPaths', () => {
       inputsHash: 'hash-1',
       output: {}, // No blob
       status: 'succeeded',
-      producedBy: 'job-1',
+      producerJobId: 'job-1',
       createdAt: '2025-01-01T00:00:00Z',
     };
 
@@ -715,7 +715,7 @@ describe('resolveArtifactBlobPaths', () => {
         inputsHash: 'hash-1',
         output: { blob: blobRef },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       };
 
@@ -755,7 +755,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-1',
         output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
     ];
@@ -779,7 +779,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-1',
         output: {},
         status: 'failed',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
     ];
@@ -803,7 +803,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-1',
         output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -812,7 +812,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-2',
         output: {},
         status: 'failed',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:00:01Z',
       },
       {
@@ -821,7 +821,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-3',
         output: { blob: { hash: 'def456', size: 200, mimeType: 'image/png' } },
         status: 'succeeded',
-        producedBy: 'job-3',
+        producerJobId: 'job-3',
         createdAt: '2025-01-01T00:00:02Z',
       },
     ];
@@ -849,7 +849,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-1',
         output: {},
         status: 'failed',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -858,7 +858,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-2',
         output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
         status: 'succeeded',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -883,7 +883,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-1',
         output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
         status: 'succeeded',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -892,7 +892,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-2',
         output: {},
         status: 'failed',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:01:00Z',
       },
     ];
@@ -917,7 +917,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-1',
         output: {},
         status: 'failed',
-        producedBy: 'job-1',
+        producerJobId: 'job-1',
         createdAt: '2025-01-01T00:00:00Z',
       },
       {
@@ -926,7 +926,7 @@ describe('findFailedArtifacts', () => {
         inputsHash: 'hash-2',
         output: {},
         status: 'failed',
-        producedBy: 'job-2',
+        producerJobId: 'job-2',
         createdAt: '2025-01-01T00:00:01Z',
       },
     ];

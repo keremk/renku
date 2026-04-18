@@ -82,31 +82,31 @@ function createBuildState(): BuildState {
     artifacts: {
       'Artifact:Script[0]': {
         hash: 'h-script-0',
-        producedBy: 'Producer:ScriptProducer',
+        producerJobId: 'Producer:ScriptProducer',
         status: 'succeeded',
         createdAt: new Date().toISOString(),
       },
       'Artifact:Script[1]': {
         hash: 'h-script-1',
-        producedBy: 'Producer:ScriptProducer',
+        producerJobId: 'Producer:ScriptProducer',
         status: 'succeeded',
         createdAt: new Date().toISOString(),
       },
       'Artifact:Audio[0]': {
         hash: 'h-audio-0',
-        producedBy: 'Producer:AudioProducer[0]',
+        producerJobId: 'Producer:AudioProducer[0]',
         status: 'succeeded',
         createdAt: new Date().toISOString(),
       },
       'Artifact:Audio[1]': {
         hash: 'h-audio-1',
-        producedBy: 'Producer:AudioProducer[1]',
+        producerJobId: 'Producer:AudioProducer[1]',
         status: 'succeeded',
         createdAt: new Date().toISOString(),
       },
       'Artifact:Timeline': {
         hash: 'h-timeline',
-        producedBy: 'Producer:TimelineProducer',
+        producerJobId: 'Producer:TimelineProducer',
         status: 'succeeded',
         createdAt: new Date().toISOString(),
       },
@@ -126,7 +126,7 @@ function buildLatestSnapshot(): LatestArtifactSnapshot {
         inputsHash: 'inputs-hash',
         output: {},
         status: entry.status,
-        producedBy: entry.producedBy,
+        producerJobId: entry.producerJobId,
         createdAt: entry.createdAt,
       },
     ])
