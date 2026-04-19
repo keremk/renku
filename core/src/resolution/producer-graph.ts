@@ -4,6 +4,7 @@ import {
   formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalArtifactId,
   isCanonicalInputId,
+  parseCanonicalOutputId,
 } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { deriveProducerFamilyId } from '../orchestration/producer-overrides.js';
@@ -272,8 +273,14 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
     }
   }
 
-  // Include runtime artifacts exported through blueprint Output connectors.
-  for (const sourceId of Object.values(canonical.outputSources ?? {})) {
+  // Only top-level blueprint outputs keep an artifact "connected" on their own.
+  // Imported producer-local Output nodes should not force unrelated schema-decomposed
+  // fields into the producer job contract unless something downstream actually uses them.
+  for (const [outputId, sourceId] of Object.entries(canonical.outputSources ?? {})) {
+    const parsedOutputId = parseCanonicalOutputId(outputId);
+    if (parsedOutputId.path.length > 0) {
+      continue;
+    }
     if (isCanonicalArtifactId(sourceId)) {
       connected.add(sourceId);
     }

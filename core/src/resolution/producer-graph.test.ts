@@ -1233,6 +1233,132 @@ describe('createProducerGraph', () => {
       expect(videoProducer.produces).not.toContain('Artifact:VideoProducer.FirstFrame');
     });
 
+    it('does not treat imported producer-local output connectors as downstream usage', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:CartoonDirector',
+            type: 'Producer',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'CartoonDirector',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Producer:StoryboardImageProducer',
+            type: 'Producer',
+            producerAlias: 'ImageProducer',
+            namespacePath: [],
+            name: 'StoryboardImageProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:CartoonDirector.Episode.Characters[0].Name',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['CartoonDirector', 'Episode', 'Characters'],
+            name: 'Name',
+            indices: { character: 0 },
+            dimensions: ['character'],
+          },
+          {
+            id: 'Artifact:CartoonDirector.Episode.Characters[0].ImagePrompt',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['CartoonDirector', 'Episode', 'Characters'],
+            name: 'ImagePrompt',
+            indices: { character: 0 },
+            dimensions: ['character'],
+          },
+        ],
+        edges: [
+          {
+            from: 'Producer:CartoonDirector',
+            to: 'Artifact:CartoonDirector.Episode.Characters[0].Name',
+          },
+          {
+            from: 'Producer:CartoonDirector',
+            to: 'Artifact:CartoonDirector.Episode.Characters[0].ImagePrompt',
+          },
+          {
+            from: 'Artifact:CartoonDirector.Episode.Characters[0].ImagePrompt',
+            to: 'Producer:StoryboardImageProducer',
+          },
+        ],
+        inputBindings: {},
+        outputSources: {
+          'Output:CartoonDirector.Episode.Characters[0].Name':
+            'Artifact:CartoonDirector.Episode.Characters[0].Name',
+          'Output:CartoonDirector.Episode.Characters[0].ImagePrompt':
+            'Artifact:CartoonDirector.Episode.Characters[0].ImagePrompt',
+        },
+        outputSourceBindings: [],
+        fanIn: {},
+      };
+
+      const options = createDefaultOptions(['TestProducer', 'ImageProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      const director = result.nodes.find(
+        (node) => node.jobId === 'Producer:CartoonDirector'
+      )!;
+      expect(director.produces).toContain(
+        'Artifact:CartoonDirector.Episode.Characters[0].ImagePrompt'
+      );
+      expect(director.produces).not.toContain(
+        'Artifact:CartoonDirector.Episode.Characters[0].Name'
+      );
+    });
+
+    it('treats top-level blueprint outputs as downstream usage', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:AudioProducer[0]',
+            type: 'Producer',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'AudioProducer',
+            indices: { segment: 0 },
+            dimensions: ['segment'],
+          },
+          {
+            id: 'Artifact:AudioProducer.GeneratedAudio[0]',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['AudioProducer'],
+            name: 'GeneratedAudio',
+            indices: { segment: 0 },
+            dimensions: ['segment'],
+          },
+        ],
+        edges: [
+          {
+            from: 'Producer:AudioProducer[0]',
+            to: 'Artifact:AudioProducer.GeneratedAudio[0]',
+          },
+        ],
+        inputBindings: {},
+        outputSources: {
+          'Output:SegmentAudio[0]': 'Artifact:AudioProducer.GeneratedAudio[0]',
+        },
+        outputSourceBindings: [],
+        fanIn: {},
+      };
+
+      const options = createDefaultOptions(['TestProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      const audioProducer = result.nodes.find(
+        (node) => node.jobId === 'Producer:AudioProducer[0]'
+      )!;
+      expect(audioProducer.produces).toContain(
+        'Artifact:AudioProducer.GeneratedAudio[0]'
+      );
+    });
+
     it('includes root-level artifacts even without downstream connections', () => {
       // Simple case: producer output IS the blueprint artifact (no chaining needed)
       // Root-level artifacts (empty namespace) are always included as they're final outputs
