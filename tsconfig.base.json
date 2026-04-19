@@ -1,12 +1,11 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@assets/*": [
-        "attached_assets/*"
+        "./attached_assets/*"
       ],
-      "@core/*": ["core/src/*"],
-      "@cli/*": ["cli/src/*"]
+      "@core/*": ["./core/src/*"],
+      "@cli/*": ["./cli/src/*"]
     }
   }
 }
