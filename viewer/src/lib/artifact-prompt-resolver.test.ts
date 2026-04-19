@@ -96,6 +96,29 @@ function createProducerEndpoint(
   };
 }
 
+function createDetachedSelectorTargetEndpoint(
+  reference: string,
+  selectorPath: BindingSelector[]
+): ProducerBindingEndpoint {
+  const endpoint = createProducerEndpoint(reference, 'target');
+  return {
+    ...endpoint,
+    segments: endpoint.segments.map((segment) => ({
+      ...segment,
+      selectors: [],
+    })),
+    selectorPath,
+    loopSelectors: selectorPath.filter(
+      (selector): selector is Extract<BindingSelector, { kind: 'loop' }> =>
+        selector.kind === 'loop'
+    ),
+    constantSelectors: selectorPath.filter(
+      (selector): selector is Extract<BindingSelector, { kind: 'const' }> =>
+        selector.kind === 'const'
+    ),
+  };
+}
+
 function parseSegments(reference: string): BindingEndpointSegment[] {
   return reference.split('.').map((segment) => {
     const nameMatch = segment.match(/^[^[]+/);
@@ -315,5 +338,71 @@ describe('resolvePromptArtifactForMedia', () => {
     });
 
     expect(resolved?.id).toBe('Artifact:PromptProducer.ImagePrompt[4]');
+  });
+
+  it('resolves prompt artifacts when target selector metadata only exists on selectorPath', () => {
+    const artifacts = [
+      makeArtifact(
+        'Artifact:PromptProducer.Characters[character=3].ImagePrompt',
+        'text/plain',
+        'Producer:PromptProducer'
+      ),
+      makeArtifact(
+        'Artifact:MediaProducer.GeneratedImage[3]',
+        'image/png',
+        'Producer:MediaProducer'
+      ),
+    ];
+
+    const selectorPath: BindingSelector[] = [
+      {
+        kind: 'loop',
+        raw: 'character',
+        symbol: 'character',
+        offset: 0,
+      },
+    ];
+
+    const graphData: BlueprintGraphData = {
+      meta: { id: 'test', name: 'Test' },
+      nodes: [
+        {
+          id: 'Producer:MediaProducer',
+          type: 'producer',
+          label: 'MediaProducer',
+          inputBindings: [
+            {
+              from: 'PromptProducer.Characters[character].ImagePrompt',
+              to: 'MediaProducer.Prompt',
+              sourceType: 'producer',
+              targetType: 'producer',
+              sourceEndpoint: createProducerEndpoint(
+                'PromptProducer.Characters[character].ImagePrompt',
+                'source'
+              ),
+              targetEndpoint: createDetachedSelectorTargetEndpoint(
+                'MediaProducer.Prompt',
+                selectorPath
+              ),
+              isConditional: false,
+            },
+          ],
+          outputBindings: [],
+        },
+      ],
+      edges: [],
+      inputs: [],
+      outputs: [],
+    };
+
+    const resolved = resolvePromptArtifactForMedia({
+      mediaArtifact: artifacts[1]!,
+      artifacts,
+      graphData,
+    });
+
+    expect(resolved?.id).toBe(
+      'Artifact:PromptProducer.Characters[character=3].ImagePrompt'
+    );
   });
 });

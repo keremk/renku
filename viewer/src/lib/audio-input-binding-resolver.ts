@@ -149,11 +149,7 @@ function resolveBindingIndices(
 }
 
 function flattenEndpointSelectors(endpoint: ProducerBindingEndpoint): BindingSelector[] {
-  const selectors: BindingSelector[] = [];
-  for (const segment of endpoint.segments) {
-    selectors.push(...segment.selectors);
-  }
-  return selectors;
+  return endpoint.selectorPath;
 }
 
 function resolveSelectorFromArtifactIndices(

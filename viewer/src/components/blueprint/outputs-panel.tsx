@@ -35,6 +35,7 @@ import {
   shortenArtifactDisplayName,
   groupArtifactsByProducer,
   classifyAndGroupArtifacts,
+  getArtifactDownloadName,
   getArtifactLabel,
   getBlobUrl,
   resolveArtifactProducerNodeId,
@@ -1015,6 +1016,7 @@ interface ArtifactCardFooterProps {
   artifactId: string;
   displayName: string;
   downloadName: string;
+  mimeType: string;
   url: string;
   isEdited?: boolean;
   onEdit?: () => void;
@@ -1026,6 +1028,7 @@ function ArtifactCardFooter({
   artifactId,
   displayName,
   downloadName,
+  mimeType,
   url,
   isEdited,
   onEdit,
@@ -1044,9 +1047,9 @@ function ArtifactCardFooter({
   const handleDownload = useCallback(() => {
     const a = document.createElement('a');
     a.href = url;
-    a.download = downloadName;
+    a.download = getArtifactDownloadName(downloadName, mimeType);
     a.click();
-  }, [url, downloadName]);
+  }, [url, downloadName, mimeType]);
 
   const handleCopyUrl = useCallback(async () => {
     await navigator.clipboard.writeText(window.location.origin + url);
@@ -1238,11 +1241,28 @@ function MediaArtifactCard({
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
-  const promptArtifact = resolvePromptArtifactForMedia({
+  const resolvedPromptArtifact = resolvePromptArtifactForMedia({
     mediaArtifact: artifact,
     artifacts,
     graphData,
   });
+  const [lastResolvedPromptArtifact, setLastResolvedPromptArtifact] = useState<
+    ArtifactInfo | null
+  >(resolvedPromptArtifact);
+
+  useEffect(() => {
+    setLastResolvedPromptArtifact(resolvedPromptArtifact);
+  }, [artifact.id]);
+
+  useEffect(() => {
+    if (!resolvedPromptArtifact) {
+      return;
+    }
+
+    setLastResolvedPromptArtifact(resolvedPromptArtifact);
+  }, [resolvedPromptArtifact]);
+
+  const promptArtifact = resolvedPromptArtifact ?? lastResolvedPromptArtifact;
   const promptLabel = promptArtifact
     ? `Prompt (${shortenArtifactDisplayName(promptArtifact.id)})`
     : 'Prompt';
@@ -1527,6 +1547,7 @@ function MediaArtifactCard({
       artifactId={artifact.id}
       displayName={displayName}
       downloadName={artifact.name}
+      mimeType={artifact.mimeType}
       url={url}
       isEdited={isEdited}
       onEdit={handleEdit}
@@ -1583,6 +1604,7 @@ function MediaArtifactCard({
           availableEditModels={availableEditModels}
           initialModel={initialModel}
           promptUrl={promptUrl}
+          promptArtifactId={promptArtifact?.id}
           onFileUpload={handleFileUpload}
           onEstimateCost={handleImagePreviewEstimate}
           onRegenerate={handleImagePreviewRegenerate}
@@ -1775,6 +1797,7 @@ function TextArtifactSmartCard({
       artifactId={artifact.id}
       displayName={displayName}
       downloadName={artifact.name}
+      mimeType={artifact.mimeType}
       url={url}
       isEdited={isEdited}
       onEdit={handleEdit}

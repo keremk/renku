@@ -124,6 +124,55 @@ describe('resolveAudioInputBindingSource', () => {
 
     expect(source).toBeNull();
   });
+
+  it('resolves bindings when target selectors are only present on selectorPath', () => {
+    const selectorPath: BindingSelector[] = [
+      {
+        kind: 'loop',
+        raw: 'scene',
+        symbol: 'scene',
+        offset: 0,
+      },
+    ];
+
+    const graphData = createGraphData([
+      {
+        from: 'StoryProducer.Storyboard.Scenes[scene].Emotion',
+        to: 'NarrationProducer.Emotion',
+        sourceType: 'producer',
+        targetType: 'producer',
+        sourceEndpoint: createProducerEndpoint(
+          'StoryProducer.Storyboard.Scenes[scene].Emotion',
+          'source'
+        ),
+        targetEndpoint: createDetachedSelectorTargetEndpoint(
+          'NarrationProducer.Emotion',
+          selectorPath
+        ),
+        isConditional: true,
+      },
+    ]);
+
+    const source = resolveAudioInputBindingSource({
+      audioArtifact: {
+        id: 'Artifact:NarrationProducer.GeneratedAudio[3]',
+        name: 'NarrationProducer.GeneratedAudio[3]',
+        hash: 'hash-audio-3',
+        size: 100,
+        mimeType: 'audio/mpeg',
+        producerNodeId: 'Producer:NarrationProducer',
+        status: 'succeeded',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+      inputName: 'Emotion',
+      graphData,
+    });
+
+    expect(source).toEqual({
+      kind: 'artifact',
+      artifactId: 'Artifact:StoryProducer.Storyboard.Scenes[3].Emotion',
+    });
+  });
 });
 
 function createInputEndpoint(reference: string): ProducerBindingEndpoint {
@@ -205,6 +254,29 @@ function createProducerEndpoint(
     loopSelectors,
     constantSelectors,
     arraySelectors,
+  };
+}
+
+function createDetachedSelectorTargetEndpoint(
+  reference: string,
+  selectorPath: BindingSelector[]
+): ProducerBindingEndpoint {
+  const endpoint = createProducerEndpoint(reference, 'target');
+  return {
+    ...endpoint,
+    segments: endpoint.segments.map((segment) => ({
+      ...segment,
+      selectors: [],
+    })),
+    selectorPath,
+    loopSelectors: selectorPath.filter(
+      (selector): selector is Extract<BindingSelector, { kind: 'loop' }> =>
+        selector.kind === 'loop'
+    ),
+    constantSelectors: selectorPath.filter(
+      (selector): selector is Extract<BindingSelector, { kind: 'const' }> =>
+        selector.kind === 'const'
+    ),
   };
 }
 

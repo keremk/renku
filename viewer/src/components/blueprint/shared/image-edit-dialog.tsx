@@ -62,6 +62,7 @@ export interface ImageEditDialogProps {
   availableEditModels?: AvailableModelOption[];
   initialModel?: AvailableModelOption;
   promptUrl?: string;
+  promptArtifactId?: string;
   onFileUpload: (files: File[]) => Promise<void>;
   onEstimateCost?: (
     params: RegenerateParams
@@ -352,6 +353,7 @@ export function ImageEditDialog({
   availableEditModels,
   initialModel,
   promptUrl,
+  promptArtifactId,
   onFileUpload,
   onEstimateCost,
   onRegenerate,
@@ -404,12 +406,20 @@ export function ImageEditDialog({
   }, [initialModel]);
 
   useEffect(() => {
-    if (!promptText) {
+    if (!open || !promptArtifactId || !promptText) {
       return;
     }
 
     setRerunPrompt((prev) => (prev === '' ? promptText : prev));
-  }, [promptText]);
+  }, [open, promptArtifactId, promptText]);
+
+  useEffect(() => {
+    if (!open || promptArtifactId) {
+      return;
+    }
+
+    setRerunPrompt('');
+  }, [open, promptArtifactId]);
 
   useEffect(() => {
     if (!open) {
@@ -473,6 +483,7 @@ export function ImageEditDialog({
   const selectedUploadPreviewUrl = useSelectedFilePreview(
     selectedFiles[0] ?? null
   );
+  const canOverrideRerunPrompt = Boolean(promptArtifactId);
 
   useRegenerationCostEstimate({
     open,
@@ -492,7 +503,7 @@ export function ImageEditDialog({
         const selectedModel = rerunModels[selectedRerunModelIndex];
         return {
           mode: 'rerun',
-          prompt: rerunPrompt,
+          prompt: canOverrideRerunPrompt ? rerunPrompt : '',
           ...(selectedModel ? { model: selectedModel } : {}),
         };
       }
@@ -519,6 +530,7 @@ export function ImageEditDialog({
       cameraParams,
       editModels,
       editPrompt,
+      canOverrideRerunPrompt,
       rerunModels,
       rerunPrompt,
       selectedEditModelIndex,
@@ -825,16 +837,22 @@ export function ImageEditDialog({
                     <textarea
                       value={currentPrompt}
                       onChange={(e) => setCurrentPrompt(e.target.value)}
+                      disabled={activeTab === 'rerun' && !canOverrideRerunPrompt}
                       placeholder={
                         activeTab === 'rerun'
-                          ? 'Optional prompt tweak before re-running...'
+                          ? canOverrideRerunPrompt
+                            ? 'Optional prompt tweak before re-running...'
+                            : 'Prompt overrides are unavailable for this artifact right now. Re-run will use the original prompt as-is.'
                           : 'Describe only the changes you want to apply to the current image (for example: "add warm sunset lighting").'
                       }
                       className={cn(
                         'w-full resize-none bg-muted/30 border border-border/40 text-foreground',
                         'font-[inherit] text-[11px] leading-relaxed px-2.5 py-2 rounded-lg outline-none',
                         'focus:border-primary/50 focus:ring-2 focus:ring-primary/20',
-                        'overflow-y-auto min-h-[120px]'
+                        'overflow-y-auto min-h-[120px]',
+                        activeTab === 'rerun' && !canOverrideRerunPrompt
+                          ? 'cursor-not-allowed opacity-60'
+                          : undefined
                       )}
                     />
                   </div>

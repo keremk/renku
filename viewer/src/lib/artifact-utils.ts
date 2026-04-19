@@ -4,6 +4,29 @@
 
 import type { ArtifactInfo } from '@/types/builds';
 
+const MIME_TYPE_DOWNLOAD_EXTENSIONS: Record<string, string[]> = {
+  'audio/aac': ['aac'],
+  'audio/flac': ['flac'],
+  'audio/mpeg': ['mp3'],
+  'audio/mp3': ['mp3'],
+  'audio/ogg': ['ogg'],
+  'audio/wav': ['wav'],
+  'audio/webm': ['webm'],
+  'audio/x-wav': ['wav'],
+  'image/avif': ['avif'],
+  'image/gif': ['gif'],
+  'image/jpeg': ['jpg', 'jpeg'],
+  'image/jpg': ['jpg', 'jpeg'],
+  'image/png': ['png'],
+  'image/webp': ['webp'],
+  'application/json': ['json'],
+  'text/plain': ['txt'],
+  'video/mp4': ['mp4'],
+  'video/quicktime': ['mov'],
+  'video/webm': ['webm'],
+  'video/x-matroska': ['mkv'],
+};
+
 export function resolveArtifactProducerNodeId(
   artifact: ArtifactInfo
 ): string | null {
@@ -70,6 +93,50 @@ export function groupArtifactsByProducer(
   }
 
   return groups;
+}
+
+export function getArtifactDownloadName(
+  name: string,
+  mimeType?: string
+): string {
+  if (!mimeType) {
+    return name;
+  }
+
+  const normalizedMimeType = mimeType.toLowerCase();
+  const knownExtensions = MIME_TYPE_DOWNLOAD_EXTENSIONS[normalizedMimeType];
+  const extension =
+    knownExtensions?.[0] ??
+    inferExtensionFromMimeTypePrefix(normalizedMimeType);
+
+  if (!extension) {
+    return name;
+  }
+
+  const lowerCaseName = name.toLowerCase();
+  const alreadyHasExpectedExtension =
+    knownExtensions?.some((candidate) =>
+      lowerCaseName.endsWith(`.${candidate}`)
+    ) ?? lowerCaseName.endsWith(`.${extension}`);
+
+  if (alreadyHasExpectedExtension) {
+    return name;
+  }
+
+  return `${name}.${extension}`;
+}
+
+function inferExtensionFromMimeTypePrefix(mimeType: string): string | null {
+  if (mimeType.startsWith('audio/')) {
+    return mimeType.slice('audio/'.length);
+  }
+  if (mimeType.startsWith('image/')) {
+    return mimeType.slice('image/'.length);
+  }
+  if (mimeType.startsWith('video/')) {
+    return mimeType.slice('video/'.length);
+  }
+  return null;
 }
 
 // ============================================================================

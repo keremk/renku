@@ -37,6 +37,7 @@ import { useExecution } from '@/contexts/execution-context';
 import { useStoryboardProjection } from '@/hooks';
 import { resolveAudioInputBindingSource } from '@/lib/audio-input-binding-resolver';
 import {
+  getArtifactDownloadName,
   getBlobUrl,
   resolveArtifactProducerNodeId,
 } from '@/lib/artifact-utils';
@@ -464,7 +465,7 @@ function StoryboardSectionCard({
   children: ReactNode;
 }) {
   return (
-    <section className='relative z-10 w-[22rem] shrink-0 overflow-hidden rounded-[var(--radius-panel)] border border-border/40 bg-panel-bg/80 shadow-lg backdrop-blur-sm'>
+    <section className='relative z-10 w-88 shrink-0 overflow-hidden rounded-(--radius-panel) border border-border/40 bg-panel-bg/80 shadow-lg backdrop-blur-sm'>
       <div className='flex h-[45px] items-center border-b border-border/40 bg-sidebar-header-bg px-4'>
         <span className='text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground'>
           {title}
@@ -784,9 +785,26 @@ function StoryboardArtifactMediaCard({
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
-  const promptArtifact = promptDetails.artifactId
+  const resolvedPromptArtifact = promptDetails.artifactId
     ? artifacts.find((candidate) => candidate.id === promptDetails.artifactId)
     : undefined;
+  const [lastResolvedPromptArtifact, setLastResolvedPromptArtifact] = useState<
+    ArtifactInfo | undefined
+  >(resolvedPromptArtifact);
+
+  useEffect(() => {
+    setLastResolvedPromptArtifact(resolvedPromptArtifact);
+  }, [artifact.id]);
+
+  useEffect(() => {
+    if (!resolvedPromptArtifact) {
+      return;
+    }
+
+    setLastResolvedPromptArtifact(resolvedPromptArtifact);
+  }, [resolvedPromptArtifact]);
+
+  const promptArtifact = resolvedPromptArtifact ?? lastResolvedPromptArtifact;
   const promptLabel = promptArtifact
     ? `Prompt (${shortenPromptArtifactLabel(promptArtifact.id)})`
     : 'Prompt';
@@ -899,6 +917,7 @@ function StoryboardArtifactMediaCard({
       artifactId={artifact.id}
       displayName={displayName}
       downloadName={artifact.name}
+      mimeType={artifact.mimeType}
       url={url}
       isEdited={isEdited}
       onEdit={() => setIsEditDialogOpen(true)}
@@ -1114,6 +1133,7 @@ function StoryboardArtifactMediaCard({
           availableModels={availableRerunModels}
           initialModel={initialModel}
           promptUrl={promptUrl}
+          promptArtifactId={promptArtifact?.id}
           onFileUpload={handleFileUpload}
           onEstimateCost={handleImagePreviewEstimate}
           onRegenerate={handleImagePreviewRegenerate}
@@ -1347,6 +1367,7 @@ function StoryboardArtifactTextCard({
       artifactId={artifact.id}
       displayName={displayName}
       downloadName={artifact.name}
+      mimeType={artifact.mimeType}
       url={url}
       isEdited={isEdited}
       onEdit={() => setIsEditDialogOpen(true)}
@@ -1494,6 +1515,7 @@ function StoryboardArtifactCardFooter({
   artifactId,
   displayName,
   downloadName,
+  mimeType,
   url,
   isEdited,
   onEdit,
@@ -1503,6 +1525,7 @@ function StoryboardArtifactCardFooter({
   artifactId: string;
   displayName: string;
   downloadName: string;
+  mimeType: string;
   url: string;
   isEdited: boolean;
   onEdit?: () => void;
@@ -1521,9 +1544,9 @@ function StoryboardArtifactCardFooter({
   const handleDownload = useCallback(() => {
     const element = document.createElement('a');
     element.href = url;
-    element.download = downloadName;
+    element.download = getArtifactDownloadName(downloadName, mimeType);
     element.click();
-  }, [downloadName, url]);
+  }, [downloadName, mimeType, url]);
 
   const handleCopyUrl = useCallback(async () => {
     await navigator.clipboard.writeText(window.location.origin + url);

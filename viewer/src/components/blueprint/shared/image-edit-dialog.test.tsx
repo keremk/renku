@@ -57,12 +57,14 @@ const defaultProps: ImageEditDialogProps = {
   imageUrl: 'https://example.com/image.png',
   title: 'Edit Image — Scene #1',
   availableModels: mockModels,
+  promptArtifactId: 'Artifact:PromptProducer.ImagePrompt[0]',
   onFileUpload: vi.fn(),
 };
 
 describe('ImageEditDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   const getTab = (tabId: string) =>
@@ -555,6 +557,75 @@ describe('ImageEditDialog', () => {
       expect(onApplyGenerated).toHaveBeenCalledWith('tmp-apply-1');
       expect(onCleanupGenerated).toHaveBeenCalledWith('tmp-apply-1');
       expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('clears stale rerun prompt state when reopened without a prompt artifact id', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: vi.fn().mockResolvedValue('Original prompt text'),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const onRegenerate = vi.fn().mockResolvedValue({
+      previewUrl: 'https://example.com/generated-rerun.png',
+      tempId: 'tmp-rerun-reset',
+      estimatedCost: {
+        cost: 0.01,
+        minCost: 0.01,
+        maxCost: 0.01,
+        isPlaceholder: false,
+      },
+    });
+
+    const { rerender } = render(
+      <ImageEditDialog
+        {...defaultProps}
+        promptUrl='/prompt.txt'
+        promptArtifactId='Artifact:PromptProducer.ImagePrompt[0]'
+        onRegenerate={onRegenerate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Original prompt text')).toBeTruthy();
+    });
+
+    rerender(
+      <ImageEditDialog
+        {...defaultProps}
+        open={false}
+        promptUrl='/prompt.txt'
+        promptArtifactId='Artifact:PromptProducer.ImagePrompt[0]'
+        onRegenerate={onRegenerate}
+      />
+    );
+
+    rerender(
+      <ImageEditDialog
+        {...defaultProps}
+        promptUrl={undefined}
+        promptArtifactId={undefined}
+        onRegenerate={onRegenerate}
+      />
+    );
+
+    await waitFor(() => {
+      const textarea = screen.getByPlaceholderText(
+        'Prompt overrides are unavailable for this artifact right now. Re-run will use the original prompt as-is.'
+      ) as HTMLTextAreaElement;
+      expect(textarea.value).toBe('');
+      expect(textarea.disabled).toBe(true);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'REGENERATE' }));
+
+    await waitFor(() => {
+      expect(onRegenerate).toHaveBeenCalledWith({
+        mode: 'rerun',
+        prompt: '',
+        model: mockModels[0],
+      });
     });
   });
 });

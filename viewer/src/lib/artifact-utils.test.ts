@@ -4,6 +4,7 @@ import {
   shortenArtifactDisplayName,
   groupArtifactsByProducer,
   classifyAndGroupArtifacts,
+  getArtifactDownloadName,
   getArtifactLabel,
   getBlobUrl,
   type ArtifactSubGroup,
@@ -547,5 +548,40 @@ describe('getBlobUrl', () => {
     expect(() => getBlobUrl('demo', 'movie-1', '')).toThrow(
       '[getBlobUrl] Missing required parameters: hash'
     );
+  });
+});
+
+describe('getArtifactDownloadName', () => {
+  it('appends the expected extension when the display name has none', () => {
+    expect(
+      getArtifactDownloadName(
+        'StoryboardImageProducer.ComposedImage[0]',
+        'image/png'
+      )
+    ).toBe('StoryboardImageProducer.ComposedImage[0].png');
+  });
+
+  it('uses the actual mime type instead of always using png', () => {
+    expect(
+      getArtifactDownloadName(
+        'StoryboardImageProducer.ComposedImage[0]',
+        'image/jpeg'
+      )
+    ).toBe('StoryboardImageProducer.ComposedImage[0].jpg');
+  });
+
+  it('preserves a matching extension that is already present', () => {
+    expect(
+      getArtifactDownloadName('GeneratedImage-0-0.png', 'image/png')
+    ).toBe('GeneratedImage-0-0.png');
+    expect(getArtifactDownloadName('portrait.jpeg', 'image/jpeg')).toBe(
+      'portrait.jpeg'
+    );
+  });
+
+  it('leaves the name unchanged when the mime type is unknown', () => {
+    expect(
+      getArtifactDownloadName('ArtifactOutput', 'application/octet-stream')
+    ).toBe('ArtifactOutput');
   });
 });
