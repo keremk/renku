@@ -790,6 +790,44 @@ describe('condition parsing', () => {
       expect(edgeWithCondition).toBeDefined();
       expect(edgeWithCondition?.conditions).toBeDefined();
     });
+
+    it('preserves Output: references when resolving named conditions onto edges', async () => {
+      const reader = {
+        readFile: async () => `
+meta:
+  id: output-condition-blueprint
+  name: Output Condition Blueprint
+  kind: producer
+inputs:
+  - name: Publish
+    type: boolean
+outputs:
+  - name: PreviewVideo
+    type: video
+  - name: FinalVideo
+    type: video
+conditions:
+  publishPreview:
+    when: Output:PreviewVideo
+    exists: true
+connections:
+  - from: PreviewVideo
+    to: FinalVideo
+    if: publishPreview
+`,
+      };
+
+      const document = await parseYamlBlueprintFile(
+        '/virtual/output-condition-blueprint.yaml',
+        { reader }
+      );
+      const edgeWithCondition = document.edges.find((edge) => edge.conditions);
+
+      expect(edgeWithCondition?.conditions).toEqual({
+        when: 'Output:PreviewVideo',
+        exists: true,
+      });
+    });
   });
 
   describe('condition operators', () => {
@@ -813,6 +851,80 @@ describe('condition parsing', () => {
       expect(isImageNarration.when.startsWith('Artifact:')).toBe(true);
       expect(isImageNarration.when).toContain('NarrationType');
       expect(isImageNarration.is).toBe('ImageNarration');
+    });
+
+    it('preserves Output: references in inline edge conditions', async () => {
+      const reader = {
+        readFile: async () => `
+meta:
+  id: inline-output-condition-blueprint
+  name: Inline Output Condition Blueprint
+  kind: producer
+outputs:
+  - name: PreviewVideo
+    type: video
+  - name: FinalVideo
+    type: video
+connections:
+  - from: PreviewVideo
+    to: FinalVideo
+    conditions:
+      when: Output:PreviewVideo
+      exists: true
+`,
+      };
+
+      const document = await parseYamlBlueprintFile(
+        '/virtual/inline-output-condition-blueprint.yaml',
+        { reader }
+      );
+      const condition = document.edges[0]?.conditions as EdgeConditionClause;
+
+      expect(condition).toEqual({
+        when: 'Output:PreviewVideo',
+        exists: true,
+      });
+    });
+
+    it('preserves Output: references inside condition groups', async () => {
+      const reader = {
+        readFile: async () => `
+meta:
+  id: output-condition-group-blueprint
+  name: Output Condition Group Blueprint
+  kind: producer
+inputs:
+  - name: Publish
+    type: boolean
+outputs:
+  - name: PreviewVideo
+    type: video
+conditions:
+  publishPreview:
+    all:
+      - when: Output:PreviewVideo
+        exists: true
+      - when: Input:Publish
+        is: true
+`,
+      };
+
+      const document = await parseYamlBlueprintFile(
+        '/virtual/output-condition-group-blueprint.yaml',
+        { reader }
+      );
+      const condition = document.conditions?.publishPreview as EdgeConditionGroup;
+
+      expect(condition.all).toEqual([
+        {
+          when: 'Output:PreviewVideo',
+          exists: true,
+        },
+        {
+          when: 'Input:Publish',
+          is: true,
+        },
+      ]);
     });
   });
 });

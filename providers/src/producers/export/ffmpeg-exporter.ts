@@ -8,8 +8,8 @@ import {
   parseSchemaFile,
   resolveSchemaRefs,
 } from '../../sdk/unified/schema-file.js';
-import type { HandlerFactory, HandlerFactoryInit } from '../../types.js';
 import type { ResolvedInputsAccessor } from '../../sdk/types.js';
+import type { HandlerFactory, HandlerFactoryInit } from '../../types.js';
 import {
   createEventLog,
   createStorageContext,
@@ -27,11 +27,6 @@ const MAX_FFMPEG_STDIO_BUFFER_BYTES = 100 * 1024 * 1024;
 const FFMPEG_PROGRESS_PERCENT_STEP = 5;
 
 const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
-const KNOWN_TRANSCRIPTION_ARTIFACT_IDS = [
-  'Artifact:SubtitlesProducer.SubtitlesComposer.Transcription',
-  'Artifact:SubtitlesProducer.Transcription',
-  'Artifact:TranscriptionProducer.Transcription',
-] as const;
 const ASPECT_RATIO_INPUT_ID = 'Input:AspectRatio';
 const RESOLUTION_INPUT_ID = 'Input:Resolution';
 
@@ -184,28 +179,34 @@ export function createFfmpegExporterHandler(): HandlerFactory {
             : path.resolve(storageRoot, assetPath);
         }
 
-        // Try to load transcription for subtitles (optional).
-        // First try runtime inputs during execution, then fall back to persisted state.
+        // Load transcription for subtitles only when the producer is explicitly
+        // bound to a canonical Transcription input.
         let transcription: TranscriptionArtifact | undefined;
-        const transcriptionArtifactId = resolveOptionalTranscriptionArtifactId(
-          request,
-          runtime.inputs,
-        );
+        const transcriptionArtifactId =
+          resolveOptionalTranscriptionArtifactId(request);
         const inlineTranscription =
           transcriptionArtifactId !== undefined
             ? runtime.inputs.getByNodeId<unknown>(transcriptionArtifactId)
             : undefined;
-        if (
-          inlineTranscription &&
-          typeof inlineTranscription === 'object' &&
-          'words' in inlineTranscription
-        ) {
-          transcription = inlineTranscription as TranscriptionArtifact;
-        } else {
+        if (transcriptionArtifactId === undefined) {
+          transcription = undefined;
+        } else if (inlineTranscription === undefined) {
           transcription = await loadTranscription(
             storage,
             movieId,
             transcriptionArtifactId,
+          );
+        } else if (isTranscriptionArtifact(inlineTranscription)) {
+          transcription = inlineTranscription;
+        } else {
+          throw createProviderError(
+            SdkErrorCode.INVALID_CONFIG,
+            `FFmpeg exporter expected "${transcriptionArtifactId}" to contain a valid transcription payload.`,
+            {
+              kind: 'user_input',
+              causedByUser: true,
+              metadata: { transcriptionArtifactId },
+            }
           );
         }
 
@@ -587,44 +588,50 @@ async function loadTimeline(
 
 /**
  * Load transcription artifact from storage (optional, for karaoke subtitles).
- * Returns undefined if transcription doesn't exist.
+ * Throws when the explicitly bound transcription is missing or invalid.
  */
 async function loadTranscription(
   storage: ReturnType<typeof createStorageContext>,
   movieId: string,
-  preferredArtifactId?: string,
-): Promise<TranscriptionArtifact | undefined> {
-  try {
-    const eventLog = createEventLog(storage);
-    const artifactIds = preferredArtifactId
-      ? [preferredArtifactId]
-      : [...KNOWN_TRANSCRIPTION_ARTIFACT_IDS];
-    const artifacts = await resolveArtifactsFromEventLog({
-      artifactIds,
-      eventLog,
-      storage,
-      movieId,
-    });
-    for (const artifactId of artifactIds) {
-      const transcription = artifacts[artifactId];
-      if (
-        transcription &&
-        typeof transcription === 'object' &&
-        'words' in transcription
-      ) {
-        return transcription as TranscriptionArtifact;
+  artifactId: string,
+): Promise<TranscriptionArtifact> {
+  const eventLog = createEventLog(storage);
+  const artifacts = await resolveArtifactsFromEventLog({
+    artifactIds: [artifactId],
+    eventLog,
+    storage,
+    movieId,
+  });
+  const transcription = artifacts[artifactId];
+  if (transcription === undefined) {
+    throw createProviderError(
+      SdkErrorCode.MISSING_ASSET,
+      `FFmpeg exporter is missing the bound transcription artifact "${artifactId}".`,
+      {
+        kind: 'user_input',
+        causedByUser: true,
+        metadata: { artifactId, movieId },
       }
-    }
-    return undefined;
-  } catch {
-    // Transcription is optional, return undefined if loading fails
-    return undefined;
+    );
   }
+
+  if (!isTranscriptionArtifact(transcription)) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `FFmpeg exporter expected "${artifactId}" to contain a valid transcription payload.`,
+      {
+        kind: 'user_input',
+        causedByUser: true,
+        metadata: { artifactId, movieId },
+      }
+    );
+  }
+
+  return transcription;
 }
 
 function resolveOptionalTranscriptionArtifactId(
   request: Parameters<ReturnType<HandlerFactory>['invoke']>[0],
-  inputs: ResolvedInputsAccessor,
 ): string | undefined {
   const jobContext = request.context.extras?.jobContext;
   if (
@@ -641,13 +648,18 @@ function resolveOptionalTranscriptionArtifactId(
     }
   }
 
-  for (const artifactId of KNOWN_TRANSCRIPTION_ARTIFACT_IDS) {
-    if (inputs.getByNodeId(artifactId) !== undefined) {
-      return artifactId;
-    }
-  }
-
   return undefined;
+}
+
+function isTranscriptionArtifact(
+  value: unknown
+): value is TranscriptionArtifact {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'words' in value &&
+    Array.isArray((value as { words?: unknown }).words)
+  );
 }
 
 /**
@@ -940,6 +952,9 @@ export const __test__ = {
   deriveDimensionsFromAspectRatio,
   resolveMovieId,
   resolveStoragePaths,
+  isTranscriptionArtifact,
+  loadTranscription,
+  resolveOptionalTranscriptionArtifactId,
   mimeToExtension,
   collectAssetIds,
   detectOutputFormat,

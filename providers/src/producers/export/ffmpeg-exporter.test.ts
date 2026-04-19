@@ -408,6 +408,7 @@ describe('ffmpeg-exporter', () => {
     let movieId: string;
 
     beforeEach(async () => {
+      mockedExecFile.mockClear();
       tempRoot = await mkdtemp(path.join(tmpdir(), 'ffmpeg-test-'));
       movieId = 'test-movie-123';
 
@@ -456,6 +457,89 @@ describe('ffmpeg-exporter', () => {
     afterEach(async () => {
       await rm(tempRoot, { recursive: true, force: true });
     });
+
+    async function writeJsonArtifact(
+      artifactId: string,
+      hash: string,
+      payload: unknown
+    ): Promise<void> {
+      const hashPrefix = hash.slice(0, 2);
+      const eventLogPath = path.join(
+        tempRoot,
+        'builds',
+        movieId,
+        'events',
+        'artifacts.log'
+      );
+      const existingLog = await readFile(eventLogPath, 'utf8');
+      const serializedPayload = JSON.stringify(payload);
+
+      await mkdir(path.join(tempRoot, 'builds', movieId, 'blobs', hashPrefix), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(
+          tempRoot,
+          'builds',
+          movieId,
+          'blobs',
+          hashPrefix,
+          `${hash}.json`
+        ),
+        serializedPayload
+      );
+      await writeFile(
+        eventLogPath,
+        `${existingLog}${JSON.stringify({
+          artifactId,
+          revision: 'rev-0001',
+          inputsHash: `${hash}-inputs`,
+          output: {
+            blob: {
+              hash,
+              size: serializedPayload.length,
+              mimeType: 'application/json',
+            },
+          },
+          status: 'succeeded',
+          producedBy: 'Producer:TestProducer[0]',
+          producerId: 'Producer:TestProducer',
+          createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
+        })}\n`
+      );
+    }
+
+    function mockSuccessfulFfmpegRun(): void {
+      mockedExecFile.mockImplementationOnce((...args: unknown[]) => {
+        const ffmpegArgs = args[1] as string[];
+        const outputPath = ffmpegArgs[ffmpegArgs.length - 1] ?? '';
+        const callback =
+          typeof args[3] === 'function'
+            ? (args[3] as (
+                err: Error | null,
+                stdout?: string,
+                stderr?: string
+              ) => void)
+            : typeof args[2] === 'function'
+              ? (args[2] as (
+                  err: Error | null,
+                  stdout?: string,
+                  stderr?: string
+                ) => void)
+              : undefined;
+
+        void writeFile(outputPath, Buffer.from('ok')).then(
+          () => callback?.(null, '', ''),
+          (error) => callback?.(error as Error)
+        );
+
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as never;
+      });
+    }
 
     it('should create a handler factory', () => {
       const factory = createFfmpegExporterHandler();
@@ -810,6 +894,201 @@ describe('ffmpeg-exporter', () => {
           },
         })
       ).rejects.toThrow(/must match pattern/);
+    });
+
+    it('loads subtitles only from the exact bound transcription artifact', async () => {
+      const transcriptionArtifactId =
+        'Artifact:ExactSubtitleProducer.Transcription';
+      await writeJsonArtifact(transcriptionArtifactId, 'cd456', {
+        text: 'hello world',
+        words: [
+          {
+            text: 'hello',
+            startTime: 0,
+            endTime: 0.5,
+            clipId: 'clip-1',
+          },
+        ],
+        segments: [
+          {
+            clipId: 'clip-1',
+            assetId: 'Artifact:Audio[0]',
+            clipStartTime: 0,
+            clipDuration: 1,
+            text: 'hello world',
+          },
+        ],
+        language: 'eng',
+        totalDuration: 1,
+      });
+      mockSuccessfulFfmpegRun();
+
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: {
+          provider: 'renku',
+          model: 'FfmpegExporter',
+          environment: 'local',
+        },
+        mode: 'live',
+        secretResolver: {
+          async getSecret() {
+            return null;
+          },
+        },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      const response = await handler.invoke({
+        jobId: 'test-job',
+        provider: 'renku',
+        model: 'FfmpegExporter',
+        revision: 'rev-1',
+        layerIndex: 0,
+        attempt: 1,
+        inputs: [],
+        produces: ['Artifact:FinalVideo'],
+        context: {
+          environment: 'local',
+          providerConfig: {},
+          extras: {
+            resolvedInputs: {
+              'Input:MovieId': movieId,
+              'Input:StorageRoot': tempRoot,
+              'Input:StorageBasePath': 'builds',
+            },
+            jobContext: {
+              inputBindings: {
+                Transcription: transcriptionArtifactId,
+              },
+            },
+          },
+        },
+      });
+
+      expect(response.status).toBe('succeeded');
+      await expect(
+        readFile(path.join(tempRoot, 'builds', movieId, 'subtitles.ass'), 'utf8')
+      ).resolves.toContain('hello');
+    });
+
+    it('does not resurrect stale subtitles when Transcription is not bound', async () => {
+      await writeJsonArtifact('Artifact:TranscriptionProducer.Transcription', 'ef789', {
+        text: 'stale subtitles',
+        words: [
+          {
+            text: 'stale',
+            startTime: 0,
+            endTime: 0.5,
+            clipId: 'clip-stale',
+          },
+        ],
+        segments: [
+          {
+            clipId: 'clip-stale',
+            assetId: 'Artifact:Audio[0]',
+            clipStartTime: 0,
+            clipDuration: 1,
+            text: 'stale subtitles',
+          },
+        ],
+        language: 'eng',
+        totalDuration: 1,
+      });
+      mockSuccessfulFfmpegRun();
+
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: {
+          provider: 'renku',
+          model: 'FfmpegExporter',
+          environment: 'local',
+        },
+        mode: 'live',
+        secretResolver: {
+          async getSecret() {
+            return null;
+          },
+        },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      const response = await handler.invoke({
+        jobId: 'test-job',
+        provider: 'renku',
+        model: 'FfmpegExporter',
+        revision: 'rev-1',
+        layerIndex: 0,
+        attempt: 1,
+        inputs: [],
+        produces: ['Artifact:FinalVideo'],
+        context: {
+          environment: 'local',
+          providerConfig: {},
+          extras: {
+            resolvedInputs: {
+              'Input:MovieId': movieId,
+              'Input:StorageRoot': tempRoot,
+              'Input:StorageBasePath': 'builds',
+            },
+            jobContext: {
+              inputBindings: {},
+            },
+          },
+        },
+      });
+
+      expect(response.status).toBe('succeeded');
+      await expect(
+        readFile(path.join(tempRoot, 'builds', movieId, 'subtitles.ass'), 'utf8')
+      ).rejects.toThrow(/ENOENT/);
+    });
+
+    it('fails fast when the bound transcription artifact is missing', async () => {
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: {
+          provider: 'renku',
+          model: 'FfmpegExporter',
+          environment: 'local',
+        },
+        mode: 'live',
+        secretResolver: {
+          async getSecret() {
+            return null;
+          },
+        },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      await expect(
+        handler.invoke({
+          jobId: 'test-job',
+          provider: 'renku',
+          model: 'FfmpegExporter',
+          revision: 'rev-1',
+          layerIndex: 0,
+          attempt: 1,
+          inputs: [],
+          produces: ['Artifact:FinalVideo'],
+          context: {
+            environment: 'local',
+            providerConfig: {},
+            extras: {
+              resolvedInputs: {
+                'Input:MovieId': movieId,
+                'Input:StorageRoot': tempRoot,
+                'Input:StorageBasePath': 'builds',
+              },
+              jobContext: {
+                inputBindings: {
+                  Transcription: 'Artifact:MissingProducer.Transcription',
+                },
+              },
+            },
+          },
+        })
+      ).rejects.toThrow(/missing the bound transcription artifact/i);
     });
 
     it('prefers inline timeline over the stored timeline artifact in live mode', async () => {

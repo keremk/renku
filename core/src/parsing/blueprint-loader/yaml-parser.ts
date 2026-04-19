@@ -34,6 +34,7 @@ import type {
 import {
   isCanonicalArtifactId,
   isCanonicalInputId,
+  isCanonicalOutputId,
 } from '../canonical-ids.js';
 import { parseDimensionSelector } from '../dimension-selectors.js';
 
@@ -976,7 +977,11 @@ function parseConditionClause(
 
 function canonicalizeConditionWhenPath(whenPath: string): string {
   const trimmed = whenPath.trim();
-  if (isCanonicalArtifactId(trimmed) || isCanonicalInputId(trimmed)) {
+  if (
+    isCanonicalArtifactId(trimmed) ||
+    isCanonicalInputId(trimmed) ||
+    isCanonicalOutputId(trimmed)
+  ) {
     return trimmed;
   }
   return `Artifact:${trimmed}`;
@@ -1163,7 +1168,9 @@ function parseReference(
     );
   }
   const normalizedReference =
-    reference.startsWith('Input:') || reference.startsWith('Artifact:')
+    reference.startsWith('Input:') ||
+    reference.startsWith('Artifact:') ||
+    reference.startsWith('Output:')
       ? reference.slice(reference.indexOf(':') + 1)
       : reference;
   for (const segment of normalizedReference.split('.')) {
