@@ -726,5 +726,66 @@ describe('ElevenLabs Handler - Simulated Mode', () => {
 
       expect(mocks.invoke).toHaveBeenCalledTimes(1);
     });
+
+    it('passes exact provider config fields through to the ElevenLabs payload', async () => {
+      mocks.createClient.mockResolvedValue({});
+      mocks.invoke.mockResolvedValue({
+        result: {
+          audioStream: new ReadableStream({
+            start(controller) {
+              controller.enqueue(new Uint8Array([0x49, 0x44, 0x33]));
+              controller.close();
+            },
+          }),
+          model: 'eleven_v3',
+        },
+      });
+
+      const handler = createHandler('live');
+      const request = createJobContext('eleven_v3', {
+        context: {
+          providerConfig: {
+            voice: 'JBFqnCBsd6RMkjVDRZzb',
+          },
+          extras: {
+            schema: {
+              input: JSON.stringify({
+                type: 'object',
+                properties: {
+                  text: { type: 'string' },
+                  voice: { type: 'string', default: 'Rachel' },
+                },
+                required: ['text'],
+              }),
+            },
+            resolvedInputs: {
+              'Input:TextInput': 'Hello world, this is a test.',
+            },
+            jobContext: {
+              sdkMapping: {
+                TextInput: { field: 'text' },
+                VoiceId: { field: 'voice' },
+              },
+              inputBindings: {
+                TextInput: 'Input:TextInput',
+                VoiceId: 'Input:VoiceId',
+              },
+            },
+          },
+        },
+      });
+
+      await handler.invoke(request);
+
+      expect(mocks.invoke).toHaveBeenCalledWith(
+        expect.anything(),
+        'eleven_v3',
+        expect.objectContaining({
+          text: 'Hello world, this is a test.',
+          voice: 'JBFqnCBsd6RMkjVDRZzb',
+        }),
+        expect.anything()
+      );
+    });
   });
 });

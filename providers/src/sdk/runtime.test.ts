@@ -461,6 +461,122 @@ describe('createProducerRuntime', () => {
   });
 
   describe('sdk.buildPayload with schema-based required validation', () => {
+    it('merges exact schema field values from provider config', async () => {
+      const request = createTestJobContext(
+        { 'Input:Text': 'test prompt' },
+        { Text: 'Input:Text' },
+        {
+          Text: { field: 'text' },
+          VoiceId: { field: 'voice' },
+        }
+      );
+      request.context.providerConfig = {
+        voice: 'JBFqnCBsd6RMkjVDRZzb',
+      };
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        required: ['text'],
+        properties: {
+          text: { type: 'string' },
+          voice: { type: 'string', default: 'Rachel' },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({
+        text: 'test prompt',
+        voice: 'JBFqnCBsd6RMkjVDRZzb',
+      });
+    });
+
+    it('supports wrapped provider config when customAttributes are present', async () => {
+      const request = createTestJobContext(
+        { 'Input:Text': 'test prompt' },
+        { Text: 'Input:Text' },
+        {
+          Text: { field: 'text' },
+        }
+      );
+      request.context.providerConfig = {
+        customAttributes: { trace: 'abc' },
+        config: {
+          voice: 'Rachel',
+        },
+      };
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        required: ['text'],
+        properties: {
+          text: { type: 'string' },
+          voice: { type: 'string', default: 'Rachel' },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({
+        text: 'test prompt',
+        voice: 'Rachel',
+      });
+    });
+
+    it('fails when provider config conflicts with a mapped payload field', async () => {
+      const request = createTestJobContext(
+        {
+          'Input:Text': 'test prompt',
+          'Input:VoiceId': 'Aria',
+        },
+        {
+          Text: 'Input:Text',
+          VoiceId: 'Input:VoiceId',
+        },
+        {
+          Text: { field: 'text' },
+          VoiceId: { field: 'voice' },
+        }
+      );
+      request.context.providerConfig = {
+        voice: 'Rachel',
+      };
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        required: ['text'],
+        properties: {
+          text: { type: 'string' },
+          voice: { type: 'string', default: 'Rachel' },
+        },
+      });
+
+      await expect(runtime.sdk.buildPayload(undefined, schema)).rejects.toThrow(
+        'Provider config field "voice" conflicts with the mapped payload value'
+      );
+    });
+
     it('throws error when missing a required field (per schema)', async () => {
       const request = createTestJobContext(
         { 'Input:Style': 'cinematic' }, // Missing required 'prompt'

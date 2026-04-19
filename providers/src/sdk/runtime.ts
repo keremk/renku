@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import type {
   ProviderAttachment,
   ProviderDescriptor,
@@ -21,6 +22,7 @@ import {
 } from '@gorenku/core';
 import { buildSdkPayload } from './payload-builder.js';
 import { createProviderError, SdkErrorCode } from './errors.js';
+import { parseInputSchema, readSchemaProperties } from './compatibility.js';
 
 interface SerializedJobContext {
   producerId?: string;
@@ -55,7 +57,12 @@ export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
   const resolvedInputs = resolveInputs(request.context.extras);
   const jobContext = extractJobContext(request.context.extras);
   const inputs = createInputsAccessor(resolvedInputs);
-  const sdk = createSdkHelper(inputs, jobContext, logger);
+  const sdk = createSdkHelper(
+    inputs,
+    request.context.providerConfig,
+    jobContext,
+    logger
+  );
   const artifacts = createArtifactRegistry(request.produces);
 
   return {
@@ -152,6 +159,7 @@ function createInputsAccessor(
 
 function createSdkHelper(
   inputs: ResolvedInputsAccessor,
+  providerConfig: unknown,
   jobContext?: SerializedJobContext,
   logger?: ProviderLogger
 ): RuntimeSdkHelpers {
@@ -167,9 +175,94 @@ function createSdkHelper(
         logger,
       });
 
-      return result.payload;
+      return mergeExactProviderConfigFields({
+        payload: result.payload,
+        providerConfig,
+        inputSchema,
+      });
     },
   };
+}
+
+function mergeExactProviderConfigFields(args: {
+  payload: Record<string, unknown>;
+  providerConfig: unknown;
+  inputSchema?: string;
+}): Record<string, unknown> {
+  const schema = parseInputSchema(args.inputSchema);
+  if (!schema) {
+    return args.payload;
+  }
+
+  const properties = readSchemaProperties(schema);
+  if (!properties) {
+    return args.payload;
+  }
+
+  const explicitConfig = extractExplicitProviderConfig(args.providerConfig);
+  if (!explicitConfig) {
+    return args.payload;
+  }
+
+  const payload = { ...args.payload };
+  for (const fieldName of Object.keys(properties)) {
+    if (!(fieldName in explicitConfig)) {
+      continue;
+    }
+
+    const configValue = explicitConfig[fieldName];
+    if (configValue === undefined) {
+      continue;
+    }
+
+    const existingValue = payload[fieldName];
+    if (existingValue !== undefined) {
+      if (!isDeepStrictEqual(existingValue, configValue)) {
+        throw createProviderError(
+          SdkErrorCode.INVALID_CONFIG,
+          `Provider config field "${fieldName}" conflicts with the mapped payload value. Remove one of the values so the field is set explicitly only once.`,
+          {
+            kind: 'user_input',
+            causedByUser: true,
+            metadata: {
+              fieldName,
+              mappedValue: existingValue,
+              configValue,
+            },
+          }
+        );
+      }
+      continue;
+    }
+
+    payload[fieldName] = configValue;
+  }
+
+  return payload;
+}
+
+function extractExplicitProviderConfig(
+  providerConfig: unknown
+): Record<string, unknown> | undefined {
+  if (!providerConfig || typeof providerConfig !== 'object' || Array.isArray(providerConfig)) {
+    return undefined;
+  }
+
+  const record = providerConfig as Record<string, unknown>;
+  const nestedConfig = record.config;
+  if (
+    nestedConfig &&
+    typeof nestedConfig === 'object' &&
+    !Array.isArray(nestedConfig)
+  ) {
+    return nestedConfig as Record<string, unknown>;
+  }
+
+  if ('defaults' in record || 'customAttributes' in record) {
+    return undefined;
+  }
+
+  return record;
 }
 
 function createArtifactRegistry(produces: string[]): ArtifactRegistry {
