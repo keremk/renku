@@ -184,6 +184,8 @@ export async function runInteractiveInputs(
 
 const RENKU_COMPOSITION_MODELS: Record<string, string> = {
 	'composition/timeline-composer': 'timeline/ordered',
+	'composition/stt-normalizer': 'speech/stt-normalizer',
+	'composition/subtitles-composer': 'speech/subtitles-composer',
 	'composition/video-exporter': 'ffmpeg/native-render',
 };
 
@@ -232,11 +234,6 @@ async function buildRenkuCompositionModels(params: {
 		}
 
 		const configDefaults = extractInputSchemaDefaults(schemaFile);
-		if (Object.keys(configDefaults).length === 0) {
-			throw new Error(
-				`Schema defaults are empty for renku/${model}. Add explicit defaults before generating input-template values for ${producer.alias}.`
-			);
-		}
 
 		models.push({
 			producerId: producer.alias,

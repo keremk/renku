@@ -499,6 +499,7 @@ export type RevisionId = `rev-${string}`;
 
 export interface ProducerJobContextExtras {
   resolvedInputs?: Record<string, unknown>;
+  inputArtifactSources?: Record<string, InputArtifactSource>;
   /**
    * Blob file paths for assets referenced in Timeline, resolved from event log.
    * Keys are artifact IDs (e.g., "Artifact:VideoProducer.GeneratedVideo[0]"),
@@ -507,6 +508,15 @@ export interface ProducerJobContextExtras {
    */
   assetBlobPaths?: Record<string, string>;
   [key: string]: unknown;
+}
+
+export interface InputArtifactSource {
+  artifactId: string;
+  upstreamJobId: string;
+  upstreamProducerId: string;
+  upstreamProducerAlias: string;
+  provider: ProviderName;
+  model: string;
 }
 
 export interface FanInDescriptor {

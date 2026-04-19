@@ -1,4 +1,5 @@
 import {
+  formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalId,
   type MappingFieldDefinition,
   type MappingCondition,
@@ -41,6 +42,8 @@ export interface TransformContext {
   inputs: Record<string, unknown>;
   /** Maps input aliases to canonical IDs */
   inputBindings: Record<string, string>;
+  /** Canonical producer ID for producer-scoped input resolution. */
+  producerId?: string;
 }
 
 /**
@@ -111,7 +114,7 @@ export function applyMapping(
   }
 
   // Get the raw input value
-  const canonicalId = context.inputBindings[sourceAlias];
+  const canonicalId = resolveCanonicalBindingId(sourceAlias, context);
   let value: unknown;
 
   if (canonicalId) {
@@ -252,7 +255,7 @@ function evaluateCondition(
   condition: MappingCondition,
   context: TransformContext
 ): boolean {
-  const canonicalId = context.inputBindings[condition.input];
+  const canonicalId = resolveCanonicalBindingId(condition.input, context);
   if (canonicalId) {
     assertCanonicalBindingId(condition.input, canonicalId);
   }
@@ -297,7 +300,7 @@ function applyCombineTransform(
   let hasAnyValue = false;
 
   for (const inputName of combine.inputs) {
-    const canonicalId = context.inputBindings[inputName];
+    const canonicalId = resolveCanonicalBindingId(inputName, context);
     if (canonicalId) {
       assertCanonicalBindingId(inputName, canonicalId);
     }
@@ -882,6 +885,23 @@ function resolveInputValue(
   }
 
   return currentValue;
+}
+
+function resolveCanonicalBindingId(
+  inputAlias: string,
+  context: TransformContext,
+): string | undefined {
+  const directBinding = context.inputBindings[inputAlias];
+  if (directBinding) {
+    return directBinding;
+  }
+  if (!context.producerId) {
+    return undefined;
+  }
+  return formatProducerScopedInputIdForCanonicalProducerId(
+    context.producerId,
+    inputAlias,
+  );
 }
 
 function parseIndexedInputAccess(

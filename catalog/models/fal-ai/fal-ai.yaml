@@ -1718,6 +1718,7 @@ models:
   # STT (Speech-to-Text) Models
   - name: elevenlabs/speech-to-text
     type: stt
+    sttNormalizer: elevenlabs-word-timestamps-v1
     mime:
       - application/json
     price:

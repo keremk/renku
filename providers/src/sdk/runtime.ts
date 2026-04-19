@@ -23,6 +23,7 @@ import { buildSdkPayload } from './payload-builder.js';
 import { createProviderError, SdkErrorCode } from './errors.js';
 
 interface SerializedJobContext {
+  producerId?: string;
   inputBindings?: Record<string, string>;
   sdkMapping?: Record<
     string,
@@ -161,6 +162,7 @@ function createSdkHelper(
         mapping: effectiveMapping,
         resolvedInputs: inputs.all(),
         inputBindings: jobContext?.inputBindings ?? {},
+        producerId: jobContext?.producerId,
         inputSchema,
         logger,
       });

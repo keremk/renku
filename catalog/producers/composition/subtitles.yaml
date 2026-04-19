@@ -1,0 +1,79 @@
+meta:
+  name: Subtitles Producer
+  description: Generate exporter-ready subtitles by combining per-segment STT with the final timeline timing.
+  id: SubtitlesProducer
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: TranscriptionAudio
+    description: Narration audio clips grouped per segment for subtitle generation.
+    type: array
+    itemType: audio
+    dimensions: segment
+    required: true
+  - name: LanguageCode
+    description: ISO 639-3 language code for transcription (e.g., eng, spa, fra).
+    type: string
+    required: true
+  - name: Timeline
+    description: Timeline document with Transcription track containing audio clip timing information.
+    type: json
+    required: true
+  - name: NumOfSegments
+    description: Number of narrative segments.
+    type: int
+    required: true
+  - name: Duration
+    description: Total duration of the final movie in seconds.
+    type: int
+    required: true
+
+outputs:
+  - name: Transcription
+    description: Word-level transcription aligned to the final video timeline.
+    type: json
+
+loops:
+  - name: segment
+    description: Iterates over narrative segments.
+    countInput: NumOfSegments
+
+conditions:
+  hasTranscriptionAudio:
+    when: Input:SubtitlesProducer.TranscriptionAudio[segment]
+    exists: true
+
+imports:
+  - name: STTTimestamps
+    producer: json/stt-timestamps
+    loop: segment
+  - name: STTNormalizer
+    producer: composition/stt-normalizer
+    loop: segment
+  - name: SubtitlesComposer
+    producer: composition/subtitles-composer
+
+connections:
+  - from: TranscriptionAudio[segment]
+    to: STTTimestamps[segment].TranscriptionAudio
+    if: hasTranscriptionAudio
+  - from: LanguageCode
+    to: STTTimestamps[segment].LanguageCode
+
+  - from: STTTimestamps[segment].RawTranscription
+    to: STTNormalizer[segment].RawTranscription
+    if: hasTranscriptionAudio
+
+  - from: Timeline
+    to: SubtitlesComposer.Timeline
+  - from: Duration
+    to: SubtitlesComposer.Duration
+  - from: STTNormalizer[segment].NormalizedTranscript
+    to: SubtitlesComposer.Transcripts
+    groupBy: segment
+    if: hasTranscriptionAudio
+  - from: SubtitlesComposer.Transcription
+    to: Transcription

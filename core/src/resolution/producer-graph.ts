@@ -15,6 +15,7 @@ import type {
   EdgeConditionDefinition,
   EdgeConditionGroup,
   FanInDescriptor,
+  InputArtifactSource,
   InputConditionInfo,
   ProducerCatalog,
   ProducerGraph,
@@ -174,6 +175,15 @@ export function createProducerGraph(
       }
     }
 
+    const inputArtifactSources = buildInputArtifactSources({
+      allInputs,
+      fanInForJob,
+      inputBindings,
+      artifactProducers,
+      nodeMap,
+      catalog,
+    });
+
     const nodeContext = {
       namespacePath: node.namespacePath,
       indices: node.indices,
@@ -191,6 +201,10 @@ export function createProducerGraph(
           input: option.inputSchema,
           output: option.outputSchema,
         },
+        inputArtifactSources:
+          Object.keys(inputArtifactSources).length > 0
+            ? inputArtifactSources
+            : undefined,
       },
     };
     nodes.push({
@@ -238,6 +252,84 @@ function resolveCatalogEntry(id: string, catalog: ProducerCatalog) {
     return catalog[id as keyof ProducerCatalog];
   }
   return undefined;
+}
+
+function buildInputArtifactSources(args: {
+  allInputs: string[];
+  fanInForJob: Record<string, FanInDescriptor>;
+  inputBindings: Record<string, string> | undefined;
+  artifactProducers: Map<string, string>;
+  nodeMap: Map<string, CanonicalBlueprint['nodes'][number]>;
+  catalog: ProducerCatalog;
+}): Record<string, InputArtifactSource> {
+  const {
+    allInputs,
+    fanInForJob,
+    inputBindings,
+    artifactProducers,
+    nodeMap,
+    catalog,
+  } = args;
+
+  const sources: Record<string, InputArtifactSource> = {};
+  const artifactIds = new Set<string>();
+
+  for (const inputId of allInputs) {
+    if (isCanonicalArtifactId(inputId)) {
+      artifactIds.add(inputId);
+    }
+  }
+
+  if (inputBindings) {
+    for (const sourceId of Object.values(inputBindings)) {
+      if (isCanonicalArtifactId(sourceId)) {
+        artifactIds.add(sourceId);
+      }
+    }
+  }
+
+  for (const descriptor of Object.values(fanInForJob)) {
+    for (const member of descriptor.members) {
+      if (isCanonicalArtifactId(member.id)) {
+        artifactIds.add(member.id);
+      }
+    }
+  }
+
+  for (const artifactId of artifactIds) {
+    const upstreamJobId = artifactProducers.get(artifactId);
+    if (!upstreamJobId) {
+      continue;
+    }
+
+    const upstreamNode = nodeMap.get(upstreamJobId);
+    if (!upstreamNode || upstreamNode.type !== 'Producer') {
+      continue;
+    }
+
+    const catalogEntry = resolveCatalogEntry(upstreamNode.producerAlias, catalog);
+    if (!catalogEntry) {
+      throw createRuntimeError(
+        RuntimeErrorCode.MISSING_PRODUCER_CATALOG_ENTRY,
+        `Missing producer catalog entry for ${upstreamNode.producerAlias}`,
+        { context: upstreamNode.producerAlias },
+      );
+    }
+
+    sources[artifactId] = {
+      artifactId,
+      upstreamJobId,
+      upstreamProducerId: formatCanonicalProducerId(
+        upstreamNode.namespacePath,
+        upstreamNode.name,
+      ),
+      upstreamProducerAlias: upstreamNode.producerAlias,
+      provider: catalogEntry.provider,
+      model: catalogEntry.providerModel,
+    };
+  }
+
+  return sources;
 }
 
 /**
@@ -391,6 +483,9 @@ function extractWhenPaths(condition: EdgeConditionDefinition): string[] {
  * - Keeps explicit numeric indices (e.g. [0]) exact
  */
 function whenPathToPattern(whenPath: string): RegExp | null {
+  if (isCanonicalInputId(whenPath)) {
+    return null;
+  }
   if (!isCanonicalArtifactId(whenPath)) {
     throw createRuntimeError(
       RuntimeErrorCode.GRAPH_EXPANSION_ERROR,

@@ -375,8 +375,12 @@ async function executeJob(
     // Evaluate input conditions if present
     const inputConditions = job.context?.inputConditions;
     if (inputConditions && Object.keys(inputConditions).length > 0) {
+      const resolvedInputs =
+        (job.context?.extras?.resolvedInputs as Record<string, unknown> | undefined) ??
+        {};
       const conditionContext: ConditionEvaluationContext = {
         resolvedArtifacts,
+        resolvedInputs,
       };
       const conditionResults = evaluateInputConditions(
         inputConditions,

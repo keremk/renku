@@ -27,8 +27,11 @@ const DEFAULT_HEIGHT = 1080;
 const DEFAULT_FPS = 30;
 const OUTPUT_FILENAME = 'FinalVideo.mp4';
 const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
-const TRANSCRIPTION_ARTIFACT_ID =
-	'Artifact:TranscriptionProducer.Transcription';
+const KNOWN_TRANSCRIPTION_ARTIFACT_IDS = [
+	'Artifact:SubtitlesProducer.SubtitlesComposer.Transcription',
+	'Artifact:SubtitlesProducer.Transcription',
+	'Artifact:TranscriptionProducer.Transcription',
+] as const;
 
 export type ExporterType = 'remotion' | 'ffmpeg';
 
@@ -813,7 +816,13 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 	const timelineEntry = buildState.artifacts[TIMELINE_ARTIFACT_ID];
 
 	// Get the transcription artifact entry if it exists (optional, for subtitles)
-	const transcriptionEntry = buildState.artifacts[TRANSCRIPTION_ARTIFACT_ID];
+	const transcriptionArtifactId = KNOWN_TRANSCRIPTION_ARTIFACT_IDS.find(
+		(artifactId) => buildState.artifacts[artifactId] !== undefined
+	);
+	const transcriptionEntry =
+		transcriptionArtifactId !== undefined
+			? buildState.artifacts[transcriptionArtifactId]
+			: undefined;
 
 	const buildStateSubtitleConfig = extractSubtitleConfig(buildState);
 
@@ -857,8 +866,8 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 	};
 
 	// Add transcription artifact if it exists (enables subtitles)
-	if (transcriptionEntry) {
-		resolvedInputs[TRANSCRIPTION_ARTIFACT_ID] = transcriptionEntry;
+	if (transcriptionEntry && transcriptionArtifactId) {
+		resolvedInputs[transcriptionArtifactId] = transcriptionEntry;
 	}
 
 	// Invoke the handler through the proper interface

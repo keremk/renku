@@ -12,6 +12,7 @@ import type {
 } from './types.js';
 import {
   loadModelInputSchema,
+  lookupModel,
   type LoadedModelCatalog,
 } from './model-catalog.js';
 import { generateProviderImplementations } from './registry-generator.js';
@@ -91,6 +92,11 @@ export function createProviderRegistry(
               model
             )
         : undefined;
+    const getModelDefinition =
+      options.catalog
+        ? (provider: string, model: string) =>
+            lookupModel(options.catalog!, provider, model)
+        : undefined;
 
     const handler = implementation.factory({
       descriptor,
@@ -103,6 +109,7 @@ export function createProviderRegistry(
       handlerResolver: (subDescriptor) => resolve(subDescriptor),
       // Allow internal handlers to load schemas for delegation
       getModelSchema,
+      getModelDefinition,
     });
     handlerCache.set(cacheKey, handler);
     return handler;

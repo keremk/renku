@@ -1,0 +1,28 @@
+meta:
+  name: STT Timestamps Legacy
+  description: Deprecated prototype path. Use json/stt-timestamps instead.
+  id: LegacySTTTimestamps
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: TranscriptionAudio
+    description: Audio clip to transcribe.
+    type: audio 
+  - name: Language
+    description: Language of the audio clip (e.g., "en" for English).
+    type: string
+
+outputs:
+  - name: TranscriptionWithTimestamps
+    description: Transcription text with timestamps for each word or segment.
+    type: json
+
+# Model mappings for available STT timestamp generators
+mappings:
+  fal-ai:
+    elevenlabs/speech-to-text:
+      TranscriptionAudio: audio_url
+      Language: language_code

@@ -69,3 +69,7 @@ export type {
   SubtitleConfig,
 } from './producers/export/ffmpeg/types.js';
 export type { CustomFfmpegConfig } from './producers/custom-ffmpeg/types.js';
+export type {
+  TimestampedTranscript,
+  TimestampedTranscriptWord,
+} from './producers/subtitles/index.js';

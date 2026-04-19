@@ -956,6 +956,70 @@ function collapseInputNodes(
     return id;
   };
 
+  const materializeConditionWhenPath = (
+    when: string,
+    indices: Record<string, number> | undefined
+  ): string => {
+    if (!indices) {
+      return when;
+    }
+
+    let materialized = when;
+    for (const [symbol, index] of Object.entries(indices)) {
+      const label = extractDimensionLabel(symbol);
+      materialized = materialized.replaceAll(`[${label}]`, `[${index}]`);
+    }
+
+    return materialized;
+  };
+
+  const normalizeConditionDefinition = (
+    condition: EdgeConditionDefinition | undefined,
+    indices: Record<string, number> | undefined
+  ): EdgeConditionDefinition | undefined => {
+    if (!condition) {
+      return undefined;
+    }
+    if (Array.isArray(condition)) {
+      return condition.map((item) => normalizeConditionItem(item, indices));
+    }
+    return normalizeConditionItem(condition, indices);
+  };
+
+  const normalizeConditionItem = (
+    item: EdgeConditionClause | EdgeConditionGroup,
+    indices: Record<string, number> | undefined
+  ): EdgeConditionClause | EdgeConditionGroup => {
+    if ('when' in item) {
+      return normalizeConditionClause(item, indices);
+    }
+    return {
+      ...(item.all
+        ? {
+            all: item.all.map((clause) => normalizeConditionClause(clause, indices)),
+          }
+        : {}),
+      ...(item.any
+        ? {
+            any: item.any.map((clause) => normalizeConditionClause(clause, indices)),
+          }
+        : {}),
+    };
+  };
+
+  const normalizeConditionClause = (
+    clause: EdgeConditionClause,
+    indices: Record<string, number> | undefined
+  ): EdgeConditionClause => {
+    const materializedWhen = materializeConditionWhenPath(clause.when, indices);
+    return {
+      ...clause,
+      when: isCanonicalInputId(materializedWhen)
+        ? normalizeId(materializedWhen)
+        : materializedWhen,
+    };
+  };
+
   const bindingMap = new Map<string, Map<string, string>>();
 
   function recordBinding(
@@ -1057,6 +1121,8 @@ function collapseInputNodes(
         }
       }
     }
+
+    edgeConditions = normalizeConditionDefinition(edgeConditions, edgeIndices);
 
     resolvedEdges.push({
       from: normalizedFrom,
@@ -1289,6 +1355,47 @@ function collapseOutputNodes(
     return resolved;
   }
 
+  const normalizeOutputConditionDefinition = (
+    condition: EdgeConditionDefinition | undefined
+  ): EdgeConditionDefinition | undefined => {
+    if (!condition) {
+      return undefined;
+    }
+    if (Array.isArray(condition)) {
+      return condition.map((item) => normalizeOutputConditionItem(item));
+    }
+    return normalizeOutputConditionItem(condition);
+  };
+
+  const normalizeOutputConditionItem = (
+    item: EdgeConditionClause | EdgeConditionGroup
+  ): EdgeConditionClause | EdgeConditionGroup => {
+    if ('when' in item) {
+      return normalizeOutputConditionClause(item);
+    }
+    return {
+      ...(item.all
+        ? {
+            all: item.all.map((clause) => normalizeOutputConditionClause(clause)),
+          }
+        : {}),
+      ...(item.any
+        ? {
+            any: item.any.map((clause) => normalizeOutputConditionClause(clause)),
+          }
+        : {}),
+    };
+  };
+
+  const normalizeOutputConditionClause = (
+    clause: EdgeConditionClause
+  ): EdgeConditionClause => ({
+    ...clause,
+    when: isCanonicalOutputId(clause.when)
+      ? resolveOutputBinding(clause.when, new Set([clause.when])).sourceId
+      : clause.when,
+  });
+
   const resolvedEdges: CanonicalEdgeInstance[] = [];
   for (const edge of edges) {
     const targetNode = nodeById.get(edge.to);
@@ -1310,7 +1417,9 @@ function collapseOutputNodes(
     resolvedEdges.push({
       ...edge,
       from: resolvedBinding.sourceId,
-      conditions: combineEdgeConditions(resolvedBinding.conditions, edge.conditions),
+      conditions: normalizeOutputConditionDefinition(
+        combineEdgeConditions(resolvedBinding.conditions, edge.conditions)
+      ),
       indices: mergeConditionIndices(resolvedBinding.indices, edge.indices),
     });
   }
@@ -1326,7 +1435,7 @@ function collapseOutputNodes(
     outputSourceBindings.push({
       outputId: node.id,
       sourceId: resolvedBinding.sourceId,
-      conditions: resolvedBinding.conditions,
+      conditions: normalizeOutputConditionDefinition(resolvedBinding.conditions),
       indices: resolvedBinding.indices,
     });
   }

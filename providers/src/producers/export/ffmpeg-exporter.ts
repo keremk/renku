@@ -27,8 +27,11 @@ const MAX_FFMPEG_STDIO_BUFFER_BYTES = 100 * 1024 * 1024;
 const FFMPEG_PROGRESS_PERCENT_STEP = 5;
 
 const TIMELINE_ARTIFACT_ID = 'Artifact:TimelineComposer.Timeline';
-const TRANSCRIPTION_ARTIFACT_ID =
-  'Artifact:TranscriptionProducer.Transcription';
+const KNOWN_TRANSCRIPTION_ARTIFACT_IDS = [
+  'Artifact:SubtitlesProducer.SubtitlesComposer.Transcription',
+  'Artifact:SubtitlesProducer.Transcription',
+  'Artifact:TranscriptionProducer.Transcription',
+] as const;
 const ASPECT_RATIO_INPUT_ID = 'Input:AspectRatio';
 const RESOLUTION_INPUT_ID = 'Input:Resolution';
 
@@ -184,9 +187,14 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         // Try to load transcription for subtitles (optional).
         // First try runtime inputs during execution, then fall back to persisted state.
         let transcription: TranscriptionArtifact | undefined;
-        const inlineTranscription = runtime.inputs.getByNodeId<unknown>(
-          TRANSCRIPTION_ARTIFACT_ID
+        const transcriptionArtifactId = resolveOptionalTranscriptionArtifactId(
+          request,
+          runtime.inputs,
         );
+        const inlineTranscription =
+          transcriptionArtifactId !== undefined
+            ? runtime.inputs.getByNodeId<unknown>(transcriptionArtifactId)
+            : undefined;
         if (
           inlineTranscription &&
           typeof inlineTranscription === 'object' &&
@@ -194,7 +202,11 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         ) {
           transcription = inlineTranscription as TranscriptionArtifact;
         } else {
-          transcription = await loadTranscription(storage, movieId);
+          transcription = await loadTranscription(
+            storage,
+            movieId,
+            transcriptionArtifactId,
+          );
         }
 
         // Determine output path
@@ -579,29 +591,63 @@ async function loadTimeline(
  */
 async function loadTranscription(
   storage: ReturnType<typeof createStorageContext>,
-  movieId: string
+  movieId: string,
+  preferredArtifactId?: string,
 ): Promise<TranscriptionArtifact | undefined> {
   try {
     const eventLog = createEventLog(storage);
+    const artifactIds = preferredArtifactId
+      ? [preferredArtifactId]
+      : [...KNOWN_TRANSCRIPTION_ARTIFACT_IDS];
     const artifacts = await resolveArtifactsFromEventLog({
-      artifactIds: [TRANSCRIPTION_ARTIFACT_ID],
+      artifactIds,
       eventLog,
       storage,
       movieId,
     });
-    const transcription = artifacts[TRANSCRIPTION_ARTIFACT_ID];
-    if (
-      transcription &&
-      typeof transcription === 'object' &&
-      'words' in transcription
-    ) {
-      return transcription as TranscriptionArtifact;
+    for (const artifactId of artifactIds) {
+      const transcription = artifacts[artifactId];
+      if (
+        transcription &&
+        typeof transcription === 'object' &&
+        'words' in transcription
+      ) {
+        return transcription as TranscriptionArtifact;
+      }
     }
     return undefined;
   } catch {
     // Transcription is optional, return undefined if loading fails
     return undefined;
   }
+}
+
+function resolveOptionalTranscriptionArtifactId(
+  request: Parameters<ReturnType<HandlerFactory>['invoke']>[0],
+  inputs: ResolvedInputsAccessor,
+): string | undefined {
+  const jobContext = request.context.extras?.jobContext;
+  if (
+    jobContext &&
+    typeof jobContext === 'object' &&
+    'inputBindings' in jobContext &&
+    jobContext.inputBindings &&
+    typeof jobContext.inputBindings === 'object'
+  ) {
+    const inputBindings = jobContext.inputBindings as Record<string, unknown>;
+    const binding = inputBindings.Transcription;
+    if (typeof binding === 'string') {
+      return binding;
+    }
+  }
+
+  for (const artifactId of KNOWN_TRANSCRIPTION_ARTIFACT_IDS) {
+    if (inputs.getByNodeId(artifactId) !== undefined) {
+      return artifactId;
+    }
+  }
+
+  return undefined;
 }
 
 /**

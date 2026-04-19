@@ -1,0 +1,54 @@
+{
+  "name": "VideoScript",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "Title": {
+        "type": "string",
+        "description": "A compelling title for the historical documentary."
+      },
+      "Summary": {
+        "type": "string",
+        "description": "A brief summary of the documentary narrative."
+      },
+      "MusicPrompt": {
+        "type": "string",
+        "description": "A prompt to generate instrumental background music that fits the historical era and tone of the documentary."
+      },
+      "Segments": {
+        "type": "array",
+        "description": "An array of narrative segments for the documentary.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "NarrationScript": {
+              "type": "string",
+              "description": "The narration text to be read aloud by the narrator for this segment."
+            },
+            "ImagePrompts": {
+              "type": "array",
+              "description": "Image generation prompts for this segment. Each prompt creates one Ken Burns style image.",
+              "items": {
+                "type": "string",
+                "description": "A detailed image generation prompt describing the scene, composition, lighting, and atmosphere."
+              }
+            },
+            "HasTextOverlay": {
+              "type": "boolean",
+              "description": "Whether this segment should display a text overlay. True when the narration mentions a specific date, time period, location, or historically important person."
+            },
+            "TextOverlay": {
+              "type": "string",
+              "description": "The text to display as an overlay. Examples: '1453 - Fall of Constantinople', 'Napoleon Bonaparte', 'Medieval Japan'. Empty string when HasTextOverlay is false."
+            }
+          },
+          "required": ["NarrationScript", "ImagePrompts", "HasTextOverlay", "TextOverlay"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["Title", "Summary", "MusicPrompt", "Segments"],
+    "additionalProperties": false
+  }
+}

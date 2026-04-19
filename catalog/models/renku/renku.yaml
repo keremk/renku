@@ -32,3 +32,17 @@ models:
     handler: transcription
     schema: speech-transcription
     price: 0
+  - name: speech/stt-normalizer
+    type: json
+    mime:
+      - application/json
+    handler: stt-normalizer
+    schema: timestamped-transcript
+    price: 0
+  - name: speech/subtitles-composer
+    type: json
+    mime:
+      - application/json
+    handler: subtitles-composer
+    schema: timestamped-transcript
+    price: 0

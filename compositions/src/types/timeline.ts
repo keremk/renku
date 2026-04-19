@@ -126,6 +126,7 @@ export type TranscriptionClip = TimelineClipBase<
   'Transcription',
   {
     assetId: string;
+    groupIndex: number;
   }
 >;
 

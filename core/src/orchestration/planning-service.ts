@@ -203,6 +203,10 @@ export function createPlanningService(
         await args.eventLog.appendInput(args.movieId, event);
       }
       const resolvedInputs = buildResolvedInputMap(inputEvents);
+      const resolvedConditionInputs = expandResolvedConditionInputs(
+        resolvedInputs,
+        context.inputSources
+      );
       // Note: Blueprint defaults are no longer applied - model JSON schemas are the source of truth
 
       const expanded = expandBlueprintResolutionContext(
@@ -265,6 +269,7 @@ export function createPlanningService(
         targetRevision: DRAFT_REVISION_ID,
         pendingEdits: inputEvents,
         resolvedConditionArtifacts,
+        resolvedConditionInputs,
         artifactRegenerations: resolvedControls.artifactRegenerations,
         surgicalRegenerationScope: args.surgicalRegenerationScope,
         upToLayer: resolvedControls.effectiveUpToLayer,
@@ -282,6 +287,7 @@ export function createPlanningService(
             ? resolvedControls.blockedProducerJobIds
             : undefined,
       });
+      attachResolvedInputsToPlanJobs(plan, resolvedConditionInputs);
 
       const scheduledJobIds = new Set(plan.layers.flat().map((job) => job.jobId));
       if (resolvedControls.normalizedOverrides.directives.length > 0) {
@@ -335,6 +341,163 @@ export function createPlanningService(
       };
     },
   };
+}
+
+function expandResolvedConditionInputs(
+  resolvedInputs: Record<string, unknown>,
+  inputSources: BlueprintResolutionContext['inputSources']
+): Record<string, unknown> {
+  const expanded: Record<string, unknown> = { ...resolvedInputs };
+  const visiting = new Set<string>();
+
+  const resolveInputValue = (inputId: string): unknown => {
+    if (expanded[inputId] !== undefined) {
+      return expanded[inputId];
+    }
+
+    const upstreamId = inputSources.get(inputId);
+    if (!upstreamId) {
+      return undefined;
+    }
+
+    if (visiting.has(inputId)) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_INPUT_BINDING,
+        `Detected circular input source mapping while resolving "${inputId}".`,
+        { context: inputId }
+      );
+    }
+
+    visiting.add(inputId);
+    const resolvedValue =
+      upstreamId === inputId ? resolvedInputs[upstreamId] : resolveInputValue(upstreamId);
+    visiting.delete(inputId);
+
+    if (resolvedValue !== undefined) {
+      expanded[inputId] = resolvedValue;
+    }
+    return resolvedValue;
+  };
+
+  for (const inputId of inputSources.keys()) {
+    resolveInputValue(inputId);
+  }
+
+  return expanded;
+}
+
+function attachResolvedInputsToPlanJobs(
+  plan: ExecutionPlan,
+  resolvedInputs: Record<string, unknown>
+): void {
+  for (const layer of plan.layers) {
+    for (const job of layer) {
+      const jobContext = job.context;
+      if (!jobContext) {
+        continue;
+      }
+
+      const relevantInputs = collectJobResolvedInputs(job, resolvedInputs);
+      if (Object.keys(relevantInputs).length === 0) {
+        continue;
+      }
+
+      job.context = {
+        ...jobContext,
+        extras: {
+          ...(jobContext.extras ?? {}),
+          resolvedInputs: {
+            ...(((jobContext.extras ?? {}).resolvedInputs as Record<string, unknown> | undefined) ??
+              {}),
+            ...relevantInputs,
+          },
+        },
+      };
+    }
+  }
+}
+
+function collectJobResolvedInputs(
+  job: ExecutionPlan['layers'][number][number],
+  resolvedInputs: Record<string, unknown>
+): Record<string, unknown> {
+  const relevantInputIds = new Set<string>();
+
+  for (const inputId of Object.keys(job.context?.inputConditions ?? {})) {
+    if (isCanonicalInputId(inputId)) {
+      relevantInputIds.add(inputId);
+    }
+  }
+
+  collectConditionInputIds(job.context?.inputConditions, relevantInputIds);
+
+  const relevantInputs: Record<string, unknown> = {};
+  for (const inputId of relevantInputIds) {
+    const value = resolvedInputs[inputId];
+    if (value !== undefined) {
+      relevantInputs[inputId] = value;
+    }
+  }
+
+  return relevantInputs;
+}
+
+function collectConditionInputIds(
+  inputConditions: Record<string, InputConditionInfo> | undefined,
+  target: Set<string>
+): void {
+  if (!inputConditions) {
+    return;
+  }
+
+  for (const conditionInfo of Object.values(inputConditions)) {
+    collectConditionDefinitionInputIds(conditionInfo.condition, target);
+  }
+}
+
+function collectConditionDefinitionInputIds(
+  condition: InputConditionInfo['condition'],
+  target: Set<string>
+): void {
+  if (Array.isArray(condition)) {
+    for (const item of condition) {
+      collectConditionItemInputIds(item, target);
+    }
+    return;
+  }
+
+  collectConditionItemInputIds(condition, target);
+}
+
+function collectConditionItemInputIds(
+  condition:
+    | InputConditionInfo['condition']
+    | Exclude<InputConditionInfo['condition'], readonly unknown[]>,
+  target: Set<string>
+): void {
+  if (Array.isArray(condition)) {
+    collectConditionDefinitionInputIds(condition, target);
+    return;
+  }
+
+  if ('when' in condition) {
+    if (isCanonicalInputId(condition.when)) {
+      target.add(condition.when);
+    }
+    return;
+  }
+
+  for (const clause of condition.all ?? []) {
+    if (isCanonicalInputId(clause.when)) {
+      target.add(clause.when);
+    }
+  }
+
+  for (const clause of condition.any ?? []) {
+    if (isCanonicalInputId(clause.when)) {
+      target.add(clause.when);
+    }
+  }
 }
 
 function collectRootOutputBindings(

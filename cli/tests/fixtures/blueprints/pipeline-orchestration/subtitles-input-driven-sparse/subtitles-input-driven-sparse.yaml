@@ -1,0 +1,52 @@
+meta:
+  name: Subtitles Input Driven Sparse
+  description: Minimal fixture for verifying sparse transcription audio planning in the subtitles composite.
+  id: SubtitlesInputDrivenSparse
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: NumOfSegments
+    type: int
+    required: true
+  - name: Duration
+    type: int
+    required: true
+  - name: Language
+    type: string
+    required: true
+  - name: Timeline
+    type: json
+    required: true
+  - name: TranscriptionAudio
+    type: array
+    itemType: audio
+    countInput: NumOfSegments
+    required: true
+
+outputs:
+  - name: Transcription
+    type: json
+
+loops:
+  - name: segment
+    countInput: NumOfSegments
+
+imports:
+  - name: SubtitlesProducer
+    producer: composition/subtitles
+
+connections:
+  - from: NumOfSegments
+    to: SubtitlesProducer.NumOfSegments
+  - from: Duration
+    to: SubtitlesProducer.Duration
+  - from: Language
+    to: SubtitlesProducer.LanguageCode
+  - from: Timeline
+    to: SubtitlesProducer.Timeline
+  - from: TranscriptionAudio[segment]
+    to: SubtitlesProducer.TranscriptionAudio[segment]
+  - from: SubtitlesProducer.Transcription
+    to: Transcription

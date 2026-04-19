@@ -47,6 +47,8 @@ interface ComputePlanArgs {
   pendingEdits?: InputEvent[];
   /** Resolved condition artifacts used to determine conditional job activity. */
   resolvedConditionArtifacts?: Record<string, unknown>;
+  /** Resolved condition inputs used to determine conditional job activity. */
+  resolvedConditionInputs?: Record<string, unknown>;
   /** Surgical artifact regeneration - regenerate only the target artifacts and downstream dependencies. */
   artifactRegenerations?: ArtifactRegenerationConfig[];
   /** Scope mode for surgical artifact regeneration when artifactRegenerations is set. */
@@ -119,6 +121,14 @@ export function createPlanner(options: PlannerOptions = {}) {
 
       const latestInputs = await readLatestInputs(eventLog, args.movieId);
       const combinedInputs = mergeInputs(latestInputs, pendingEdits);
+      const resolvedConditionInputs =
+        args.resolvedConditionInputs ??
+        Object.fromEntries(
+          Array.from(combinedInputs.entries()).map(([inputId, event]) => [
+            inputId,
+            event.payload,
+          ])
+        );
       const dirtyInputs = determineDirtyInputs(buildState, combinedInputs);
       const artifactSnapshot = await readLatestArtifactSnapshot(
         eventLog,
@@ -142,7 +152,8 @@ export function createPlanner(options: PlannerOptions = {}) {
       const metadata = buildGraphMetadata(blueprint);
       const conditionallyInactiveJobs = deriveConditionallyInactiveJobs(
         metadata,
-        args.resolvedConditionArtifacts
+        args.resolvedConditionArtifacts,
+        resolvedConditionInputs,
       );
 
       // Determine which jobs to include in the plan
@@ -187,7 +198,8 @@ export function createPlanner(options: PlannerOptions = {}) {
             blueprint,
             metadata,
             collectExplanation,
-            args.resolvedConditionArtifacts
+            args.resolvedConditionArtifacts,
+            resolvedConditionInputs,
           );
 
         // Scope-based inclusion:
@@ -238,7 +250,8 @@ export function createPlanner(options: PlannerOptions = {}) {
           blueprint,
           metadata,
           collectExplanation,
-          args.resolvedConditionArtifacts
+          args.resolvedConditionArtifacts,
+          resolvedConditionInputs,
         );
         jobsToInclude = allDirty;
 
@@ -283,6 +296,7 @@ export function createPlanner(options: PlannerOptions = {}) {
           latestArtifacts,
           latestFailedArtifacts: artifactSnapshot.latestFailedIds,
           resolvedConditionArtifacts: args.resolvedConditionArtifacts,
+          resolvedConditionInputs,
         });
       }
 
@@ -475,11 +489,13 @@ function buildGraphMetadata(
 
 function deriveConditionallyInactiveJobs(
   metadata: Map<string, GraphMetadata>,
-  resolvedConditionArtifacts: Record<string, unknown> | undefined
+  resolvedConditionArtifacts: Record<string, unknown> | undefined,
+  resolvedConditionInputs: Record<string, unknown> | undefined,
 ): Set<string> {
   const inactive = new Set<string>();
   const conditionContext = {
     resolvedArtifacts: resolvedConditionArtifacts ?? {},
+    resolvedInputs: resolvedConditionInputs ?? {},
   };
 
   for (const [jobId, info] of metadata) {
@@ -843,11 +859,16 @@ function propagateDirtyJobs(
   blueprint: ProducerGraph,
   metadata: Map<string, GraphMetadata>,
   collectReasons: boolean,
-  resolvedConditionArtifacts: Record<string, unknown> | undefined
+  resolvedConditionArtifacts: Record<string, unknown> | undefined,
+  resolvedConditionInputs: Record<string, unknown> | undefined,
 ): PropagateResult {
   const dirty = new Set(initialDirty);
   const queue = Array.from(initialDirty);
-  const adjacency = buildAdjacencyMap(blueprint, resolvedConditionArtifacts);
+  const adjacency = buildAdjacencyMap(
+    blueprint,
+    resolvedConditionArtifacts,
+    resolvedConditionInputs,
+  );
   const artifactProducer = buildArtifactProducerMap(metadata);
   const conditionResultsCache = new Map<
     string,
@@ -871,7 +892,8 @@ function propagateDirtyJobs(
           metadata,
           artifactProducer,
           conditionResultsCache,
-          resolvedConditionArtifacts
+          resolvedConditionArtifacts,
+          resolvedConditionInputs,
         )
       ) {
         continue;
@@ -978,6 +1000,7 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
   latestArtifacts: ArtifactMap;
   latestFailedArtifacts: Set<string>;
   resolvedConditionArtifacts: Record<string, unknown> | undefined;
+  resolvedConditionInputs: Record<string, unknown> | undefined;
 }): PrunedUnrunnableJob[] {
   if (args.jobsToInclude.size === 0) {
     return [];
@@ -990,7 +1013,8 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
   );
   const conditionResultsByJobId = buildConditionResultsByJobId(
     args.metadata,
-    args.resolvedConditionArtifacts
+    args.resolvedConditionArtifacts,
+    args.resolvedConditionInputs,
   );
   const missingInputsByPrunedJob = new Map<string, Set<string>>();
 
@@ -1087,7 +1111,8 @@ function buildReusableArtifactSet(
 
 function buildConditionResultsByJobId(
   metadata: Map<string, GraphMetadata>,
-  resolvedConditionArtifacts: Record<string, unknown> | undefined
+  resolvedConditionArtifacts: Record<string, unknown> | undefined,
+  resolvedConditionInputs: Record<string, unknown> | undefined,
 ): Map<string, Map<string, { satisfied: boolean; reason?: string }>> {
   const resultsByJobId = new Map<
     string,
@@ -1102,6 +1127,7 @@ function buildConditionResultsByJobId(
       jobId,
       evaluateInputConditions(inputConditions, {
         resolvedArtifacts: resolvedConditionArtifacts ?? {},
+        resolvedInputs: resolvedConditionInputs ?? {},
       })
     );
   }
@@ -1294,7 +1320,8 @@ function hasActiveArtifactDependency(
     string,
     Map<string, { satisfied: boolean; reason?: string }>
   >,
-  resolvedConditionArtifacts: Record<string, unknown> | undefined
+  resolvedConditionArtifacts: Record<string, unknown> | undefined,
+  resolvedConditionInputs: Record<string, unknown> | undefined,
 ): boolean {
   const target = metadata.get(toJobId);
   if (!target) {
@@ -1307,6 +1334,7 @@ function hasActiveArtifactDependency(
   if (!conditionResults) {
     conditionResults = evaluateInputConditions(inputConditions, {
       resolvedArtifacts: resolvedConditionArtifacts ?? {},
+      resolvedInputs: resolvedConditionInputs ?? {},
     });
     conditionResultsCache.set(toJobId, conditionResults);
   }
@@ -1359,7 +1387,8 @@ function hasActiveArtifactDependency(
 
 function buildAdjacencyMap(
   blueprint: ProducerGraph,
-  resolvedConditionArtifacts?: Record<string, unknown>
+  resolvedConditionArtifacts?: Record<string, unknown>,
+  _resolvedConditionInputs?: Record<string, unknown>,
 ): Map<string, Set<string>> {
   const adjacency = new Map<string, Set<string>>();
   for (const node of blueprint.nodes) {
@@ -1594,7 +1623,7 @@ function isConditionEvaluationUnknown(reason: string | undefined): boolean {
   if (!reason) {
     return false;
   }
-  return reason.includes('Artifact not found');
+  return reason.includes('Artifact not found') || reason.includes('Input not found');
 }
 
 async function readLatestInputs(

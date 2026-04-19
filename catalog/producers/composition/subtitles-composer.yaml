@@ -1,0 +1,33 @@
+meta:
+  name: Subtitles Composer
+  description: Align normalized per-segment transcripts to the final timeline and emit exporter-ready subtitles JSON.
+  id: SubtitlesComposer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Timeline
+    description: Timeline document with Transcription track containing audio clip timing information.
+    type: json
+    required: true
+  - name: Duration
+    description: Total duration of the final movie in seconds.
+    type: int
+    required: true
+  - name: Transcripts
+    description: Normalized transcripts grouped by original segment index.
+    type: array
+    itemType: json
+    dimensions: segment
+    fanIn: true
+
+outputs:
+  - name: Transcription
+    description: Word-level transcription aligned to final video timing.
+    type: json
+
+mappings:
+  renku:
+    speech/subtitles-composer: {}

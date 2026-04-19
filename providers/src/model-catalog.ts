@@ -48,6 +48,8 @@ export interface ModelDefinition {
   apiKeyName?: string;
   /** Optional sub-provider (e.g., 'wan' for wan models hosted on fal-ai). When specified, model name is fully qualified. */
   subProvider?: string;
+  /** Optional normalizer adapter ID for raw STT output used by the subtitles pipeline. */
+  sttNormalizer?: string;
 }
 
 /**
@@ -81,6 +83,7 @@ export interface ProviderCatalogYaml {
     price?: ModelPriceConfig | number;
     apiKeyName?: string;
     subProvider?: string;
+    sttNormalizer?: string;
   }>;
 }
 
@@ -160,6 +163,7 @@ export async function loadModelCatalog(
           price: model.price,
           apiKeyName: model.apiKeyName,
           subProvider: model.subProvider,
+          sttNormalizer: model.sttNormalizer,
         });
       }
       catalog.providers.set(providerName, modelMap);

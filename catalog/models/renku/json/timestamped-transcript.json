@@ -1,0 +1,8 @@
+{
+  "input_schema": {
+    "title": "SubtitlesInternalConfig",
+    "type": "object",
+    "default": {},
+    "properties": {}
+  }
+}

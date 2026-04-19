@@ -1162,7 +1162,11 @@ function parseReference(
       `Invalid ${label} reference "${reference}".`
     );
   }
-  for (const segment of reference.split('.')) {
+  const normalizedReference =
+    reference.startsWith('Input:') || reference.startsWith('Artifact:')
+      ? reference.slice(reference.indexOf(':') + 1)
+      : reference;
+  for (const segment of normalizedReference.split('.')) {
     const match = segment.match(/^[A-Za-z0-9_]+/);
     if (!match) {
       throw createParserError(

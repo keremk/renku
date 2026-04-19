@@ -1,0 +1,66 @@
+inputs:
+  InquiryPrompt: 'Test transcription pipeline'
+  Duration: 10
+  NumOfSegments: 2
+  SegmentDuration: 5
+  Audience: 'Adult'
+  Language: 'en'
+  Style: 'Documentary realism'
+  Resolution:
+    width: 1280
+    height: 720
+  VoiceId: 'Wise_Woman'
+  Emotion: neutral
+  MusicalStyle: 'Cinematic orchestral score'
+
+models:
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ScriptProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: VideoPromptProducer
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: VideoProducer
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: MusicPromptProducer
+  - model: stability-ai/stable-audio-2.5
+    provider: replicate
+    producerId: MusicProducer
+    config:
+      force_instrumental: true
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      timeline:
+        masterTracks: ['Audio']
+        tracks: ['Video', 'Audio', 'Transcription', 'Music']
+        videoClip:
+          artifact: VideoSegments
+        audioClip:
+          artifact: AudioSegments
+        transcriptionClip:
+          artifact: TranscriptionAudio
+        musicClip:
+          artifact: Music
+          volume: 0.4
+  - model: elevenlabs/speech-to-text
+    provider: fal-ai
+    producerId: SubtitlesProducer.STTTimestamps
+  - model: speech/stt-normalizer
+    provider: renku
+    producerId: SubtitlesProducer.STTNormalizer
+    config: {}
+  - model: speech/subtitles-composer
+    provider: renku
+    producerId: SubtitlesProducer.SubtitlesComposer
+    config: {}
+  - model: ffmpeg/native-render
+    provider: renku
+    producerId: VideoExporter

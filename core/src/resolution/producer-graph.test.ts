@@ -320,6 +320,19 @@ describe('createProducerGraph', () => {
         from: 'Producer:ScriptProducer',
         to: 'Producer:ImageProducer',
       });
+      expect(
+        result.nodes.find((node) => node.jobId === 'Producer:ImageProducer')?.context
+          ?.extras?.inputArtifactSources
+      ).toEqual({
+        'Artifact:Script': {
+          artifactId: 'Artifact:Script',
+          upstreamJobId: 'Producer:ScriptProducer',
+          upstreamProducerId: 'Producer:ScriptProducer',
+          upstreamProducerAlias: 'ScriptProducer',
+          provider: 'openai',
+          model: 'gpt-4o',
+        },
+      });
     });
 
     it('includes element-level bindings for array inputs', () => {

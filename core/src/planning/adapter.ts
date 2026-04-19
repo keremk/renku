@@ -22,6 +22,8 @@ export interface PlanAdapterArgs {
   pendingEdits?: InputEvent[];
   /** Resolved condition artifacts used to determine conditional job activity. */
   resolvedConditionArtifacts?: Record<string, unknown>;
+  /** Resolved condition inputs used to determine conditional job activity. */
+  resolvedConditionInputs?: Record<string, unknown>;
   /** Surgical artifact regeneration configs - regenerate only the target artifacts and downstream dependencies. */
   artifactRegenerations?: ArtifactRegenerationConfig[];
   /** Scope for surgical artifact regeneration when artifactRegenerations is set. */

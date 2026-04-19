@@ -1,0 +1,183 @@
+meta:
+  name: Historical Ken Burns Documentary V2
+  description: A Ken Burns-style documentary blueprint optimized for historical narratives. Features narrated image segments with conditional text overlays for dates, locations, and historical figures, plus conditional map images for geographic context. Includes background music and the new composed subtitles pipeline for karaoke subtitles.
+  id: HistoricalDocumentaryV2
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narrative segments.
+    type: int
+    required: true
+  - name: InquiryPrompt
+    description: The historical topic or narrative to explore (e.g., "The fall of the Roman Empire", "The Silk Road trade routes").
+    type: string
+    required: true
+  - name: NumOfImagesPerSegment
+    description: Number of images to generate per narrative segment.
+    type: int
+    required: false
+  - name: Style
+    description: Visual style for image generation (e.g., "Oil painting, Renaissance style", "Photorealistic historical recreation").
+    type: string
+    required: true
+  - name: Resolution
+    description: Image and video resolution as width/height pixel dimensions.
+    type: resolution
+    required: false
+  - name: Audience
+    description: Target audience (e.g., adults, students, history enthusiasts).
+    type: string
+    required: false
+  - name: Language
+    description: Narration language (e.g., en, es, fr).
+    type: string
+    required: false
+
+outputs:
+  - name: SegmentImage
+    description: Ken Burns style images per segment.
+    type: multiDimArray
+    itemType: image
+  - name: SegmentAudio
+    description: Narration audio per segment.
+    type: array
+    itemType: audio
+  - name: Music
+    description: Background music for the documentary.
+    type: audio
+  - name: Timeline
+    description: Composed timeline JSON manifest.
+    type: json
+  - name: FinalVideo
+    description: Final rendered MP4 with karaoke subtitles.
+    type: video
+
+loops:
+  - name: segment
+    description: Iterates over narrative segments.
+    countInput: NumOfSegments
+  - name: image
+    description: Iterates over images per segment.
+    parent: segment
+    countInput: NumOfImagesPerSegment
+
+conditions:
+  hasTextOverlay:
+    when: HistoricalScriptProducer.VideoScript.Segments[segment].HasTextOverlay
+    is: true
+
+imports:
+  - name: HistoricalScriptProducer
+    path: ./historical-script/historical-script.yaml
+  - name: ImageProducer
+    producer: image/text-to-image
+    loop: segment.image
+  - name: AudioProducer
+    producer: audio/text-to-speech
+    loop: segment
+  - name: MusicProducer
+    producer: audio/text-to-music
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+  - name: SubtitlesProducer
+    producer: composition/subtitles
+  - name: VideoExporter
+    producer: composition/video-exporter
+
+connections:
+  # --- Wire inputs to HistoricalScriptProducer ---
+  - from: InquiryPrompt
+    to: HistoricalScriptProducer.InquiryPrompt
+  - from: Duration
+    to: HistoricalScriptProducer.Duration
+  - from: NumOfSegments
+    to: HistoricalScriptProducer.NumOfSegments
+  - from: NumOfImagesPerSegment
+    to: HistoricalScriptProducer.NumOfImagesPerSegment
+  - from: SegmentDuration
+    to: HistoricalScriptProducer.SegmentDuration
+  - from: Style
+    to: HistoricalScriptProducer.Style
+  - from: Audience
+    to: HistoricalScriptProducer.Audience
+  - from: Language
+    to: HistoricalScriptProducer.Language
+
+  # --- Image generation ---
+  - from: HistoricalScriptProducer.VideoScript.Segments[segment].ImagePrompts[image]
+    to: ImageProducer[segment][image].Prompt
+  - from: Resolution
+    to: ImageProducer[segment][image].Resolution
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: SegmentImage[segment][image]
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image
+
+  # --- Audio narration ---
+  - from: HistoricalScriptProducer.VideoScript.Segments[segment].NarrationScript
+    to: AudioProducer[segment].Text
+  - from: SegmentDuration
+    to: AudioProducer[segment].Duration
+  - from: AudioProducer[segment].GeneratedAudio
+    to: SegmentAudio[segment]
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TimelineComposer.AudioSegments
+
+  # --- Text overlay (conditional) ---
+  - from: HistoricalScriptProducer.VideoScript.Segments[segment].TextOverlay
+    to: TimelineComposer.TextSegments
+    if: hasTextOverlay
+
+  # --- Background music ---
+  - from: HistoricalScriptProducer.VideoScript.MusicPrompt
+    to: MusicProducer.Prompt
+  - from: Duration
+    to: MusicProducer.Duration
+  - from: MusicProducer.GeneratedMusic
+    to: Music
+
+  # --- Timeline composition ---
+  - from: MusicProducer.GeneratedMusic
+    to: TimelineComposer.Music
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+  # --- Transcription (wire audio to transcription track) ---
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TimelineComposer.TranscriptionAudio
+
+  # --- Subtitles composition ---
+  - from: AudioProducer[segment].GeneratedAudio
+    to: SubtitlesProducer.TranscriptionAudio[segment]
+  - from: TimelineComposer.Timeline
+    to: SubtitlesProducer.Timeline
+  - from: Language
+    to: SubtitlesProducer.LanguageCode
+  - from: NumOfSegments
+    to: SubtitlesProducer.NumOfSegments
+  - from: Duration
+    to: SubtitlesProducer.Duration
+
+  # --- Video export with karaoke subtitles ---
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+  - from: Duration
+    to: VideoExporter.Duration
+  - from: Resolution
+    to: VideoExporter.Resolution
+  - from: SubtitlesProducer.Transcription
+    to: VideoExporter.Transcription
+  - from: VideoExporter.FinalVideo
+    to: FinalVideo

@@ -1,0 +1,23 @@
+meta:
+  name: STT Normalizer
+  description: Normalize raw STT JSON into Renku's internal timestamped transcript shape.
+  id: STTNormalizer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: RawTranscription
+    description: Raw STT JSON from the selected upstream model.
+    type: json
+    required: true
+
+outputs:
+  - name: NormalizedTranscript
+    description: Renku-normalized timestamped transcript.
+    type: json
+
+mappings:
+  renku:
+    speech/stt-normalizer: {}

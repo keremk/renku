@@ -1354,6 +1354,7 @@ function buildTranscriptionTrack(args: {
       duration,
       properties: {
         assetId,
+        groupIndex,
       },
     });
   }

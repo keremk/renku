@@ -50,14 +50,17 @@ models:
         musicClip:
           artifact: 'Music'
           volume: 0.3
-  - producerId: 'TranscriptionProducer'
+  - producerId: 'SubtitlesProducer.STTTimestamps'
+    provider: 'fal-ai'
+    model: 'elevenlabs/speech-to-text'
+  - producerId: 'SubtitlesProducer.STTNormalizer'
     provider: 'renku'
-    model: 'speech/transcription'
-    config:
-      stt:
-        provider: 'fal-ai'
-        model: 'elevenlabs/speech-to-text'
-        diarize: false
+    model: 'speech/stt-normalizer'
+    config: {}
+  - producerId: 'SubtitlesProducer.SubtitlesComposer'
+    provider: 'renku'
+    model: 'speech/subtitles-composer'
+    config: {}
   - producerId: 'VideoExporter'
     provider: 'renku'
     model: 'ffmpeg/native-render'

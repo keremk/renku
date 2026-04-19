@@ -1,4 +1,5 @@
 import {
+  formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalId,
   type BlueprintProducerSdkMappingField,
   type MappingFieldDefinition,
@@ -24,6 +25,7 @@ export interface SdkPayloadBuildArgs {
     | undefined;
   resolvedInputs: Record<string, unknown>;
   inputBindings: Record<string, string>;
+  producerId?: string;
   inputSchema?: string;
   logger?: ProviderLogger;
   continueOnError?: boolean;
@@ -83,6 +85,7 @@ export function buildSdkPayload(
   const transformContext: TransformContext = {
     inputs: args.resolvedInputs,
     inputBindings: args.inputBindings,
+    producerId: args.producerId,
   };
 
   const payload: Record<string, unknown> = {};
@@ -102,7 +105,14 @@ export function buildSdkPayload(
         const hasSchemaDefault = schemaDefaults.has(fieldName);
 
         if (isRequiredBySchema && !hasSchemaDefault) {
-          const canonicalId = args.inputBindings[sourceAlias];
+          const canonicalId =
+            args.inputBindings[sourceAlias] ??
+            (args.producerId
+              ? formatProducerScopedInputIdForCanonicalProducerId(
+                  args.producerId,
+                  sourceAlias,
+                )
+              : undefined);
           if (!canonicalId) {
             const message = `Missing input binding metadata for required alias "${sourceAlias}" while building field "${fieldName}".`;
             if (!args.continueOnError) {

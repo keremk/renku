@@ -92,6 +92,10 @@ export interface HandlerFactoryInit {
    * to pass the schema in the job context.
    */
   getModelSchema?: (provider: string, model: string) => Promise<string | null>;
+  getModelDefinition?: (
+    provider: string,
+    model: string,
+  ) => import('./model-catalog.js').ModelDefinition | null;
 }
 
 export type HandlerFactory = (init: HandlerFactoryInit) => ProducerHandler;

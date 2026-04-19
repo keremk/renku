@@ -1,0 +1,22 @@
+inputs:
+  NumOfSegments: 3
+  Duration: 30
+  Language: 'en'
+  Timeline: {}
+  TranscriptionAudio:
+    - 'audio-segment-0'
+    - null
+    - 'audio-segment-2'
+
+models:
+  - model: elevenlabs/speech-to-text
+    provider: fal-ai
+    producerId: SubtitlesProducer.STTTimestamps
+  - model: speech/stt-normalizer
+    provider: renku
+    producerId: SubtitlesProducer.STTNormalizer
+    config: {}
+  - model: speech/subtitles-composer
+    provider: renku
+    producerId: SubtitlesProducer.SubtitlesComposer
+    config: {}
