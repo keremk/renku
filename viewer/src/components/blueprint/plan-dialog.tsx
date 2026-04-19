@@ -766,7 +766,7 @@ function PreviewStatusRail({
   return (
     <div
       aria-live="polite"
-      className={`mx-6 mb-3 min-h-[4.75rem] rounded-xl border px-4 py-3 ${toneClasses}`}
+      className={`mx-6 mb-3 min-h-19 rounded-xl border px-4 py-3 ${toneClasses}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

@@ -36,7 +36,7 @@ export function ProducerCountStepper({
           }
           onChange(parsed);
         }}
-        className='h-8 w-[4.5rem] rounded-md border-border/50 bg-background/80 pr-1 text-center text-xs tabular-nums'
+        className='h-8 w-18 rounded-md border-border/50 bg-background/80 pr-1 text-center text-xs tabular-nums'
       />
     </div>
   );

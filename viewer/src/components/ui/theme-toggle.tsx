@@ -38,7 +38,7 @@ export function ThemeToggle() {
       <span
         className={`
           flex items-center justify-center
-          h-[1.375rem] w-[1.375rem]
+          h-5.5 w-5.5
           rounded-full
           bg-white dark:bg-card
           shadow-sm

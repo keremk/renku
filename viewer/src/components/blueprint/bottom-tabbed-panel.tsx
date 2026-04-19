@@ -76,7 +76,7 @@ function TabButton({ label, isActive, onClick, indicator }: TabButtonProps) {
         <span className='w-2 h-2 rounded-full bg-muted-foreground/50' />
       )}
       {isActive && (
-        <div className='absolute bottom-0 left-0 right-0 h-[2px] bg-primary' />
+        <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-primary' />
       )}
     </button>
   );

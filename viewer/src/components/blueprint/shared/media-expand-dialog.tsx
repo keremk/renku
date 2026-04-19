@@ -156,20 +156,20 @@ export function MediaExpandDialog({
             </div>
             <div className='rounded-lg border border-border/40 bg-background/70 p-3'>
               {isPromptLoading ? (
-                <div className='flex items-center gap-2 text-xs text-muted-foreground h-[4.75rem]'>
+                <div className='flex items-center gap-2 text-xs text-muted-foreground h-19'>
                   <Loader2 className='size-4 animate-spin' />
                   <span>Loading prompt...</span>
                 </div>
               ) : promptError ? (
-                <div className='text-xs text-destructive whitespace-pre-wrap h-[4.75rem] overflow-y-auto'>
+                <div className='text-xs text-destructive whitespace-pre-wrap h-19 overflow-y-auto'>
                   {promptError}
                 </div>
               ) : promptText ? (
-                <pre className='text-xs text-foreground/90 font-mono whitespace-pre-wrap leading-relaxed h-[4.75rem] overflow-y-auto'>
+                <pre className='text-xs text-foreground/90 font-mono whitespace-pre-wrap leading-relaxed h-19 overflow-y-auto'>
                   {promptText}
                 </pre>
               ) : (
-                <div className='text-xs text-muted-foreground h-[4.75rem] overflow-y-auto whitespace-pre-wrap'>
+                <div className='text-xs text-muted-foreground h-19 overflow-y-auto whitespace-pre-wrap'>
                   No upstream prompt artifact is available for this output.
                 </div>
               )}

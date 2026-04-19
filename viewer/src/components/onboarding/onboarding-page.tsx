@@ -9,8 +9,8 @@ interface OnboardingPageProps {
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   return (
     <div className='h-screen w-screen bg-background text-foreground p-4 flex flex-col gap-4'>
-      <header className='rounded-[var(--radius-panel)] border border-sidebar-border bg-sidebar-bg overflow-hidden'>
-        <div className='h-[56px] px-4 sm:px-5 border-b border-border/40 bg-sidebar-header-bg flex items-center justify-between'>
+      <header className='rounded-(--radius-panel) border border-sidebar-border bg-sidebar-bg overflow-hidden'>
+        <div className='h-14 px-4 sm:px-5 border-b border-border/40 bg-sidebar-header-bg flex items-center justify-between'>
           <div className='flex items-center gap-3'>
             <img
               src={renkuLogo}

@@ -785,7 +785,7 @@ export function SettingsPage() {
                                 placeholder='360'
                                 className={cn(
                                   SETTINGS_INPUT_CLASS,
-                                  'w-[160px]'
+                                  'w-40'
                                 )}
                               />
                             </div>
@@ -807,7 +807,7 @@ export function SettingsPage() {
                                 placeholder='2'
                                 className={cn(
                                   SETTINGS_INPUT_CLASS,
-                                  'w-[160px]'
+                                  'w-40'
                                 )}
                               />
                             </div>

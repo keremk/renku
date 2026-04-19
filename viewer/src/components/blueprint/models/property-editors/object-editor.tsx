@@ -80,7 +80,7 @@ export function ObjectEditor({
   }
 
   return (
-    <section className='w-full max-w-2xl rounded-xl border border-[color:var(--models-pane-object-group-border)] bg-[color:var(--models-pane-object-group-bg)] px-3 py-3 md:-ml-3 md:max-w-[43.5rem]'>
+    <section className='w-full max-w-2xl rounded-xl border border-(--models-pane-object-group-border) bg-(--models-pane-object-group-bg) px-3 py-3 md:-ml-3 md:max-w-174'>
       <header className='px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
         {field.label}
       </header>

@@ -847,7 +847,7 @@ function LoopGroupedInputSection({
                 <summary className='cursor-pointer text-amber-700/90 hover:text-amber-800 dark:text-amber-300/90 dark:hover:text-amber-200'>
                   Details
                 </summary>
-                <p className='mt-1 break-words font-mono text-amber-700/90 dark:text-amber-300/90'>
+                <p className='mt-1 wrap-break-word font-mono text-amber-700/90 dark:text-amber-300/90'>
                   {warning.details}
                 </p>
               </details>

@@ -183,7 +183,7 @@ function TabButton({
     >
       {label}
       {active && (
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
       )}
     </button>
   );
@@ -209,7 +209,7 @@ function ConnectionRow({
             <span className={`mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${getEndpointTypeDotClasses(binding.sourceType)}`} />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <p className="text-sm font-medium leading-snug text-foreground break-words" title={binding.from}>
+                <p className="text-sm font-medium leading-snug text-foreground wrap-break-word" title={binding.from}>
                   {fromSummary.primary}
                 </p>
                 {fromSummary.isCurrentProducer && (
@@ -241,7 +241,7 @@ function ConnectionRow({
             <span className={`mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${getEndpointTypeDotClasses(binding.targetType)}`} />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <p className="text-sm font-medium leading-snug text-foreground break-words" title={binding.to}>
+                <p className="text-sm font-medium leading-snug text-foreground wrap-break-word" title={binding.to}>
                   {toSummary.primary}
                 </p>
                 {toSummary.isCurrentProducer && (
@@ -521,7 +521,7 @@ function ProducerDetailsDialogBody({
           </p>
         </DialogHeader>
 
-        <div className="border-b border-border/40 h-[40px] flex items-center px-2 shrink-0 dark:border-border/25">
+        <div className="border-b border-border/40 h-10 flex items-center px-2 shrink-0 dark:border-border/25">
           <div className="flex items-center h-full">
             <TabButton
               label="Overview"

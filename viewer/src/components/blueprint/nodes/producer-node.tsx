@@ -116,13 +116,13 @@ export function ProducerNode({ data, selected }: ProducerNodeProps) {
       <Handle
         type="target"
         position={Position.Left}
-        className="!bg-gray-400 !w-2 !h-2"
+        className="bg-gray-400! w-2! h-2!"
       />
-      <span className="text-center text-sm font-semibold text-foreground break-words">
+      <span className="text-center text-sm font-semibold text-foreground wrap-break-word">
         {nodeData.label}
       </span>
       {nodeData.compositeName && (
-        <span className="mt-1 text-center text-[11px] uppercase tracking-[0.08em] text-muted-foreground/80 break-words">
+        <span className="mt-1 text-center text-[11px] uppercase tracking-[0.08em] text-muted-foreground/80 wrap-break-word">
           {formatProducerDisplayName(nodeData.compositeName)}
         </span>
       )}
@@ -132,14 +132,14 @@ export function ProducerNode({ data, selected }: ProducerNodeProps) {
         </span>
       )}
       {nodeData.producerType && (
-        <span className="mt-1 text-center text-[10px] text-muted-foreground/70 break-words">
+        <span className="mt-1 text-center text-[10px] text-muted-foreground/70 wrap-break-word">
           {nodeData.producerType}
         </span>
       )}
       <Handle
         type="source"
         position={Position.Right}
-        className="!bg-gray-400 !w-2 !h-2"
+        className="bg-gray-400! w-2! h-2!"
       />
     </div>
   );

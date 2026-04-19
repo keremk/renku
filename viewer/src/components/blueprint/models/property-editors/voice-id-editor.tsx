@@ -120,7 +120,7 @@ function SimpleVoicePicker(args: {
       }}
     >
       <SelectTrigger
-        className='h-7 min-w-[10rem] max-w-[13rem] text-xs'
+        className='h-7 min-w-40 max-w-52 text-xs'
         onClick={() => setOpen(true)}
       >
         <SelectValue placeholder='Pick voice' />
@@ -276,7 +276,7 @@ function RichVoicePickerButton(args: {
             </div>
           </div>
 
-          <div className='max-h-[28rem] overflow-y-auto px-3 py-3'>
+          <div className='max-h-112 overflow-y-auto px-3 py-3'>
             {filteredOptions.length === 0 ? (
               <p className='px-2 py-6 text-center text-sm text-muted-foreground'>
                 No voices match that search.

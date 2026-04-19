@@ -11,7 +11,7 @@ export function StepCongrats({ storageRoot, mediaProviders, promptProviders }: S
 
   return (
     <div className='flex flex-col items-center text-center gap-4 py-2'>
-      <div className='w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center'>
+      <div className='w-16 h-16 rounded-full bg-linear-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center'>
         <CheckCircle className='w-8 h-8 text-emerald-500' />
       </div>
 

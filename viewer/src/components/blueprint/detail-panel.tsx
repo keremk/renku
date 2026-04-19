@@ -173,7 +173,7 @@ export function DetailPanel({
         : 'flex-1 overflow-auto p-4';
 
   return (
-    <div className='flex flex-col h-full bg-sidebar-bg rounded-[var(--radius-panel)] border border-panel-border overflow-hidden'>
+    <div className='flex flex-col h-full bg-sidebar-bg rounded-(--radius-panel) border border-panel-border overflow-hidden'>
       {/* Tab buttons */}
       <div className='flex items-center h-[45px] border-b border-border/40 bg-sidebar-header-bg shrink-0'>
         <div className='flex h-full'>
@@ -336,7 +336,7 @@ function TabButton({
     >
       {label}
       {active && (
-        <div className='absolute bottom-0 left-0 right-0 h-[2px] bg-primary' />
+        <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-primary' />
       )}
     </button>
   );

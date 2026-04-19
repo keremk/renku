@@ -158,7 +158,7 @@ export function ConfigPropertiesEditor({
         movieId={movieId}
       >
         {mappedFields.length > 0 && (
-          <section className='w-full max-w-2xl rounded-xl border border-[color:var(--models-pane-mapped-border)] bg-[color:var(--models-pane-mapped-bg)] px-3 py-3 md:-ml-3 md:max-w-[43.5rem]'>
+          <section className='w-full max-w-2xl rounded-xl border border-(--models-pane-mapped-border) bg-(--models-pane-mapped-bg) px-3 py-3 md:-ml-3 md:max-w-174'>
             <header className='px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
               Connected Inputs
             </header>

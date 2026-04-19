@@ -31,7 +31,7 @@ export function InputNode({ data, selected }: InputNodeProps) {
       <Handle
         type="source"
         position={Position.Right}
-        className="!bg-blue-400 !w-2 !h-2"
+        className="bg-blue-400! w-2! h-2!"
       />
     </div>
   );

@@ -116,7 +116,7 @@ export function BuildsListSidebar({
   }, [blueprintFolder, deletingBuild, selectedBuildId, onRefresh]);
 
   return (
-    <div className='flex flex-col h-full bg-sidebar-bg rounded-[var(--radius-panel)] border border-sidebar-border overflow-hidden'>
+    <div className='flex flex-col h-full bg-sidebar-bg rounded-(--radius-panel) border border-sidebar-border overflow-hidden'>
       {/* Header */}
       <div className='flex items-center justify-between px-4 h-[45px] border-b border-border/40 bg-sidebar-header-bg shrink-0'>
         <h2 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>

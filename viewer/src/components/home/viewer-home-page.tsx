@@ -85,7 +85,7 @@ export function ViewerHomePage() {
 
       <main className='flex-1 min-h-0 flex'>
         <div className='w-full min-h-0 max-w-[1220px] mx-auto grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-4'>
-          <section className='w-full max-w-[460px] mx-auto xl:max-w-none xl:mx-0 flex flex-col min-h-0 bg-sidebar-bg rounded-[var(--radius-panel)] border border-sidebar-border overflow-hidden'>
+          <section className='w-full max-w-[460px] mx-auto xl:max-w-none xl:mx-0 flex flex-col min-h-0 bg-sidebar-bg rounded-(--radius-panel) border border-sidebar-border overflow-hidden'>
             <div className='h-[45px] px-4 border-b border-border/40 bg-sidebar-header-bg flex items-center justify-between shrink-0'>
               <div className='flex items-center gap-2'>
                 <FolderOpen className='w-4 h-4 text-muted-foreground' />
@@ -145,7 +145,7 @@ export function ViewerHomePage() {
             </div>
           </section>
 
-          <section className='w-full min-w-0 flex flex-col min-h-0 bg-sidebar-bg rounded-[var(--radius-panel)] border border-panel-border overflow-hidden'>
+          <section className='w-full min-w-0 flex flex-col min-h-0 bg-sidebar-bg rounded-(--radius-panel) border border-panel-border overflow-hidden'>
             <div className='h-[45px] px-4 border-b border-border/40 bg-sidebar-header-bg flex items-center justify-between shrink-0'>
               <div className='flex items-center gap-2'>
                 <LayoutTemplate className='w-4 h-4 text-muted-foreground' />

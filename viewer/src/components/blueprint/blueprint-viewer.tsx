@@ -781,7 +781,7 @@ export function BlueprintViewer({
           </ViewportPortal>
         )}
         <Controls
-          className='!bg-card !border-border/60 !shadow-lg'
+          className='bg-card! border-border/60! shadow-lg!'
           showInteractive={false}
         >
           <ControlButton

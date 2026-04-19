@@ -1636,7 +1636,7 @@ export function MusicEditDialog({
                       step={0.01}
                       value={[clipStartSeconds, clipEndSeconds]}
                       onValueChange={handleClipRangeChange}
-                      className='[&_[data-slot=slider-track]]:h-2 [&_[data-slot=slider-track]]:bg-muted/60 [&_[data-slot=slider-range]]:bg-linear-to-r [&_[data-slot=slider-range]]:from-orange-400 [&_[data-slot=slider-range]]:to-yellow-500'
+                      className='**:data-[slot=slider-track]:h-2 **:data-[slot=slider-track]:bg-muted/60 **:data-[slot=slider-range]:bg-linear-to-r **:data-[slot=slider-range]:from-orange-400 **:data-[slot=slider-range]:to-yellow-500'
                     />
 
                     <div className='flex items-center justify-between text-xs text-muted-foreground tabular-nums'>

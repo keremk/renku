@@ -112,7 +112,7 @@ export function ObjectArraySection({
     return (
       <div className='space-y-2 animate-pulse'>
         <div className='h-10 bg-muted/30 rounded-lg' />
-        <div className='grid [grid-template-columns:repeat(auto-fill,minmax(20rem,20rem))] justify-start gap-5'>
+        <div className='grid grid-cols-[repeat(auto-fill,minmax(20rem,20rem))] justify-start gap-5'>
           {[1, 2, 3].map((i) => (
             <div key={i} className='aspect-video bg-muted/30 rounded-xl' />
           ))}
@@ -149,7 +149,7 @@ export function ObjectArraySection({
         />
       )}
       {contentItems.length > 0 && (
-        <MediaGrid className='!grid-cols-[repeat(auto-fill,minmax(20rem,20rem))] justify-start'>
+        <MediaGrid className='grid-cols-[repeat(auto-fill,minmax(20rem,20rem))]! justify-start'>
           {contentItems.map((item) =>
             item.displayType === 'text' ? (
               <ContentCard

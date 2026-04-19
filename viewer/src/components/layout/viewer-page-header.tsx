@@ -33,9 +33,9 @@ export function ViewerPageHeader({
   return (
     <TooltipProvider>
       <header
-        className={`rounded-[var(--radius-panel)] border border-sidebar-border bg-sidebar-bg overflow-hidden ${className ?? ''}`}
+        className={`rounded-(--radius-panel) border border-sidebar-border bg-sidebar-bg overflow-hidden ${className ?? ''}`}
       >
-        <div className='h-[56px] px-4 sm:px-5 border-b border-border/40 bg-sidebar-header-bg flex items-center justify-between'>
+        <div className='h-14 px-4 sm:px-5 border-b border-border/40 bg-sidebar-header-bg flex items-center justify-between'>
           <button
             type='button'
             onClick={() => navigateToPath('/')}

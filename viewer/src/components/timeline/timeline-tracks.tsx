@@ -373,7 +373,7 @@ export const TimelineTracks = ({
       </div>
       {hoverPreview && hoverPreviewStyle && (
         <div
-          className='fixed z-[120] pointer-events-none'
+          className='fixed z-120 pointer-events-none'
           style={hoverPreviewStyle}
         >
           <div className='w-48 aspect-video rounded-md overflow-hidden border border-white/20 bg-black/85 shadow-2xl'>
@@ -450,7 +450,7 @@ function renderClipVisual(args: {
             return (
               <div
                 key={`${clip.id}-${thumbnail.assetId}-${thumbnail.effectIndex}`}
-                className='absolute top-0 bottom-0 rounded-[4px] overflow-hidden border border-white/20 bg-black/25 transition-transform hover:scale-105'
+                className='absolute top-0 bottom-0 rounded-lg overflow-hidden border border-white/20 bg-black/25 transition-transform hover:scale-105'
                 style={{
                   width: `${thumbnailWidthPx}px`,
                   left: `${leftPercent}%`,
@@ -575,7 +575,7 @@ function VideoFrameThumbnail({
   return (
     <div
       className={cn(
-        'absolute top-0 bottom-0 rounded-[4px] overflow-hidden border border-white/20 bg-black/25 transition-transform hover:scale-105',
+        'absolute top-0 bottom-0 rounded-lg overflow-hidden border border-white/20 bg-black/25 transition-transform hover:scale-105',
         align === 'start' ? 'left-0' : 'right-0'
       )}
       style={{ width: `${widthPx}px` }}

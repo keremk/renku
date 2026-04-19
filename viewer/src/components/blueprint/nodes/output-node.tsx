@@ -28,7 +28,7 @@ export function OutputNode({ data, selected }: OutputNodeProps) {
       <Handle
         type="target"
         position={Position.Left}
-        className="!bg-purple-400 !w-2 !h-2"
+        className="bg-purple-400! w-2! h-2!"
       />
       <span className="truncate px-1 text-center leading-tight">
         {nodeData.label}

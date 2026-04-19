@@ -45,7 +45,7 @@ describe('MediaExpandDialog', () => {
 
     const prompt = screen.getByText(/line 1/);
     expect(prompt.tagName).toBe('PRE');
-    expect(prompt.className).toContain('h-[4.75rem]');
+    expect(prompt.className).toContain('h-19');
     expect(prompt.className).toContain('overflow-y-auto');
   });
 });
