@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { CreateBuildDialog } from '@/components/blueprint/create-build-dialog';
 import { WorkspaceLayout } from '@/components/blueprint/workspace-layout';
 import { ViewerHomePage } from '@/components/home/viewer-home-page';
 import { OnboardingPage } from '@/components/onboarding/onboarding-page';
@@ -28,6 +29,9 @@ function App() {
 }
 
 function BlueprintApp() {
+  const [showEmptyBuildPrompt, setShowEmptyBuildPrompt] = useState(false);
+  const promptBlueprintNameRef = useRef<string | null>(null);
+  const hasShownEmptyBuildPromptRef = useRef(false);
   const {
     initialized,
     isLoading: initLoading,
@@ -59,6 +63,17 @@ function BlueprintApp() {
       resolvedPaths?.blueprintPath ?? null,
       resolvedPaths?.catalogRoot
     );
+
+  useEffect(() => {
+    const currentBlueprintName = blueprintRoute?.blueprintName ?? null;
+    if (promptBlueprintNameRef.current === currentBlueprintName) {
+      return;
+    }
+
+    promptBlueprintNameRef.current = currentBlueprintName;
+    hasShownEmptyBuildPromptRef.current = false;
+    setShowEmptyBuildPrompt(false);
+  }, [blueprintRoute?.blueprintName]);
 
   // Reconcile build selection for the current blueprint.
   // - `last=1` always selects newest build (or clears when no builds exist)
@@ -93,6 +108,29 @@ function BlueprintApp() {
     blueprintRoute?.blueprintName,
     blueprintRoute?.selectedBuildId,
     blueprintRoute?.useLast,
+    buildsStatus,
+    builds,
+    buildsBlueprintFolder,
+    resolvedPaths?.blueprintFolder,
+  ]);
+
+  useEffect(() => {
+    if (!blueprintRoute?.blueprintName || buildsStatus !== 'success') return;
+    if (!resolvedPaths?.blueprintFolder) return;
+    if (hasShownEmptyBuildPromptRef.current) return;
+
+    if (buildsBlueprintFolder !== resolvedPaths.blueprintFolder) return;
+    if (
+      getFolderName(resolvedPaths.blueprintFolder) !==
+      blueprintRoute.blueprintName
+    )
+      return;
+    if (builds.length > 0) return;
+
+    hasShownEmptyBuildPromptRef.current = true;
+    setShowEmptyBuildPrompt(true);
+  }, [
+    blueprintRoute?.blueprintName,
     buildsStatus,
     builds,
     buildsBlueprintFolder,
@@ -151,21 +189,32 @@ function BlueprintApp() {
   }
 
   return (
-    <WorkspaceLayout
-      graphData={graph}
-      inputData={inputs}
-      movieId={blueprintRoute.movieId}
-      blueprintFolder={resolvedPaths?.blueprintFolder ?? null}
-      blueprintName={blueprintRoute.blueprintName}
-      blueprintPath={resolvedPaths?.blueprintPath ?? ''}
-      catalogRoot={resolvedPaths?.catalogRoot}
-      builds={builds}
-      buildsLoading={buildsStatus === 'loading'}
-      selectedBuildId={blueprintRoute.selectedBuildId}
+    <>
+      <WorkspaceLayout
+        graphData={graph}
+        inputData={inputs}
+        movieId={blueprintRoute.movieId}
+        blueprintFolder={resolvedPaths?.blueprintFolder ?? null}
+        blueprintName={blueprintRoute.blueprintName}
+        blueprintPath={resolvedPaths?.blueprintPath ?? ''}
+        catalogRoot={resolvedPaths?.catalogRoot}
+        builds={builds}
+        buildsLoading={buildsStatus === 'loading'}
+        selectedBuildId={blueprintRoute.selectedBuildId}
         selectedBuildState={selectedBuildState}
         onBuildsRefresh={refetchBuilds}
         onBuildStateRefresh={refetchBuildState}
-    />
+      />
+      {resolvedPaths?.blueprintFolder ? (
+        <CreateBuildDialog
+          open={showEmptyBuildPrompt}
+          onOpenChange={setShowEmptyBuildPrompt}
+          blueprintFolder={resolvedPaths.blueprintFolder}
+          onRefresh={refetchBuilds}
+          description='This blueprint has no builds yet. Create one now, or come back to it later from the Builds sidebar.'
+        />
+      ) : null}
+    </>
   );
 }
 

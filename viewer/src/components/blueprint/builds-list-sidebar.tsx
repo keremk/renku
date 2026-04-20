@@ -3,13 +3,10 @@ import { Loader2, Plus, Pencil, Check, X, Trash2 } from 'lucide-react';
 import type { BuildInfo } from '@/types/builds';
 import { updateBlueprintRoute } from '@/hooks/use-blueprint-route';
 import { useExecution } from '@/contexts/execution-context';
-import {
-  createBuild,
-  updateBuildMetadata,
-  deleteBuild,
-} from '@/data/blueprint-client';
+import { updateBuildMetadata, deleteBuild } from '@/data/blueprint-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CreateBuildDialog } from './create-build-dialog';
 import {
   Dialog,
   DialogContent,
@@ -36,9 +33,7 @@ export function BuildsListSidebar({
 }: BuildsListSidebarProps) {
   const { state } = useExecution();
   const isExecuting = state.status === 'executing';
-  const [isCreating, setIsCreating] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newBuildName, setNewBuildName] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingBuild, setDeletingBuild] = useState<BuildInfo | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -51,29 +46,6 @@ export function BuildsListSidebar({
       updateBlueprintRoute(movieId);
     }
   };
-
-  const handleCreateBuild = useCallback(async () => {
-    if (!blueprintFolder) return;
-
-    setIsCreating(true);
-    try {
-      const result = await createBuild(
-        blueprintFolder,
-        newBuildName || undefined
-      );
-      // Refresh the builds list
-      await onRefresh?.();
-      // Select the new build
-      updateBlueprintRoute(result.movieId);
-      // Close dialog
-      setShowCreateDialog(false);
-      setNewBuildName('');
-    } catch (error) {
-      console.error('Failed to create build:', error);
-    } finally {
-      setIsCreating(false);
-    }
-  }, [blueprintFolder, newBuildName, onRefresh]);
 
   const handleDisplayNameUpdate = useCallback(
     async (movieId: string, displayName: string) => {
@@ -175,52 +147,14 @@ export function BuildsListSidebar({
       </div>
 
       {/* Create Build Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className='sm:max-w-[400px] p-0 gap-0 overflow-hidden'>
-          <DialogHeader>
-            <DialogTitle>Create New Build</DialogTitle>
-          </DialogHeader>
-          <div className='px-6 py-6'>
-            <label className='text-sm font-medium text-foreground'>
-              Display Name (optional)
-            </label>
-            <Input
-              value={newBuildName}
-              onChange={(e) => setNewBuildName(e.target.value)}
-              placeholder='e.g., Test Run, Final Version'
-              className='mt-2'
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !isCreating) {
-                  handleCreateBuild();
-                }
-              }}
-            />
-            <p className='text-xs text-muted-foreground mt-2'>
-              A friendly name to identify this build. You can change it later.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant='outline'
-              onClick={() => setShowCreateDialog(false)}
-              disabled={isCreating}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleCreateBuild} disabled={isCreating}>
-              {isCreating ? (
-                <>
-                  <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                  Creating...
-                </>
-              ) : (
-                'Create Build'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {blueprintFolder ? (
+        <CreateBuildDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+          blueprintFolder={blueprintFolder}
+          onRefresh={onRefresh}
+        />
+      ) : null}
 
       {/* Delete Build Dialog */}
       <Dialog
