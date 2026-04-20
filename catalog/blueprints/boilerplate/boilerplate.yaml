@@ -1,0 +1,44 @@
+meta:
+  name: Boilerplate Blueprint
+  description: Boilerplate blueprint scaffold. This is intentionally incomplete and will not work out of the box yet.
+  id: Boilerplate
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of segments to produce.
+    type: int
+    required: true
+
+outputs:
+  - name: Timeline
+    description: Composed timeline JSON manifest.
+    type: json
+  - name: FinalVideo
+    description: Final rendered video artifact.
+    type: video
+
+imports:
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+  - name: VideoExporter
+    producer: composition/video-exporter
+
+connections:
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+  - from: Duration
+    to: VideoExporter.Duration
+  - from: VideoExporter.FinalVideo
+    to: FinalVideo

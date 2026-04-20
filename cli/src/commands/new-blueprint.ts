@@ -1,11 +1,14 @@
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { access, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import {
 	assertValidBlueprintName,
 	createBlueprintFromTemplate,
 	createRuntimeError,
 	RuntimeErrorCode,
 } from '@gorenku/core';
+
+const DEFAULT_BLUEPRINT_TEMPLATE = 'boilerplate';
 
 export interface NewBlueprintOptions {
 	/** The name of the blueprint (e.g., "history-video") */
@@ -14,7 +17,7 @@ export interface NewBlueprintOptions {
 	outputDir?: string;
 	/** Name of an existing blueprint in the catalog to copy from */
 	using?: string;
-	/** The catalog root directory (required when using is provided) */
+	/** The catalog root directory used to resolve the default boilerplate or an explicit template */
 	catalogRoot?: string;
 }
 
@@ -25,7 +28,7 @@ export interface NewBlueprintResult {
 	blueprintPath: string;
 	/** Path to the created input-template.yaml file */
 	inputTemplatePath: string;
-	/** Whether the blueprint was copied from the catalog */
+	/** Whether the blueprint was copied from an explicitly selected catalog template */
 	copiedFromCatalog: boolean;
 }
 
@@ -40,64 +43,35 @@ function toPascalCase(str: string): string {
 		.join('');
 }
 
-/**
- * Generates a scaffold blueprint YAML content.
- */
-function generateBlueprintYaml(name: string): string {
-	const id = toPascalCase(name);
-	return `meta:
-  name: ${name}
-  description: ""
-  id: ${id}
-  version: 0.1.0
-  author: ""
-  license: ""
+async function rewriteBlueprintIdentity(
+	blueprintPath: string,
+	blueprintName: string
+): Promise<void> {
+	const blueprintContent = await readFile(blueprintPath, 'utf8');
+	const parsed = parseYaml(blueprintContent) as
+		| {
+				meta?: {
+					name?: string;
+					id?: string;
+				};
+		  }
+		| null;
 
-inputs:
-  # Define your blueprint inputs here
-  # - name: InputName
-  #   description: Description of the input
-  #   type: string
-  #   required: true
+	if (!parsed?.meta) {
+		throw createRuntimeError(
+			RuntimeErrorCode.INVALID_INPUT_VALUE,
+			`Blueprint template at ${blueprintPath} is missing a meta section.`,
+			{
+				suggestion:
+					'Fix the boilerplate catalog blueprint so it declares meta.name and meta.id.',
+			}
+		);
+	}
 
-outputs:
-  # Define your blueprint outputs here
-  # - name: OutputName
-  #   description: Description of the output
-  #   type: image
+	parsed.meta.name = blueprintName;
+	parsed.meta.id = toPascalCase(blueprintName);
 
-loops:
-  # Define iteration loops here
-  # - name: segment
-  #   countInput: NumOfSegments
-
-imports:
-  # Define imported blueprints here
-  # - name: ProducerName
-  #   producer: image/text-to-image
-
-connections:
-  # Wire inputs and outputs between producers.
-  # For fanIn inputs, add optional groupBy/orderBy here when inference is ambiguous.
-  # - from: InputName
-  #   to: ProducerName.Input
-`;
-}
-
-/**
- * Generates a scaffold input-template.yaml content.
- */
-function generateInputTemplateYaml(): string {
-	return `inputs:
-  # Define your input values here
-  # InputName: "value"
-
-models:
-  # Define model configurations for producers
-  # - model: gpt-4
-  #   provider: openai
-  #   producerId: ProducerName
-`;
+	await writeFile(blueprintPath, stringifyYaml(parsed), 'utf8');
 }
 
 export async function runNewBlueprint(
@@ -105,14 +79,14 @@ export async function runNewBlueprint(
 ): Promise<NewBlueprintResult> {
 	const { name, outputDir, using, catalogRoot } = options;
 	const normalizedName = name.trim();
+	const templateName = using?.trim() || DEFAULT_BLUEPRINT_TEMPLATE;
 
 	assertValidBlueprintName(normalizedName);
 
-	// Validate --using requires catalog root
-	if (using && !catalogRoot) {
+	if (!catalogRoot) {
 		throw createRuntimeError(
 			RuntimeErrorCode.MISSING_REQUIRED_INPUT,
-			'Catalog root is required when using --using flag.',
+			'Catalog root is required when creating a blueprint.',
 			{ suggestion: 'Initialize Renku first with "renku init --root=<path>".' }
 		);
 	}
@@ -135,40 +109,21 @@ export async function runNewBlueprint(
 		}
 	}
 
-	// If using a catalog blueprint, copy it
-	if (using && catalogRoot) {
-		const created = await createBlueprintFromTemplate({
-			blueprintName: normalizedName,
-			templateName: using,
-			outputDir: baseDir,
-			catalogRoot,
-		});
+	const created = await createBlueprintFromTemplate({
+		blueprintName: normalizedName,
+		templateName,
+		outputDir: baseDir,
+		catalogRoot,
+	});
 
-		return {
-			folderPath: created.folderPath,
-			blueprintPath: created.blueprintPath,
-			inputTemplatePath: created.inputTemplatePath,
-			copiedFromCatalog: true,
-		};
+	if (!using) {
+		await rewriteBlueprintIdentity(created.blueprintPath, normalizedName);
 	}
 
-	// Create scaffold files
-	await mkdir(folderPath, { recursive: true });
-
-	// Create the blueprint YAML file
-	const blueprintPath = resolve(folderPath, `${normalizedName}.yaml`);
-	const blueprintContent = generateBlueprintYaml(normalizedName);
-	await writeFile(blueprintPath, blueprintContent, 'utf8');
-
-	// Create the input-template.yaml file
-	const inputTemplatePath = resolve(folderPath, 'input-template.yaml');
-	const inputTemplateContent = generateInputTemplateYaml();
-	await writeFile(inputTemplatePath, inputTemplateContent, 'utf8');
-
 	return {
-		folderPath,
-		blueprintPath,
-		inputTemplatePath,
-		copiedFromCatalog: false,
+		folderPath: created.folderPath,
+		blueprintPath: created.blueprintPath,
+		inputTemplatePath: created.inputTemplatePath,
+		copiedFromCatalog: Boolean(using),
 	};
 }

@@ -340,23 +340,20 @@ async function main(): Promise<void> {
 				return;
 			}
 
-			// Get catalog root if --using is provided
-			let catalogRoot: string | undefined;
-			if (flags.using) {
-				const cliConfig = await readCliConfig();
-				if (!cliConfig) {
-					logger.error('Renku CLI is not initialized. Run "renku init" first.');
-					process.exitCode = 1;
-					return;
-				}
-				catalogRoot = cliConfig.catalog?.root;
-				if (!catalogRoot) {
-					logger.error(
-						'Catalog root not configured. Run "renku init" to set up the workspace.'
-					);
-					process.exitCode = 1;
-					return;
-				}
+			const cliConfig = await readCliConfig();
+			if (!cliConfig) {
+				logger.error('Renku CLI is not initialized. Run "renku init" first.');
+				process.exitCode = 1;
+				return;
+			}
+
+			const catalogRoot = cliConfig.catalog?.root;
+			if (!catalogRoot) {
+				logger.error(
+					'Catalog root not configured. Run "renku init" to set up the workspace.'
+				);
+				process.exitCode = 1;
+				return;
 			}
 
 			try {

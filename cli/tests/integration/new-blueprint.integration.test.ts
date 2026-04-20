@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runNewBlueprint } from '../../src/commands/new-blueprint.js';
-import { CLI_TEST_FIXTURES_ROOT } from '../test-catalog-paths.js';
+import { CATALOG_ROOT, CLI_TEST_FIXTURES_ROOT } from '../test-catalog-paths.js';
 import { isRenkuError, RuntimeErrorCode } from '@gorenku/core';
 
 describe('new:blueprint command', () => {
@@ -23,6 +23,7 @@ describe('new:blueprint command', () => {
 			const result = await runNewBlueprint({
 				name: 'history-video',
 				outputDir: tempDir,
+				catalogRoot: CATALOG_ROOT,
 			});
 
 			// Check folder was created
@@ -40,6 +41,7 @@ describe('new:blueprint command', () => {
 			const result = await runNewBlueprint({
 				name: 'history-video',
 				outputDir: tempDir,
+				catalogRoot: CATALOG_ROOT,
 			});
 
 			const blueprintContent = await readFile(result.blueprintPath, 'utf8');
@@ -48,21 +50,37 @@ describe('new:blueprint command', () => {
 			expect(blueprintContent).toContain('meta:');
 			expect(blueprintContent).toContain('name: history-video');
 			expect(blueprintContent).toContain('id: HistoryVideo');
+			expect(blueprintContent).toContain('kind: blueprint');
 			expect(blueprintContent).toContain('version: 0.1.0');
+			expect(blueprintContent).toContain(
+				'description: Boilerplate blueprint scaffold.'
+			);
+			expect(blueprintContent).toContain(
+				'will not work out of the box yet.'
+			);
 
-			// Check main sections exist
+			// Check boilerplate blueprint structure
 			expect(blueprintContent).toContain('inputs:');
+			expect(blueprintContent).toContain('- name: Duration');
+			expect(blueprintContent).toContain('- name: NumOfSegments');
 			expect(blueprintContent).toContain('outputs:');
-			expect(blueprintContent).toContain('loops:');
 			expect(blueprintContent).toContain('imports:');
+			expect(blueprintContent).toContain(
+				'- name: TimelineComposer'
+			);
+			expect(blueprintContent).toContain(
+				'- name: VideoExporter'
+			);
 			expect(blueprintContent).toContain('connections:');
-			expect(blueprintContent).not.toContain('collectors:');
+			expect(blueprintContent).toContain('to: VideoExporter.Timeline');
+			expect(blueprintContent).toContain('to: VideoExporter.Duration');
 		});
 
 		it('generates input-template YAML with correct structure', async () => {
 			const result = await runNewBlueprint({
 				name: 'history-video',
 				outputDir: tempDir,
+				catalogRoot: CATALOG_ROOT,
 			});
 
 			const inputTemplateContent = await readFile(
@@ -70,15 +88,20 @@ describe('new:blueprint command', () => {
 				'utf8'
 			);
 
-			// Check sections exist
+			// Check sections and boilerplate defaults exist
 			expect(inputTemplateContent).toContain('inputs:');
+			expect(inputTemplateContent).toContain('Duration: 30');
+			expect(inputTemplateContent).toContain('NumOfSegments: 3');
 			expect(inputTemplateContent).toContain('models:');
+			expect(inputTemplateContent).toContain('producerId: TimelineComposer');
+			expect(inputTemplateContent).toContain('producerId: VideoExporter');
 		});
 
 		it('converts kebab-case name to PascalCase id', async () => {
 			const result = await runNewBlueprint({
 				name: 'my-awesome-blueprint',
 				outputDir: tempDir,
+				catalogRoot: CATALOG_ROOT,
 			});
 
 			const blueprintContent = await readFile(result.blueprintPath, 'utf8');
@@ -90,6 +113,7 @@ describe('new:blueprint command', () => {
 				runNewBlueprint({
 					name: '',
 					outputDir: tempDir,
+					catalogRoot: CATALOG_ROOT,
 				})
 			).rejects.toThrow('Blueprint name is required');
 		});
@@ -99,6 +123,7 @@ describe('new:blueprint command', () => {
 				runNewBlueprint({
 					name: 'InvalidName',
 					outputDir: tempDir,
+					catalogRoot: CATALOG_ROOT,
 				})
 			).rejects.toThrow('Blueprint name must be in kebab-case');
 
@@ -106,6 +131,7 @@ describe('new:blueprint command', () => {
 				runNewBlueprint({
 					name: '123-invalid',
 					outputDir: tempDir,
+					catalogRoot: CATALOG_ROOT,
 				})
 			).rejects.toThrow('Blueprint name must be in kebab-case');
 		});
@@ -115,6 +141,7 @@ describe('new:blueprint command', () => {
 			await runNewBlueprint({
 				name: 'existing-blueprint',
 				outputDir: tempDir,
+				catalogRoot: CATALOG_ROOT,
 			});
 
 			// Try to create again
@@ -122,6 +149,7 @@ describe('new:blueprint command', () => {
 				runNewBlueprint({
 					name: 'existing-blueprint',
 					outputDir: tempDir,
+					catalogRoot: CATALOG_ROOT,
 				})
 			).rejects.toThrow('already exists');
 		});
@@ -130,6 +158,7 @@ describe('new:blueprint command', () => {
 			const result = await runNewBlueprint({
 				name: 'simple',
 				outputDir: tempDir,
+				catalogRoot: CATALOG_ROOT,
 			});
 
 			const blueprintContent = await readFile(result.blueprintPath, 'utf8');
@@ -199,15 +228,13 @@ describe('new:blueprint command', () => {
 			}
 		});
 
-		it('throws error when using flag provided without catalog root', async () => {
+		it('throws error when catalog root is missing', async () => {
 			await expect(
 				runNewBlueprint({
 					name: 'my-blueprint',
 					outputDir: tempDir,
-					using: 'conditional-logic/conditional-multi-source-fanin',
-					// catalogRoot not provided
 				})
-			).rejects.toThrow('Catalog root is required');
+			).rejects.toThrow('Catalog root is required when creating a blueprint');
 		});
 	});
 });
