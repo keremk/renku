@@ -134,7 +134,8 @@ The CLI will:
 2. Create images for each segment
 3. Generate audio narration
 4. Compose the timeline
-5. Save all runtime artifacts to `builds/movie-{id}/` (in current directory)
+5. If the blueprint ends in `VideoExporter`, render the final MP4/MP3 output
+6. Save runtime artifacts and published outputs to `builds/movie-{id}/` and `artifacts/movie-{id}/`
 
 ### 5. View the Results
 
@@ -184,14 +185,11 @@ This opens the Renku app, starts a local server if needed, and opens your browse
 ### Utilities
 
 - `renku list` - List builds in current project (shows dry-run vs completed)
-- `renku export` - Export movie to MP4/MP3 format
-  - `--movie-id=<id>` / `--id=<id>` - Movie to export
-  - `--inputs=<file>` - Export config YAML file (for advanced settings)
-  - `--exporter=<type>` - Exporter backend: `remotion` or `ffmpeg`
-  - `--width`, `--height`, `--fps` - Video dimensions and frame rate
 - `renku export:davinci` - Export timeline to OTIO format for DaVinci Resolve
   - `--movie-id=<id>` / `--id=<id>` - Movie to export
   - `--fps=<n>` - Frame rate (default: 30)
+
+Final video and audio files are produced by `renku generate` when your blueprint is wired to end in `VideoExporter`. Configure renderer settings in the inputs file under `models[].config` for `producerId: VideoExporter`.
 
 For complete command documentation, see the [CLI Reference](https://gorenku.com/docs/cli-reference).
 
@@ -223,6 +221,7 @@ When you run `renku generate` from a project folder:
     └── movie-{id}/
         ├── Script.txt       # Symlink to generated script
         ├── Segment_0.mp3    # Symlink to audio segments
+        ├── FinalVideo.mp4   # Present when VideoExporter publishes a final render
         └── ...
 ```
 

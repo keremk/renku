@@ -247,6 +247,8 @@ For continuing movies:
 5. Regenerates affected artifacts and updates the artifacts view
 6. With `--explain`, includes a recovery summary section (checked, recovered, pending, failed attempts)
 
+If the blueprint ends in `VideoExporter`, `renku generate` also materializes the final published render and prints the published output path in the command summary.
+
 **Examples:**
 
 ```bash
@@ -317,8 +319,7 @@ renku list
 **Behavior:**
 
 - Scans `builds/` in the current working directory
-- Shows which builds have artifacts (completed runs) vs. dry-run only builds
-- Suggests running `renku clean` to remove dry-run builds
+- Shows which builds have artifacts (completed runs) vs. builds with no materialized outputs
 
 **Example output:**
 
@@ -326,151 +327,8 @@ renku list
 Builds in current project:
 
   ✓ movie-abc123 (has artifacts)
-  ○ movie-def456 (dry-run, no artifacts)
-  ○ movie-ghi789 (dry-run, no artifacts)
-
-Run `renku clean` to remove 2 dry-run build(s).
-```
-
----
-
-### renku clean
-
-Remove build artifacts from the current project. By default, only removes dry-run builds (builds without artifacts).
-
-**Usage:**
-
-```bash
-renku clean [--movie-id=<id>] [--all] [--dry-run]
-```
-
-**Options:**
-
-| Option               | Required | Description                                     |
-| -------------------- | -------- | ----------------------------------------------- |
-| `--movie-id`, `--id` | No       | Clean a specific movie by ID                    |
-| `--all`              | No       | Clean all builds including those with artifacts |
-| `--dry-run`          | No       | Show what would be cleaned without deleting     |
-| `--non-interactive`  | No       | Skip confirmation prompts                       |
-
-**Behavior:**
-
-- Without options: Removes all dry-run builds (builds without corresponding `artifacts/` folder)
-- With `--movie-id`: Removes only the specified build
-- With `--all`: Removes all builds including those with artifacts
-
-**Examples:**
-
-```bash
-# Clean only dry-run builds (safe default)
-renku clean
-
-# Preview what would be cleaned
-renku clean --dry-run
-
-# Clean a specific movie
-renku clean --movie-id=movie-a1b2c3d4
-
-# Clean everything including completed builds
-renku clean --all
-```
-
----
-
-### renku export
-
-Export a generated movie to MP4/MP3 format.
-
-**Usage:**
-
-```bash
-renku export --movie-id=<id> [options]
-renku export --movie-id=<id> --inputs=<config.yaml>
-```
-
-**CLI Options:**
-
-| Option               | Default  | Description                              |
-| -------------------- | -------- | ---------------------------------------- |
-| `--movie-id`, `--id` | -        | Movie ID to export                       |
-| `--inputs`, `--in`   | -        | Path to export config YAML file          |
-| `--width`            | 1920     | Video width in pixels                    |
-| `--height`           | 1080     | Video height in pixels                   |
-| `--fps`              | 30       | Frames per second                        |
-| `--exporter`         | remotion | Exporter backend: `remotion` or `ffmpeg` |
-
-**Exporter Backends:**
-
-| Exporter   | Description                              | Requirements     |
-| ---------- | ---------------------------------------- | ---------------- |
-| `remotion` | Docker-based Remotion renderer (default) | Docker Desktop   |
-| `ffmpeg`   | Native FFmpeg renderer                   | FFmpeg installed |
-
-The FFmpeg exporter is faster and requires no Docker, while the Remotion exporter offers more advanced video effects. For audio-only timelines, the FFmpeg exporter produces MP3 files.
-
-**Export Config File:**
-
-For advanced settings (especially FFmpeg-specific options and subtitles), use a YAML config file:
-
-```yaml
-# Basic settings (can also be set via CLI flags)
-width: 1920
-height: 1080
-fps: 30
-exporter: ffmpeg
-
-# FFmpeg-specific encoding settings
-preset: medium # x264 preset: ultrafast, fast, medium, slow
-crf: 23 # Quality (0-51, lower = better quality)
-audioBitrate: 192k # Audio bitrate
-
-# Subtitle settings (requires TranscriptionProducer in blueprint)
-subtitles:
-  font: Arial # Font name (system fonts)
-  fontSize: 48 # Font size in pixels
-  fontBaseColor: '#FFFFFF' # Default text color (hex)
-  fontHighlightColor: '#FFD700' # Karaoke highlight color (hex)
-  backgroundColor: '#000000' # Background box color (hex)
-  backgroundOpacity: 0 # Background opacity (0-1, 0 = no box)
-  position: bottom-center # Anchor position
-  edgePaddingPercent: 8 # Distance from frame edges (% of height)
-  maxWordsPerLine: 4 # Words displayed at once
-  highlightEffect: true # Enable karaoke-style highlighting
-```
-
-**Requirements:**
-
-- Blueprint must include a `TimelineComposer` producer
-- Movie must have a Timeline artifact
-- For `remotion`: Docker Desktop running
-- For `ffmpeg`: FFmpeg installed and in PATH
-- For subtitles: Blueprint must include a `TranscriptionProducer`
-
-**Output:**
-
-- Video: `builds/{movieId}/FinalVideo.mp4` and `artifacts/{movieId}/FinalVideo.mp4` (symlink)
-- Audio-only (FFmpeg): `builds/{movieId}/FinalAudio.mp3` and `artifacts/{movieId}/FinalAudio.mp3` (symlink)
-
-**Examples:**
-
-```bash
-# Export with defaults (1920x1080 @ 30fps, remotion exporter)
-renku export --movie-id=movie-a1b2c3d4
-
-# Export a specific movie
-renku export --movie-id=movie-a1b2c3d4
-
-# Export with custom resolution
-renku export --movie-id=<id> --width=3840 --height=2160 --fps=24
-
-# Use FFmpeg exporter (faster, no Docker required)
-renku export --movie-id=<id> --exporter=ffmpeg
-
-# Use FFmpeg with custom settings via CLI
-renku export --movie-id=<id> --exporter=ffmpeg --width=1280 --height=720 --fps=24
-
-# Use config file for advanced settings (subtitles, encoding)
-renku export --movie-id=<id> --inputs=./export-config.yaml
+  ○ movie-def456 (no artifacts)
+  ○ movie-ghi789 (no artifacts)
 ```
 
 ---

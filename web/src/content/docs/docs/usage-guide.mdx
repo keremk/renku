@@ -475,130 +475,46 @@ Stop the background viewer server when done:
 renku shutdown
 ```
 
-## Exporting Video
+## Generating Final Video
 
-Export the final video as MP4:
+There is no separate CLI export step. Final video or audio output is produced by `renku generate` when your blueprint ends in `VideoExporter` and publishes that output.
 
-```bash
-renku export --movie-id=movie-a1b2c3d4
-```
+Typical flow:
 
-With custom settings:
+1. Wire `TimelineComposer.Timeline` into `VideoExporter.Timeline`
+2. Optionally wire `TranscriptionProducer.Transcription` into `VideoExporter.Transcription`
+3. Run `renku generate` to completion
+4. Read the published output path from the CLI summary
 
-```bash
-renku export --movie-id=<id> \
-  --width=1920 \
-  --height=1080 \
-  --fps=30
-```
-
-### Choosing an Exporter
-
-Renku supports two exporter backends:
-
-| Exporter   | Description                              | Requirements     |
-| ---------- | ---------------------------------------- | ---------------- |
-| `remotion` | Docker-based Remotion renderer (default) | Docker Desktop   |
-| `ffmpeg`   | Native FFmpeg renderer                   | FFmpeg installed |
-
-Use the `--exporter` flag to choose:
-
-```bash
-# Use FFmpeg (faster, no Docker required)
-renku export --movie-id=<id> --exporter=ffmpeg
-
-# Use Remotion (default, requires Docker)
-renku export --movie-id=<id> --exporter=remotion
-```
-
-**FFmpeg exporter advantages:**
-
-- No Docker installation required
-- Faster rendering for simple timelines
-- Produces MP3 for audio-only timelines
-- Supports karaoke-style subtitles
-
-**Remotion exporter advantages:**
-
-- More advanced video effects
-- Better suited for complex compositions
-
-### Advanced Export Configuration
-
-For fine-grained control over export settings, use a YAML config file:
-
-```bash
-renku export --movie-id=<id> --inputs=./export-config.yaml
-```
-
-Example config file with all available options:
+Renderer settings belong in the inputs file under the `VideoExporter` model config, not in a separate export config file:
 
 ```yaml
-# Video settings
-width: 1920
-height: 1080
-fps: 30
-exporter: ffmpeg
-
-# FFmpeg encoding settings
-preset: medium # ultrafast, fast, medium, slow
-crf: 23 # Quality: 0-51 (lower = better)
-audioBitrate: 192k # Audio quality
-
-# Karaoke-style subtitles (requires TranscriptionProducer)
-subtitles:
-  font: Arial
-  fontSize: 48
-  fontBaseColor: '#FFFFFF'
-  fontHighlightColor: '#FFD700'
-  backgroundColor: '#000000'
-  backgroundOpacity: 0.5
-  position: bottom-center
-  edgePaddingPercent: 8
-  maxWordsPerLine: 4
-  highlightEffect: true
+models:
+  - model: ffmpeg/native-render
+    provider: renku
+    producerId: VideoExporter
+    config:
+      width: 1920
+      height: 1080
+      fps: 30
+      subtitles:
+        fontSize: 48
+        fontBaseColor: '#FFFFFF'
+        fontHighlightColor: '#FFD700'
+        backgroundColor: '#000000'
+        backgroundOpacity: 0.5
+        position: bottom-center
+        edgePaddingPercent: 8
+        maxWordsPerLine: 4
+        highlightEffect: true
 ```
 
-### Subtitles
+If your blueprint includes `TranscriptionProducer`, `VideoExporter` can render karaoke-style subtitles directly during `generate`.
 
-If your blueprint includes a `TranscriptionProducer`, the FFmpeg exporter can add karaoke-style subtitles that highlight words as they're spoken:
-
-1. Ensure your blueprint has a `TranscriptionProducer` that generates word-level timestamps
-2. Create an export config with subtitle settings
-3. Run export with the config file
-
-The exported video is saved to:
+Published outputs are materialized in the project workspace, typically at:
 
 - `builds/movie-{id}/FinalVideo.mp4`
 - `artifacts/movie-{id}/FinalVideo.mp4` (symlink)
-
-## Cleaning Up
-
-List builds in the current project:
-
-```bash
-renku list
-```
-
-This shows which builds have artifacts (completed runs) vs. dry-run only builds.
-
-Remove dry-run builds (safe default):
-
-```bash
-renku clean
-```
-
-Remove a specific movie:
-
-```bash
-renku clean --movie-id=movie-a1b2c3d4
-```
-
-Remove all builds including completed ones:
-
-```bash
-renku clean --all
-```
 
 ## Tips and Best Practices
 
@@ -617,7 +533,7 @@ Don't generate everything at once:
 1. Generate script → Review
 2. Generate prompts → Review and edit
 3. Generate media → Review
-4. Compose timeline → Export
+4. Compose timeline → Generate final render
 
 ### Use Version Control
 

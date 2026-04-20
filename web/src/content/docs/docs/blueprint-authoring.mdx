@@ -455,6 +455,8 @@ Add speech transcription and karaoke-style animated subtitles to your videos. Th
 | **TranscriptionProducer** | Converts audio segments to word-level transcripts with precise timestamps |
 | **VideoExporter**         | Renders the transcript as animated karaoke subtitles on the final video   |
 
+`VideoExporter` should be the terminal render step of the blueprint. Once it is wired to the final `Timeline` (and optional `Transcription`) and published through root outputs, `renku generate` will materialize the final render directly.
+
 #### TranscriptionProducer
 
 ```yaml
