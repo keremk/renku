@@ -53,18 +53,11 @@ export interface MovieMetadataService {
   ): Promise<MovieMetadata>;
 }
 
-/** New canonical filename for metadata. */
+/** Canonical filename for build metadata. */
 const METADATA_FILE = 'metadata.json';
-
-/** Old filename for backwards compatibility. */
-const LEGACY_METADATA_FILE = 'movie-metadata.json';
 
 /**
  * Create a movie metadata service using the given storage context.
- *
- * The service uses 'metadata.json' as the canonical filename but will
- * read from 'movie-metadata.json' for backwards compatibility with
- * existing movie builds.
  *
  * @param storage - The storage context to use
  * @returns A MovieMetadataService instance
@@ -74,17 +67,9 @@ export function createMovieMetadataService(
 ): MovieMetadataService {
   return {
     async read(movieId: string): Promise<MovieMetadata | null> {
-      // Try new filename first
-      const newPath = storage.resolve(movieId, METADATA_FILE);
-      if (await storage.storage.fileExists(newPath)) {
-        const contents = await storage.storage.readToString(newPath);
-        return JSON.parse(contents) as MovieMetadata;
-      }
-
-      // Fall back to legacy filename
-      const legacyPath = storage.resolve(movieId, LEGACY_METADATA_FILE);
-      if (await storage.storage.fileExists(legacyPath)) {
-        const contents = await storage.storage.readToString(legacyPath);
+      const metadataPath = storage.resolve(movieId, METADATA_FILE);
+      if (await storage.storage.fileExists(metadataPath)) {
+        const contents = await storage.storage.readToString(metadataPath);
         return JSON.parse(contents) as MovieMetadata;
       }
 

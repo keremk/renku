@@ -9,7 +9,7 @@ export interface BuildInfo {
   hasBuildState: boolean;
   hasInputSnapshot: boolean;  // Has a saved run snapshot under runs/<revision>-inputs.yaml
   hasInputsFile: boolean;     // Has editable builds/<movieId>/inputs.yaml
-  displayName: string | null; // User-friendly name from movie-metadata.json
+  displayName: string | null; // User-friendly name from metadata.json
 }
 
 export interface BuildsListResponse {

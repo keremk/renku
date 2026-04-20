@@ -24,14 +24,13 @@ describe('MovieMetadataService', () => {
       expect(result).toBeNull();
     });
 
-    it('should read metadata from new filename', async () => {
+    it('should read metadata from metadata.json', async () => {
       const metadata: MovieMetadata = {
         blueprintPath: '/path/to/blueprint.yaml',
         displayName: 'Test Movie',
         createdAt: '2024-01-01T00:00:00Z',
       };
 
-      // Write using the new filename
       const path = storage.resolve(testMovieId, 'metadata.json');
       await storage.storage.write(path, JSON.stringify(metadata), { mimeType: 'application/json' });
 
@@ -39,33 +38,6 @@ describe('MovieMetadataService', () => {
       expect(result).toEqual(metadata);
     });
 
-    it('should read metadata from legacy filename for backwards compatibility', async () => {
-      const metadata: MovieMetadata = {
-        blueprintPath: '/old/blueprint.yaml',
-        displayName: 'Legacy Movie',
-      };
-
-      // Write using the legacy filename
-      const legacyPath = storage.resolve(testMovieId, 'movie-metadata.json');
-      await storage.storage.write(legacyPath, JSON.stringify(metadata), { mimeType: 'application/json' });
-
-      const result = await metadataService.read(testMovieId);
-      expect(result).toEqual(metadata);
-    });
-
-    it('should prefer new filename over legacy filename', async () => {
-      const newMetadata: MovieMetadata = { displayName: 'New' };
-      const legacyMetadata: MovieMetadata = { displayName: 'Legacy' };
-
-      // Write both files
-      const newPath = storage.resolve(testMovieId, 'metadata.json');
-      const legacyPath = storage.resolve(testMovieId, 'movie-metadata.json');
-      await storage.storage.write(newPath, JSON.stringify(newMetadata), { mimeType: 'application/json' });
-      await storage.storage.write(legacyPath, JSON.stringify(legacyMetadata), { mimeType: 'application/json' });
-
-      const result = await metadataService.read(testMovieId);
-      expect(result).toEqual(newMetadata);
-    });
   });
 
   describe('write()', () => {
@@ -78,7 +50,6 @@ describe('MovieMetadataService', () => {
 
       await metadataService.write(testMovieId, metadata);
 
-      // Verify the file was written with new filename
       const path = storage.resolve(testMovieId, 'metadata.json');
       expect(await storage.storage.fileExists(path)).toBe(true);
 
@@ -142,29 +113,6 @@ describe('MovieMetadataService', () => {
       expect(result.displayName).toBe('New');
     });
 
-    it('should merge from legacy file and write to new file', async () => {
-      const legacyMetadata: MovieMetadata = {
-        blueprintPath: '/legacy/path.yaml',
-        displayName: 'Legacy',
-      };
-
-      // Write to legacy filename
-      const legacyPath = storage.resolve(testMovieId, 'movie-metadata.json');
-      await storage.storage.write(legacyPath, JSON.stringify(legacyMetadata), { mimeType: 'application/json' });
-
-      // Merge updates
-      const result = await metadataService.merge(testMovieId, { displayName: 'Updated' });
-
-      // Should have merged with legacy data
-      expect(result).toEqual({
-        blueprintPath: '/legacy/path.yaml',
-        displayName: 'Updated',
-      });
-
-      // Should now have new filename
-      const newPath = storage.resolve(testMovieId, 'metadata.json');
-      expect(await storage.storage.fileExists(newPath)).toBe(true);
-    });
   });
 
   describe('with different movie IDs', () => {
