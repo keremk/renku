@@ -112,6 +112,145 @@ models:
         - quality: "high"
           image_size: "1024x1536"
           pricePerImage: 0.2
+  - name: openai/gpt-image-2
+    subProvider: openai
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageSizeAndQuality
+      inputs: [image_size, quality, num_images]
+      prices:
+        - quality: "low"
+          image_size: "landscape_4_3"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "portrait_4_3"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "square"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "square_hd"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "landscape_16_9"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "portrait_16_9"
+          pricePerImage: 0.01
+        - quality: "medium"
+          image_size: "landscape_4_3"
+          pricePerImage: 0.04
+        - quality: "medium"
+          image_size: "portrait_4_3"
+          pricePerImage: 0.04
+        - quality: "medium"
+          image_size: "square"
+          pricePerImage: 0.06
+        - quality: "medium"
+          image_size: "square_hd"
+          pricePerImage: 0.06
+        - quality: "medium"
+          image_size: "landscape_16_9"
+          pricePerImage: 0.04
+        - quality: "medium"
+          image_size: "portrait_16_9"
+          pricePerImage: 0.04
+        - quality: "high"
+          image_size: "landscape_4_3"
+          pricePerImage: 0.15
+        - quality: "high"
+          image_size: "portrait_4_3"
+          pricePerImage: 0.15
+        - quality: "high"
+          image_size: "square"
+          pricePerImage: 0.22
+        - quality: "high"
+          image_size: "square_hd"
+          pricePerImage: 0.22
+        - quality: "high"
+          image_size: "landscape_16_9"
+          pricePerImage: 0.16
+        - quality: "high"
+          image_size: "portrait_16_9"
+          pricePerImage: 0.16
+  - name: openai/gpt-image-2/edit
+    subProvider: openai
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageSizeAndQuality
+      inputs: [image_size, quality, num_images]
+      prices:
+        - quality: "low"
+          image_size: "landscape_4_3"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "portrait_4_3"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "square"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "square_hd"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "landscape_16_9"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "portrait_16_9"
+          pricePerImage: 0.01
+        - quality: "low"
+          image_size: "auto"
+          pricePerImage: 0.01
+        - quality: "medium"
+          image_size: "landscape_4_3"
+          pricePerImage: 0.04
+        - quality: "medium"
+          image_size: "portrait_4_3"
+          pricePerImage: 0.04
+        - quality: "medium"
+          image_size: "square"
+          pricePerImage: 0.06
+        - quality: "medium"
+          image_size: "square_hd"
+          pricePerImage: 0.06
+        - quality: "medium"
+          image_size: "landscape_16_9"
+          pricePerImage: 0.04
+        - quality: "medium"
+          image_size: "portrait_16_9"
+          pricePerImage: 0.04
+        - quality: "medium"
+          image_size: "auto"
+          pricePerImage: 0.06
+        - quality: "high"
+          image_size: "landscape_4_3"
+          pricePerImage: 0.15
+        - quality: "high"
+          image_size: "portrait_4_3"
+          pricePerImage: 0.15
+        - quality: "high"
+          image_size: "square"
+          pricePerImage: 0.22
+        - quality: "high"
+          image_size: "square_hd"
+          pricePerImage: 0.22
+        - quality: "high"
+          image_size: "landscape_16_9"
+          pricePerImage: 0.16
+        - quality: "high"
+          image_size: "portrait_16_9"
+          pricePerImage: 0.16
+        - quality: "high"
+          image_size: "auto"
+          pricePerImage: 0.22
   - name: nano-banana-pro/edit
     type: image
     mime:

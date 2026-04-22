@@ -167,6 +167,24 @@ mappings:
           '9:16': '1024x1536'
           'auto': 'auto'
 
+    openai/gpt-image-2/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        asArray: true
+      MaskImage: mask_url
+      Resolution:
+        field: image_size
+        resolution:
+          mode: aspectRatio
+        transform:
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
+          'auto': auto
+
     nano-banana-pro/edit:
       Prompt: prompt
       SourceImage:
