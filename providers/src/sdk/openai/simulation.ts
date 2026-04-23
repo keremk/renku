@@ -1,4 +1,5 @@
 import type { JSONSchema7 } from 'ai';
+import type { BlueprintOutputDefinition } from '@gorenku/core';
 import type { ProviderJobContext, ConditionHints } from '../../types.js';
 import type { OpenAiLlmConfig, OpenAiResponseFormat } from './config.js';
 import { normalizeJsonSchema } from './config.js';
@@ -41,7 +42,10 @@ export function simulateOpenAiGeneration(
     );
 
     // Merge external hints with derived hints (external takes precedence)
-    const derivedLengths = deriveArrayLengthsFromProduces(request);
+    const derivedLengths = mergeArrayLengthHints(
+      deriveArrayLengthsFromOutputDefinitions(request),
+      deriveArrayLengthsFromProduces(request)
+    );
     const sizeHints: SimulationSizeHints = {
       arrayLengths: { ...derivedLengths, ...externalHints?.arrayLengths },
       conditionHints: scopedConditionHints,
@@ -552,6 +556,127 @@ function deriveArrayLengthsFromProduces(
   }
 
   return Object.fromEntries(lengths.entries());
+}
+
+function mergeArrayLengthHints(
+  declaredLengths: Record<string, number[]>,
+  inferredLengths: Record<string, number[]>
+): Record<string, number[]> {
+  const merged = new Map<string, number[]>();
+  const fieldNames = new Set([
+    ...Object.keys(declaredLengths),
+    ...Object.keys(inferredLengths),
+  ]);
+
+  for (const fieldName of fieldNames) {
+    const declared = declaredLengths[fieldName] ?? [];
+    const inferred = inferredLengths[fieldName] ?? [];
+    const dimensions = Math.max(declared.length, inferred.length);
+    const resolved: number[] = [];
+
+    for (let index = 0; index < dimensions; index += 1) {
+      const declaredValue = declared[index];
+      const inferredValue = inferred[index];
+
+      if (declaredValue !== undefined) {
+        if (
+          inferredValue !== undefined &&
+          Number.isFinite(inferredValue) &&
+          inferredValue > declaredValue
+        ) {
+          throw new Error(
+            `Simulation array length mismatch for field "${fieldName}" at dimension ${index}. Declared count is ${declaredValue}, but produced artifacts require at least ${inferredValue}.`
+          );
+        }
+        resolved.push(declaredValue);
+        continue;
+      }
+
+      if (inferredValue !== undefined) {
+        resolved.push(inferredValue);
+      }
+    }
+
+    if (resolved.length > 0) {
+      merged.set(fieldName, resolved);
+    }
+  }
+
+  return Object.fromEntries(merged.entries());
+}
+
+function deriveArrayLengthsFromOutputDefinitions(
+  request: ProviderJobContext
+): Record<string, number[]> {
+  const outputDefinitions = readOutputDefinitions(request);
+  const resolvedInputs = readResolvedInputs(request);
+  const jobContext = readJobContext(request);
+  if (!outputDefinitions || !resolvedInputs || !jobContext?.inputBindings) {
+    return {};
+  }
+
+  const lengths = new Map<string, number[]>();
+  for (const definition of Object.values(outputDefinitions)) {
+    for (const mapping of definition.arrays ?? []) {
+      const canonicalInputId = jobContext.inputBindings[mapping.countInput];
+      if (!canonicalInputId) {
+        continue;
+      }
+      const rawValue = resolvedInputs[canonicalInputId];
+      if (typeof rawValue !== 'number' || !Number.isFinite(rawValue)) {
+        continue;
+      }
+      const fieldName = extractArrayFieldName(mapping.path);
+      if (!fieldName) {
+        continue;
+      }
+      const existing = lengths.get(fieldName) ?? [];
+      existing.push(Math.max(0, Math.floor(rawValue)));
+      lengths.set(fieldName, existing);
+    }
+  }
+
+  return Object.fromEntries(lengths.entries());
+}
+
+function readOutputDefinitions(
+  request: ProviderJobContext
+): Record<string, BlueprintOutputDefinition> | undefined {
+  const extras = request.context.extras as Record<string, unknown> | undefined;
+  const raw = extras?.outputDefinitions;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+  return raw as Record<string, BlueprintOutputDefinition>;
+}
+
+function readResolvedInputs(
+  request: ProviderJobContext
+): Record<string, unknown> | undefined {
+  const extras = request.context.extras as Record<string, unknown> | undefined;
+  const raw = extras?.resolvedInputs;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+  return raw as Record<string, unknown>;
+}
+
+function readJobContext(
+  request: ProviderJobContext
+): {
+  inputBindings?: Record<string, string>;
+} | undefined {
+  const extras = request.context.extras as Record<string, unknown> | undefined;
+  const raw = extras?.jobContext;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+  return raw as { inputBindings?: Record<string, string> };
+}
+
+function extractArrayFieldName(path: string): string | undefined {
+  const segments = path.split('.');
+  return segments[segments.length - 1];
 }
 
 /**

@@ -1732,6 +1732,49 @@ describe('planner', () => {
   });
 
   describe('upToLayer', () => {
+    it('does not require condition artifacts for jobs trimmed by upToLayer', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildConditionArtifactGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents(
+        { 'Input:Prompt': 'Keep transitions correct' },
+        'rev-0001'
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const buildState = createSucceededBuildState(baseline, {
+        artifacts: {
+          'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+            hash: 'meeting-hash',
+            producerJobId: 'Producer:DirectorProducer',
+          },
+          'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
+            hash: 'transition-hash',
+            producerJobId: 'Producer:TransitionVideoProducer[0]',
+          },
+        },
+      });
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        buildState,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        upToLayer: 0,
+      });
+
+      expect(plan.layers.flat().map((job) => job.jobId)).toEqual([
+        'Producer:DirectorProducer',
+      ]);
+    });
+
     it('filters plan to include only jobs up to specified layer', async () => {
       const ctx = memoryContext();
       await initializeMovieStorage(ctx, 'demo');

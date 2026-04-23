@@ -637,16 +637,19 @@ function expandOutputDefinitions(
     return [definition];
   }
 
-  return decomposeJsonSchema(
-    definition.schema,
-    definition.name,
-    definition.arrays
-  ).map((field) => ({
-    name: field.path,
-    type: field.type,
-    required: definition.required,
-    description: definition.description,
-  }));
+  return [
+    definition,
+    ...decomposeJsonSchema(
+      definition.schema,
+      definition.name,
+      definition.arrays
+    ).map((field) => ({
+      name: field.path,
+      type: field.type,
+      required: definition.required,
+      description: definition.description,
+    })),
+  ];
 }
 
 function pushGraphNode(args: {

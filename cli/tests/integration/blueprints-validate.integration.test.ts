@@ -202,15 +202,35 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 	it('returns a warning for unused count-style inputs', async () => {
 		const tempDir = await mkdtemp(join(tmpdir(), 'renku-unused-count-input-'));
 		const blueprintPath = join(tempDir, 'unused-count-input.yaml');
+		const producerPath = join(tempDir, 'script-producer.yaml');
 
 		try {
+			await writeFile(
+				producerPath,
+				[
+					'meta:',
+					'  name: Script Producer',
+					'  id: ScriptProducer',
+					'  kind: producer',
+					'  version: 0.1.0',
+					'inputs:',
+					'  - name: Topic',
+					'    type: string',
+					'    required: true',
+					'outputs:',
+					'  - name: Script',
+					'    type: string',
+					'    required: true',
+					'',
+				].join('\n'),
+				'utf8'
+			);
 			await writeFile(
 				blueprintPath,
 				[
 					'meta:',
 					'  name: Unused Count Input',
 					'  id: UnusedCountInput',
-					'  kind: producer',
 					'  version: 0.1.0',
 					'inputs:',
 					'  - name: Topic',
@@ -223,6 +243,14 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 					'  - name: Script',
 					'    type: string',
 					'    required: true',
+					'imports:',
+					'  - name: ScriptProducer',
+					'    path: ./script-producer.yaml',
+					'connections:',
+					'  - from: Topic',
+					'    to: ScriptProducer.Topic',
+					'  - from: ScriptProducer.Script',
+					'    to: Script',
 					'',
 				].join('\n'),
 				'utf8'

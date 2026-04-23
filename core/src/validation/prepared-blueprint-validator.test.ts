@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -75,6 +75,45 @@ describe('validatePreparedBlueprintTree', () => {
     );
   });
 
+  it('fails when a whole-object schema-backed producer output reference does not resolve', async () => {
+    const blueprintPath = await createWholeObjectPreparedValidationFixture({
+      sourceReference: 'SourceDirector.AssetPlann',
+    });
+    const { root } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+    });
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.validation.errors).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.INVALID_NESTED_PATH,
+        message: expect.stringContaining('AssetPlann'),
+      })
+    );
+  });
+
+  it('accepts whole-object schema-backed producer output references when they resolve', async () => {
+    const blueprintPath = await createWholeObjectPreparedValidationFixture({
+      sourceReference: 'SourceDirector.AssetPlan',
+    });
+    const { root } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+    });
+
+    expect(result.validation.valid).toBe(true);
+    expect(result.validation.errors).toHaveLength(0);
+  });
+
   it('returns a prepared context with schema-derived graph nodes for valid blueprints', async () => {
     const { root } = await loadYamlBlueprintTree(DOCUMENTARY_BLUEPRINT_PATH, {
       catalogRoot: CATALOG_ROOT,
@@ -138,4 +177,117 @@ async function createPreparedValidationFixture(args: {
   );
 
   return resolve(tempDir, 'condition-example.yaml');
+}
+
+async function createWholeObjectPreparedValidationFixture(args: {
+  sourceReference: string;
+}): Promise<string> {
+  const tempDir = await mkdtemp(join(tmpdir(), 'renku-prepared-whole-object-'));
+  tempDirs.push(tempDir);
+  await mkdir(resolve(tempDir, 'source'), { recursive: true });
+  await mkdir(resolve(tempDir, 'target'), { recursive: true });
+
+  const rootBlueprint = `meta:
+  name: Whole Object Validation Fixture
+  id: WholeObjectValidationFixture
+  version: 0.1.0
+
+inputs:
+  - name: NumOfSegments
+    type: int
+    required: true
+
+outputs:
+  - name: Result
+    type: string
+    required: true
+
+imports:
+  - name: SourceDirector
+    path: ./source/source.yaml
+  - name: TargetDirector
+    path: ./target/target.yaml
+
+connections:
+  - from: NumOfSegments
+    to: SourceDirector.NumOfSegments
+  - from: ${args.sourceReference}
+    to: TargetDirector.AssetPlan
+  - from: TargetDirector.Result
+    to: Result
+`;
+
+  const sourceProducer = `meta:
+  name: Source Director
+  id: SourceDirector
+  kind: producer
+  version: 0.1.0
+  outputSchema: ./source-output.json
+
+inputs:
+  - name: NumOfSegments
+    type: int
+    required: true
+
+outputs:
+  - name: AssetPlan
+    type: json
+    arrays:
+      - path: Segments
+        countInput: NumOfSegments
+`;
+
+  const targetProducer = `meta:
+  name: Target Director
+  id: TargetDirector
+  kind: producer
+  version: 0.1.0
+
+inputs:
+  - name: AssetPlan
+    type: json
+    required: true
+
+outputs:
+  - name: Result
+    type: string
+`;
+
+  const sourceSchema = JSON.stringify(
+    {
+      name: 'AssetPlan',
+      strict: true,
+      schema: {
+        type: 'object',
+        properties: {
+          Segments: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                Title: { type: 'string' },
+              },
+              required: ['Title'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['Segments'],
+        additionalProperties: false,
+      },
+    },
+    null,
+    2
+  );
+
+  await writeFile(resolve(tempDir, 'root.yaml'), rootBlueprint, 'utf8');
+  await writeFile(resolve(tempDir, 'source', 'source.yaml'), sourceProducer, 'utf8');
+  await writeFile(
+    resolve(tempDir, 'source', 'source-output.json'),
+    sourceSchema,
+    'utf8'
+  );
+  await writeFile(resolve(tempDir, 'target', 'target.yaml'), targetProducer, 'utf8');
+
+  return resolve(tempDir, 'root.yaml');
 }

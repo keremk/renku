@@ -47,6 +47,23 @@ export const elevenlabsAdapter: ProviderAdapter = {
     model: string,
     input: Record<string, unknown>
   ): Promise<UnifiedInvokeResult> {
+    if (model !== 'music_v1') {
+      const rawVoice = input.voice;
+      if (typeof rawVoice !== 'string' || rawVoice.trim().length === 0) {
+        throw createProviderError(
+          SdkErrorCode.MISSING_REQUIRED_INPUT,
+          'Missing required ElevenLabs voice input "voice". Provide it through the mapped VoiceId input or the model config field "voice".',
+          {
+            kind: 'user_input',
+            causedByUser: true,
+            metadata: {
+              model,
+            },
+          }
+        );
+      }
+    }
+
     if (isSimulatedProviderClient(client)) {
       const audioBuffer = generateWavWithDuration(
         estimateDuration(model, input)
@@ -72,22 +89,7 @@ export const elevenlabsAdapter: ProviderAdapter = {
       return { result: { audioStream, model } };
     } else {
       // TTS generation
-      const rawVoice = input.voice;
-      if (typeof rawVoice !== 'string' || rawVoice.trim().length === 0) {
-        throw createProviderError(
-          SdkErrorCode.MISSING_REQUIRED_INPUT,
-          'Missing required ElevenLabs voice input "voice". Provide it through the mapped VoiceId input or the model config field "voice".',
-          {
-            kind: 'user_input',
-            causedByUser: true,
-            metadata: {
-              model,
-            },
-          }
-        );
-      }
-
-      const voiceId = resolveVoiceId(rawVoice);
+      const voiceId = resolveVoiceId(input.voice as string);
       const voiceSettings = input.voice_settings as VoiceSettings | undefined;
 
       // Build voice settings object if provided

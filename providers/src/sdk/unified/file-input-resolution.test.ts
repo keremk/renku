@@ -117,6 +117,61 @@ describe('resolveProviderFileInputs', () => {
     expect(resolved.image_url).toBe('https://provider.example.com/file-1');
   });
 
+  it('resolves blob inputs for nullable uri fields declared with anyOf', async () => {
+    const nullableUriSchema = JSON.stringify({
+      type: 'object',
+      properties: {
+        image_url: {
+          anyOf: [
+            { type: 'string', format: 'uri' },
+            { type: 'null' },
+          ],
+        },
+      },
+    });
+
+    const uploadInputFile = vi
+      .fn()
+      .mockImplementation(async (_client, file) =>
+        buildSimulatedUploadUrl(file, 'fal-ai')
+      );
+
+    const adapter: ProviderAdapter = {
+      name: 'fal-ai',
+      secretKey: 'FAL_KEY',
+      async createClient() {
+        return {};
+      },
+      formatModelIdentifier(model) {
+        return model;
+      },
+      async invoke() {
+        return { result: {} };
+      },
+      uploadInputFile,
+      normalizeOutput() {
+        return [];
+      },
+    };
+
+    const resolved = await resolveProviderFileInputs({
+      payload: {
+        image_url: {
+          data: Buffer.from('sample-image'),
+          mimeType: 'image/png',
+        },
+      },
+      inputSchema: nullableUriSchema,
+      adapter,
+      client: createSimulatedProviderClient('fal-ai'),
+    });
+
+    expect(resolved.image_url).toMatch(
+      /^https:\/\/simulated\.fal-ai\.files\.invalid\/blobs\//
+    );
+    expect(uploadInputFile).toHaveBeenCalledTimes(1);
+  });
+
   it('resolves array URI fields and keeps existing URL strings', async () => {
     const uploadInputFile = vi
       .fn()

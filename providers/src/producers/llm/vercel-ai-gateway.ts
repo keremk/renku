@@ -127,9 +127,13 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
             );
           }
 
+          const extras = request.context.extras as Record<string, unknown> | undefined;
           // 8. Build artifacts using implicit mapping
           const artifacts = buildArtifactsFromResponse(generation.data, request.produces, {
             producerId: request.jobId,
+            outputDefinitions: extras?.outputDefinitions as
+              | Record<string, import('@gorenku/core').BlueprintOutputDefinition>
+              | undefined,
           });
 
           // 9. Determine overall status

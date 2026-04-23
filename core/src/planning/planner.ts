@@ -140,15 +140,6 @@ export function createPlanner(options: PlannerOptions = {}) {
         latestArtifacts,
         artifactSnapshot.latestFailedIds
       );
-      const requiredConditionArtifactIds =
-        collectRequiredConditionArtifactIds(blueprint);
-      const missingConditionArtifacts =
-        determineMissingRequiredConditionArtifacts(
-          buildState,
-          requiredConditionArtifactIds,
-          latestArtifacts
-        );
-
       const metadata = buildGraphMetadata(blueprint);
       const conditionallyInactiveJobs = deriveConditionallyInactiveJobs(
         metadata,
@@ -337,6 +328,14 @@ export function createPlanner(options: PlannerOptions = {}) {
         blueprint,
         args.upToLayer
       );
+      const requiredConditionArtifactIds =
+        collectRequiredConditionArtifactIdsFromLayers(layers);
+      const missingConditionArtifacts =
+        determineMissingRequiredConditionArtifacts(
+          buildState,
+          requiredConditionArtifactIds,
+          latestArtifacts
+        );
       validateConditionArtifactsCanBeRegenerated(
         args.movieId,
         missingConditionArtifacts,
@@ -766,6 +765,30 @@ export function collectRequiredConditionArtifactIds(
       );
       for (const id of conditionIds) {
         ids.add(id);
+      }
+    }
+  }
+  return ids;
+}
+
+function collectRequiredConditionArtifactIdsFromLayers(
+  layers: ExecutionPlan['layers']
+): Set<string> {
+  const ids = new Set<string>();
+  for (const layer of layers) {
+    for (const job of layer) {
+      const inputConditions = job.context?.inputConditions;
+      if (!inputConditions) {
+        continue;
+      }
+      for (const conditionInfo of Object.values(inputConditions)) {
+        const conditionIds = extractConditionArtifactIds(
+          conditionInfo.condition,
+          conditionInfo.indices
+        );
+        for (const id of conditionIds) {
+          ids.add(id);
+        }
       }
     }
   }

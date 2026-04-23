@@ -350,6 +350,34 @@ describe('buildArtifactsFromJsonResponse', () => {
     expect(artifacts[0]?.status).toBe('succeeded');
   });
 
+  it('materializes the whole response for a declared json artifact even when no leaf fields are produced', () => {
+    const response = {
+      Segments: [
+        { Title: 'Intro' },
+        { Title: 'Middle' },
+      ],
+    };
+    const produces = ['Artifact:SourceDirector.AssetPlan'];
+
+    const artifacts = buildArtifactsFromJsonResponse(response, produces, {
+      producerId: 'Producer:SourceDirector',
+      outputDefinitions: {
+        AssetPlan: {
+          name: 'AssetPlan',
+          type: 'json',
+        },
+      },
+    });
+
+    expect(artifacts).toHaveLength(1);
+    expect(artifacts[0]?.status).toBe('succeeded');
+    expect(artifacts[0]?.blob?.data).toBe(JSON.stringify(response, null, 2));
+    expect(artifacts[0]?.diagnostics).toMatchObject({
+      kind: 'SourceDirector.AssetPlan',
+      responseScope: 'root_object',
+    });
+  });
+
   it('handles string response by returning it as-is', () => {
     const response = 'Plain text response';
     const produces = ['Artifact:TextOutput'];
@@ -390,6 +418,38 @@ describe('buildArtifactsFromJsonResponse', () => {
   });
 
   describe('decomposed JSON artifacts', () => {
+    it('materializes the whole response for the base parent artifact when leaf fields are also produced', () => {
+      const response = {
+        NarratorVoiceId: 'narrator-voice',
+        Experts: [
+          {
+            VoiceId: 'expert-voice-1',
+            CharacterSheetPrompt: 'expert one sheet',
+          },
+        ],
+      };
+
+      const produces = [
+        'Artifact:ExpertCastingDirector.ExpertSet',
+        'Artifact:ExpertCastingDirector.ExpertSet.NarratorVoiceId',
+        'Artifact:ExpertCastingDirector.ExpertSet.Experts[0].VoiceId',
+      ];
+
+      const artifacts = buildArtifactsFromJsonResponse(response, produces, {
+        producerId: 'Producer:ExpertCastingDirector',
+      });
+
+      expect(artifacts).toHaveLength(3);
+      expect(artifacts[0]?.status).toBe('succeeded');
+      expect(artifacts[0]?.blob?.data).toBe(JSON.stringify(response, null, 2));
+      expect(artifacts[0]?.diagnostics).toMatchObject({
+        kind: 'ExpertCastingDirector.ExpertSet',
+        responseScope: 'root_object',
+      });
+      expect(artifacts[1]?.blob?.data).toBe('narrator-voice');
+      expect(artifacts[2]?.blob?.data).toBe('expert-voice-1');
+    });
+
     it('extracts nested fields using JSON path for decomposed artifacts', () => {
       const response = {
         Title: 'Moon Landing Documentary',

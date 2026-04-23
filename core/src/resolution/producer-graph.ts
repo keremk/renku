@@ -1,5 +1,6 @@
 import type { CanonicalBlueprint } from './canonical-expander.js';
 import {
+  formatCanonicalArtifactId,
   formatCanonicalProducerId,
   formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalArtifactId,
@@ -9,6 +10,7 @@ import {
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { deriveProducerFamilyId } from '../orchestration/producer-overrides.js';
 import type {
+  BlueprintOutputDefinition,
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
   EdgeConditionClause,
@@ -183,6 +185,11 @@ export function createProducerGraph(
       nodeMap,
       catalog,
     });
+    const outputDefinitions = collectProducedOutputDefinitions({
+      producerId: node.id,
+      canonical,
+      nodeMap,
+    });
 
     const nodeContext = {
       namespacePath: node.namespacePath,
@@ -201,6 +208,7 @@ export function createProducerGraph(
           input: option.inputSchema,
           output: option.outputSchema,
         },
+        outputDefinitions,
         inputArtifactSources:
           Object.keys(inputArtifactSources).length > 0
             ? inputArtifactSources
@@ -362,6 +370,13 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
   for (const edge of canonical.edges) {
     if (isCanonicalArtifactId(edge.from)) {
       connected.add(edge.from);
+      continue;
+    }
+    if (edge.from.startsWith('Output:')) {
+      const parsedOutputId = parseCanonicalOutputId(edge.from);
+      connected.add(
+        formatCanonicalArtifactId(parsedOutputId.path, parsedOutputId.name)
+      );
     }
   }
 
@@ -411,6 +426,28 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
   }
 
   return connected;
+}
+
+function collectProducedOutputDefinitions(args: {
+  producerId: string;
+  canonical: CanonicalBlueprint;
+  nodeMap: Map<string, CanonicalBlueprint['nodes'][number]>;
+}): Record<string, BlueprintOutputDefinition> | undefined {
+  const { producerId, canonical, nodeMap } = args;
+  const definitions: Record<string, BlueprintOutputDefinition> = {};
+
+  for (const edge of canonical.edges) {
+    if (edge.from !== producerId || !isCanonicalArtifactId(edge.to)) {
+      continue;
+    }
+    const artifactNode = nodeMap.get(edge.to);
+    if (artifactNode?.type !== 'Artifact' || !artifactNode.artifact) {
+      continue;
+    }
+    definitions[artifactNode.name] = artifactNode.artifact;
+  }
+
+  return Object.keys(definitions).length > 0 ? definitions : undefined;
 }
 
 /**

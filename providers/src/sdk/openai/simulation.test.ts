@@ -7,7 +7,8 @@ import type { ProviderJobContext } from '../../types.js';
 import type { OpenAiLlmConfig } from './config.js';
 
 function createBasicRequest(
-  produces: string[] = ['Artifact:Producer.Output']
+  produces: string[] = ['Artifact:Producer.Output'],
+  context: ProviderJobContext['context'] = {}
 ): ProviderJobContext {
   return {
     jobId: 'test-job',
@@ -18,7 +19,7 @@ function createBasicRequest(
     attempt: 1,
     inputs: [],
     produces,
-    context: {},
+    context,
   };
 }
 
@@ -65,6 +66,141 @@ describe('simulateOpenAiGeneration', () => {
 
       expect(typeof result.data).toBe('string');
       expect(result.data).toContain('Simulated');
+    });
+
+    it('derives array lengths from declared output countInput metadata when produces are not decomposed', () => {
+      const request = createBasicRequest([], {
+        extras: {
+          resolvedInputs: {
+            'Input:SourceDirector.NumOfSegments': 3,
+          },
+          jobContext: {
+            inputBindings: {
+              NumOfSegments: 'Input:SourceDirector.NumOfSegments',
+            },
+          },
+          outputDefinitions: {
+            AssetPlan: {
+              name: 'AssetPlan',
+              type: 'json',
+              arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+            },
+          },
+        },
+      });
+      const config = createJsonSchemaConfig({
+        type: 'object',
+        properties: {
+          Segments: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                Title: { type: 'string' },
+              },
+            },
+          },
+        },
+      });
+
+      const result = simulateOpenAiGeneration({ request, config });
+
+      const data = result.data as {
+        Segments: Array<{ Title: string }>;
+      };
+      expect(data.Segments).toHaveLength(3);
+    });
+
+    it('keeps declared array lengths when sparse decomposed produces reference only a subset of items', () => {
+      const request = createBasicRequest(
+        [
+          'Artifact:SourceDirector.AssetPlan',
+          'Artifact:SourceDirector.AssetPlan.Segments[0].Title',
+        ],
+        {
+          extras: {
+            resolvedInputs: {
+              'Input:SourceDirector.NumOfSegments': 3,
+            },
+            jobContext: {
+              inputBindings: {
+                NumOfSegments: 'Input:SourceDirector.NumOfSegments',
+              },
+            },
+            outputDefinitions: {
+              AssetPlan: {
+                name: 'AssetPlan',
+                type: 'json',
+                arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+              },
+            },
+          },
+        }
+      );
+      const config = createJsonSchemaConfig({
+        type: 'object',
+        properties: {
+          Segments: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                Title: { type: 'string' },
+              },
+            },
+          },
+        },
+      });
+
+      const result = simulateOpenAiGeneration({ request, config });
+
+      const data = result.data as {
+        Segments: Array<{ Title: string }>;
+      };
+      expect(data.Segments).toHaveLength(3);
+    });
+
+    it('fails when produced artifact indices exceed the declared array count', () => {
+      const request = createBasicRequest(
+        ['Artifact:SourceDirector.AssetPlan.Segments[3].Title'],
+        {
+          extras: {
+            resolvedInputs: {
+              'Input:SourceDirector.NumOfSegments': 3,
+            },
+            jobContext: {
+              inputBindings: {
+                NumOfSegments: 'Input:SourceDirector.NumOfSegments',
+              },
+            },
+            outputDefinitions: {
+              AssetPlan: {
+                name: 'AssetPlan',
+                type: 'json',
+                arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+              },
+            },
+          },
+        }
+      );
+      const config = createJsonSchemaConfig({
+        type: 'object',
+        properties: {
+          Segments: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                Title: { type: 'string' },
+              },
+            },
+          },
+        },
+      });
+
+      expect(() => simulateOpenAiGeneration({ request, config })).toThrow(
+        'Simulation array length mismatch for field "Segments" at dimension 0. Declared count is 3, but produced artifacts require at least 4.'
+      );
     });
   });
 

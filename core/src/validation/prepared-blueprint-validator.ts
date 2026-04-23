@@ -227,12 +227,7 @@ function shouldValidatePreparedProducerOutputReference(
   }
 
   const { segments } = parseReference(reference);
-  const artifactSegment = segments[1];
-  if (!artifactSegment) {
-    return false;
-  }
-
-  return segments.length > 2 || artifactSegment.includes('[');
+  return segments.length >= 2;
 }
 
 function referenceResolvesToPreparedNode(

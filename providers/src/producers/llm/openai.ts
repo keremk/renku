@@ -107,9 +107,13 @@ export function createOpenAiLlmHandler(): HandlerFactory {
           conditionHints,
         });
 
+        const extras = request.context.extras as Record<string, unknown> | undefined;
         // 5. Build artifacts using implicit mapping
         const artifacts = buildArtifactsFromResponse(generation.data, request.produces, {
           producerId: request.jobId,
+          outputDefinitions: extras?.outputDefinitions as
+            | Record<string, import('@gorenku/core').BlueprintOutputDefinition>
+            | undefined,
         });
 
         // 6. Determine overall status

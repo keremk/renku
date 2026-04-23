@@ -3,6 +3,7 @@ import type {
   BlueprintGraphNode,
   BlueprintGraphEdge,
 } from './canonical-graph.js';
+import type { DimensionSelector } from '../parsing/dimension-selectors.js';
 import type {
   BlueprintOutputDefinition,
   BlueprintInputDefinition,
@@ -733,6 +734,63 @@ function edgeInstancesAlign(
   const toSymbols = edge.to.dimensions;
   const fromSelectors = edge.from.selectors;
   const toSelectors = edge.to.selectors;
+
+  const fromEntries = collectAlignmentEntries(
+    fromSymbols,
+    fromSelectors,
+    fromNode
+  );
+  const toEntries = collectAlignmentEntries(toSymbols, toSelectors, toNode);
+
+  for (const entry of [...fromEntries.values(), ...toEntries.values()]) {
+    if (entry.selector?.kind === 'const' && entry.index !== entry.selector.value) {
+      return false;
+    }
+  }
+
+  const sharedReferences = Array.from(fromEntries.keys()).filter((reference) =>
+    toEntries.has(reference)
+  );
+  if (sharedReferences.length === 0) {
+    return edgeInstancesAlignByPosition(
+      edge,
+      fromNode,
+      toNode,
+      fromSymbols,
+      toSymbols,
+      fromSelectors,
+      toSelectors
+    );
+  }
+
+  for (const [reference, fromEntry] of fromEntries.entries()) {
+    const toEntry = toEntries.get(reference);
+    if (!toEntry) {
+      continue;
+    }
+
+    const fromOffset =
+      fromEntry.selector?.kind === 'loop' ? fromEntry.selector.offset : 0;
+    const toOffset =
+      toEntry.selector?.kind === 'loop' ? toEntry.selector.offset : 0;
+
+    if (fromEntry.index - fromOffset !== toEntry.index - toOffset) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function edgeInstancesAlignByPosition(
+  edge: BlueprintGraphEdge,
+  fromNode: CanonicalNodeInstance,
+  toNode: CanonicalNodeInstance,
+  fromSymbols: string[],
+  toSymbols: string[],
+  fromSelectors: (DimensionSelector | undefined)[] | undefined,
+  toSelectors: (DimensionSelector | undefined)[] | undefined
+): boolean {
   const limit = Math.max(fromSymbols.length, toSymbols.length);
 
   for (let i = 0; i < limit; i += 1) {
@@ -748,13 +806,6 @@ function edgeInstancesAlign(
 
     const fromSelector = fromSymbol ? fromSelectors?.[i] : undefined;
     const toSelector = toSymbol ? toSelectors?.[i] : undefined;
-
-    if (fromSelector?.kind === 'const' && fromIndex !== fromSelector.value) {
-      return false;
-    }
-    if (toSelector?.kind === 'const' && toIndex !== toSelector.value) {
-      return false;
-    }
 
     if (fromIndex === undefined || toIndex === undefined) {
       continue;
@@ -779,6 +830,44 @@ function edgeInstancesAlign(
   }
 
   return true;
+}
+
+function collectAlignmentEntries(
+  symbols: string[],
+  selectors: (DimensionSelector | undefined)[] | undefined,
+  node: CanonicalNodeInstance
+): Map<
+  string,
+  {
+    index: number;
+    selector: DimensionSelector | undefined;
+  }
+> {
+  const entries = new Map<
+    string,
+    {
+      index: number;
+      selector: DimensionSelector | undefined;
+    }
+  >();
+
+  for (let i = 0; i < symbols.length; i += 1) {
+    const symbol = symbols[i];
+    if (!symbol) {
+      continue;
+    }
+
+    const index = getDimensionValue(node.indices, symbol);
+    const selector = selectors?.[i];
+    const reference = getSelectorReferenceLabel(symbol, selector);
+    if (reference === undefined) {
+      continue;
+    }
+
+    entries.set(reference, { index, selector });
+  }
+
+  return entries;
 }
 
 function getSelectorReferenceLabel(
@@ -964,9 +1053,13 @@ function collapseInputNodes(
       return when;
     }
 
-    let materialized = when;
+    const indicesByLabel = new Map<string, number>();
     for (const [symbol, index] of Object.entries(indices)) {
-      const label = extractDimensionLabel(symbol);
+      indicesByLabel.set(extractDimensionLabel(symbol), index);
+    }
+
+    let materialized = when;
+    for (const [label, index] of indicesByLabel.entries()) {
       materialized = materialized.replaceAll(`[${label}]`, `[${index}]`);
     }
 

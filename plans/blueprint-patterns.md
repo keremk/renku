@@ -6,14 +6,15 @@ This document provides some examples for what kind of blueprints can be created 
 
 | Pattern               | Use Case                        | Key Producers                                                     | Loop Structure                   |
 | --------------------- | ------------------------------- | ----------------------------------------------------------------- | -------------------------------- |
-| **audio-only**        | Podcast, narration, audiobook   | Script, Audio                                                     | `segment`                        |
-| **video-only**        | Video clips from prompts        | Script, VideoPrompt, Video                                        | `segment`                        |
-| **image-only**        | Slideshow, image gallery        | Script, ImagePrompt, Image                                        | `segment.image`                  |
-| **kenn-burns**        | Documentary with images + audio | Script, ImagePrompt, Image, Audio, Timeline                       | `segment.image`                  |
-| **cut-scene-video**   | Full production with export     | Script, VideoPrompt, Video, Audio, Music, Timeline, VideoExporter | `segment`                        |
-| **image-to-video**    | Flowing video from images       | FlowVideoPrompt, Image, ImageToVideo                              | `segment`, `image` (with offset) |
-| **music-only**        | Background music generation     | Script, MusicPrompt, Music                                        | none                             |
-| **condition-example** | Conditional branching           | Various with conditions                                           | `segment`                        |
+| **audio-only**        | Podcast, narration, audiobook                | Script, Audio                                                     | `segment`                        |
+| **video-only**        | Video clips from prompts                     | Script, VideoPrompt, Video                                        | `segment`                        |
+| **image-only**        | Slideshow, image gallery                     | Script, ImagePrompt, Image                                        | `segment.image`                  |
+| **asset-only**        | Reusable asset pack for later composition    | Directors, Image, Video, Audio, JSON plan outputs                 | `segment`, optional nested loops |
+| **kenn-burns**        | Documentary with images + audio              | Script, ImagePrompt, Image, Audio, Timeline                       | `segment.image`                  |
+| **cut-scene-video**   | Full production with export                  | Script, VideoPrompt, Video, Audio, Music, Timeline, VideoExporter | `segment`                        |
+| **image-to-video**    | Flowing video from images                    | FlowVideoPrompt, Image, ImageToVideo                              | `segment`, `image` (with offset) |
+| **music-only**        | Background music generation                  | Script, MusicPrompt, Music                                        | none                             |
+| **condition-example** | Conditional branching                        | Various with conditions                                           | `segment`                        |
 
 ---
 
@@ -105,7 +106,32 @@ Narrative Producer → NarrationScript[segment]
 
 ---
 
-### 5. Video with Cut Scenes(video-audio-music)
+### 5. Asset Only Pipeline
+
+**Use when**: You want Renku to stop after creating reusable artifacts and planning metadata, and a separate compositor or agent will assemble the final video later.
+
+**Workflow**:
+
+```
+Director Producers → JSON plan + character/reference sets
+                  ├→ Image producers
+                  ├→ Video producers
+                  ├→ Audio producers
+                  └→ Published markdown/JSON outputs for downstream assembly
+```
+
+**Key behavior**:
+
+- No timeline composer is required.
+- No video exporter is required.
+- Top-level blueprint outputs are the deliverable.
+- Structured JSON outputs can be published alongside media artifacts for later orchestration.
+
+**Typical outputs**: `ScenePlanMarkdown`, `AssetPlan`, character/reference JSON, image arrays, video arrays, audio arrays
+
+---
+
+### 6. Video with Cut Scenes(video-audio-music)
 
 **Use when**: Uses the movie cut scene techniques to produce video from video clips (with individual cut scenes), audio narration, music. Best for animated movies.
 
@@ -128,7 +154,7 @@ Narrative Producer → NarrationScript[segment]
 
 ---
 
-### 6. Video that flows from segment to segment.
+### 7. Video that flows from segment to segment.
 
 **Use when**: Best for creating videos with seamless transitions between the clips, single shot movies where the full movie flows as if it is continuous shot.
 
@@ -159,7 +185,7 @@ Narrative Producer → ImagePrompts[], VideoPrompts[]
 
 ---
 
-### 7. Video that has a mix of KennBurns effects and Video using Conditional Routing
+### 8. Video that has a mix of KennBurns effects and Video using Conditional Routing
 
 **Use when** : Best for creating documentaries which has a mixture of image/audio narrative segments and video segments with people (experts etc.) providing important information mostly as a talking head.
 
@@ -169,6 +195,6 @@ Narrative Producer → ImagePrompts[], VideoPrompts[]
 
 ## Choosing a Pattern
 
-The above examples demonstrates different types of movie generation based on needs. Those are just examples to demonstrate usage. You can create movies that are mix of those techniques or just adopt the technique most suitable for the user's desired output. The narrative producer and potential subsequent prompt generators need to be figured out based on the context of the movie to be produced, the examples are there just for illustrative purposes.
+The above examples demonstrate different blueprint end states, not just different media types. Some workflows stop at reusable assets and metadata, while others continue through timeline composition and final export. You can mix those techniques based on the user's real goal rather than assuming every blueprint must end in a rendered video.
 
 ---

@@ -1,5 +1,10 @@
 import { Buffer } from 'node:buffer';
-import { isCanonicalArtifactId, readJsonPath, type ProducedArtifact } from '@gorenku/core';
+import {
+  isCanonicalArtifactId,
+  readJsonPath,
+  type BlueprintOutputDefinition,
+  type ProducedArtifact,
+} from '@gorenku/core';
 import type { ProviderMode } from '../../types.js';
 import {
   detectRequiredExtractions,
@@ -32,6 +37,7 @@ export interface BuildArtifactsOptions {
 export interface BuildArtifactFromJsonOptions {
   producerId?: string;
   namespaceOrdinalDepth?: number;
+  outputDefinitions?: Record<string, BlueprintOutputDefinition>;
 }
 
 export interface BuildJsonArtifactsOptions {
@@ -97,6 +103,7 @@ export interface ParsedArtifactIdentifier {
 interface ArtifactExtractionContext {
   skipNamespaceOrdinals: number;
   parentArtifactName?: string;
+  outputDefinitions?: Record<string, BlueprintOutputDefinition>;
 }
 
 /**
@@ -352,6 +359,7 @@ export function buildArtifactsFromJsonResponse(
   const context: ArtifactExtractionContext = {
     skipNamespaceOrdinals: resolveNamespaceOrdinalDepth(options),
     parentArtifactName: detectParentArtifactName(produces),
+    outputDefinitions: options.outputDefinitions,
   };
 
   for (const artifactId of produces) {
@@ -460,6 +468,34 @@ function buildSingleArtifact(
   }
 
   diagnostics.kind = parsed.kind;
+
+  if (shouldMaterializeWholeResponse(parsed, context)) {
+    const materialized = materializeValue(response);
+    if (!materialized.success) {
+      return {
+        artifactId,
+        status: 'failed',
+        diagnostics: {
+          ...diagnostics,
+          reason: 'materialization_failed',
+          error: materialized.error,
+        },
+      };
+    }
+
+    return {
+      artifactId,
+      status: 'succeeded',
+      blob: {
+        data: materialized.text ?? '',
+        mimeType: 'text/plain',
+      },
+      diagnostics: {
+        ...diagnostics,
+        responseScope: 'root_object',
+      },
+    };
+  }
 
   // For decomposed artifacts with JSON path, use readJsonPath
   if (parsed.jsonPath) {
@@ -624,6 +660,25 @@ export function parseArtifactIdentifier(
     index: Object.keys(index).length > 0 ? index : undefined,
     ordinal: ordinal.length > 0 ? ordinal : undefined,
   };
+}
+
+function shouldMaterializeWholeResponse(
+  parsed: ParsedArtifactIdentifier,
+  context: ArtifactExtractionContext,
+): boolean {
+  if (parsed.jsonPath) {
+    return false;
+  }
+
+  if (
+    context.parentArtifactName &&
+    parsed.baseName === context.parentArtifactName
+  ) {
+    return true;
+  }
+
+  const definition = context.outputDefinitions?.[parsed.baseName];
+  return definition?.type === 'json';
 }
 
 function escapeRegex(str: string): string {

@@ -1085,6 +1085,90 @@ describe('createProducerGraph', () => {
       expect(videoProducer.produces).not.toContain('Artifact:VideoProducer.LastFrame');
     });
 
+    it('keeps base JSON artifacts when a whole-object output connector feeds another producer', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:SourceDirector',
+            type: 'Producer',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'SourceDirector',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:SourceDirector.AssetPlan',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['SourceDirector'],
+            name: 'AssetPlan',
+            indices: {},
+            dimensions: [],
+            artifact: {
+              name: 'AssetPlan',
+              type: 'json',
+              arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+            },
+          },
+          {
+            id: 'Output:SourceDirector.AssetPlan',
+            type: 'Output',
+            producerAlias: '',
+            namespacePath: ['SourceDirector'],
+            name: 'AssetPlan',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Producer:DownstreamDirector',
+            type: 'Producer',
+            producerAlias: 'ScriptProducer',
+            namespacePath: [],
+            name: 'DownstreamDirector',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          { from: 'Producer:SourceDirector', to: 'Artifact:SourceDirector.AssetPlan' },
+          { from: 'Output:SourceDirector.AssetPlan', to: 'Producer:DownstreamDirector' },
+        ],
+        inputBindings: {
+          'Producer:DownstreamDirector': {
+            AssetPlan: 'Artifact:SourceDirector.AssetPlan',
+          },
+        },
+        outputSources: {},
+        outputSourceBindings: [],
+        fanIn: {},
+      };
+
+      const options = createDefaultOptions(['TestProducer', 'ScriptProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      const sourceProducer = result.nodes.find(
+        (node) => node.jobId === 'Producer:SourceDirector'
+      )!;
+      const downstreamProducer = result.nodes.find(
+        (node) => node.jobId === 'Producer:DownstreamDirector'
+      )!;
+      const extras = sourceProducer.context!.extras as {
+        outputDefinitions?: Record<
+          string,
+          { arrays?: Array<{ path: string; countInput: string }> }
+        >;
+      };
+
+      expect(sourceProducer.produces).toContain('Artifact:SourceDirector.AssetPlan');
+      expect(extras.outputDefinitions?.AssetPlan?.arrays).toEqual([
+        { path: 'Segments', countInput: 'NumOfSegments' },
+      ]);
+      expect(downstreamProducer.context?.inputBindings).toEqual({
+        AssetPlan: 'Artifact:SourceDirector.AssetPlan',
+      });
+    });
+
     it('includes artifacts connected via chain to another producer', () => {
       // VideoProducer[0] -> LastFrame[0] -> VideoProducer[1]
       // Producer artifacts have non-empty namespace paths

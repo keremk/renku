@@ -1020,6 +1020,19 @@ describe('findUnusedInputs', () => {
       })
     );
   });
+
+  it('does not warn on declared producer-contract inputs inside producer blueprints', () => {
+    const doc = createDocument({
+      meta: { kind: 'producer' },
+      inputs: [{ name: 'NumOfSegments', type: 'number', required: true }],
+      outputs: [{ name: 'AssetPlan', type: 'json', required: true }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = findUnusedInputs(tree);
+
+    expect(issues).toHaveLength(0);
+  });
 });
 
 describe('findUnusedArtifacts', () => {
@@ -1042,6 +1055,18 @@ describe('findUnusedArtifacts', () => {
         message: expect.stringContaining('UnusedArtifact'),
       })
     );
+  });
+
+  it('does not warn on declared producer-contract outputs inside producer blueprints', () => {
+    const doc = createDocument({
+      meta: { kind: 'producer' },
+      outputs: [{ name: 'AssetPlan', type: 'json', required: true }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = findUnusedArtifacts(tree);
+
+    expect(issues).toHaveLength(0);
   });
 });
 

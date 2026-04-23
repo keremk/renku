@@ -87,7 +87,8 @@ async function resolveValueBySchema(
   options: ResolveProviderFileInputsOptions,
   valuePath: string
 ): Promise<unknown> {
-  if (isUriFieldSchema(schema)) {
+  const uriSchema = getUriFieldSchema(schema);
+  if (uriSchema) {
     if (isBlobLikeInput(value)) {
       return resolveBlobValueToUrl(value, options, valuePath);
     }
@@ -190,6 +191,37 @@ function isUriFieldSchema(schema: Record<string, unknown>): boolean {
   return typeof schema.format === 'string' && schema.format === 'uri';
 }
 
+function getUriFieldSchema(
+  schema: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  if (isUriFieldSchema(schema)) {
+    return schema;
+  }
+
+  const variants = readSchemaVariants(schema);
+  if (!variants) {
+    return undefined;
+  }
+
+  return variants.find((variant) => isUriFieldSchema(variant));
+}
+
+function readSchemaVariants(
+  schema: Record<string, unknown>
+): Record<string, unknown>[] | undefined {
+  const rawAnyOf = schema.anyOf;
+  if (Array.isArray(rawAnyOf)) {
+    return rawAnyOf.filter(isSchemaRecord);
+  }
+
+  const rawOneOf = schema.oneOf;
+  if (Array.isArray(rawOneOf)) {
+    return rawOneOf.filter(isSchemaRecord);
+  }
+
+  return undefined;
+}
+
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return (
     typeof value === 'object' &&
@@ -198,6 +230,10 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
     !(value instanceof Uint8Array) &&
     !Buffer.isBuffer(value)
   );
+}
+
+function isSchemaRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
 function isBlobLikeInput(value: unknown): value is BlobLikeInput {

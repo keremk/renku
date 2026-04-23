@@ -1292,6 +1292,13 @@ export function findUnusedInputs(tree: BlueprintTreeNode): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
+    if (node.document.meta.kind === 'producer') {
+      for (const child of node.children.values()) {
+        validateTree(child);
+      }
+      return;
+    }
+
     const usedInputs = new Set<string>();
 
     // Collect input references from edges
@@ -1387,6 +1394,13 @@ export function findUnusedArtifacts(
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
+    if (node.document.meta.kind === 'producer') {
+      for (const child of node.children.values()) {
+        validateTree(child);
+      }
+      return;
+    }
+
     const usedArtifacts = new Set<string>();
 
     // Collect artifact references from edges (as 'to' targets)

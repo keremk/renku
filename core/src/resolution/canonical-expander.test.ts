@@ -655,6 +655,153 @@ describe('expandBlueprintGraph', () => {
     expect(condition.is).toBe(true);
   });
 
+  it('resolves duplicate loop labels in edge conditions using the target job indices', () => {
+    const castDoc: BlueprintDocument = {
+      meta: { id: 'CastProducer', name: 'CastProducer', kind: 'producer' },
+      inputs: [{ name: 'NumOfExperts', type: 'int', required: true }],
+      outputs: [
+        {
+          name: 'VoiceId',
+          type: 'array',
+          itemType: 'string',
+          countInput: 'NumOfExperts',
+        },
+      ],
+      producers: [{ name: 'CastProducer', provider: 'openai', model: 'gpt' }],
+      imports: [],
+      loops: [{ name: 'expert', countInput: 'NumOfExperts' }],
+      edges: [
+        { from: 'NumOfExperts', to: 'CastProducer' },
+        { from: 'CastProducer', to: 'VoiceId[expert]' },
+      ],
+    };
+
+    const talkingHeadDoc: BlueprintDocument = {
+      meta: { id: 'TalkingHeadAudioProducer', name: 'TalkingHeadAudioProducer', kind: 'producer' },
+      inputs: [
+        { name: 'Text', type: 'string', required: true },
+        { name: 'VoiceId', type: 'string', required: true },
+      ],
+      outputs: [{ name: 'GeneratedAudio', type: 'audio' }],
+      producers: [
+        { name: 'TalkingHeadAudioProducer', provider: 'elevenlabs', model: 'eleven_v3' },
+      ],
+      imports: [],
+      edges: [
+        { from: 'Text', to: 'TalkingHeadAudioProducer' },
+        { from: 'VoiceId', to: 'TalkingHeadAudioProducer' },
+        { from: 'TalkingHeadAudioProducer', to: 'GeneratedAudio' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [
+        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfExperts', type: 'int', required: true },
+        { name: 'TalkingHeadText', type: 'multiDimArray', itemType: 'string', required: true },
+        { name: 'UseThisExpert', type: 'multiDimArray', itemType: 'boolean', required: true },
+      ],
+      outputs: [],
+      producers: [],
+      imports: [
+        {
+          name: 'CastProducer',
+          path: './CastProducer/producer.yaml',
+        },
+        {
+          name: 'TalkingHeadAudioProducer',
+          path: './TalkingHeadAudioProducer/producer.yaml',
+          loop: 'segment.expert',
+        },
+      ],
+      loops: [
+        { name: 'segment', countInput: 'NumOfSegments' },
+        { name: 'expert', countInput: 'NumOfExperts' },
+      ],
+      edges: [
+        { from: 'NumOfExperts', to: 'CastProducer.NumOfExperts' },
+        {
+          from: 'TalkingHeadText[segment][expert]',
+          to: 'TalkingHeadAudioProducer[segment][expert].Text',
+          conditions: { when: 'UseThisExpert[segment][expert]', is: true },
+        },
+        {
+          from: 'CastProducer.VoiceId[expert]',
+          to: 'TalkingHeadAudioProducer[segment][expert].VoiceId',
+          conditions: { when: 'UseThisExpert[segment][expert]', is: true },
+        },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'CastProducer',
+          {
+            id: 'CastProducer',
+            namespacePath: ['CastProducer'],
+            document: castDoc,
+            children: new Map(),
+            sourcePath: '/test/CastProducer/producer.yaml',
+          },
+        ],
+        [
+          'TalkingHeadAudioProducer',
+          {
+            id: 'TalkingHeadAudioProducer',
+            namespacePath: ['TalkingHeadAudioProducer'],
+            document: talkingHeadDoc,
+            children: new Map(),
+            sourcePath: '/test/TalkingHeadAudioProducer/producer.yaml',
+          },
+        ],
+      ]),
+      sourcePath: '/test/root.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:NumOfSegments': 2,
+        'Input:NumOfExperts': 2,
+        'Input:TalkingHeadText': [
+          ['text-0-0', 'text-0-1'],
+          ['text-1-0', 'text-1-1'],
+        ],
+        'Input:UseThisExpert': [
+          [true, false],
+          [false, true],
+        ],
+      },
+      inputSources
+    );
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    const matchingVoiceEdge = expanded.edges.find(
+      (edge) =>
+        edge.from === 'Artifact:CastProducer.VoiceId[0]' &&
+        edge.to === 'Producer:TalkingHeadAudioProducer[1][0]'
+    );
+    const mismatchedVoiceEdge = expanded.edges.find(
+      (edge) =>
+        edge.from === 'Artifact:CastProducer.VoiceId[0]' &&
+        edge.to === 'Producer:TalkingHeadAudioProducer[0][1]'
+    );
+
+    expect(matchingVoiceEdge).toBeDefined();
+    expect(matchingVoiceEdge?.conditions).toEqual({
+      when: 'UseThisExpert[1][0]',
+      is: true,
+    });
+    expect(mismatchedVoiceEdge).toBeUndefined();
+  });
+
   it('handles input aliases correctly', () => {
     // Test input aliasing - when a parent blueprint routes its input to a child input
     const childDoc: BlueprintDocument = {
