@@ -237,6 +237,43 @@ describe('validateBlueprintTree', () => {
     );
   });
 
+  it('rejects required producer inputs with no connections when the producer output is used', () => {
+    const producer = createTreeNode(
+      createDocument({
+        meta: { id: 'VideoProducer', name: 'Video Producer', kind: 'producer' },
+        inputs: [
+          { name: 'Prompt', type: 'text', required: true },
+          { name: 'StartImage', type: 'image', required: true },
+        ],
+        outputs: [{ name: 'GeneratedVideo', type: 'video', required: true }],
+      }),
+      { namespacePath: ['VideoProducer'] }
+    );
+    const doc = createDocument({
+      outputs: [{ name: 'Video', type: 'video', required: true }],
+      imports: [{ name: 'VideoProducer', path: './video-producer.yaml' }],
+      edges: [{ from: 'VideoProducer.GeneratedVideo', to: 'Video' }],
+    });
+    const tree = createTreeNode(doc, {
+      children: new Map([['VideoProducer', producer]]),
+    });
+
+    const issues = validateRequiredInputConditionCoherence(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.REQUIRED_INPUT_CONDITION_INCOHERENT,
+        message: expect.stringContaining('VideoProducer.Prompt'),
+      })
+    );
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.REQUIRED_INPUT_CONDITION_INCOHERENT,
+        message: expect.stringContaining('VideoProducer.StartImage'),
+      })
+    );
+  });
+
   it('accepts required producer inputs that share the producer branch condition', () => {
     const producer = createTreeNode(
       createDocument({
@@ -302,6 +339,70 @@ describe('validateBlueprintTree', () => {
           {
             name: 'text prompt branch',
             condition: 'textWorkflow',
+            requireGuardedConnections: [{ from: 'Prompt', to: 'PromptOut' }],
+          },
+        ],
+      },
+      edges: [{ from: 'Prompt', to: 'PromptOut' }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateSemanticRules(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.SEMANTIC_VALIDATION_RULE_FAILED,
+      })
+    );
+  });
+
+  it('rejects semantic rules with isNot conditions when required connections are unguarded', () => {
+    const doc = createDocument({
+      inputs: [
+        { name: 'Workflow', type: 'string', required: true },
+        { name: 'Prompt', type: 'text', required: true },
+      ],
+      outputs: [{ name: 'PromptOut', type: 'text', required: true }],
+      conditions: {
+        notReferenceWorkflow: { when: 'Workflow', isNot: 'Reference' },
+      },
+      validation: {
+        semanticRules: [
+          {
+            name: 'non-reference prompt branch',
+            condition: 'notReferenceWorkflow',
+            requireGuardedConnections: [{ from: 'Prompt', to: 'PromptOut' }],
+          },
+        ],
+      },
+      edges: [{ from: 'Prompt', to: 'PromptOut' }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateSemanticRules(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.SEMANTIC_VALIDATION_RULE_FAILED,
+      })
+    );
+  });
+
+  it('rejects semantic rules with exists conditions when required connections are unguarded', () => {
+    const doc = createDocument({
+      inputs: [
+        { name: 'ReferenceImage', type: 'image', required: false },
+        { name: 'Prompt', type: 'text', required: true },
+      ],
+      outputs: [{ name: 'PromptOut', type: 'text', required: true }],
+      conditions: {
+        hasReferenceImage: { when: 'ReferenceImage', exists: true },
+      },
+      validation: {
+        semanticRules: [
+          {
+            name: 'reference prompt branch',
+            condition: 'hasReferenceImage',
             requireGuardedConnections: [{ from: 'Prompt', to: 'PromptOut' }],
           },
         ],

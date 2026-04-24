@@ -62,6 +62,7 @@ connections:
     if: hasTranscriptionAudio
   - from: LanguageCode
     to: STTTimestamps[segment].LanguageCode
+    if: hasTranscriptionAudio
 
   - from: STTTimestamps[segment].RawTranscription
     to: STTNormalizer[segment].RawTranscription

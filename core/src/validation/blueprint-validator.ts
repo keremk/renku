@@ -1431,7 +1431,13 @@ export function validateRequiredInputConditionCoherence(
       }
 
       const activationEntries = producerActivation.get(producerName) ?? [];
-      if (activationEntries.length === 0) {
+      const hasOutgoingEdges = node.document.edges.some(
+        (edge) =>
+          !isLocalReference(edge.from) &&
+          targetsProducer(edge.from, producerNames) &&
+          parseReference(edge.from).baseName === producerName
+      );
+      if (activationEntries.length === 0 && !hasOutgoingEdges) {
         continue;
       }
 
@@ -1799,6 +1805,30 @@ function conditionItemToDnf(
 function conditionClauseToAtom(clause: EdgeConditionClause): string | undefined {
   if ('is' in clause) {
     return `${clause.when}::is::${JSON.stringify(clause.is)}`;
+  }
+  if ('isNot' in clause) {
+    return `${clause.when}::isNot::${JSON.stringify(clause.isNot)}`;
+  }
+  if ('contains' in clause) {
+    return `${clause.when}::contains::${JSON.stringify(clause.contains)}`;
+  }
+  if ('greaterThan' in clause) {
+    return `${clause.when}::greaterThan::${JSON.stringify(clause.greaterThan)}`;
+  }
+  if ('lessThan' in clause) {
+    return `${clause.when}::lessThan::${JSON.stringify(clause.lessThan)}`;
+  }
+  if ('greaterOrEqual' in clause) {
+    return `${clause.when}::greaterOrEqual::${JSON.stringify(clause.greaterOrEqual)}`;
+  }
+  if ('lessOrEqual' in clause) {
+    return `${clause.when}::lessOrEqual::${JSON.stringify(clause.lessOrEqual)}`;
+  }
+  if ('exists' in clause) {
+    return `${clause.when}::exists::${JSON.stringify(clause.exists)}`;
+  }
+  if ('matches' in clause) {
+    return `${clause.when}::matches::${JSON.stringify(clause.matches)}`;
   }
   return undefined;
 }

@@ -22,6 +22,7 @@ inputs:
     itemType: json
     dimensions: segment
     fanIn: true
+    required: false
 
 outputs:
   - name: Transcription

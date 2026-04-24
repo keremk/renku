@@ -165,7 +165,10 @@ export function createProducerGraph(
     for (const edge of incomingEdges) {
       if (edge.conditions && edge.indices) {
         inputConditions[edge.from] = {
-          condition: edge.conditions,
+          condition: resolveConditionOutputSources(
+            edge.conditions,
+            canonical.outputSources
+          ),
           indices: edge.indices,
         };
       }
@@ -187,7 +190,10 @@ export function createProducerGraph(
 
         if (bindingEdge?.conditions && bindingEdge.indices) {
           inputConditions[sourceId] = {
-            condition: bindingEdge.conditions,
+            condition: resolveConditionOutputSources(
+              bindingEdge.conditions,
+              canonical.outputSources
+            ),
             indices: bindingEdge.indices,
           };
         }
@@ -455,7 +461,7 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
   const conditionPatterns = extractConditionArtifactPatterns([
     ...canonical.edges,
     ...outputConditionEdges,
-  ]);
+  ], canonical.outputSources);
   for (const node of canonical.nodes) {
     if (node.type === 'Artifact' && !connected.has(node.id)) {
       // Check if this artifact matches any condition pattern
@@ -497,7 +503,10 @@ function collectProducedOutputDefinitions(args: {
  * Example: "DocProducer.VideoScript.Segments[segment].UseNarrationAudio"
  * Returns regex that treats symbolic indices as wildcards and numeric indices as exact.
  */
-function extractConditionArtifactPatterns(edges: CanonicalEdgeInstance[]): RegExp[] {
+function extractConditionArtifactPatterns(
+  edges: CanonicalEdgeInstance[],
+  outputSources: Record<string, string>
+): RegExp[] {
   const patterns: RegExp[] = [];
 
   for (const edge of edges) {
@@ -508,7 +517,7 @@ function extractConditionArtifactPatterns(edges: CanonicalEdgeInstance[]): RegEx
     const whenPaths = extractWhenPaths(edge.conditions);
     for (const whenPath of whenPaths) {
       // Convert the when path to a pattern that can match canonical artifact IDs
-      const pattern = whenPathToPattern(whenPath);
+      const pattern = whenPathToPattern(whenPath, outputSources);
       if (pattern) {
         patterns.push(pattern);
       }
@@ -551,6 +560,44 @@ function extractWhenPaths(condition: EdgeConditionDefinition): string[] {
   return paths;
 }
 
+function resolveConditionOutputSources(
+  condition: EdgeConditionDefinition,
+  outputSources: Record<string, string>
+): EdgeConditionDefinition {
+  if (Array.isArray(condition)) {
+    return condition.map((item) =>
+      resolveConditionOutputSources(item, outputSources)
+    ) as EdgeConditionDefinition;
+  }
+
+  if ('when' in condition) {
+    return {
+      ...condition,
+      when: outputSources[condition.when] ?? condition.when,
+    };
+  }
+
+  return {
+    ...condition,
+    ...(condition.all
+      ? {
+          all: condition.all.map((clause) => ({
+            ...clause,
+            when: outputSources[clause.when] ?? clause.when,
+          })),
+        }
+      : {}),
+    ...(condition.any
+      ? {
+          any: condition.any.map((clause) => ({
+            ...clause,
+            when: outputSources[clause.when] ?? clause.when,
+          })),
+        }
+      : {}),
+  };
+}
+
 /**
  * Converts a condition `when` path to a pattern for matching canonical artifact IDs.
  *
@@ -559,17 +606,26 @@ function extractWhenPaths(condition: EdgeConditionDefinition): string[] {
  * - Treats symbolic indices (e.g. [segment]) as wildcards that match numeric indices
  * - Keeps explicit numeric indices (e.g. [0]) exact
  */
-function whenPathToPattern(whenPath: string): RegExp | null {
+function whenPathToPattern(
+  whenPath: string,
+  outputSources: Record<string, string>
+): RegExp | null {
   if (isCanonicalInputId(whenPath)) {
     return null;
   }
-  if (!isCanonicalArtifactId(whenPath)) {
+  const resolvedPath = whenPath.startsWith('Output:')
+    ? outputSources[whenPath]
+    : whenPath;
+  if (!resolvedPath || isCanonicalInputId(resolvedPath)) {
+    return null;
+  }
+  if (!isCanonicalArtifactId(resolvedPath)) {
     throw createRuntimeError(
       RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-      `Edge condition path must be canonical Artifact ID (Artifact:...), received "${whenPath}".`
+      `Edge condition path must be canonical Artifact ID (Artifact:...), received "${resolvedPath}".`
     );
   }
-  const normalizedPath = whenPath.slice('Artifact:'.length);
+  const normalizedPath = resolvedPath.slice('Artifact:'.length);
   if (!normalizedPath) {
     return null;
   }
