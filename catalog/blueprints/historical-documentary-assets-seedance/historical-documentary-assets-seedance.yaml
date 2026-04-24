@@ -103,11 +103,6 @@ outputs:
     type: array
     itemType: video
     countInput: NumOfSegments
-  - name: ExpertCharacterSheets
-    description: Production-style expert model sheets with turnaround views and expression panels.
-    type: array
-    itemType: image
-    countInput: NumOfExperts
   - name: ExpertPortraits
     description: Canonical expert portrait images used as the consistent talking-head anchor.
     type: array
@@ -245,9 +240,6 @@ imports:
   - name: SeedanceMultiShotClipProducer
     path: ./motion/seedance-multishot-clip/producer.yaml
     loop: segment
-  - name: ExpertCharacterSheetProducer
-    producer: image/text-to-image
-    loop: expert
   - name: ExpertPortraitProducer
     producer: image/text-to-image
     loop: expert
@@ -324,13 +316,6 @@ connections:
     to: HistoricalCharacterSet
   - from: PlanDirector.AssetPlan.ScenePlanMarkdown
     to: ScenePlanMarkdown
-
-  - from: ExpertCastingDirector.ExpertSet.Experts[expert].CharacterSheetPrompt
-    to: ExpertCharacterSheetProducer[expert].Prompt
-  - from: Resolution
-    to: ExpertCharacterSheetProducer[expert].Resolution
-  - from: ExpertCharacterSheetProducer[expert].GeneratedImage
-    to: ExpertCharacterSheets[expert]
 
   - from: ExpertCastingDirector.ExpertSet.Experts[expert].PortraitPrompt
     to: ExpertPortraitProducer[expert].Prompt

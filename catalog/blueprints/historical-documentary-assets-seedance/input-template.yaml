@@ -48,10 +48,6 @@ models:
 
   - model: openai/gpt-image-2
     provider: fal-ai
-    producerId: ExpertCharacterSheetProducer
-
-  - model: openai/gpt-image-2
-    provider: fal-ai
     producerId: ExpertPortraitProducer
 
   - model: openai/gpt-image-2

@@ -1,6 +1,6 @@
 meta:
   name: Expert Casting Director
-  description: Casts the documentary narrator and recurring experts, including voice selection and reusable model-sheet and portrait prompts.
+  description: Casts the documentary narrator and recurring experts, including voice selection and reusable talking-head portrait prompts.
   id: ExpertCastingDirector
   kind: producer
   version: 0.1.0

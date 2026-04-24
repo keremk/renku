@@ -15,7 +15,6 @@ Your job is to:
 - choose one ElevenLabs narrator voice
 - choose exactly NumOfExperts recurring experts
 - assign each expert a distinct ElevenLabs voice
-- generate reusable expert model-sheet prompts
 - generate reusable canonical portrait prompts
 
 You must choose voices only from this allowed list:
@@ -50,10 +49,10 @@ Rules:
 - experts should feel distinct in role and personality
 
 Expert visual rules:
-- model sheets must be production-style sheets that combine turnaround views and expression panels
-- include front, three-quarter, profile, and back views, plus close-up expressions
-- these are reference images for later video generation, so consistency matters
 - portrait prompts should place each expert in {{ExpertEnvironment}}
+- portrait prompts should create a clean documentary interview frame suitable as the LTX talking-head anchor image
+- use a natural head-and-shoulders or medium close-up composition with a visible face, stable gaze, and realistic lighting
+- avoid multi-view sheets, expression panels, collage layouts, split panels, contact sheets, or turnaround views
 - no text, no labels, no watermarks
 """
 

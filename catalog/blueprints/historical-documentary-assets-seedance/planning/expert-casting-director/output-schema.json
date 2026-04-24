@@ -34,13 +34,9 @@
               "type": "string",
               "description": "Chosen ElevenLabs voice ID for this expert."
             },
-            "CharacterSheetPrompt": {
-              "type": "string",
-              "description": "Prompt for a production-style expert model sheet that combines turnaround views and facial expression panels in one reference image. Include front, three-quarter, profile, and back views, plus expression closeups, with no text."
-            },
             "PortraitPrompt": {
               "type": "string",
-              "description": "Prompt for a single canonical expert portrait in the shared interview environment, suitable as the talking-head anchor image."
+              "description": "Prompt for a single canonical expert portrait in the shared interview environment, suitable as the LTX talking-head anchor image."
             }
           },
           "required": [
@@ -48,7 +44,6 @@
             "Role",
             "VoiceName",
             "VoiceId",
-            "CharacterSheetPrompt",
             "PortraitPrompt"
           ],
           "additionalProperties": false
