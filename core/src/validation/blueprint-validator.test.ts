@@ -10,12 +10,14 @@ import {
   validateLoopCountInputs,
   validateArtifactCountInputs,
   validateConditionPaths,
+  validateConditionalArtifactAvailability,
   validateTypes,
   validateProducerCycles,
   validateDimensionConsistency,
   findUnusedInputs,
   findUnusedArtifacts,
   findUnreachableProducers,
+  findConditionallyUnusedProducerOutputs,
 } from './blueprint-validator.js';
 import { ValidationErrorCode } from './types.js';
 
@@ -193,6 +195,358 @@ describe('validateConnectionEndpoints', () => {
       expect.objectContaining({
         code: ValidationErrorCode.INVALID_NESTED_PATH,
         message: expect.stringContaining('undeclaredLoop'),
+      })
+    );
+  });
+});
+
+describe('validateConditionalArtifactAvailability', () => {
+  function createProducerContract(
+    name: string,
+    inputs: string[],
+    outputs: string[]
+  ): BlueprintTreeNode {
+    return createTreeNode(
+      createDocument({
+        meta: { id: name, name },
+        inputs: inputs.map((input) => ({
+          name: input,
+          type: 'string',
+          required: true,
+        })),
+        outputs: outputs.map((output) => ({
+          name: output,
+          type: 'string',
+          required: true,
+        })),
+      }),
+      { namespacePath: [name] }
+    );
+  }
+
+  it('errors when a conditional consumer is broader than the source producer branch', () => {
+    const doc = createDocument({
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      imports: [
+        { name: 'ImageProducer', path: './image.yaml' },
+        { name: 'VideoProducer', path: './video.yaml' },
+      ],
+      conditions: {
+        imageUsesPlainGeneration: {
+          when: 'Director.Plan.ImagePlans[0].UseHistoricalReference',
+          is: false,
+        },
+        motionIsStartEnd: {
+          when: 'Director.Plan.MotionPlan.Workflow',
+          is: 'StartEnd',
+        },
+      },
+      edges: [
+        {
+          from: 'Prompt',
+          to: 'ImageProducer.Prompt',
+          if: 'imageUsesPlainGeneration',
+        },
+        {
+          from: 'ImageProducer.GeneratedImage',
+          to: 'VideoProducer.StartImage',
+          if: 'motionIsStartEnd',
+        },
+      ],
+    });
+    const tree = createTreeNode(doc, {
+      children: new Map([
+        [
+          'ImageProducer',
+          createProducerContract('ImageProducer', ['Prompt'], ['GeneratedImage']),
+        ],
+        [
+          'VideoProducer',
+          createProducerContract('VideoProducer', ['StartImage'], ['GeneratedVideo']),
+        ],
+      ]),
+    });
+
+    const issues = validateConditionalArtifactAvailability(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.CONDITIONAL_INPUT_SOURCE_UNAVAILABLE,
+        severity: 'error',
+      })
+    );
+  });
+
+  it('accepts a consumer condition that includes the source producer branch', () => {
+    const doc = createDocument({
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      imports: [
+        { name: 'ImageProducer', path: './image.yaml' },
+        { name: 'VideoProducer', path: './video.yaml' },
+      ],
+      conditions: {
+        imageUsesPlainGeneration: {
+          when: 'Director.Plan.ImagePlans[0].UseHistoricalReference',
+          is: false,
+        },
+        motionIsStartEndWithPlainAnchor: {
+          all: [
+            {
+              when: 'Director.Plan.MotionPlan.Workflow',
+              is: 'StartEnd',
+            },
+            {
+              when: 'Director.Plan.ImagePlans[0].UseHistoricalReference',
+              is: false,
+            },
+          ],
+        },
+      },
+      edges: [
+        {
+          from: 'Prompt',
+          to: 'ImageProducer.Prompt',
+          if: 'imageUsesPlainGeneration',
+        },
+        {
+          from: 'ImageProducer.GeneratedImage',
+          to: 'VideoProducer.StartImage',
+          if: 'motionIsStartEndWithPlainAnchor',
+        },
+      ],
+    });
+    const tree = createTreeNode(doc, {
+      children: new Map([
+        [
+          'ImageProducer',
+          createProducerContract('ImageProducer', ['Prompt'], ['GeneratedImage']),
+        ],
+        [
+          'VideoProducer',
+          createProducerContract('VideoProducer', ['StartImage'], ['GeneratedVideo']),
+        ],
+      ]),
+    });
+
+    const issues = validateConditionalArtifactAvailability(tree);
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it('requires StartEnd consumers to include both plain anchor image branches', () => {
+    const createStartEndDocument = (
+      startEndCondition: NonNullable<BlueprintDocument['conditions']>[string]
+    ) =>
+      createDocument({
+        inputs: [{ name: 'Prompt', type: 'string', required: true }],
+        imports: [
+          { name: 'StartImageProducer', path: './start-image.yaml' },
+          { name: 'EndImageProducer', path: './end-image.yaml' },
+          { name: 'VideoProducer', path: './video.yaml' },
+        ],
+        conditions: {
+          startAnchorUsesPlainGeneration: {
+            when: 'Director.Plan.ImagePlans[0].UseHistoricalReference',
+            is: false,
+          },
+          endAnchorUsesPlainGeneration: {
+            when: 'Director.Plan.ImagePlans[1].UseHistoricalReference',
+            is: false,
+          },
+          motionIsStartEndWithPlainAnchors: startEndCondition,
+        },
+        edges: [
+          {
+            from: 'Prompt',
+            to: 'StartImageProducer.Prompt',
+            if: 'startAnchorUsesPlainGeneration',
+          },
+          {
+            from: 'Prompt',
+            to: 'EndImageProducer.Prompt',
+            if: 'endAnchorUsesPlainGeneration',
+          },
+          {
+            from: 'StartImageProducer.GeneratedImage',
+            to: 'VideoProducer.StartImage',
+            if: 'motionIsStartEndWithPlainAnchors',
+          },
+          {
+            from: 'EndImageProducer.GeneratedImage',
+            to: 'VideoProducer.EndImage',
+            if: 'motionIsStartEndWithPlainAnchors',
+          },
+        ],
+      });
+
+    const createStartEndTree = (document: BlueprintDocument) =>
+      createTreeNode(document, {
+        children: new Map([
+          [
+            'StartImageProducer',
+            createProducerContract('StartImageProducer', ['Prompt'], ['GeneratedImage']),
+          ],
+          [
+            'EndImageProducer',
+            createProducerContract('EndImageProducer', ['Prompt'], ['GeneratedImage']),
+          ],
+          [
+            'VideoProducer',
+            createProducerContract(
+              'VideoProducer',
+              ['StartImage', 'EndImage'],
+              ['GeneratedVideo']
+            ),
+          ],
+        ]),
+      });
+
+    const correctCondition = {
+      all: [
+        {
+          when: 'Director.Plan.MotionPlan.Workflow',
+          is: 'StartEnd',
+        },
+        {
+          when: 'Director.Plan.ImagePlans[0].UseHistoricalReference',
+          is: false,
+        },
+        {
+          when: 'Director.Plan.ImagePlans[1].UseHistoricalReference',
+          is: false,
+        },
+      ],
+    };
+    const missingStartAnchorCondition = {
+      all: [
+        {
+          when: 'Director.Plan.MotionPlan.Workflow',
+          is: 'StartEnd',
+        },
+        {
+          when: 'Director.Plan.ImagePlans[1].UseHistoricalReference',
+          is: false,
+        },
+      ],
+    };
+    const missingEndAnchorCondition = {
+      all: [
+        {
+          when: 'Director.Plan.MotionPlan.Workflow',
+          is: 'StartEnd',
+        },
+        {
+          when: 'Director.Plan.ImagePlans[0].UseHistoricalReference',
+          is: false,
+        },
+      ],
+    };
+
+    expect(
+      validateConditionalArtifactAvailability(
+        createStartEndTree(createStartEndDocument(correctCondition))
+      )
+    ).toHaveLength(0);
+
+    expect(
+      validateConditionalArtifactAvailability(
+        createStartEndTree(createStartEndDocument(missingStartAnchorCondition))
+      )
+    ).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.CONDITIONAL_INPUT_SOURCE_UNAVAILABLE,
+        message: expect.stringContaining('VideoProducer.StartImage'),
+        severity: 'error',
+      })
+    );
+
+    expect(
+      validateConditionalArtifactAvailability(
+        createStartEndTree(createStartEndDocument(missingEndAnchorCondition))
+      )
+    ).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.CONDITIONAL_INPUT_SOURCE_UNAVAILABLE,
+        message: expect.stringContaining('VideoProducer.EndImage'),
+        severity: 'error',
+      })
+    );
+  });
+});
+
+describe('findConditionallyUnusedProducerOutputs', () => {
+  function createProducerContract(
+    name: string,
+    inputs: string[],
+    outputs: string[]
+  ): BlueprintTreeNode {
+    return createTreeNode(
+      createDocument({
+        meta: { id: name, name },
+        inputs: inputs.map((input) => ({
+          name: input,
+          type: 'string',
+          required: true,
+        })),
+        outputs: outputs.map((output) => ({
+          name: output,
+          type: 'string',
+          required: true,
+        })),
+      }),
+      { namespacePath: [name] }
+    );
+  }
+
+  it('warns when a producer is active in branches with no active downstream consumer', () => {
+    const doc = createDocument({
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      imports: [
+        { name: 'PromptProducer', path: './prompt.yaml' },
+        { name: 'TextClipProducer', path: './text.yaml' },
+      ],
+      conditions: {
+        motionEnabled: {
+          when: 'Director.Plan.MotionPlan.Enabled',
+          is: true,
+        },
+        motionIsText: {
+          when: 'Director.Plan.MotionPlan.Workflow',
+          is: 'Text',
+        },
+      },
+      edges: [
+        {
+          from: 'Prompt',
+          to: 'PromptProducer.Subject',
+          if: 'motionEnabled',
+        },
+        {
+          from: 'PromptProducer.Prompt',
+          to: 'TextClipProducer.Prompt',
+          if: 'motionIsText',
+        },
+      ],
+    });
+    const tree = createTreeNode(doc, {
+      children: new Map([
+        [
+          'PromptProducer',
+          createProducerContract('PromptProducer', ['Subject'], ['Prompt']),
+        ],
+        [
+          'TextClipProducer',
+          createProducerContract('TextClipProducer', ['Prompt'], ['Video']),
+        ],
+      ]),
+    });
+
+    const issues = findConditionallyUnusedProducerOutputs(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.CONDITIONAL_PRODUCER_OUTPUT_UNUSED,
+        severity: 'warning',
       })
     );
   });

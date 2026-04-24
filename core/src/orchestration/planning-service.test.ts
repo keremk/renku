@@ -14,6 +14,7 @@ import {
   applyOutputSchemasToBlueprintTree,
   createPlanningService,
   injectDerivedInputs,
+  validateScheduledJobArtifactDependencies,
   type ProviderOptionEntry,
   type PendingArtifactDraft,
 } from './planning-service.js';
@@ -1673,6 +1674,63 @@ describe('createPlanningService', () => {
       });
     });
 
+    it('fails with R137 when conditional scheduling leaves an active job without its source artifact', () => {
+      let thrown: unknown;
+      try {
+        validateScheduledJobArtifactDependencies({
+          movieId,
+          producerGraph: {
+            nodes: [
+              {
+                jobId: 'Producer:DownstreamProducer',
+                producer: 'DownstreamProducer',
+                inputs: ['Artifact:UpstreamProducer.Intermediate'],
+                produces: ['Artifact:DownstreamProducer.FinalOutput'],
+                provider: 'openai',
+                providerModel: 'gpt-4o',
+                rateKey: 'openai-gpt4o',
+                context: {
+                  namespacePath: [],
+                  indices: {},
+                  producerAlias: 'DownstreamProducer',
+                  producerId: 'Producer:DownstreamProducer',
+                  inputs: ['Artifact:UpstreamProducer.Intermediate'],
+                  produces: ['Artifact:DownstreamProducer.FinalOutput'],
+                  inputConditions: {
+                    'Artifact:UpstreamProducer.Intermediate': {
+                      condition: { when: 'Input:Workflow', is: 'StartEnd' },
+                      indices: {},
+                    },
+                  },
+                },
+              },
+            ],
+            edges: [],
+          },
+          scheduledJobIds: new Set(['Producer:DownstreamProducer']),
+          buildState: {
+            revision: DRAFT_REVISION_ID,
+            baseRevision: null,
+            createdAt: new Date().toISOString(),
+            inputs: {},
+            artifacts: {},
+            timeline: {},
+          },
+          latestSuccessfulArtifactIds: new Set(),
+          resolvedConditionInputs: {
+            'Input:Workflow': 'StartEnd',
+          },
+        });
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toMatchObject({
+        code: RuntimeErrorCode.PRODUCER_OVERRIDE_DEPENDENCY_MISSING,
+        message: expect.stringContaining('not available or scheduled'),
+      });
+    });
+
     it('does not fail with R137 when blocked dependencies are outside upToLayer scope', async () => {
       const service = createPlanningService();
       const buildStateService = createBuildStateService(storage);
@@ -1703,6 +1761,35 @@ describe('createPlanningService', () => {
       expect(result.plan.layers.flat().map((job) => job.jobId)).not.toContain(
         'Producer:DownstreamProducer'
       );
+    });
+
+    it('does not validate later-layer dependencies during normal upToLayer execution', async () => {
+      const service = createPlanningService();
+      const buildStateService = createBuildStateService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createDependencyBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions([
+          'UpstreamProducer',
+          'DownstreamProducer',
+        ]),
+        storage,
+        buildStateService,
+        eventLog,
+        userControls: {
+          scope: {
+            upToLayer: 0,
+          },
+        },
+      });
+
+      const scheduledJobIds = result.plan.layers.flat().map((job) => job.jobId);
+      expect(scheduledJobIds).toEqual(['Producer:UpstreamProducer']);
+      expect(scheduledJobIds).not.toContain('Producer:DownstreamProducer');
     });
 
     it('does not fail with R137 when required upstream artifacts are already reusable', async () => {

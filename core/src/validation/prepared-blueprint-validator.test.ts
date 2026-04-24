@@ -114,6 +114,32 @@ describe('validatePreparedBlueprintTree', () => {
     expect(result.validation.errors).toHaveLength(0);
   });
 
+  it('accepts fixed item condition references for schema-derived array fields', async () => {
+    const blueprintPath = await createPreparedValidationFixture({
+      rootBlueprintReplacements: [
+        [
+          'DocProducer.VideoScript.Segments[segment].NarrationType',
+          'DocProducer.VideoScript.Segments[0].NarrationType',
+        ],
+      ],
+    });
+    const { root } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+    });
+
+    expect(result.validation.errors).not.toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.CONDITION_PATH_INVALID,
+        message: expect.stringContaining('Segments[0].NarrationType'),
+      })
+    );
+  });
+
   it('returns a prepared context with schema-derived graph nodes for valid blueprints', async () => {
     const { root } = await loadYamlBlueprintTree(DOCUMENTARY_BLUEPRINT_PATH, {
       catalogRoot: CATALOG_ROOT,

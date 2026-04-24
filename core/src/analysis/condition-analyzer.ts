@@ -62,11 +62,11 @@ export function analyzeConditions(
   // Collect named conditions
   if (blueprint.conditions) {
     namedConditions.push(...Object.keys(blueprint.conditions));
-
-    // Extract fields from named conditions
-    for (const conditionDef of Object.values(blueprint.conditions)) {
-      const fields = extractFieldsFromCondition(conditionDef);
-      conditionFields.push(...fields);
+    if (blueprint.edges.length === 0) {
+      for (const conditionDef of Object.values(blueprint.conditions)) {
+        const fields = extractFieldsFromCondition(conditionDef);
+        conditionFields.push(...fields);
+      }
     }
   }
 

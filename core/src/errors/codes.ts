@@ -116,6 +116,7 @@ export const ValidationErrorCode = {
 
   // V050-V059: Condition Validation
   CONDITION_PATH_INVALID: 'V050',
+  CONDITIONAL_INPUT_SOURCE_UNAVAILABLE: 'V051',
 
   // V060-V069: Type Validation
   INVALID_INPUT_TYPE: 'V060',
@@ -306,6 +307,7 @@ export const WarningCode = {
   UNUSED_INPUT: 'W001',
   UNUSED_ARTIFACT: 'W002',
   UNREACHABLE_PRODUCER: 'W003',
+  CONDITIONAL_PRODUCER_OUTPUT_UNUSED: 'W004',
 } as const;
 
 export type WarningCodeValue = (typeof WarningCode)[keyof typeof WarningCode];

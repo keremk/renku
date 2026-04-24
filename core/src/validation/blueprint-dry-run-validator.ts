@@ -46,11 +46,20 @@ export interface BlueprintValidationFieldCoverage {
   dimensionVariation: boolean[];
 }
 
+export interface BlueprintValidationProducedPath {
+  caseId: string;
+  artifactId: string;
+  path: string;
+  value: unknown;
+  coordinates: number[];
+}
+
 export interface BlueprintDryRunValidationCaseResult {
   id: string;
   movieId: string;
   status: 'succeeded' | 'failed';
   failedJobs: string[];
+  producedPaths: BlueprintValidationProducedPath[];
 }
 
 export interface BlueprintDryRunValidationResult {
@@ -61,6 +70,7 @@ export interface BlueprintDryRunValidationResult {
   failedCases: number;
   caseResults: BlueprintDryRunValidationCaseResult[];
   fieldCoverage: BlueprintValidationFieldCoverage[];
+  producedPaths: BlueprintValidationProducedPath[];
   failures: string[];
   warnings: string[];
 }
@@ -207,6 +217,7 @@ export async function runBlueprintDryRunValidation(
   const caseResults: BlueprintDryRunValidationCaseResult[] = [];
   const warnings: string[] = [];
   const failures: string[] = [];
+  const producedPaths: BlueprintValidationProducedPath[] = [];
 
   const fieldAccumulators = new Map<string, FieldCoverageAccumulator>();
   for (const field of args.conditionAnalysis.conditionFields) {
@@ -231,20 +242,21 @@ export async function runBlueprintDryRunValidation(
     try {
       const failedJobs = execution.failedJobs;
 
-      caseResults.push({
-        id: caseDefinition.id,
-        movieId: execution.movieId,
-        status: failedJobs.length > 0 ? 'failed' : 'succeeded',
-        failedJobs,
-      });
-
       if (failedJobs.length > 0) {
+        caseResults.push({
+          id: caseDefinition.id,
+          movieId: execution.movieId,
+          status: 'failed',
+          failedJobs,
+          producedPaths: [],
+        });
         failures.push(
           `Dry-run validation case "${caseDefinition.id}" failed jobs: ${failedJobs.join(', ')}.`
         );
         continue;
       }
 
+      const caseProducedPaths: BlueprintValidationProducedPath[] = [];
       for (const accumulator of fieldAccumulators.values()) {
         const observations = await collectFieldObservationsFromExecution({
           execution,
@@ -255,6 +267,13 @@ export async function runBlueprintDryRunValidation(
         accumulator.matchedArtifacts += observations.length;
         accumulator.observations.push(...observations);
         for (const observation of observations) {
+          caseProducedPaths.push({
+            caseId: observation.caseId,
+            artifactId: observation.artifactId,
+            path: formatConditionField(accumulator.field),
+            value: observation.value,
+            coordinates: observation.coordinates,
+          });
           const outcome = evaluateConditionOutcome(
             accumulator.field,
             observation.value
@@ -266,6 +285,14 @@ export async function runBlueprintDryRunValidation(
           }
         }
       }
+      producedPaths.push(...caseProducedPaths);
+      caseResults.push({
+        id: caseDefinition.id,
+        movieId: execution.movieId,
+        status: 'succeeded',
+        failedJobs,
+        producedPaths: caseProducedPaths,
+      });
     } finally {
       await execution.cleanup?.();
     }
@@ -277,8 +304,9 @@ export async function runBlueprintDryRunValidation(
       accumulator.observations.map((item) => item.value)
     );
     const requiresDualOutcome =
-      accumulator.field.operator === 'is' ||
-      accumulator.field.operator === 'isNot';
+      (accumulator.field.operator === 'is' ||
+        accumulator.field.operator === 'isNot') &&
+      accumulator.field.expectedValues.length === 1;
     const dimensionVariation = accumulator.field.dimensions.map((_, dimIndex) =>
       hasVariationAcrossDimension(accumulator.observations, dimIndex)
     );
@@ -335,6 +363,7 @@ export async function runBlueprintDryRunValidation(
     failedCases,
     caseResults,
     fieldCoverage,
+    producedPaths,
     failures,
     warnings,
   };

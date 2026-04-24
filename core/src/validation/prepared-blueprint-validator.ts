@@ -245,6 +245,8 @@ function referenceResolvesToPreparedNode(
   return (
     normalizedReference !== canonicalReference &&
     validNodeIds.has(normalizedReference)
+  ) || Array.from(validNodeIds).some((nodeId) =>
+    graphReferencesAreCompatible(canonicalReference, nodeId)
   );
 }
 
@@ -268,6 +270,49 @@ function stripLoopDimensionsFromFinalSegment(reference: string): string {
   return [...parsed.namespaceSegments, normalizedNode]
     .map((segment) => formatParsedGraphReferenceSegment(segment))
     .join('.');
+}
+
+function graphReferencesAreCompatible(
+  requestedReference: string,
+  preparedReference: string
+): boolean {
+  const requested = parseGraphReference(requestedReference);
+  const prepared = parseGraphReference(preparedReference);
+  const requestedSegments = [...requested.namespaceSegments, requested.node];
+  const preparedSegments = [...prepared.namespaceSegments, prepared.node];
+
+  if (requestedSegments.length !== preparedSegments.length) {
+    return false;
+  }
+
+  return requestedSegments.every((requestedSegment, index) => {
+    const preparedSegment = preparedSegments[index]!;
+    if (requestedSegment.name !== preparedSegment.name) {
+      return false;
+    }
+    if (requestedSegment.dimensions.length !== preparedSegment.dimensions.length) {
+      return false;
+    }
+
+    return requestedSegment.dimensions.every((requestedDimension, dimensionIndex) => {
+      const preparedDimension = preparedSegment.dimensions[dimensionIndex]!;
+      const requestedSelector = parseDimensionSelector(requestedDimension);
+      const preparedSelector = parseDimensionSelector(preparedDimension);
+
+      if (preparedSelector.kind === 'const') {
+        return (
+          requestedSelector.kind === 'const' &&
+          requestedSelector.value === preparedSelector.value
+        );
+      }
+
+      if (requestedSelector.kind === 'const') {
+        return true;
+      }
+
+      return requestedDimension === preparedDimension;
+    });
+  });
 }
 
 function normalizeConditionReference(reference: string): string | null {

@@ -5,7 +5,13 @@
  * Runs all validators and collects errors/warnings.
  */
 
-import type { BlueprintTreeNode } from '../types.js';
+import type {
+  BlueprintEdgeDefinition,
+  BlueprintTreeNode,
+  EdgeConditionClause,
+  EdgeConditionDefinition,
+  EdgeConditionGroup,
+} from '../types.js';
 import { SYSTEM_INPUTS } from '../types.js';
 import {
   type ValidationIssue,
@@ -48,6 +54,7 @@ export function validateBlueprintTree(
   issues.push(...validateLoopCountInputs(tree));
   issues.push(...validateArtifactCountInputs(tree));
   issues.push(...validateConditionPaths(tree));
+  issues.push(...validateConditionalArtifactAvailability(tree));
   issues.push(...validateTypes(tree));
   issues.push(...validateProducerCycles(tree));
   issues.push(...validateDimensionConsistency(tree));
@@ -57,6 +64,7 @@ export function validateBlueprintTree(
     issues.push(...findUnusedInputs(tree));
     issues.push(...findUnusedArtifacts(tree));
     issues.push(...findUnreachableProducers(tree));
+    issues.push(...findConditionallyUnusedProducerOutputs(tree));
   }
 
   // Filter out skipped codes
@@ -1279,6 +1287,346 @@ function targetsFanInInput(
   return producerChild.document.inputs.some(
     (input) => input.name === inputName && input.fanIn === true
   );
+}
+
+// ============================================================================
+// Conditional Producer Availability Validation
+// ============================================================================
+
+type SimpleConditionAtom = string;
+type SimpleConditionConjunction = Set<SimpleConditionAtom>;
+type SimpleConditionDnf = SimpleConditionConjunction[];
+interface ProducerActivationCondition {
+  targetReference: string;
+  condition: SimpleConditionDnf;
+}
+
+const TRUE_CONDITION_DNF: SimpleConditionDnf = [new Set()];
+
+/**
+ * Validates that conditional producer-to-producer artifact inputs are not broader
+ * than the producer branch that creates the source artifact.
+ */
+export function validateConditionalArtifactAvailability(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateTree(node: BlueprintTreeNode): void {
+    const producerNames = getProducerImportNames(node);
+    const producerActivation = buildProducerActivationConditions(node);
+
+    for (const edge of node.document.edges) {
+      if (
+        isLocalReference(edge.from) ||
+        isLocalReference(edge.to) ||
+        !targetsProducer(edge.from, producerNames) ||
+        !targetsProducer(edge.to, producerNames)
+      ) {
+        continue;
+      }
+
+      const sourceProducer = parseReference(edge.from).baseName;
+      const targetProducer = parseReference(edge.to).baseName;
+      if (sourceProducer === targetProducer) {
+        continue;
+      }
+
+      const sourceCondition = resolveProducerActivationForReference(
+        producerActivation.get(sourceProducer) ?? [],
+        edge.from
+      );
+      if (isAlwaysCondition(sourceCondition)) {
+        continue;
+      }
+
+      const consumerCondition = resolveEdgeConditionDnf(node, edge);
+      if (conditionImplies(consumerCondition, sourceCondition)) {
+        continue;
+      }
+
+      issues.push(
+        createError(
+          ValidationErrorCode.CONDITIONAL_INPUT_SOURCE_UNAVAILABLE,
+          `Conditional input "${edge.to}" may require "${edge.from}" in a branch where producer "${sourceProducer}" is inactive.`,
+          {
+            filePath: node.sourcePath,
+            namespacePath: node.namespacePath,
+            context: `connection from "${edge.from}" to "${edge.to}"`,
+          },
+          `Make the consumer condition include the source producer's activation condition, or route "${edge.to}" from an artifact that is produced under the same branch.`
+        )
+      );
+    }
+
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
+/**
+ * Finds conditional producers that can run in branches where none of their
+ * outputs are consumed by another active producer input.
+ */
+export function findConditionallyUnusedProducerOutputs(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateTree(node: BlueprintTreeNode): void {
+    const producerNames = getProducerImportNames(node);
+    const producerActivation = buildProducerActivationConditions(node);
+
+    for (const [producerName, activationConditions] of producerActivation) {
+      const activationCondition = orConditions(
+        activationConditions.map((entry) => entry.condition)
+      );
+      if (isAlwaysCondition(activationCondition)) {
+        continue;
+      }
+
+      const consumerConditions = node.document.edges
+        .filter(
+          (edge) =>
+            !isLocalReference(edge.from) &&
+            targetsProducer(edge.from, producerNames) &&
+            parseReference(edge.from).baseName === producerName
+        )
+        .map((edge) => resolveEdgeConditionDnf(node, edge));
+
+      if (consumerConditions.length === 0) {
+        continue;
+      }
+
+      const downstreamCondition = orConditions(consumerConditions);
+      if (conditionImplies(activationCondition, downstreamCondition)) {
+        continue;
+      }
+
+      issues.push(
+        createWarning(
+          ValidationErrorCode.CONDITIONAL_PRODUCER_OUTPUT_UNUSED,
+          `Producer "${producerName}" can run in a branch where none of its outputs feed an active downstream producer.`,
+          {
+            filePath: node.sourcePath,
+            namespacePath: node.namespacePath,
+            context: `producer "${producerName}"`,
+          },
+          `Narrow the incoming conditions for "${producerName}" so they match the downstream branches that consume its outputs.`
+        )
+      );
+    }
+
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
+function buildProducerActivationConditions(
+  node: BlueprintTreeNode
+): Map<string, ProducerActivationCondition[]> {
+  const producerNames = getProducerImportNames(node);
+  const conditionsByProducer = new Map<string, ProducerActivationCondition[]>();
+
+  for (const edge of node.document.edges) {
+    if (isLocalReference(edge.to) || !targetsProducer(edge.to, producerNames)) {
+      continue;
+    }
+
+    const producerName = parseReference(edge.to).baseName;
+    const conditions = conditionsByProducer.get(producerName) ?? [];
+    conditions.push({
+      targetReference: edge.to,
+      condition: resolveEdgeConditionDnf(node, edge),
+    });
+    conditionsByProducer.set(producerName, conditions);
+  }
+
+  return conditionsByProducer;
+}
+
+function resolveProducerActivationForReference(
+  activationConditions: ProducerActivationCondition[],
+  producerReference: string
+): SimpleConditionDnf {
+  if (activationConditions.length === 0) {
+    return TRUE_CONDITION_DNF;
+  }
+
+  return orConditions(
+    activationConditions.map((entry) =>
+      substituteConditionDimensions(
+        entry.condition,
+        extractProducerDimensionBindings(entry.targetReference, producerReference)
+      )
+    )
+  );
+}
+
+function extractProducerDimensionBindings(
+  patternReference: string,
+  concreteReference: string
+): Map<string, string> {
+  const patternDimensions = extractFirstSegmentDimensions(patternReference);
+  const concreteDimensions = extractFirstSegmentDimensions(concreteReference);
+  const bindings = new Map<string, string>();
+
+  for (let index = 0; index < patternDimensions.length; index += 1) {
+    const patternDimension = patternDimensions[index];
+    const concreteDimension = concreteDimensions[index];
+    if (!patternDimension || !concreteDimension) {
+      continue;
+    }
+    if (/^\d+$/.test(patternDimension)) {
+      continue;
+    }
+    bindings.set(patternDimension, concreteDimension);
+  }
+
+  return bindings;
+}
+
+function extractFirstSegmentDimensions(reference: string): string[] {
+  const firstSegment = parseReference(reference).first;
+  return Array.from(firstSegment.matchAll(/\[([^\]]+)\]/g)).map(
+    (match) => match[1]!
+  );
+}
+
+function substituteConditionDimensions(
+  condition: SimpleConditionDnf,
+  bindings: Map<string, string>
+): SimpleConditionDnf {
+  if (bindings.size === 0) {
+    return condition;
+  }
+
+  return condition.map(
+    (branch) =>
+      new Set(
+        Array.from(branch).map((atom) =>
+          Array.from(bindings.entries()).reduce(
+            (value, [symbol, replacement]) =>
+              value.replaceAll(`[${symbol}]`, `[${replacement}]`),
+            atom
+          )
+        )
+      )
+  );
+}
+
+function resolveEdgeConditionDnf(
+  node: BlueprintTreeNode,
+  edge: BlueprintEdgeDefinition
+): SimpleConditionDnf {
+  if (edge.conditions) {
+    return conditionDefinitionToDnf(edge.conditions);
+  }
+  if (edge.if) {
+    const namedCondition = node.document.conditions?.[edge.if];
+    if (!namedCondition) {
+      return TRUE_CONDITION_DNF;
+    }
+    return conditionItemToDnf(namedCondition);
+  }
+  return TRUE_CONDITION_DNF;
+}
+
+function conditionDefinitionToDnf(
+  definition: EdgeConditionDefinition
+): SimpleConditionDnf {
+  if (Array.isArray(definition)) {
+    return andConditions(definition.map((item) => conditionItemToDnf(item)));
+  }
+  return conditionItemToDnf(definition);
+}
+
+function conditionItemToDnf(
+  item: EdgeConditionClause | EdgeConditionGroup
+): SimpleConditionDnf {
+  if ('when' in item) {
+    const atom = conditionClauseToAtom(item);
+    return atom ? [new Set([atom])] : TRUE_CONDITION_DNF;
+  }
+
+  const groups: SimpleConditionDnf[] = [];
+  if (item.all) {
+    groups.push(
+      andConditions(item.all.map((clause) => conditionItemToDnf(clause)))
+    );
+  }
+  if (item.any) {
+    groups.push(
+      orConditions(item.any.map((clause) => conditionItemToDnf(clause)))
+    );
+  }
+  if (groups.length === 0) {
+    return TRUE_CONDITION_DNF;
+  }
+  return andConditions(groups);
+}
+
+function conditionClauseToAtom(clause: EdgeConditionClause): string | undefined {
+  if ('is' in clause) {
+    return `${clause.when}::is::${JSON.stringify(clause.is)}`;
+  }
+  return undefined;
+}
+
+function andConditions(conditions: SimpleConditionDnf[]): SimpleConditionDnf {
+  let result: SimpleConditionDnf = TRUE_CONDITION_DNF;
+  for (const condition of conditions) {
+    const next: SimpleConditionDnf = [];
+    for (const left of result) {
+      for (const right of condition) {
+        next.push(new Set([...left, ...right]));
+      }
+    }
+    result = next;
+  }
+  return result;
+}
+
+function orConditions(conditions: SimpleConditionDnf[]): SimpleConditionDnf {
+  if (conditions.length === 0) {
+    return TRUE_CONDITION_DNF;
+  }
+  return conditions.flatMap((condition) => condition);
+}
+
+function conditionImplies(
+  antecedent: SimpleConditionDnf,
+  consequent: SimpleConditionDnf
+): boolean {
+  return antecedent.every((antecedentBranch) =>
+    consequent.some((consequentBranch) =>
+      setContainsAll(antecedentBranch, consequentBranch)
+    )
+  );
+}
+
+function setContainsAll(
+  superset: SimpleConditionConjunction,
+  subset: SimpleConditionConjunction
+): boolean {
+  for (const item of subset) {
+    if (!superset.has(item)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isAlwaysCondition(condition: SimpleConditionDnf): boolean {
+  return condition.some((branch) => branch.size === 0);
 }
 
 // ============================================================================

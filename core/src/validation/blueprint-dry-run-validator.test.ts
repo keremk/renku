@@ -136,5 +136,17 @@ cases:
       true,
       true,
     ]);
+    expect(validation.producedPaths).toHaveLength(8);
+    expect(validation.caseResults[0]?.producedPaths[0]).toEqual(
+      expect.objectContaining({
+        caseId: 'case-1',
+        artifactId:
+          'Artifact:StoryProducer.Storyboard.Scenes[0].CharacterPresent[0]',
+        path:
+          'Artifact:StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
+        value: true,
+        coordinates: [0, 0],
+      })
+    );
   });
 });

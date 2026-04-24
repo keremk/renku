@@ -175,6 +175,14 @@ conditions:
   motionIsStartEnd:
     when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
     is: StartEnd
+  motionIsStartEndWithPlainAnchors:
+    all:
+      - when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+        is: StartEnd
+      - when: PlanDirector.AssetPlan.Segments[segment].ImagePlans[0].UseHistoricalReference
+        is: false
+      - when: PlanDirector.AssetPlan.Segments[segment].ImagePlans[1].UseHistoricalReference
+        is: false
   motionIsMultiShot:
     when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
     is: MultiShot
@@ -213,7 +221,13 @@ imports:
   - name: MapImageProducer
     producer: image/text-to-image
     loop: segment
-  - name: SeedanceMotionPromptProducer
+  - name: SeedanceTextMotionPromptProducer
+    path: ./motion/seedance-motion-prompt-producer/producer.yaml
+    loop: segment
+  - name: SeedanceStartEndMotionPromptProducer
+    path: ./motion/seedance-motion-prompt-producer/producer.yaml
+    loop: segment
+  - name: SeedanceMultiShotMotionPromptProducer
     path: ./motion/seedance-motion-prompt-producer/producer.yaml
     loop: segment
   - name: SeedanceTextClipProducer
@@ -393,33 +407,33 @@ connections:
     if: hasMap
 
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
-    to: SeedanceMotionPromptProducer[segment].Workflow
-    if: motionEnabled
+    to: SeedanceTextMotionPromptProducer[segment].Workflow
+    if: motionIsText
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.SubjectAndAction
-    to: SeedanceMotionPromptProducer[segment].SubjectAndAction
-    if: motionEnabled
+    to: SeedanceTextMotionPromptProducer[segment].SubjectAndAction
+    if: motionIsText
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.CameraIntent
-    to: SeedanceMotionPromptProducer[segment].CameraIntent
-    if: motionEnabled
+    to: SeedanceTextMotionPromptProducer[segment].CameraIntent
+    if: motionIsText
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.AudioIntent
-    to: SeedanceMotionPromptProducer[segment].AudioIntent
-    if: motionEnabled
+    to: SeedanceTextMotionPromptProducer[segment].AudioIntent
+    if: motionIsText
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EnvironmentAndStyle
-    to: SeedanceMotionPromptProducer[segment].EnvironmentAndStyle
-    if: motionEnabled
+    to: SeedanceTextMotionPromptProducer[segment].EnvironmentAndStyle
+    if: motionIsText
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EndingState
-    to: SeedanceMotionPromptProducer[segment].EndingState
-    if: motionEnabled
+    to: SeedanceTextMotionPromptProducer[segment].EndingState
+    if: motionIsText
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ShotBreakdown
-    to: SeedanceMotionPromptProducer[segment].ShotBreakdown
-    if: motionEnabled
+    to: SeedanceTextMotionPromptProducer[segment].ShotBreakdown
+    if: motionIsText
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ReferenceSubjectLabel
-    to: SeedanceMotionPromptProducer[segment].ReferenceSubjectLabel
-    if: motionEnabled
+    to: SeedanceTextMotionPromptProducer[segment].ReferenceSubjectLabel
+    if: motionIsText
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
-    to: SeedanceMotionPromptProducer[segment].UseNativeAudio
-    if: motionEnabled
-  - from: SeedanceMotionPromptProducer[segment].Prompt
+    to: SeedanceTextMotionPromptProducer[segment].UseNativeAudio
+    if: motionIsText
+  - from: SeedanceTextMotionPromptProducer[segment].Prompt
     to: SeedanceTextClipProducer[segment].Prompt
     if: motionIsText
   - from: SegmentDuration
@@ -469,26 +483,80 @@ connections:
     to: SeedanceReferenceClipProducer[segment][historicalcharacter].GenerateAudio
     if: motionReferencesHistoricalCharacter
 
-  - from: SeedanceMotionPromptProducer[segment].Prompt
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+    to: SeedanceStartEndMotionPromptProducer[segment].Workflow
+    if: motionIsStartEndWithPlainAnchors
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.SubjectAndAction
+    to: SeedanceStartEndMotionPromptProducer[segment].SubjectAndAction
+    if: motionIsStartEndWithPlainAnchors
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.CameraIntent
+    to: SeedanceStartEndMotionPromptProducer[segment].CameraIntent
+    if: motionIsStartEndWithPlainAnchors
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.AudioIntent
+    to: SeedanceStartEndMotionPromptProducer[segment].AudioIntent
+    if: motionIsStartEndWithPlainAnchors
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EnvironmentAndStyle
+    to: SeedanceStartEndMotionPromptProducer[segment].EnvironmentAndStyle
+    if: motionIsStartEndWithPlainAnchors
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EndingState
+    to: SeedanceStartEndMotionPromptProducer[segment].EndingState
+    if: motionIsStartEndWithPlainAnchors
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ShotBreakdown
+    to: SeedanceStartEndMotionPromptProducer[segment].ShotBreakdown
+    if: motionIsStartEndWithPlainAnchors
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ReferenceSubjectLabel
+    to: SeedanceStartEndMotionPromptProducer[segment].ReferenceSubjectLabel
+    if: motionIsStartEndWithPlainAnchors
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
+    to: SeedanceStartEndMotionPromptProducer[segment].UseNativeAudio
+    if: motionIsStartEndWithPlainAnchors
+  - from: SeedanceStartEndMotionPromptProducer[segment].Prompt
     to: SeedanceStartEndClipProducer[segment].Prompt
-    if: motionIsStartEnd
+    if: motionIsStartEndWithPlainAnchors
   - from: SegmentPlainImageProducer[segment][0].GeneratedImage
     to: SeedanceStartEndClipProducer[segment].StartImage
-    if: motionIsStartEnd
+    if: motionIsStartEndWithPlainAnchors
   - from: SegmentPlainImageProducer[segment][1].GeneratedImage
     to: SeedanceStartEndClipProducer[segment].EndImage
-    if: motionIsStartEnd
+    if: motionIsStartEndWithPlainAnchors
   - from: SegmentDuration
     to: SeedanceStartEndClipProducer[segment].Duration
-    if: motionIsStartEnd
+    if: motionIsStartEndWithPlainAnchors
   - from: Resolution
     to: SeedanceStartEndClipProducer[segment].Resolution
-    if: motionIsStartEnd
+    if: motionIsStartEndWithPlainAnchors
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
     to: SeedanceStartEndClipProducer[segment].GenerateAudio
-    if: motionIsStartEnd
+    if: motionIsStartEndWithPlainAnchors
 
-  - from: SeedanceMotionPromptProducer[segment].Prompt
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+    to: SeedanceMultiShotMotionPromptProducer[segment].Workflow
+    if: motionIsMultiShot
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.SubjectAndAction
+    to: SeedanceMultiShotMotionPromptProducer[segment].SubjectAndAction
+    if: motionIsMultiShot
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.CameraIntent
+    to: SeedanceMultiShotMotionPromptProducer[segment].CameraIntent
+    if: motionIsMultiShot
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.AudioIntent
+    to: SeedanceMultiShotMotionPromptProducer[segment].AudioIntent
+    if: motionIsMultiShot
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EnvironmentAndStyle
+    to: SeedanceMultiShotMotionPromptProducer[segment].EnvironmentAndStyle
+    if: motionIsMultiShot
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EndingState
+    to: SeedanceMultiShotMotionPromptProducer[segment].EndingState
+    if: motionIsMultiShot
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ShotBreakdown
+    to: SeedanceMultiShotMotionPromptProducer[segment].ShotBreakdown
+    if: motionIsMultiShot
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ReferenceSubjectLabel
+    to: SeedanceMultiShotMotionPromptProducer[segment].ReferenceSubjectLabel
+    if: motionIsMultiShot
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
+    to: SeedanceMultiShotMotionPromptProducer[segment].UseNativeAudio
+    if: motionIsMultiShot
+  - from: SeedanceMultiShotMotionPromptProducer[segment].Prompt
     to: SeedanceMultiShotClipProducer[segment].Prompt
     if: motionIsMultiShot
   - from: SegmentDuration
@@ -509,7 +577,7 @@ connections:
     if: motionReferencesHistoricalCharacter
   - from: SeedanceStartEndClipProducer[segment].GeneratedVideo
     to: SegmentStartEndMotionVideos[segment]
-    if: motionIsStartEnd
+    if: motionIsStartEndWithPlainAnchors
   - from: SeedanceMultiShotClipProducer[segment].GeneratedVideo
     to: SegmentMultiShotMotionVideos[segment]
     if: motionIsMultiShot

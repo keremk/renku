@@ -290,19 +290,17 @@ export function createPlanningService(
       attachResolvedInputsToPlanJobs(plan, resolvedConditionInputs);
 
       const scheduledJobIds = new Set(plan.layers.flat().map((job) => job.jobId));
-      if (resolvedControls.normalizedOverrides.directives.length > 0) {
-        validateProducerOverrideDependencies({
-          movieId: args.movieId,
-          producerGraph,
-          scheduledJobIds,
-          buildState,
-          latestSuccessfulArtifactIds: latestArtifactSnapshot.latestSuccessfulIds,
-          resolvedConditionArtifacts,
-          prunedUnrunnableJobs,
-          upToLayer: resolvedControls.effectiveUpToLayer,
-        });
-      }
-
+      validateScheduledJobArtifactDependencies({
+        movieId: args.movieId,
+        producerGraph,
+        scheduledJobIds,
+        buildState,
+        latestSuccessfulArtifactIds: latestArtifactSnapshot.latestSuccessfulIds,
+        resolvedConditionArtifacts,
+        resolvedConditionInputs,
+        prunedUnrunnableJobs,
+        upToLayer: resolvedControls.effectiveUpToLayer,
+      });
       const producerScheduling = buildResolvedProducerSummaries({
         normalizedOverrides: resolvedControls.normalizedOverrides,
         scheduledJobIds,
@@ -756,13 +754,14 @@ function collectPlanningCanonicalInputIds(
   return ids;
 }
 
-function validateProducerOverrideDependencies(args: {
+export function validateScheduledJobArtifactDependencies(args: {
   movieId: string;
   producerGraph: ProducerGraph;
   scheduledJobIds: Set<string>;
   buildState: BuildState;
   latestSuccessfulArtifactIds: Set<string>;
   resolvedConditionArtifacts?: Record<string, unknown>;
+  resolvedConditionInputs?: Record<string, unknown>;
   prunedUnrunnableJobs?: PrunedUnrunnableJob[];
   upToLayer?: number;
 }): void {
@@ -824,6 +823,7 @@ function validateProducerOverrideDependencies(args: {
       node.context?.inputConditions,
       {
         resolvedArtifacts: args.resolvedConditionArtifacts ?? {},
+        resolvedInputs: args.resolvedConditionInputs ?? {},
       }
     );
 
@@ -884,11 +884,11 @@ function validateProducerOverrideDependencies(args: {
   if (missingDependencies.size > 0) {
     throw createRuntimeError(
       RuntimeErrorCode.PRODUCER_OVERRIDE_DEPENDENCY_MISSING,
-      `Producer overrides leave required upstream artifacts unavailable: ${Array.from(missingDependencies).join('; ')}`,
+      `Scheduled jobs require upstream artifacts that are not available or scheduled: ${Array.from(missingDependencies).join('; ')}`,
       {
         context: `movieId=${args.movieId}`,
         suggestion:
-          'Adjust producer selection/count overrides so required upstream artifacts are scheduled or already reusable.',
+          'Check conditional blueprint branches so every active consumer only references artifacts produced by the same branch, or regenerate the missing upstream artifacts first.',
       }
     );
   }

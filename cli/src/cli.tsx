@@ -918,6 +918,22 @@ function printDryRunValidationSummary(
 		}
 	}
 
+	if (validation.producedPaths.length > 0) {
+		logger.info(`  Produced condition paths: ${validation.producedPaths.length}`);
+		for (const producedPath of validation.producedPaths.slice(0, 10)) {
+			logger.info(
+				`    ${producedPath.caseId}: ${producedPath.path} = ${JSON.stringify(
+					producedPath.value
+				)} (${producedPath.artifactId})`
+			);
+		}
+		if (validation.producedPaths.length > 10) {
+			logger.info(
+				`    ... and ${validation.producedPaths.length - 10} more produced condition paths`
+			);
+		}
+	}
+
 	for (const warning of validation.warnings) {
 		logger.info(`  Warning: ${warning}`);
 	}

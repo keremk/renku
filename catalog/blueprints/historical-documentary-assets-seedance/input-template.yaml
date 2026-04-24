@@ -72,7 +72,15 @@ models:
 
   - model: gpt-5.2
     provider: openai
-    producerId: SeedanceMotionPromptProducer
+    producerId: SeedanceTextMotionPromptProducer
+
+  - model: gpt-5.2
+    provider: openai
+    producerId: SeedanceStartEndMotionPromptProducer
+
+  - model: gpt-5.2
+    provider: openai
+    producerId: SeedanceMultiShotMotionPromptProducer
 
   - model: bytedance/seedance-2.0/text-to-video
     provider: fal-ai

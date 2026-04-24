@@ -95,8 +95,9 @@ export const ValidationErrorCode = {
   ARTIFACT_COUNTINPUT_NOT_FOUND: 'V030',
   INPUT_COUNTINPUT_NOT_FOUND: 'V031',
 
-  // Condition validation errors (V050)
+  // Condition validation errors (V050-V051)
   CONDITION_PATH_INVALID: 'V050',
+  CONDITIONAL_INPUT_SOURCE_UNAVAILABLE: 'V051',
 
   // Type validation errors (V060-V062)
   INVALID_INPUT_TYPE: 'V060',
@@ -106,10 +107,11 @@ export const ValidationErrorCode = {
   // Blueprint validation errors (V070)
   BLUEPRINT_VALIDATION_FAILED: 'V070',
 
-  // Warnings (W001-W003)
+  // Warnings (W001-W004)
   UNUSED_INPUT: 'W001',
   UNUSED_ARTIFACT: 'W002',
   UNREACHABLE_PRODUCER: 'W003',
+  CONDITIONAL_PRODUCER_OUTPUT_UNUSED: 'W004',
 } as const;
 
 /**
