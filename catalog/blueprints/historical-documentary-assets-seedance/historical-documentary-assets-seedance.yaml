@@ -1,0 +1,550 @@
+meta:
+  name: Historical Documentary Assets Seedance
+  description: An asset-only historical documentary pipeline that stays generic across topics while using Seedance 2.0-specific motion generation paths for short clips that need tighter control and reference-aware prompting.
+  id: HistoricalDocumentaryAssetsSeedance
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The historical topic, guiding question, or documentary framing.
+    type: string
+    required: true
+  - name: Duration
+    description: Total documentary runtime in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of documentary segments to plan.
+    type: int
+    required: true
+  - name: NumOfImagesPerSegment
+    description: Number of still-image assets to generate per segment. Use at least 2 if you want the planner to choose start/end Seedance transitions.
+    type: int
+    required: true
+  - name: NumOfExperts
+    description: Number of recurring experts to cast for optional talking-head segments.
+    type: int
+    required: true
+  - name: NumOfHistoricalCharacters
+    description: Number of recurring historical character reference bundles to design.
+    type: int
+    required: true
+  - name: Style
+    description: Shared visual language for the documentary assets.
+    type: string
+    required: true
+  - name: Audience
+    description: Target audience for tone and explanation depth.
+    type: string
+    required: true
+  - name: LanguageCode
+    description: ISO language code for narration and expert speech.
+    type: string
+    required: false
+  - name: Resolution
+    description: Shared output resolution for generated image and video assets.
+    type: resolution
+    required: true
+  - name: ExpertEnvironment
+    description: Description of the interview-style environment where the experts appear on camera.
+    type: string
+    required: true
+
+outputs:
+  - name: AssetPlan
+    description: Structured JSON asset plan for downstream assembly agents and compositors.
+    type: json
+  - name: ExpertSet
+    description: Structured recurring expert metadata for downstream reuse.
+    type: json
+  - name: HistoricalCharacterSet
+    description: Structured recurring historical character metadata for downstream reuse.
+    type: json
+  - name: ScenePlanMarkdown
+    description: Scene-by-scene markdown plan listing the intended asset ordering for the external compositor.
+    type: string
+  - name: SegmentNarrationAudio
+    description: Narration audio generated for each documentary segment.
+    type: array
+    itemType: audio
+    countInput: NumOfSegments
+  - name: SegmentStillImages
+    description: Plain text-generated still-image b-roll assets for each segment.
+    type: multiDimArray
+    itemType: image
+  - name: SegmentReferenceStillImages
+    description: Reference-composed still-image b-roll assets keyed by segment, image, and historical character.
+    type: multiDimArray
+    itemType: image
+  - name: SegmentMapImages
+    description: Map image assets for segments that need geographic grounding.
+    type: array
+    itemType: image
+    countInput: NumOfSegments
+  - name: SegmentTextMotionVideos
+    description: Seedance text-to-video clips for segments that use the plain text workflow.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+  - name: SegmentReferenceMotionVideos
+    description: Seedance reference-to-video clips keyed by segment and historical character.
+    type: multiDimArray
+    itemType: video
+  - name: SegmentStartEndMotionVideos
+    description: Seedance start-end transition clips for segments that animate between the first two stills.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+  - name: SegmentMultiShotMotionVideos
+    description: Seedance multi-shot clips for segments that need an explicit shot-labeled structure.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+  - name: ExpertCharacterSheets
+    description: Production-style expert model sheets with turnaround views and expression panels.
+    type: array
+    itemType: image
+    countInput: NumOfExperts
+  - name: ExpertPortraits
+    description: Canonical expert portrait images used as the consistent talking-head anchor.
+    type: array
+    itemType: image
+    countInput: NumOfExperts
+  - name: HistoricalCharacterSheets
+    description: Production-style historical character model sheets used as reference assets.
+    type: array
+    itemType: image
+    countInput: NumOfHistoricalCharacters
+  - name: HistoricalPortraits
+    description: Canonical historical character portraits used as downstream reference assets.
+    type: array
+    itemType: image
+    countInput: NumOfHistoricalCharacters
+  - name: SegmentExpertTalkingHeadAudio
+    description: Expert speech audio for segment and expert combinations that are used.
+    type: multiDimArray
+    itemType: audio
+  - name: SegmentExpertTalkingHeadVideos
+    description: Lip-synced expert talking-head videos for segment and expert combinations that are used.
+    type: multiDimArray
+    itemType: video
+
+loops:
+  - name: segment
+    description: Iterates over documentary segments.
+    countInput: NumOfSegments
+  - name: image
+    description: Iterates over still-image assets within a segment.
+    parent: segment
+    countInput: NumOfImagesPerSegment
+  - name: expert
+    description: Iterates over recurring documentary experts.
+    countInput: NumOfExperts
+  - name: historicalcharacter
+    description: Iterates over recurring historical characters.
+    countInput: NumOfHistoricalCharacters
+
+conditions:
+  hasMap:
+    when: PlanDirector.AssetPlan.Segments[segment].HasMap
+    is: true
+  imageUsesHistoricalReference:
+    when: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].UseHistoricalReference
+    is: true
+  imageUsesPlainGeneration:
+    when: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].UseHistoricalReference
+    is: false
+  imageReferencesHistoricalCharacter:
+    all:
+      - when: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].UseHistoricalReference
+        is: true
+      - when: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].HistoricalCharacterReferences[historicalcharacter].UseReference
+        is: true
+  motionEnabled:
+    when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Enabled
+    is: true
+  motionIsText:
+    when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+    is: Text
+  motionIsReference:
+    when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+    is: Reference
+  motionIsStartEnd:
+    when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+    is: StartEnd
+  motionIsMultiShot:
+    when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+    is: MultiShot
+  motionUsesNativeAudio:
+    when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
+    is: true
+  motionReferencesHistoricalCharacter:
+    all:
+      - when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+        is: Reference
+      - when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.HistoricalCharacterReferences[historicalcharacter].UseReference
+        is: true
+  hasExpertTalkingHead:
+    when: PlanDirector.AssetPlan.Segments[segment].ExpertTalkingHeads[expert].UseThisExpert
+    is: true
+
+imports:
+  - name: ExpertCastingDirector
+    path: ./planning/expert-casting-director/producer.yaml
+  - name: HistoricalCharacterDirector
+    path: ./planning/historical-character-director/producer.yaml
+  - name: PlanDirector
+    path: ./planning/documentary-plan-director/producer.yaml
+  - name: NarrationAudioProducer
+    producer: audio/text-to-speech
+    loop: segment
+  - name: SegmentPlainImageProducer
+    producer: image/text-to-image
+    loop: segment.image
+  - name: SegmentReferenceImageProducer
+    producer: image/image-compose
+    loop: segment.image.historicalcharacter
+  - name: HistoricalReferenceStillPromptProducer
+    path: ./stills/historical-reference-still-prompt-producer/producer.yaml
+    loop: segment.image.historicalcharacter
+  - name: MapImageProducer
+    producer: image/text-to-image
+    loop: segment
+  - name: SeedanceMotionPromptProducer
+    path: ./motion/seedance-motion-prompt-producer/producer.yaml
+    loop: segment
+  - name: SeedanceTextClipProducer
+    path: ./motion/seedance-text-clip/producer.yaml
+    loop: segment
+  - name: SeedanceReferenceMotionPromptProducer
+    path: ./motion/seedance-reference-motion-prompt-producer/producer.yaml
+    loop: segment.historicalcharacter
+  - name: SeedanceReferenceClipProducer
+    path: ./motion/seedance-reference-clip/producer.yaml
+    loop: segment.historicalcharacter
+  - name: SeedanceStartEndClipProducer
+    path: ./motion/seedance-start-end-clip/producer.yaml
+    loop: segment
+  - name: SeedanceMultiShotClipProducer
+    path: ./motion/seedance-multishot-clip/producer.yaml
+    loop: segment
+  - name: ExpertCharacterSheetProducer
+    producer: image/text-to-image
+    loop: expert
+  - name: ExpertPortraitProducer
+    producer: image/text-to-image
+    loop: expert
+  - name: HistoricalCharacterSheetProducer
+    producer: image/text-to-image
+    loop: historicalcharacter
+  - name: HistoricalPortraitProducer
+    producer: image/text-to-image
+    loop: historicalcharacter
+  - name: ExpertTalkingHeadAudioProducer
+    producer: audio/text-to-speech
+    loop: segment.expert
+  - name: ExpertTalkingHeadVideoProducer
+    producer: video/talking-head
+    loop: segment.expert
+
+connections:
+  - from: InquiryPrompt
+    to: ExpertCastingDirector.InquiryPrompt
+  - from: Duration
+    to: ExpertCastingDirector.Duration
+  - from: NumOfSegments
+    to: ExpertCastingDirector.NumOfSegments
+  - from: NumOfExperts
+    to: ExpertCastingDirector.NumOfExperts
+  - from: Style
+    to: ExpertCastingDirector.Style
+  - from: Audience
+    to: ExpertCastingDirector.Audience
+  - from: ExpertEnvironment
+    to: ExpertCastingDirector.ExpertEnvironment
+
+  - from: InquiryPrompt
+    to: HistoricalCharacterDirector.InquiryPrompt
+  - from: NumOfHistoricalCharacters
+    to: HistoricalCharacterDirector.NumOfHistoricalCharacters
+  - from: Style
+    to: HistoricalCharacterDirector.Style
+  - from: Audience
+    to: HistoricalCharacterDirector.Audience
+
+  - from: InquiryPrompt
+    to: PlanDirector.InquiryPrompt
+  - from: Duration
+    to: PlanDirector.Duration
+  - from: NumOfSegments
+    to: PlanDirector.NumOfSegments
+  - from: NumOfImagesPerSegment
+    to: PlanDirector.NumOfImagesPerSegment
+  - from: NumOfExperts
+    to: PlanDirector.NumOfExperts
+  - from: NumOfHistoricalCharacters
+    to: PlanDirector.NumOfHistoricalCharacters
+  - from: SegmentDuration
+    to: PlanDirector.SegmentDuration
+  - from: Style
+    to: PlanDirector.Style
+  - from: Audience
+    to: PlanDirector.Audience
+  - from: LanguageCode
+    to: PlanDirector.LanguageCode
+  - from: ExpertEnvironment
+    to: PlanDirector.ExpertEnvironment
+  - from: ExpertCastingDirector.ExpertSet
+    to: PlanDirector.ExpertSet
+  - from: HistoricalCharacterDirector.HistoricalCharacterSet
+    to: PlanDirector.HistoricalCharacterSet
+
+  - from: PlanDirector.AssetPlan
+    to: AssetPlan
+  - from: ExpertCastingDirector.ExpertSet
+    to: ExpertSet
+  - from: HistoricalCharacterDirector.HistoricalCharacterSet
+    to: HistoricalCharacterSet
+  - from: PlanDirector.AssetPlan.ScenePlanMarkdown
+    to: ScenePlanMarkdown
+
+  - from: ExpertCastingDirector.ExpertSet.Experts[expert].CharacterSheetPrompt
+    to: ExpertCharacterSheetProducer[expert].Prompt
+  - from: Resolution
+    to: ExpertCharacterSheetProducer[expert].Resolution
+  - from: ExpertCharacterSheetProducer[expert].GeneratedImage
+    to: ExpertCharacterSheets[expert]
+
+  - from: ExpertCastingDirector.ExpertSet.Experts[expert].PortraitPrompt
+    to: ExpertPortraitProducer[expert].Prompt
+  - from: Resolution
+    to: ExpertPortraitProducer[expert].Resolution
+  - from: ExpertPortraitProducer[expert].GeneratedImage
+    to: ExpertPortraits[expert]
+
+  - from: HistoricalCharacterDirector.HistoricalCharacterSet.HistoricalCharacters[historicalcharacter].CharacterSheetPrompt
+    to: HistoricalCharacterSheetProducer[historicalcharacter].Prompt
+  - from: Resolution
+    to: HistoricalCharacterSheetProducer[historicalcharacter].Resolution
+  - from: HistoricalCharacterSheetProducer[historicalcharacter].GeneratedImage
+    to: HistoricalCharacterSheets[historicalcharacter]
+
+  - from: HistoricalCharacterDirector.HistoricalCharacterSet.HistoricalCharacters[historicalcharacter].PortraitPrompt
+    to: HistoricalPortraitProducer[historicalcharacter].Prompt
+  - from: Resolution
+    to: HistoricalPortraitProducer[historicalcharacter].Resolution
+  - from: HistoricalPortraitProducer[historicalcharacter].GeneratedImage
+    to: HistoricalPortraits[historicalcharacter]
+
+  - from: PlanDirector.AssetPlan.Segments[segment].NarrationScript
+    to: NarrationAudioProducer[segment].Text
+  - from: ExpertCastingDirector.ExpertSet.NarratorVoiceId
+    to: NarrationAudioProducer[segment].VoiceId
+  - from: LanguageCode
+    to: NarrationAudioProducer[segment].LanguageCode
+  - from: SegmentDuration
+    to: NarrationAudioProducer[segment].Duration
+  - from: NarrationAudioProducer[segment].GeneratedAudio
+    to: SegmentNarrationAudio[segment]
+
+  - from: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].Prompt
+    to: SegmentPlainImageProducer[segment][image].Prompt
+    if: imageUsesPlainGeneration
+  - from: Resolution
+    to: SegmentPlainImageProducer[segment][image].Resolution
+    if: imageUsesPlainGeneration
+  - from: SegmentPlainImageProducer[segment][image].GeneratedImage
+    to: SegmentStillImages[segment][image]
+    if: imageUsesPlainGeneration
+
+  - from: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].Prompt
+    to: HistoricalReferenceStillPromptProducer[segment][image][historicalcharacter].BasePrompt
+    if: imageReferencesHistoricalCharacter
+  - from: HistoricalCharacterDirector.HistoricalCharacterSet.HistoricalCharacters[historicalcharacter].DisplayName
+    to: HistoricalReferenceStillPromptProducer[segment][image][historicalcharacter].ReferenceCharacterName
+    if: imageReferencesHistoricalCharacter
+  - from: HistoricalReferenceStillPromptProducer[segment][image][historicalcharacter].Prompt
+    to: SegmentReferenceImageProducer[segment][image][historicalcharacter].Prompt
+    if: imageReferencesHistoricalCharacter
+  - from: HistoricalPortraitProducer[historicalcharacter].GeneratedImage
+    to: SegmentReferenceImageProducer[segment][image][historicalcharacter].SourceImages[0]
+    if: imageReferencesHistoricalCharacter
+  - from: HistoricalCharacterSheetProducer[historicalcharacter].GeneratedImage
+    to: SegmentReferenceImageProducer[segment][image][historicalcharacter].SourceImages[1]
+    if: imageReferencesHistoricalCharacter
+  - from: Resolution
+    to: SegmentReferenceImageProducer[segment][image][historicalcharacter].Resolution
+    if: imageReferencesHistoricalCharacter
+  - from: SegmentReferenceImageProducer[segment][image][historicalcharacter].ComposedImage
+    to: SegmentReferenceStillImages[segment][image][historicalcharacter]
+    if: imageReferencesHistoricalCharacter
+
+  - from: PlanDirector.AssetPlan.Segments[segment].MapPrompt
+    to: MapImageProducer[segment].Prompt
+    if: hasMap
+  - from: Resolution
+    to: MapImageProducer[segment].Resolution
+    if: hasMap
+  - from: MapImageProducer[segment].GeneratedImage
+    to: SegmentMapImages[segment]
+    if: hasMap
+
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+    to: SeedanceMotionPromptProducer[segment].Workflow
+    if: motionEnabled
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.SubjectAndAction
+    to: SeedanceMotionPromptProducer[segment].SubjectAndAction
+    if: motionEnabled
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.CameraIntent
+    to: SeedanceMotionPromptProducer[segment].CameraIntent
+    if: motionEnabled
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.AudioIntent
+    to: SeedanceMotionPromptProducer[segment].AudioIntent
+    if: motionEnabled
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EnvironmentAndStyle
+    to: SeedanceMotionPromptProducer[segment].EnvironmentAndStyle
+    if: motionEnabled
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EndingState
+    to: SeedanceMotionPromptProducer[segment].EndingState
+    if: motionEnabled
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ShotBreakdown
+    to: SeedanceMotionPromptProducer[segment].ShotBreakdown
+    if: motionEnabled
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ReferenceSubjectLabel
+    to: SeedanceMotionPromptProducer[segment].ReferenceSubjectLabel
+    if: motionEnabled
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
+    to: SeedanceMotionPromptProducer[segment].UseNativeAudio
+    if: motionEnabled
+  - from: SeedanceMotionPromptProducer[segment].Prompt
+    to: SeedanceTextClipProducer[segment].Prompt
+    if: motionIsText
+  - from: SegmentDuration
+    to: SeedanceTextClipProducer[segment].Duration
+    if: motionIsText
+  - from: Resolution
+    to: SeedanceTextClipProducer[segment].Resolution
+    if: motionIsText
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
+    to: SeedanceTextClipProducer[segment].GenerateAudio
+    if: motionIsText
+
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.SubjectAndAction
+    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].SubjectAndAction
+    if: motionReferencesHistoricalCharacter
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.CameraIntent
+    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].CameraIntent
+    if: motionReferencesHistoricalCharacter
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.AudioIntent
+    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].AudioIntent
+    if: motionReferencesHistoricalCharacter
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EnvironmentAndStyle
+    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].EnvironmentAndStyle
+    if: motionReferencesHistoricalCharacter
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
+    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].UseNativeAudio
+    if: motionReferencesHistoricalCharacter
+  - from: HistoricalCharacterDirector.HistoricalCharacterSet.HistoricalCharacters[historicalcharacter].DisplayName
+    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].ReferenceCharacterName
+    if: motionReferencesHistoricalCharacter
+  - from: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].Prompt
+    to: SeedanceReferenceClipProducer[segment][historicalcharacter].Prompt
+    if: motionReferencesHistoricalCharacter
+  - from: HistoricalPortraitProducer[historicalcharacter].GeneratedImage
+    to: SeedanceReferenceClipProducer[segment][historicalcharacter].ReferenceImages[0]
+    if: motionReferencesHistoricalCharacter
+  - from: HistoricalCharacterSheetProducer[historicalcharacter].GeneratedImage
+    to: SeedanceReferenceClipProducer[segment][historicalcharacter].ReferenceImages[1]
+    if: motionReferencesHistoricalCharacter
+  - from: SegmentDuration
+    to: SeedanceReferenceClipProducer[segment][historicalcharacter].Duration
+    if: motionReferencesHistoricalCharacter
+  - from: Resolution
+    to: SeedanceReferenceClipProducer[segment][historicalcharacter].Resolution
+    if: motionReferencesHistoricalCharacter
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
+    to: SeedanceReferenceClipProducer[segment][historicalcharacter].GenerateAudio
+    if: motionReferencesHistoricalCharacter
+
+  - from: SeedanceMotionPromptProducer[segment].Prompt
+    to: SeedanceStartEndClipProducer[segment].Prompt
+    if: motionIsStartEnd
+  - from: SegmentPlainImageProducer[segment][0].GeneratedImage
+    to: SeedanceStartEndClipProducer[segment].StartImage
+    if: motionIsStartEnd
+  - from: SegmentPlainImageProducer[segment][1].GeneratedImage
+    to: SeedanceStartEndClipProducer[segment].EndImage
+    if: motionIsStartEnd
+  - from: SegmentDuration
+    to: SeedanceStartEndClipProducer[segment].Duration
+    if: motionIsStartEnd
+  - from: Resolution
+    to: SeedanceStartEndClipProducer[segment].Resolution
+    if: motionIsStartEnd
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
+    to: SeedanceStartEndClipProducer[segment].GenerateAudio
+    if: motionIsStartEnd
+
+  - from: SeedanceMotionPromptProducer[segment].Prompt
+    to: SeedanceMultiShotClipProducer[segment].Prompt
+    if: motionIsMultiShot
+  - from: SegmentDuration
+    to: SeedanceMultiShotClipProducer[segment].Duration
+    if: motionIsMultiShot
+  - from: Resolution
+    to: SeedanceMultiShotClipProducer[segment].Resolution
+    if: motionIsMultiShot
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
+    to: SeedanceMultiShotClipProducer[segment].GenerateAudio
+    if: motionIsMultiShot
+
+  - from: SeedanceTextClipProducer[segment].GeneratedVideo
+    to: SegmentTextMotionVideos[segment]
+    if: motionIsText
+  - from: SeedanceReferenceClipProducer[segment][historicalcharacter].GeneratedVideo
+    to: SegmentReferenceMotionVideos[segment][historicalcharacter]
+    if: motionReferencesHistoricalCharacter
+  - from: SeedanceStartEndClipProducer[segment].GeneratedVideo
+    to: SegmentStartEndMotionVideos[segment]
+    if: motionIsStartEnd
+  - from: SeedanceMultiShotClipProducer[segment].GeneratedVideo
+    to: SegmentMultiShotMotionVideos[segment]
+    if: motionIsMultiShot
+
+  - from: PlanDirector.AssetPlan.Segments[segment].ExpertTalkingHeads[expert].TalkingHeadText
+    to: ExpertTalkingHeadAudioProducer[segment][expert].Text
+    if: hasExpertTalkingHead
+  - from: ExpertCastingDirector.ExpertSet.Experts[expert].VoiceId
+    to: ExpertTalkingHeadAudioProducer[segment][expert].VoiceId
+    if: hasExpertTalkingHead
+  - from: LanguageCode
+    to: ExpertTalkingHeadAudioProducer[segment][expert].LanguageCode
+    if: hasExpertTalkingHead
+  - from: SegmentDuration
+    to: ExpertTalkingHeadAudioProducer[segment][expert].Duration
+    if: hasExpertTalkingHead
+  - from: ExpertTalkingHeadAudioProducer[segment][expert].GeneratedAudio
+    to: SegmentExpertTalkingHeadAudio[segment][expert]
+    if: hasExpertTalkingHead
+
+  - from: PlanDirector.AssetPlan.Segments[segment].ExpertTalkingHeads[expert].TalkingHeadPrompt
+    to: ExpertTalkingHeadVideoProducer[segment][expert].Prompt
+    if: hasExpertTalkingHead
+  - from: ExpertPortraitProducer[expert].GeneratedImage
+    to: ExpertTalkingHeadVideoProducer[segment][expert].CharacterImage
+    if: hasExpertTalkingHead
+  - from: ExpertTalkingHeadAudioProducer[segment][expert].GeneratedAudio
+    to: ExpertTalkingHeadVideoProducer[segment][expert].AudioUrl
+    if: hasExpertTalkingHead
+  - from: SegmentDuration
+    to: ExpertTalkingHeadVideoProducer[segment][expert].Duration
+    if: hasExpertTalkingHead
+  - from: Resolution
+    to: ExpertTalkingHeadVideoProducer[segment][expert].Resolution
+    if: hasExpertTalkingHead
+  - from: ExpertTalkingHeadVideoProducer[segment][expert].GeneratedVideo
+    to: SegmentExpertTalkingHeadVideos[segment][expert]
+    if: hasExpertTalkingHead

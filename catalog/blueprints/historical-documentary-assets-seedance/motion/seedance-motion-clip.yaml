@@ -1,0 +1,207 @@
+meta:
+  name: Seedance Motion Clip
+  description: Generates one Seedance motion clip using a workflow-specific branch chosen from semantic motion inputs.
+  id: SeedanceMotionClip
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Workflow
+    description: Motion workflow type. One of Text, Reference, StartEnd, or MultiShot.
+    type: string
+    required: true
+  - name: SubjectAndAction
+    description: Core on-screen subject and action.
+    type: string
+    required: true
+  - name: CameraIntent
+    description: Camera movement and framing intent.
+    type: string
+    required: true
+  - name: AudioIntent
+    description: Sound-design intent when native audio is wanted.
+    type: string
+    required: true
+  - name: EnvironmentAndStyle
+    description: Environment, lighting, and visual texture.
+    type: string
+    required: true
+  - name: EndingState
+    description: Ending-state description used for StartEnd transitions.
+    type: string
+    required: true
+  - name: ShotBreakdown
+    description: Explicit multi-shot breakdown used only for MultiShot.
+    type: string
+    required: true
+  - name: ReferenceSubjectLabel
+    description: Name or label of the referenced historical character.
+    type: string
+    required: true
+  - name: UseNativeAudio
+    description: Whether the clip should request native Seedance audio.
+    type: boolean
+    required: true
+  - name: ReferenceImages
+    description: Reference bundle for the motion clip. Slot 0 is the portrait and slot 1 is the character sheet.
+    type: array
+    itemType: image
+  - name: StartImage
+    description: Starting frame for StartEnd workflow.
+    type: image
+  - name: EndImage
+    description: Ending frame for StartEnd workflow.
+    type: image
+  - name: Duration
+    description: Motion clip duration in seconds.
+    type: int
+    required: true
+  - name: Resolution
+    description: Output resolution for the motion clip.
+    type: resolution
+    required: true
+
+outputs:
+  - name: GeneratedVideo
+    description: Generated motion clip.
+    type: video
+  - name: AudioTrack
+    description: Native audio track returned by the selected Seedance path.
+    type: audio
+
+conditions:
+  useText:
+    when: Workflow
+    is: Text
+  useReference:
+    when: Workflow
+    is: Reference
+  useStartEnd:
+    when: Workflow
+    is: StartEnd
+  useMultiShot:
+    when: Workflow
+    is: MultiShot
+
+imports:
+  - name: SeedanceMotionPromptProducer
+    path: ./seedance-motion-prompt-producer/producer.yaml
+  - name: SeedanceTextClipProducer
+    path: ./seedance-text-clip/producer.yaml
+  - name: SeedanceReferenceClipProducer
+    path: ./seedance-reference-clip/producer.yaml
+  - name: SeedanceStartEndClipProducer
+    path: ./seedance-start-end-clip/producer.yaml
+  - name: SeedanceMultiShotClipProducer
+    path: ./seedance-multishot-clip/producer.yaml
+
+connections:
+  - from: Workflow
+    to: SeedanceMotionPromptProducer.Workflow
+  - from: SubjectAndAction
+    to: SeedanceMotionPromptProducer.SubjectAndAction
+  - from: CameraIntent
+    to: SeedanceMotionPromptProducer.CameraIntent
+  - from: AudioIntent
+    to: SeedanceMotionPromptProducer.AudioIntent
+  - from: EnvironmentAndStyle
+    to: SeedanceMotionPromptProducer.EnvironmentAndStyle
+  - from: EndingState
+    to: SeedanceMotionPromptProducer.EndingState
+  - from: ShotBreakdown
+    to: SeedanceMotionPromptProducer.ShotBreakdown
+  - from: ReferenceSubjectLabel
+    to: SeedanceMotionPromptProducer.ReferenceSubjectLabel
+  - from: UseNativeAudio
+    to: SeedanceMotionPromptProducer.UseNativeAudio
+
+  - from: SeedanceMotionPromptProducer.Prompt
+    to: SeedanceTextClipProducer.Prompt
+    if: useText
+  - from: Duration
+    to: SeedanceTextClipProducer.Duration
+    if: useText
+  - from: Resolution
+    to: SeedanceTextClipProducer.Resolution
+    if: useText
+  - from: UseNativeAudio
+    to: SeedanceTextClipProducer.GenerateAudio
+    if: useText
+
+  - from: SeedanceMotionPromptProducer.Prompt
+    to: SeedanceReferenceClipProducer.Prompt
+    if: useReference
+  - from: ReferenceImages
+    to: SeedanceReferenceClipProducer.ReferenceImages
+    if: useReference
+  - from: Duration
+    to: SeedanceReferenceClipProducer.Duration
+    if: useReference
+  - from: Resolution
+    to: SeedanceReferenceClipProducer.Resolution
+    if: useReference
+  - from: UseNativeAudio
+    to: SeedanceReferenceClipProducer.GenerateAudio
+    if: useReference
+
+  - from: SeedanceMotionPromptProducer.Prompt
+    to: SeedanceStartEndClipProducer.Prompt
+    if: useStartEnd
+  - from: StartImage
+    to: SeedanceStartEndClipProducer.StartImage
+    if: useStartEnd
+  - from: EndImage
+    to: SeedanceStartEndClipProducer.EndImage
+    if: useStartEnd
+  - from: Duration
+    to: SeedanceStartEndClipProducer.Duration
+    if: useStartEnd
+  - from: Resolution
+    to: SeedanceStartEndClipProducer.Resolution
+    if: useStartEnd
+  - from: UseNativeAudio
+    to: SeedanceStartEndClipProducer.GenerateAudio
+    if: useStartEnd
+
+  - from: SeedanceMotionPromptProducer.Prompt
+    to: SeedanceMultiShotClipProducer.Prompt
+    if: useMultiShot
+  - from: Duration
+    to: SeedanceMultiShotClipProducer.Duration
+    if: useMultiShot
+  - from: Resolution
+    to: SeedanceMultiShotClipProducer.Resolution
+    if: useMultiShot
+  - from: UseNativeAudio
+    to: SeedanceMultiShotClipProducer.GenerateAudio
+    if: useMultiShot
+
+  - from: SeedanceTextClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useText
+  - from: SeedanceTextClipProducer.AudioTrack
+    to: AudioTrack
+    if: useText
+
+  - from: SeedanceReferenceClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useReference
+  - from: SeedanceReferenceClipProducer.AudioTrack
+    to: AudioTrack
+    if: useReference
+
+  - from: SeedanceStartEndClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useStartEnd
+  - from: SeedanceStartEndClipProducer.AudioTrack
+    to: AudioTrack
+    if: useStartEnd
+
+  - from: SeedanceMultiShotClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useMultiShot
+  - from: SeedanceMultiShotClipProducer.AudioTrack
+    to: AudioTrack
+    if: useMultiShot

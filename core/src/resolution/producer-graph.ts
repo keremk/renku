@@ -46,12 +46,6 @@ export function createProducerGraph(
   // (used as input to another node or chained to another artifact)
   const connectedArtifacts = computeConnectedArtifacts(canonical);
 
-  // Build a map of (from, to) -> edge for looking up conditions
-  const edgesByKey = new Map<string, CanonicalEdgeInstance>();
-  for (const edge of canonical.edges) {
-    edgesByKey.set(`${edge.from}->${edge.to}`, edge);
-  }
-
   // Build a map of edges by target producer for input-level conditions
   // Edges may target Input nodes (e.g., Input:ImageProducer.Prompt[0][0])
   // but we need to look up by Producer node ID (e.g., Producer:ImageProducer[0][0])
@@ -176,6 +170,29 @@ export function createProducerGraph(
         };
       }
     }
+    if (inputBindings) {
+      for (const [alias, sourceId] of Object.entries(inputBindings)) {
+        if (inputConditions[sourceId]) {
+          continue;
+        }
+
+        const bindingEdge = canonical.edges.find((edge) => {
+          if (edge.from !== sourceId || !edge.conditions || !edge.indices) {
+            return false;
+          }
+
+          const targetNode = nodeMap.get(edge.to);
+          return matchesProducerInputSourceTarget(targetNode, node, alias);
+        });
+
+        if (bindingEdge?.conditions && bindingEdge.indices) {
+          inputConditions[sourceId] = {
+            condition: bindingEdge.conditions,
+            indices: bindingEdge.indices,
+          };
+        }
+      }
+    }
 
     const inputArtifactSources = buildInputArtifactSources({
       allInputs,
@@ -253,6 +270,29 @@ function normalizeSdkMapping(
   mapping: Record<string, BlueprintProducerSdkMappingField> | undefined,
 ): Record<string, BlueprintProducerSdkMappingField> {
   return mapping ?? {};
+}
+
+function matchesProducerInputSourceTarget(
+  targetNode: CanonicalBlueprint['nodes'][number] | undefined,
+  producerNode: CanonicalBlueprint['nodes'][number],
+  alias: string
+): boolean {
+  if (!targetNode || targetNode.type !== 'Input') {
+    return false;
+  }
+
+  if (targetNode.name !== alias) {
+    return false;
+  }
+
+  const expectedNamespacePath = [...producerNode.namespacePath, producerNode.name];
+  if (targetNode.namespacePath.length !== expectedNamespacePath.length) {
+    return false;
+  }
+
+  return targetNode.namespacePath.every(
+    (segment, index) => segment === expectedNamespacePath[index]
+  );
 }
 
 function resolveCatalogEntry(id: string, catalog: ProducerCatalog) {
@@ -574,9 +614,14 @@ function extractProducerIdFromTarget(target: string): string | undefined {
     return target;
   }
 
-  // If it's an Input ID, extract the producer portion
-  if (isCanonicalInputId(target)) {
-    const body = target.slice('Input:'.length);
+  // If it's an Input or InputSource ID, extract the producer portion
+  const inputPrefix = isCanonicalInputId(target)
+    ? 'Input:'
+    : target.startsWith('InputSource:')
+      ? 'InputSource:'
+      : undefined;
+  if (inputPrefix) {
+    const body = target.slice(inputPrefix.length);
     // Body format: "<namespace>.<producerName>.<inputName>[indices]"
     // The indices are at the END, after the input name
     // Example: "ImageProducer.Prompt[0][0]"

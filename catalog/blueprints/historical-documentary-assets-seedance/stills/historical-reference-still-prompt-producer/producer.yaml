@@ -1,0 +1,23 @@
+meta:
+  name: Historical Reference Still Prompt Producer
+  description: Adapts a semantic still-image plan into a prompt specifically for reference-guided image composition with a historical character bundle.
+  id: HistoricalReferenceStillPromptProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./prompts.toml
+  outputSchema: ./output-schema.json
+
+inputs:
+  - name: BasePrompt
+    description: The original still-image plan prompt.
+    type: string
+  - name: ReferenceCharacterName
+    description: The selected historical character name.
+    type: string
+
+outputs:
+  - name: Prompt
+    description: Final prompt for the reference-guided still image branch.
+    type: string

@@ -1249,7 +1249,12 @@ function collapseInputNodes(
 
   const dynamicBindingsByInput = new Map<
     string,
-    Array<{ alias: string; canonicalId: string }>
+    Array<{
+      alias: string;
+      canonicalId: string;
+      conditions?: CanonicalEdgeInstance['conditions'];
+      indices?: CanonicalEdgeInstance['indices'];
+    }>
   >();
   for (const edge of edges) {
     if (!edge.bindingAlias) {
@@ -1261,7 +1266,12 @@ function collapseInputNodes(
     }
     const canonicalId = normalizeId(edge.from);
     const list = dynamicBindingsByInput.get(edge.to) ?? [];
-    list.push({ alias: edge.bindingAlias, canonicalId });
+    list.push({
+      alias: edge.bindingAlias,
+      canonicalId,
+      conditions: edge.conditions,
+      indices: edge.indices,
+    });
     dynamicBindingsByInput.set(edge.to, list);
   }
 
@@ -1298,6 +1308,32 @@ function collapseInputNodes(
             elementCanonicalId,
             elementVisited
           );
+
+          const inherited = conditionsFromInbound.get(elementNode.id);
+          if (inherited && inherited.length === 1) {
+            const normalizedConditions = normalizeConditionDefinition(
+              inherited[0]?.conditions,
+              inherited[0]?.indices
+            );
+            const outgoing = outbound.get(node.id) ?? [];
+            for (const outboundEdge of outgoing) {
+              const normalizedTo = normalizeId(outboundEdge.to);
+              if (elementCanonicalId === normalizedTo) {
+                continue;
+              }
+
+              resolvedEdges.push({
+                from: elementCanonicalId,
+                to: normalizedTo,
+                note: outboundEdge.note,
+                groupBy: outboundEdge.groupBy,
+                orderBy: outboundEdge.orderBy,
+                bindingAlias: elementAlias,
+                conditions: normalizedConditions,
+                indices: inherited[0]?.indices,
+              });
+            }
+          }
         }
       }
     }
@@ -1311,6 +1347,33 @@ function collapseInputNodes(
           dynamicBinding.canonicalId,
           new Set<string>()
         );
+
+        if (!dynamicBinding.conditions) {
+          continue;
+        }
+
+        const normalizedConditions = normalizeConditionDefinition(
+          dynamicBinding.conditions,
+          dynamicBinding.indices
+        );
+        const outgoing = outbound.get(node.id) ?? [];
+        for (const outboundEdge of outgoing) {
+          const normalizedTo = normalizeId(outboundEdge.to);
+          if (dynamicBinding.canonicalId === normalizedTo) {
+            continue;
+          }
+
+          resolvedEdges.push({
+            from: dynamicBinding.canonicalId,
+            to: normalizedTo,
+            note: outboundEdge.note,
+            groupBy: outboundEdge.groupBy,
+            orderBy: outboundEdge.orderBy,
+            bindingAlias: dynamicBinding.alias,
+            conditions: normalizedConditions,
+            indices: dynamicBinding.indices,
+          });
+        }
       }
     }
   }

@@ -1,0 +1,37 @@
+meta:
+  name: Historical Character Director
+  description: Designs recurring historical character reference assets for the documentary.
+  id: HistoricalCharacterDirector
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./prompts.toml
+  outputSchema: ./output-schema.json
+
+inputs:
+  - name: InquiryPrompt
+    description: Documentary topic or guiding question.
+    type: string
+  - name: NumOfHistoricalCharacters
+    description: Number of recurring historical characters to create.
+    type: int
+  - name: Style
+    description: Shared visual style direction.
+    type: string
+  - name: Audience
+    description: Target audience for tone and depth.
+    type: string
+
+outputs:
+  - name: HistoricalCharacterSet
+    description: Structured recurring historical character reference data.
+    type: json
+    arrays:
+      - path: HistoricalCharacters
+        countInput: NumOfHistoricalCharacters
+
+loops:
+  - name: historicalcharacter
+    description: Iterates over recurring historical characters.
+    countInput: NumOfHistoricalCharacters

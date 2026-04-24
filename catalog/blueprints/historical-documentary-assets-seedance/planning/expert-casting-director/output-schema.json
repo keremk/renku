@@ -1,0 +1,65 @@
+{
+  "name": "ExpertSet",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "NarratorVoiceName": {
+        "type": "string",
+        "description": "Chosen ElevenLabs narrator voice name."
+      },
+      "NarratorVoiceId": {
+        "type": "string",
+        "description": "Chosen ElevenLabs narrator voice ID."
+      },
+      "Experts": {
+        "type": "array",
+        "description": "Recurring documentary experts used across the documentary.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "DisplayName": {
+              "type": "string",
+              "description": "Short on-screen name for the expert."
+            },
+            "Role": {
+              "type": "string",
+              "description": "Why this expert is relevant to the topic."
+            },
+            "VoiceName": {
+              "type": "string",
+              "description": "Chosen ElevenLabs voice name for this expert."
+            },
+            "VoiceId": {
+              "type": "string",
+              "description": "Chosen ElevenLabs voice ID for this expert."
+            },
+            "CharacterSheetPrompt": {
+              "type": "string",
+              "description": "Prompt for a production-style expert model sheet that combines turnaround views and facial expression panels in one reference image. Include front, three-quarter, profile, and back views, plus expression closeups, with no text."
+            },
+            "PortraitPrompt": {
+              "type": "string",
+              "description": "Prompt for a single canonical expert portrait in the shared interview environment, suitable as the talking-head anchor image."
+            }
+          },
+          "required": [
+            "DisplayName",
+            "Role",
+            "VoiceName",
+            "VoiceId",
+            "CharacterSheetPrompt",
+            "PortraitPrompt"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "NarratorVoiceName",
+      "NarratorVoiceId",
+      "Experts"
+    ],
+    "additionalProperties": false
+  }
+}

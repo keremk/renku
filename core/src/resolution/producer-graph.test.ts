@@ -842,6 +842,67 @@ describe('createProducerGraph', () => {
         indices: { segment_sym: 0 },
       });
     });
+
+    it('collects input conditions from edges targeting indexed InputSource members', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:TestProducer[0]',
+            type: 'Producer',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'TestProducer',
+            indices: { segment_sym: 0 },
+            dimensions: ['segment'],
+          },
+          {
+            id: 'InputSource:TestProducer.ReferenceImages[0]',
+            type: 'InputSource',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'ReferenceImages[0]',
+            indices: { segment_sym: 0 },
+            dimensions: ['segment'],
+          },
+        ],
+        edges: [
+          {
+            from: 'Artifact:CharacterImage.GeneratedImage[0]',
+            to: 'InputSource:TestProducer.ReferenceImages[0]',
+            conditions: {
+              when: 'Artifact:StoryPlan.Segments[0].UseReference',
+              is: true,
+            },
+            indices: { segment_sym: 0 },
+          },
+        ],
+        inputBindings: {
+          'Producer:TestProducer[0]': {
+            'ReferenceImages[0]': 'Artifact:CharacterImage.GeneratedImage[0]',
+          },
+        },
+        outputSources: {},
+        outputSourceBindings: [],
+        fanIn: {},
+      };
+
+      const options = createDefaultOptions(['TestProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      const node = result.nodes[0]!;
+      expect(node.context!.inputConditions).toBeDefined();
+      expect(
+        node.context!.inputConditions?.[
+          'Artifact:CharacterImage.GeneratedImage[0]'
+        ]
+      ).toEqual({
+        condition: {
+          when: 'Artifact:StoryPlan.Segments[0].UseReference',
+          is: true,
+        },
+        indices: { segment_sym: 0 },
+      });
+    });
   });
 
   describe('namespaced producers', () => {

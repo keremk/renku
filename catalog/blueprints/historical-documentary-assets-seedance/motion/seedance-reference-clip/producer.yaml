@@ -1,0 +1,72 @@
+meta:
+  name: Seedance Reference Clip
+  description: Generate a Seedance 2.0 motion clip from a prompt plus reference images.
+  id: SeedanceReferenceClipProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Seedance-ready reference-video prompt.
+    type: string
+    storyboard: main
+  - name: ReferenceImages
+    description: Reference images for subject consistency. Use slot 0 for the canonical portrait and slot 1 for the character sheet.
+    type: array
+    itemType: image
+  - name: Duration
+    description: Motion clip duration in seconds.
+    type: integer
+    required: true
+  - name: Resolution
+    description: Output resolution as width/height pixel dimensions.
+    type: resolution
+  - name: GenerateAudio
+    description: Whether the clip should request native audio.
+    type: boolean
+
+outputs:
+  - name: GeneratedVideo
+    description: Generated video.
+    type: video
+  - name: FirstFrame
+    description: First frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: Last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: Extracted native audio track.
+    type: audio
+
+mappings:
+  fal-ai:
+    bytedance/seedance-2.0/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio
+
+    bytedance/seedance-2.0/fast/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+      GenerateAudio: generate_audio

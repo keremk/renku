@@ -1,0 +1,207 @@
+{
+  "name": "AssetPlan",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "Title": {
+        "type": "string",
+        "description": "A concise, compelling title for the documentary."
+      },
+      "Summary": {
+        "type": "string",
+        "description": "A short summary of the documentary arc and approach."
+      },
+      "ScenePlanMarkdown": {
+        "type": "string",
+        "description": "Scene-by-scene markdown ordering the generated assets. Each scene line must reference artifact names like SegmentStillImages[0][0], SegmentReferenceStillImages[0][0][1], SegmentMapImages[0], SegmentNarrationAudio[0], SegmentTextMotionVideos[0], SegmentReferenceMotionVideos[0][1], SegmentStartEndMotionVideos[0], SegmentMultiShotMotionVideos[0], or SegmentExpertTalkingHeadVideos[0][1]. Do not include timing or transition instructions."
+      },
+      "Segments": {
+        "type": "array",
+        "description": "Ordered documentary segments.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "SceneTitle": {
+              "type": "string",
+              "description": "Short title for the segment."
+            },
+            "NarrationScript": {
+              "type": "string",
+              "description": "Narration for this segment, written for TTS and sized to fit the segment duration."
+            },
+            "ImagePlans": {
+              "type": "array",
+              "description": "Still-image plans for this segment.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "Prompt": {
+                    "type": "string",
+                    "description": "Still-image prompt written for the chosen visual beat. It must be compatible with either plain text-to-image or reference-guided image composition."
+                  },
+                  "UseHistoricalReference": {
+                    "type": "boolean",
+                    "description": "True when this still should use one historical character reference bundle."
+                  },
+                  "HistoricalCharacterReferences": {
+                    "type": "array",
+                    "description": "Per-historical-character selector array. Exactly one entry should be true when UseHistoricalReference is true, otherwise all entries must be false.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "UseReference": {
+                          "type": "boolean",
+                          "description": "True when this historical character should be the active reference source for the image."
+                        }
+                      },
+                      "required": [
+                        "UseReference"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "Prompt",
+                  "UseHistoricalReference",
+                  "HistoricalCharacterReferences"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "HasMap": {
+              "type": "boolean",
+              "description": "Whether this segment should generate a map image."
+            },
+            "MapPrompt": {
+              "type": "string",
+              "description": "Map-image prompt for the segment. Empty string when HasMap is false."
+            },
+            "MotionPlan": {
+              "type": "object",
+              "description": "Seedance-oriented motion plan for this segment.",
+              "properties": {
+                "Enabled": {
+                  "type": "boolean",
+                  "description": "Whether this segment should generate a motion clip."
+                },
+                "Workflow": {
+                  "type": "string",
+                  "description": "One of Text, Reference, StartEnd, or MultiShot. Empty string when Enabled is false. When Workflow is StartEnd, ImagePlans[0] and ImagePlans[1] must both use plain generation with UseHistoricalReference=false because those first two stills become the start and end frames."
+                },
+                "SubjectAndAction": {
+                  "type": "string",
+                  "description": "Core on-screen action and subject for the motion clip. Empty string when Enabled is false."
+                },
+                "CameraIntent": {
+                  "type": "string",
+                  "description": "Camera movement and framing intent. Empty string when Enabled is false."
+                },
+                "AudioIntent": {
+                  "type": "string",
+                  "description": "Sound design intent when native clip audio is wanted. Empty string when not needed."
+                },
+                "EnvironmentAndStyle": {
+                  "type": "string",
+                  "description": "Short description of environment and visual texture for the clip. Empty string when Enabled is false."
+                },
+                "EndingState": {
+                  "type": "string",
+                  "description": "Ending-state description only for StartEnd clips. Empty string otherwise."
+                },
+                "ShotBreakdown": {
+                  "type": "string",
+                  "description": "Explicit multi-shot breakdown only for MultiShot clips. Empty string otherwise."
+                },
+                "UseNativeAudio": {
+                  "type": "boolean",
+                  "description": "Whether the clip should preserve Seedance-native audio."
+                },
+                "ReferenceSubjectLabel": {
+                  "type": "string",
+                  "description": "Name or label of the referenced historical character for the motion prompt. Empty string when no historical reference is used."
+                },
+                "HistoricalCharacterReferences": {
+                  "type": "array",
+                  "description": "Per-historical-character selector array. Exactly one entry should be true when Workflow is Reference, otherwise all entries must be false.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "UseReference": {
+                        "type": "boolean",
+                        "description": "True when this historical character should provide the portrait and character-sheet reference bundle for the motion clip."
+                      }
+                    },
+                    "required": [
+                      "UseReference"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "Enabled",
+                "Workflow",
+                "SubjectAndAction",
+                "CameraIntent",
+                "AudioIntent",
+                "EnvironmentAndStyle",
+                "EndingState",
+                "ShotBreakdown",
+                "UseNativeAudio",
+                "ReferenceSubjectLabel",
+                "HistoricalCharacterReferences"
+              ],
+              "additionalProperties": false
+            },
+            "ExpertTalkingHeads": {
+              "type": "array",
+              "description": "Per-expert talking-head decisions for this segment. Usually only one entry is active.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "UseThisExpert": {
+                    "type": "boolean",
+                    "description": "True when this expert speaks in this segment."
+                  },
+                  "TalkingHeadText": {
+                    "type": "string",
+                    "description": "Exact words the expert says. Empty string when UseThisExpert is false."
+                  },
+                  "TalkingHeadPrompt": {
+                    "type": "string",
+                    "description": "Talking-head performance and framing prompt for this expert in this segment. Empty string when UseThisExpert is false."
+                  }
+                },
+                "required": [
+                  "UseThisExpert",
+                  "TalkingHeadText",
+                  "TalkingHeadPrompt"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "SceneTitle",
+            "NarrationScript",
+            "ImagePlans",
+            "HasMap",
+            "MapPrompt",
+            "MotionPlan",
+            "ExpertTalkingHeads"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "Title",
+      "Summary",
+      "ScenePlanMarkdown",
+      "Segments"
+    ],
+    "additionalProperties": false
+  }
+}

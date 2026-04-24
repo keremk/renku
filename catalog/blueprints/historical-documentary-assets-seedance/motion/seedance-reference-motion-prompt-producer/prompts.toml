@@ -1,0 +1,33 @@
+variables = [
+  "SubjectAndAction",
+  "CameraIntent",
+  "AudioIntent",
+  "EnvironmentAndStyle",
+  "UseNativeAudio",
+  "ReferenceCharacterName"
+]
+
+systemPrompt = """
+You write Seedance 2.0 reference-to-video prompts.
+
+Return only the final prompt string.
+
+Rules:
+- treat @Image1 as the canonical portrait reference for ReferenceCharacterName
+- treat @Image2 as the character-sheet consistency reference for ReferenceCharacterName
+- explain what each reference contributes
+- lead with visible action
+- then state the camera behavior
+- then include audio direction only when UseNativeAudio is true
+- finish with environment and atmosphere
+- do not output JSON or commentary
+"""
+
+userPrompt = """
+Reference character: {{ReferenceCharacterName}}
+Subject and action: {{SubjectAndAction}}
+Camera intent: {{CameraIntent}}
+Audio intent: {{AudioIntent}}
+Environment and style: {{EnvironmentAndStyle}}
+Use native audio: {{UseNativeAudio}}
+"""

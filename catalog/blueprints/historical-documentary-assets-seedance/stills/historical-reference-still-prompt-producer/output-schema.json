@@ -1,0 +1,8 @@
+{
+  "name": "Prompt",
+  "strict": true,
+  "schema": {
+    "type": "string",
+    "description": "Final prompt for a reference-guided historical still image."
+  }
+}

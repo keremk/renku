@@ -1531,6 +1531,141 @@ describe('expandBlueprintGraph', () => {
     }
   });
 
+  it('propagates conditions for indexed element bindings routed through a base array input', () => {
+    const producerDoc: BlueprintDocument = {
+      meta: { id: 'ThenImageProducer', name: 'ThenImageProducer', kind: 'producer' },
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'SourceImages', type: 'array', required: false },
+      ],
+      outputs: [{ name: 'TransformedImage', type: 'image' }],
+      producers: [
+        {
+          name: 'ImageTransformer',
+          provider: 'fal-ai',
+          model: 'flux-pro/kontext',
+        },
+      ],
+      imports: [],
+      edges: [
+        { from: 'Prompt', to: 'ImageTransformer' },
+        { from: 'SourceImages', to: 'ImageTransformer' },
+        { from: 'ImageTransformer', to: 'TransformedImage' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ArrayLoop', name: 'ArrayLoop' },
+      inputs: [
+        { name: 'NumCharacters', type: 'int', required: true },
+        { name: 'Prompt', type: 'string', required: true },
+        {
+          name: 'CelebrityThenImages',
+          type: 'array',
+          itemType: 'image',
+          required: true,
+        },
+        { name: 'SettingImage', type: 'image', required: true },
+        {
+          name: 'UseReferenceImage',
+          type: 'array',
+          itemType: 'boolean',
+          required: true,
+        },
+      ],
+      outputs: [
+        {
+          name: 'OutputImages',
+          type: 'array',
+          itemType: 'image',
+          countInput: 'NumCharacters',
+        },
+      ],
+      producers: [],
+      imports: [],
+      loops: [{ name: 'character', countInput: 'NumCharacters' }],
+      edges: [
+        { from: 'Prompt', to: 'ThenImageProducer[character].Prompt' },
+        {
+          from: 'CelebrityThenImages[character]',
+          to: 'ThenImageProducer[character].SourceImages[0]',
+          conditions: { when: 'UseReferenceImage[character]', is: true },
+        },
+        {
+          from: 'SettingImage',
+          to: 'ThenImageProducer[character].SourceImages[1]',
+          conditions: { when: 'UseReferenceImage[character]', is: true },
+        },
+        {
+          from: 'ThenImageProducer[character].TransformedImage',
+          to: 'OutputImages[character]',
+        },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ArrayLoop',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'ThenImageProducer',
+          {
+            id: 'ThenImageProducer',
+            namespacePath: ['ThenImageProducer'],
+            document: producerDoc,
+            children: new Map(),
+            sourcePath: '/test/mock-blueprint.yaml',
+          },
+        ],
+      ]),
+      sourcePath: '/test/mock-blueprint.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:NumCharacters': 2,
+        'Input:Prompt': 'Turn this into a modern photo',
+        'Input:CelebrityThenImages': ['image-a', 'image-b'],
+        'Input:SettingImage': 'setting-image',
+        'Input:UseReferenceImage': [true, false],
+      },
+      inputSources
+    );
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    expect(
+      expanded.edges.find(
+        (edge) =>
+          edge.from === 'Input:CelebrityThenImages[0]' &&
+          edge.to === 'Producer:ThenImageProducer[0]' &&
+          edge.bindingAlias === 'SourceImages[0]'
+      )
+    ).toMatchObject({
+      conditions: {
+        when: 'UseReferenceImage[0]',
+        is: true,
+      },
+    });
+
+    expect(
+      expanded.edges.find(
+        (edge) =>
+          edge.from === 'Input:SettingImage' &&
+          edge.to === 'Producer:ThenImageProducer[0]' &&
+          edge.bindingAlias === 'SourceImages[1]'
+      )
+    ).toMatchObject({
+      conditions: {
+        when: 'UseReferenceImage[0]',
+        is: true,
+      },
+    });
+  });
+
   it('creates implicit singleton fan-in for single-source fanIn input without explicit metadata', () => {
     const musicSourceDoc: BlueprintDocument = {
       meta: { id: 'MusicSource', name: 'MusicSource', kind: 'producer' },

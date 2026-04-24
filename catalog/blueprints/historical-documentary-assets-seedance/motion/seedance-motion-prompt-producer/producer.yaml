@@ -1,0 +1,44 @@
+meta:
+  name: Seedance Motion Prompt Producer
+  description: Converts semantic motion intent into a Seedance 2.0 workflow-specific prompt.
+  id: SeedanceMotionPromptProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./prompts.toml
+  outputSchema: ./output-schema.json
+
+inputs:
+  - name: Workflow
+    description: Motion workflow type.
+    type: string
+  - name: SubjectAndAction
+    description: Core subject and action.
+    type: string
+  - name: CameraIntent
+    description: Camera movement and framing intent.
+    type: string
+  - name: AudioIntent
+    description: Sound-design intent.
+    type: string
+  - name: EnvironmentAndStyle
+    description: Environment, lighting, and visual texture.
+    type: string
+  - name: EndingState
+    description: Ending-state description for StartEnd clips.
+    type: string
+  - name: ShotBreakdown
+    description: Multi-shot breakdown for MultiShot clips.
+    type: string
+  - name: ReferenceSubjectLabel
+    description: Label for the referenced historical character.
+    type: string
+  - name: UseNativeAudio
+    description: Whether native clip audio is wanted.
+    type: boolean
+
+outputs:
+  - name: Prompt
+    description: Final Seedance prompt string for one motion clip.
+    type: string

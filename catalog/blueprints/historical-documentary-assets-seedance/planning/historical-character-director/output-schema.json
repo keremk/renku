@@ -1,0 +1,50 @@
+{
+  "name": "HistoricalCharacterSet",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "Title": {
+        "type": "string",
+        "description": "Short title for the recurring historical character set."
+      },
+      "Summary": {
+        "type": "string",
+        "description": "Brief summary of how the historical character set supports the documentary."
+      },
+      "HistoricalCharacters": {
+        "type": "array",
+        "description": "Recurring historical characters whose look should stay consistent across the documentary.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "DisplayName": {
+              "type": "string",
+              "description": "Historical character name."
+            },
+            "CharacterSheetPrompt": {
+              "type": "string",
+              "description": "Prompt for a production-style historical character model sheet that combines turnaround views and facial expression panels in one reference image."
+            },
+            "PortraitPrompt": {
+              "type": "string",
+              "description": "Prompt for a canonical portrait of the historical character that matches the character sheet."
+            }
+          },
+          "required": [
+            "DisplayName",
+            "CharacterSheetPrompt",
+            "PortraitPrompt"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "Title",
+      "Summary",
+      "HistoricalCharacters"
+    ],
+    "additionalProperties": false
+  }
+}

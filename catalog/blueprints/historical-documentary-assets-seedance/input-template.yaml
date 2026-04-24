@@ -1,0 +1,95 @@
+inputs:
+  InquiryPrompt: 'Create a historical documentary asset package about the fall of Constantinople, focusing on the military buildup, the siege, the political stakes, and the long-term consequences.'
+  Duration: 72
+  NumOfSegments: 6
+  NumOfImagesPerSegment: 2
+  NumOfExperts: 2
+  NumOfHistoricalCharacters: 3
+  Style: 'cinematic historical documentary, realistic, richly textured, atmospheric, grounded lighting'
+  Audience: 'curious general audience interested in serious but accessible history'
+  LanguageCode: en
+  ExpertEnvironment: 'a thoughtful documentary interview setting with dark wood shelves, archival maps, warm key light, and subtle historical objects in the background'
+  Resolution:
+    width: 1280
+    height: 720
+
+models:
+  - model: gpt-5.2
+    provider: openai
+    producerId: ExpertCastingDirector
+
+  - model: gpt-5.2
+    provider: openai
+    producerId: HistoricalCharacterDirector
+
+  - model: gpt-5.2
+    provider: openai
+    producerId: PlanDirector
+
+  - model: eleven_v3
+    provider: elevenlabs
+    producerId: NarrationAudioProducer
+
+  - model: openai/gpt-image-2
+    provider: fal-ai
+    producerId: SegmentPlainImageProducer
+
+  - model: nano-banana-2/edit
+    provider: fal-ai
+    producerId: SegmentReferenceImageProducer
+
+  - model: gpt-5.2
+    provider: openai
+    producerId: HistoricalReferenceStillPromptProducer
+
+  - model: openai/gpt-image-2
+    provider: fal-ai
+    producerId: MapImageProducer
+
+  - model: openai/gpt-image-2
+    provider: fal-ai
+    producerId: ExpertCharacterSheetProducer
+
+  - model: openai/gpt-image-2
+    provider: fal-ai
+    producerId: ExpertPortraitProducer
+
+  - model: openai/gpt-image-2
+    provider: fal-ai
+    producerId: HistoricalCharacterSheetProducer
+
+  - model: openai/gpt-image-2
+    provider: fal-ai
+    producerId: HistoricalPortraitProducer
+
+  - model: eleven_v3
+    provider: elevenlabs
+    producerId: ExpertTalkingHeadAudioProducer
+
+  - model: ltx-2.3/audio-to-video
+    provider: fal-ai
+    producerId: ExpertTalkingHeadVideoProducer
+
+  - model: gpt-5.2
+    provider: openai
+    producerId: SeedanceMotionPromptProducer
+
+  - model: bytedance/seedance-2.0/text-to-video
+    provider: fal-ai
+    producerId: SeedanceTextClipProducer
+
+  - model: gpt-5.2
+    provider: openai
+    producerId: SeedanceReferenceMotionPromptProducer
+
+  - model: bytedance/seedance-2.0/reference-to-video
+    provider: fal-ai
+    producerId: SeedanceReferenceClipProducer
+
+  - model: bytedance/seedance-2.0/image-to-video
+    provider: fal-ai
+    producerId: SeedanceStartEndClipProducer
+
+  - model: bytedance/seedance-2.0/text-to-video
+    provider: fal-ai
+    producerId: SeedanceMultiShotClipProducer

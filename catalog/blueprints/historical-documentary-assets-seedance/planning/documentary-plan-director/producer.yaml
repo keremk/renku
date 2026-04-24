@@ -1,0 +1,82 @@
+meta:
+  name: Historical Documentary Asset Planner
+  description: Plans narration, stills, maps, Seedance-oriented motion intent, expert usage, and scene-order markdown for a topic-generic historical documentary asset pipeline.
+  id: DocumentaryPlanDirector
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./prompts.toml
+  outputSchema: ./output-schema.json
+
+inputs:
+  - name: InquiryPrompt
+    description: Documentary topic or guiding question.
+    type: string
+  - name: Duration
+    description: Total documentary runtime in seconds.
+    type: int
+  - name: NumOfSegments
+    description: Number of planned documentary segments.
+    type: int
+  - name: NumOfImagesPerSegment
+    description: Number of still-image assets per segment.
+    type: int
+  - name: NumOfExperts
+    description: Number of recurring experts available.
+    type: int
+  - name: NumOfHistoricalCharacters
+    description: Number of recurring historical characters available for reference bundles.
+    type: int
+  - name: SegmentDuration
+    description: Derived runtime budget per segment in seconds.
+    type: int
+  - name: Style
+    description: Shared visual style direction.
+    type: string
+  - name: Audience
+    description: Target audience for tone and depth.
+    type: string
+  - name: LanguageCode
+    description: ISO language code for narration and expert speech.
+    type: string
+  - name: ExpertEnvironment
+    description: Shared interview environment for expert talking heads.
+    type: string
+  - name: ExpertSet
+    description: Structured expert metadata produced upstream.
+    type: json
+  - name: HistoricalCharacterSet
+    description: Structured historical character metadata produced upstream.
+    type: json
+
+outputs:
+  - name: AssetPlan
+    description: Structured historical documentary asset plan.
+    type: json
+    arrays:
+      - path: Segments
+        countInput: NumOfSegments
+      - path: Segments.ImagePlans
+        countInput: NumOfImagesPerSegment
+      - path: Segments.ImagePlans.HistoricalCharacterReferences
+        countInput: NumOfHistoricalCharacters
+      - path: Segments.ExpertTalkingHeads
+        countInput: NumOfExperts
+      - path: Segments.MotionPlan.HistoricalCharacterReferences
+        countInput: NumOfHistoricalCharacters
+
+loops:
+  - name: segment
+    description: Iterates over documentary segments.
+    countInput: NumOfSegments
+  - name: image
+    description: Iterates over still-image assets within a segment.
+    parent: segment
+    countInput: NumOfImagesPerSegment
+  - name: expert
+    description: Iterates over recurring experts.
+    countInput: NumOfExperts
+  - name: historicalcharacter
+    description: Iterates over recurring historical characters.
+    countInput: NumOfHistoricalCharacters

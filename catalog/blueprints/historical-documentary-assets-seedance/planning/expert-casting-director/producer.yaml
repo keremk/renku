@@ -1,0 +1,46 @@
+meta:
+  name: Expert Casting Director
+  description: Casts the documentary narrator and recurring experts, including voice selection and reusable model-sheet and portrait prompts.
+  id: ExpertCastingDirector
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./prompts.toml
+  outputSchema: ./output-schema.json
+
+inputs:
+  - name: InquiryPrompt
+    description: Documentary topic or guiding question.
+    type: string
+  - name: Duration
+    description: Total documentary runtime in seconds.
+    type: int
+  - name: NumOfSegments
+    description: Number of planned documentary segments.
+    type: int
+  - name: NumOfExperts
+    description: Number of recurring experts to cast.
+    type: int
+  - name: Style
+    description: Shared visual style direction.
+    type: string
+  - name: Audience
+    description: Target audience for tone and depth.
+    type: string
+  - name: ExpertEnvironment
+    description: Shared baseline environment description for the expert interviews.
+    type: string
+
+outputs:
+  - name: ExpertSet
+    description: Structured expert cast data for narration and talking-head generation.
+    type: json
+    arrays:
+      - path: Experts
+        countInput: NumOfExperts
+
+loops:
+  - name: expert
+    description: Iterates over recurring experts.
+    countInput: NumOfExperts
