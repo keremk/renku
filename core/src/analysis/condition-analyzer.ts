@@ -101,6 +101,20 @@ export function analyzeConditions(
     }
   }
 
+  for (const requiredBranch of blueprint.validation?.coverage?.requiredBranches ?? []) {
+    const { artifactPath, fieldPath, dimensions } = parseConditionPath(
+      requiredBranch.field
+    );
+    conditionFields.push({
+      artifactId: formatConditionFieldArtifactId({ artifactPath, fieldPath }),
+      artifactPath,
+      fieldPath,
+      expectedValues: requiredBranch.values,
+      operator: 'is',
+      dimensions,
+    });
+  }
+
   // Dedupe condition fields by artifact path + field path + operator
   const deduped = dedupeFields(conditionFields);
 
@@ -428,7 +442,7 @@ export function conditionAnalysisToVaryingHints(
 
       hints.push({
         artifactId,
-        values: [primaryValue, ...alternativeValues],
+        values: [...field.expectedValues, ...alternativeValues],
         dimension: field.dimensions[0],
       });
     } else if (field.operator === 'isNot' && field.expectedValues.length > 0) {

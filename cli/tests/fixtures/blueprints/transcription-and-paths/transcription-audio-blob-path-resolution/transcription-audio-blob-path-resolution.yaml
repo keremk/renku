@@ -69,8 +69,6 @@ connections:
     to: TimelineComposer.TranscriptionAudio
   - from: Duration
     to: TimelineComposer.Duration
-  - from: SegmentDuration
-    to: TimelineComposer.SegmentDuration
   - from: TimelineComposer.Timeline
     to: Timeline
 

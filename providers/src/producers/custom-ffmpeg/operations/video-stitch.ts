@@ -11,7 +11,6 @@ import {
   ensureReadableFile,
   getFfmpegPath,
   getFfprobePath,
-  getRequiredCanonicalInputId,
   probeVideoAsset,
   readInputBinding,
   readPositiveDuration,
@@ -41,22 +40,7 @@ export const videoStitchOperation: CustomFfmpegOperation = {
   async invoke(args: ProducerInvokeArgs): Promise<ProviderResult> {
     const { request, runtime } = args;
     const extras = request.context.extras as Record<string, unknown> | undefined;
-    const producerAlias = readProducerAlias(extras);
-    if (!producerAlias) {
-      throw createProviderError(
-        SdkErrorCode.INVALID_CONFIG,
-        'Video stitcher requires producerAlias in job context.',
-        {
-          kind: 'user_input',
-          causedByUser: true,
-        }
-      );
-    }
-
-    const videoSegmentsInputId = getRequiredCanonicalInputId(
-      producerAlias,
-      'VideoSegments'
-    );
+    const videoSegmentsInputId = readSingleFanInInputId(extras);
 
     const resolvedInputs = runtime.inputs.all();
     const config = (runtime.config.raw ?? {}) as CustomFfmpegConfig;
@@ -213,18 +197,57 @@ export const videoStitchOperation: CustomFfmpegOperation = {
   },
 };
 
-function readProducerAlias(
+function readSingleFanInInputId(
   extras: Record<string, unknown> | undefined
-): string | undefined {
+): string {
   if (!extras || typeof extras !== 'object') {
-    return undefined;
+    throw createProviderError(
+      SdkErrorCode.MISSING_FANIN_DATA,
+      'Video stitcher requires fan-in metadata in job context extras.',
+      {
+        kind: 'user_input',
+        causedByUser: true,
+      }
+    );
   }
   const jobContext = extras.jobContext;
   if (!jobContext || typeof jobContext !== 'object') {
-    return undefined;
+    throw createProviderError(
+      SdkErrorCode.MISSING_FANIN_DATA,
+      'Video stitcher requires fan-in metadata in job context.',
+      {
+        kind: 'user_input',
+        causedByUser: true,
+      }
+    );
   }
-  const producerAlias = (jobContext as Record<string, unknown>).producerAlias;
-  return typeof producerAlias === 'string' ? producerAlias : undefined;
+  const fanIn = (jobContext as Record<string, unknown>).fanIn;
+  if (!fanIn || typeof fanIn !== 'object' || Array.isArray(fanIn)) {
+    throw createProviderError(
+      SdkErrorCode.MISSING_FANIN_DATA,
+      'Video stitcher requires fan-in metadata in job context.',
+      {
+        kind: 'user_input',
+        causedByUser: true,
+      }
+    );
+  }
+
+  const inputIds = Object.keys(fanIn);
+  if (inputIds.length !== 1) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Video stitcher expects exactly one fan-in input, received ${inputIds.length}.`,
+      {
+        kind: 'user_input',
+        causedByUser: true,
+        metadata: {
+          inputIds,
+        },
+      }
+    );
+  }
+  return inputIds[0]!;
 }
 
 function readAssetBlobPaths(

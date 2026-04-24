@@ -14,46 +14,57 @@ inputs:
   - name: NegativePrompt
     description: What to avoid in the video.
     type: string
+    required: false
 
   # Duration
   - name: Duration
     description: Video duration in seconds.
     type: integer
+    required: true
   - name: NumFrames
     description: Number of frames (for frame-based models).
     type: integer
+    required: false
 
   # Sizing
   - name: AspectRatio
     description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4, 21:9)."
     type: string
+    required: false
   - name: Resolution
     description: "Resolution preset (480p, 720p, 1080p)."
     type: string
+    required: false
 
   # Audio
   - name: GenerateAudio
     description: Whether to generate audio for the video.
     type: boolean
+    required: false
   - name: AudioUrl
     description: URL to background audio file.
     type: string
+    required: false
 
   # Generation control
   - name: Seed
     description: Random seed for reproducibility.
     type: integer
+    required: false
   - name: EnhancePrompt
     description: Enable LLM prompt enhancement.
     type: boolean
+    required: false
   - name: CameraFixed
     description: Keep camera position fixed.
     type: boolean
+    required: false
 
   # Multi-shot
   - name: MultiShots
     description: Enable multi-shot segmentation.
     type: boolean
+    required: false
 
 outputs:
   - name: GeneratedVideo

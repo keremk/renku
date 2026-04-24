@@ -169,7 +169,16 @@ AudioProducer (2 audio models)
 
 ## Testing with Dry Run
 
-Before spending API credits, validate your configuration with a dry run:
+Before spending API credits, validate your configuration with preflight and then dry run:
+
+```bash
+renku generate \
+  --inputs=./my-inputs.yaml \
+  --blueprint=./my-blueprint.yaml \
+  --preflight-only
+```
+
+Preflight loads the real inputs and model selections, prepares the graph, checks viewer projection, and verifies the planned execution shape before any simulated or live producer runs.
 
 ```bash
 renku generate \
@@ -185,6 +194,8 @@ renku generate \
 - Verifies producer paths exist
 - Creates the execution plan
 - Generates placeholder artifacts
+
+For more detail, see [Blueprint Validation and Preflight](/docs/blueprint-validation-and-preflight).
 
 ### What Dry Run Doesn't Do
 

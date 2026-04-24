@@ -18,31 +18,38 @@ inputs:
     description: List of per-shot prompts with individual durations for multi-shot video generation.
     type: array
     storyboard: secondary
+    required: false
   - name: ShotType
     description: 'Type of multi-shot generation: customize or intelligent.'
     type: string
+    required: false
 
   # Images
   - name: StartImage
     description: Starting frame image.
     type: image
+    required: false
   - name: EndImage
     description: Ending frame image.
     type: image
+    required: false
 
   # Elements (Kling-specific character/subject references)
   - name: Elements
     description: Structured character/subject elements with frontal and reference images.
     type: array
+    required: false
 
   # References
   - name: ReferenceImages
     description: Reference images for subject consistency.
     type: array
     itemType: image
+    required: false
   - name: ReferenceVideo
     description: Reference video for style or motion transfer.
     type: string
+    required: false
 
   # Duration
   - name: Duration
@@ -54,22 +61,27 @@ inputs:
   - name: Resolution
     description: Resolution as width/height pixel dimensions.
     type: resolution
+    required: false
 
   # Audio
   - name: GenerateAudio
     description: Whether to generate audio for the video.
     type: boolean
+    required: false
   - name: VoiceIds
     description: Voice IDs for speech generation in video.
     type: array
+    required: false
   - name: KeepAudio
     description: Whether to keep original audio from source video.
     type: boolean
+    required: false
 
   # Negative prompt
   - name: NegativePrompt
     description: What to avoid in the video.
     type: string
+    required: false
 
 outputs:
   - name: GeneratedVideo

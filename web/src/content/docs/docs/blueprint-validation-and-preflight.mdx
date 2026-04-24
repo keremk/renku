@@ -1,0 +1,261 @@
+---
+title: Blueprint Validation and Preflight
+description: Understand Renku validation, preflight, dry-run simulation, condition coverage, and safe blueprint wiring
+---
+
+Renku blueprints are executable graphs. That means a blueprint can look readable as YAML but still be unsafe once Renku expands loops, applies conditions, resolves producer contracts, prepares the viewer graph, and plans a stage-limited run.
+
+This guide explains the different checks Renku uses and what each one is responsible for.
+
+## The Short Version
+
+Use these checks in this order when authoring or changing a blueprint:
+
+```bash
+renku blueprints:validate ./blueprint.yaml
+renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --preflight-only
+renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --dry-run
+```
+
+Each command answers a different question:
+
+- `blueprints:validate` asks: “Is this blueprint structurally valid and can the viewer understand it?”
+- `--preflight-only` asks: “With these inputs, models, conditions, and selected stage scope, does this plan make sense before simulation?”
+- `--dry-run` asks: “Can simulated producers execute the plan and produce enough simulated artifacts to exercise the branches?”
+
+Preflight and dry-run are not replacements for each other. Preflight catches impossible plans early. Dry-run proves that a valid plan can walk through simulated execution.
+
+## Validation
+
+Blueprint validation checks the authored workflow before any execution happens.
+
+It checks things like:
+
+- Are all referenced inputs, outputs, producers, and loops declared?
+- Do producer input and output names match the producer contracts?
+- Are required `Duration` inputs declared and explicitly wired for audio/video producers?
+- Do condition paths resolve to prepared graph artifacts?
+- Can the same graph be projected for the viewer?
+- Are published outputs being used only as publication endpoints?
+
+Validation should fail when the blueprint itself is wrong. For example, if an edge points to `SeedanceStartEndClipProducer.StartImage` but that producer does not declare `StartImage`, that should be a validation error, not a dry-run surprise.
+
+## Preflight
+
+Preflight sits between validation and dry-run.
+
+Validation checks the blueprint as a document. Preflight checks the blueprint as a plan with real inputs, model selections, condition state, and run scope.
+
+Preflight is useful because many failures are not plain YAML syntax errors. They appear only after Renku has loaded the blueprint tree, resolved producer metadata, loaded inputs, selected models, prepared the graph, applied planning controls, and decided which jobs would run.
+
+Preflight should catch issues such as:
+
+- The viewer graph cannot be built even though basic YAML parsing succeeded.
+- A producer can be scheduled while a required input is missing.
+- A required input is active only in one branch, but another required input keeps the producer alive outside that branch.
+- A top-level published output is being used as an internal source.
+- A canonical binding cannot be materialized.
+- A stage-limited run is being checked, so later-layer artifacts should not be required yet.
+
+The goal is to fail before simulation and before paid provider calls.
+
+For example, instead of discovering this during a later dry-run job:
+
+```text
+SeedanceStartEndClipProducer.StartImage is missing.
+```
+
+Preflight should be able to say:
+
+```text
+SeedanceStartEndClipProducer.StartImage is active under Workflow=StartEnd,
+but its source SegmentPlainImageProducer.GeneratedImage is only active when
+UseHistoricalReference=false.
+```
+
+That is much more actionable. It tells you the problem is branch coherence, not image generation.
+
+## Dry-Run
+
+Dry-run executes the planned jobs with simulated providers. It should not call paid model APIs, but it should still behave like real execution where structure and required inputs are concerned.
+
+Dry-run is responsible for:
+
+- Walking the planned jobs layer by layer.
+- Applying conditional input filtering.
+- Producing simulated artifacts.
+- Reporting failed and skipped jobs.
+- Reporting condition coverage.
+- Showing produced condition paths for branch-heavy blueprints.
+
+Dry-run is especially important for condition-heavy workflows because a blueprint can pass validation and preflight but still fail to produce the condition fields needed to exercise a branch.
+
+For example, if a director producer is supposed to emit:
+
+```yaml
+MotionPlan:
+  Workflow: Reference
+```
+
+and later edges depend on `Workflow=Reference`, dry-run coverage can show whether simulated director output actually produced that field path.
+
+## Published Outputs Are Endpoints
+
+Top-level blueprint `outputs` are publication endpoints. They expose artifacts to the viewer, the user, or another external tool.
+
+They are not internal routing nodes.
+
+This is valid:
+
+```yaml
+outputs:
+  - name: SegmentStillImages
+    type: array
+    itemType: image
+
+connections:
+  - from: SegmentPlainImageProducer[segment][image].GeneratedImage
+    to: SegmentStillImages[segment][image]
+```
+
+It means:
+
+> Publish the generated still images as `SegmentStillImages`.
+
+This is also valid:
+
+```yaml
+connections:
+  - from: SegmentPlainImageProducer[segment][0].GeneratedImage
+    to: SeedanceStartEndClipProducer[segment].StartImage
+```
+
+It means:
+
+> Feed the real image producer output directly into the video producer.
+
+This is invalid:
+
+```yaml
+connections:
+  - from: SegmentPlainImageProducer[segment][0].GeneratedImage
+    to: SegmentStillImages[segment][0]
+
+  - from: SegmentStillImages[segment][0]
+    to: SeedanceStartEndClipProducer[segment].StartImage
+```
+
+The second edge routes from a published output back into the internal graph. That hides the real dependency and makes conditions harder to reason about.
+
+Use this instead:
+
+```yaml
+connections:
+  - from: SegmentPlainImageProducer[segment][0].GeneratedImage
+    to: SegmentStillImages[segment][0]
+
+  - from: SegmentPlainImageProducer[segment][0].GeneratedImage
+    to: SeedanceStartEndClipProducer[segment].StartImage
+```
+
+The same producer output can feed two places:
+
+- one edge publishes it;
+- one edge uses it internally.
+
+That keeps the graph honest.
+
+## Required Inputs And Conditions
+
+Condition-heavy blueprints need more than “the edge exists.”
+
+They need the required inputs for a producer to be available in every branch where that producer can run.
+
+This is unsafe:
+
+```yaml
+conditions:
+  referenceWorkflow:
+    when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+    is: Reference
+
+connections:
+  - from: ReferencePromptProducer[segment].Prompt
+    to: ReferenceClipProducer[segment].Prompt
+    if: referenceWorkflow
+
+  - from: SomeImageProducer[segment].GeneratedImage
+    to: ReferenceClipProducer[segment].SourceImage
+```
+
+If `SourceImage` is unconditional, the clip producer can stay alive outside `referenceWorkflow`, while `Prompt` disappears. That creates a job that can run without a required prompt.
+
+Safer:
+
+```yaml
+connections:
+  - from: ReferencePromptProducer[segment].Prompt
+    to: ReferenceClipProducer[segment].Prompt
+    if: referenceWorkflow
+
+  - from: SomeImageProducer[segment].GeneratedImage
+    to: ReferenceClipProducer[segment].SourceImage
+    if: referenceWorkflow
+```
+
+Now the required inputs agree about when the producer should exist.
+
+## Stage-Limited Runs
+
+Renku supports stage-by-stage execution with `--up-to-layer` / `--up`.
+
+That is important for viewer workflows:
+
+- run early planning layers;
+- inspect artifacts visually;
+- pin good outputs;
+- regenerate weak outputs;
+- continue to the next layer.
+
+Validation and preflight must respect the selected stage scope. If you run:
+
+```bash
+renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --dry-run --up-to-layer=1
+```
+
+Renku should not complain that layer 4 artifacts are absent. Those jobs were intentionally not scheduled yet.
+
+Dry-run coverage should say that coverage applies only to scheduled layers. Missing later-layer condition fields are not automatically a problem during a partial run.
+
+## Produced Condition Paths
+
+Produced condition paths show which simulated artifacts contained fields used by branch conditions.
+
+For example:
+
+```text
+case-1: PlanDirector.AssetPlan.Segments[0].MotionPlan.Workflow = "Reference"
+```
+
+That tells you dry-run simulation produced the field that drives a branch.
+
+If coverage says a condition field was not matched, it usually means one of these things:
+
+- the director output schema does not actually produce that path;
+- the condition path is misspelled;
+- the simulated case did not cover that branch;
+- the branch is in a later layer outside the selected `--up-to-layer` scope.
+
+Produced paths are the bridge between “the graph says this field matters” and “the simulated artifacts actually contained it.”
+
+## When To Use Each Check
+
+Use `blueprints:validate` after editing blueprint YAML or producer contracts.
+
+Use `--preflight-only` when you want a fast check with real inputs and planning controls, especially before opening the viewer RUN flow or doing a stage-limited run.
+
+Use `--dry-run` when you want execution-level confidence without paid provider calls.
+
+Use `--dry-run --profile=...` when condition coverage needs to be deterministic and repeatable.
+
+Use a live run only after validation, preflight, and dry-run agree that the graph is coherent.

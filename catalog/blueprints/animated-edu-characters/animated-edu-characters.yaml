@@ -27,6 +27,10 @@ inputs:
     description: Animation style description (e.g., "Pixar-style 3D animated, cute, colorful").
     type: text
     required: true
+  - name: VoiceId
+    description: Voice identifier for narration audio.
+    type: string
+    required: true
   - name: Resolution
     description: Video resolution in pixel dimensions.
     type: resolution
@@ -128,6 +132,8 @@ connections:
     to: NarrationAudioProducer[segment].Text
   - from: SegmentDuration
     to: NarrationAudioProducer[segment].Duration
+  - from: VoiceId
+    to: NarrationAudioProducer[segment].VoiceId
   - from: NarrationAudioProducer[segment].GeneratedAudio
     to: NarrationAudio[segment]
 

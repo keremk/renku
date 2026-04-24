@@ -1,0 +1,59 @@
+meta:
+  name: Nested Looped Video Stitcher
+  description: Regression fixture for a looped parent blueprint whose child blueprint stitches two generated clips.
+  id: NestedLoopedVideoStitcher
+  version: 0.1.0
+
+inputs:
+  - name: NumOfSegments
+    type: int
+    required: true
+  - name: FirstClipPrompts
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+    required: true
+  - name: SecondClipPrompts
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+    required: true
+  - name: ClipDuration
+    type: int
+    required: true
+  - name: Duration
+    type: int
+    required: true
+  - name: Resolution
+    type: resolution
+    required: true
+
+outputs:
+  - name: SegmentVideos
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+
+loops:
+  - name: segment
+    countInput: NumOfSegments
+
+imports:
+  - name: SegmentVideoProducer
+    path: ./segment-video/segment-video.yaml
+    loop: segment
+
+connections:
+  - from: FirstClipPrompts[segment]
+    to: SegmentVideoProducer[segment].FirstClipPrompt
+  - from: SecondClipPrompts[segment]
+    to: SegmentVideoProducer[segment].SecondClipPrompt
+  - from: ClipDuration
+    to: SegmentVideoProducer[segment].ClipDuration
+  - from: Duration
+    to: SegmentVideoProducer[segment].Duration
+  - from: Resolution
+    to: SegmentVideoProducer[segment].Resolution
+
+  - from: SegmentVideoProducer[segment].SegmentVideo
+    to: SegmentVideos[segment]

@@ -18,6 +18,9 @@ import {
   findUnusedArtifacts,
   findUnreachableProducers,
   findConditionallyUnusedProducerOutputs,
+  validatePublishedOutputsAreTerminal,
+  validateRequiredInputConditionCoherence,
+  validateSemanticRules,
 } from './blueprint-validator.js';
 import { ValidationErrorCode } from './types.js';
 
@@ -106,6 +109,214 @@ describe('validateBlueprintTree', () => {
 
     expect(resultWithWarnings.warnings.length).toBeGreaterThan(0);
     expect(resultWithoutWarnings.warnings).toHaveLength(0);
+  });
+
+  it('rejects using a published output as an internal producer source', () => {
+    const producer = createTreeNode(
+      createDocument({
+        meta: { id: 'ImageConsumer', name: 'Image Consumer', kind: 'producer' },
+        inputs: [{ name: 'Image', type: 'image', required: true }],
+        outputs: [{ name: 'Result', type: 'string', required: true }],
+      }),
+      { namespacePath: ['ImageConsumer'] }
+    );
+    const doc = createDocument({
+      outputs: [
+        { name: 'PublishedImage', type: 'image', required: true },
+        { name: 'Result', type: 'string', required: true },
+      ],
+      imports: [{ name: 'ImageConsumer', path: './image-consumer.yaml' }],
+      edges: [
+        { from: 'PublishedImage', to: 'ImageConsumer.Image' },
+        { from: 'ImageConsumer.Result', to: 'Result' },
+      ],
+    });
+    const tree = createTreeNode(doc, {
+      children: new Map([['ImageConsumer', producer]]),
+    });
+
+    const result = validateBlueprintTree(tree);
+
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.PUBLISHED_OUTPUT_USED_AS_INTERNAL_SOURCE,
+      })
+    );
+  });
+
+  it('allows producer outputs to feed both published outputs and internal producer inputs', () => {
+    const imageProducer = createTreeNode(
+      createDocument({
+        meta: { id: 'ImageProducer', name: 'Image Producer', kind: 'producer' },
+        inputs: [{ name: 'Prompt', type: 'string', required: true }],
+        outputs: [{ name: 'GeneratedImage', type: 'image', required: true }],
+      }),
+      { namespacePath: ['ImageProducer'] }
+    );
+    const videoProducer = createTreeNode(
+      createDocument({
+        meta: { id: 'VideoProducer', name: 'Video Producer', kind: 'producer' },
+        inputs: [{ name: 'StartImage', type: 'image', required: true }],
+        outputs: [{ name: 'GeneratedVideo', type: 'video', required: true }],
+      }),
+      { namespacePath: ['VideoProducer'] }
+    );
+    const doc = createDocument({
+      inputs: [{ name: 'Prompt', type: 'text', required: true }],
+      outputs: [
+        { name: 'PublishedImage', type: 'image', required: true },
+        { name: 'PublishedVideo', type: 'video', required: true },
+      ],
+      imports: [
+        { name: 'ImageProducer', path: './image-producer.yaml' },
+        { name: 'VideoProducer', path: './video-producer.yaml' },
+      ],
+      edges: [
+        { from: 'Prompt', to: 'ImageProducer.Prompt' },
+        { from: 'ImageProducer.GeneratedImage', to: 'PublishedImage' },
+        { from: 'ImageProducer.GeneratedImage', to: 'VideoProducer.StartImage' },
+        { from: 'VideoProducer.GeneratedVideo', to: 'PublishedVideo' },
+      ],
+    });
+    const tree = createTreeNode(doc, {
+      children: new Map([
+        ['ImageProducer', imageProducer],
+        ['VideoProducer', videoProducer],
+      ]),
+    });
+
+    const issues = validatePublishedOutputsAreTerminal(tree);
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it('rejects required producer inputs that are unavailable in an active branch', () => {
+    const producer = createTreeNode(
+      createDocument({
+        meta: { id: 'ClipProducer', name: 'Clip Producer', kind: 'producer' },
+        inputs: [
+          { name: 'Prompt', type: 'text', required: true },
+          { name: 'StartImage', type: 'image', required: true },
+        ],
+        outputs: [{ name: 'GeneratedVideo', type: 'video', required: true }],
+      }),
+      { namespacePath: ['ClipProducer'] }
+    );
+    const doc = createDocument({
+      inputs: [
+        { name: 'Workflow', type: 'string', required: true },
+        { name: 'Prompt', type: 'text', required: true },
+        { name: 'StartImage', type: 'image', required: true },
+      ],
+      outputs: [{ name: 'Video', type: 'video', required: true }],
+      imports: [{ name: 'ClipProducer', path: './clip-producer.yaml' }],
+      conditions: {
+        referenceWorkflow: { when: 'Workflow', is: 'Reference' },
+      },
+      edges: [
+        {
+          from: 'Prompt',
+          to: 'ClipProducer.Prompt',
+          if: 'referenceWorkflow',
+        },
+        { from: 'StartImage', to: 'ClipProducer.StartImage' },
+        { from: 'ClipProducer.GeneratedVideo', to: 'Video' },
+      ],
+    });
+    const tree = createTreeNode(doc, {
+      children: new Map([['ClipProducer', producer]]),
+    });
+
+    const issues = validateRequiredInputConditionCoherence(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.REQUIRED_INPUT_CONDITION_INCOHERENT,
+        message: expect.stringContaining('ClipProducer.Prompt'),
+      })
+    );
+  });
+
+  it('accepts required producer inputs that share the producer branch condition', () => {
+    const producer = createTreeNode(
+      createDocument({
+        meta: { id: 'ClipProducer', name: 'Clip Producer', kind: 'producer' },
+        inputs: [
+          { name: 'Prompt', type: 'text', required: true },
+          { name: 'StartImage', type: 'image', required: true },
+        ],
+        outputs: [{ name: 'GeneratedVideo', type: 'video', required: true }],
+      }),
+      { namespacePath: ['ClipProducer'] }
+    );
+    const doc = createDocument({
+      inputs: [
+        { name: 'Workflow', type: 'string', required: true },
+        { name: 'Prompt', type: 'text', required: true },
+        { name: 'StartImage', type: 'image', required: true },
+      ],
+      outputs: [{ name: 'Video', type: 'video', required: true }],
+      imports: [{ name: 'ClipProducer', path: './clip-producer.yaml' }],
+      conditions: {
+        referenceWorkflow: { when: 'Workflow', is: 'Reference' },
+      },
+      edges: [
+        {
+          from: 'Prompt',
+          to: 'ClipProducer.Prompt',
+          if: 'referenceWorkflow',
+        },
+        {
+          from: 'StartImage',
+          to: 'ClipProducer.StartImage',
+          if: 'referenceWorkflow',
+        },
+        {
+          from: 'ClipProducer.GeneratedVideo',
+          to: 'Video',
+          if: 'referenceWorkflow',
+        },
+      ],
+    });
+    const tree = createTreeNode(doc, {
+      children: new Map([['ClipProducer', producer]]),
+    });
+
+    const issues = validateRequiredInputConditionCoherence(tree);
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it('rejects semantic rules when required connections are not guarded by the declared condition', () => {
+    const doc = createDocument({
+      inputs: [
+        { name: 'Workflow', type: 'string', required: true },
+        { name: 'Prompt', type: 'text', required: true },
+      ],
+      outputs: [{ name: 'PromptOut', type: 'text', required: true }],
+      conditions: {
+        textWorkflow: { when: 'Workflow', is: 'Text' },
+      },
+      validation: {
+        semanticRules: [
+          {
+            name: 'text prompt branch',
+            condition: 'textWorkflow',
+            requireGuardedConnections: [{ from: 'Prompt', to: 'PromptOut' }],
+          },
+        ],
+      },
+      edges: [{ from: 'Prompt', to: 'PromptOut' }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateSemanticRules(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.SEMANTIC_VALIDATION_RULE_FAILED,
+      })
+    );
   });
 });
 

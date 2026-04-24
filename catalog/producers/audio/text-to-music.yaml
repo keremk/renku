@@ -15,6 +15,7 @@ inputs:
   - name: Lyrics
     description: Song lyrics with section tags ([intro], [verse], [chorus], etc.).
     type: string
+    required: false
 
   # Duration
   - name: Duration

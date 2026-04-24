@@ -20,11 +20,13 @@ inputs:
   - name: MaskImage
     description: Mask image for selective region editing (white=edit, black=keep).
     type: image
+    required: false
 
   # Sizing
   - name: Resolution
     description: Output resolution as width/height pixel dimensions.
     type: resolution
+    required: false
 
 outputs:
   - name: TransformedImage

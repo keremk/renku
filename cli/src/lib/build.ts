@@ -68,6 +68,7 @@ export interface JobSummary {
 	status: 'succeeded' | 'failed' | 'skipped';
 	layerIndex: number;
 	errorMessage?: string;
+	diagnostics?: Record<string, unknown>;
 }
 
 export interface BuildSummary {
@@ -293,6 +294,7 @@ function summarizeRun(
 			status: job.status,
 			layerIndex: job.layerIndex,
 			errorMessage: job.error?.message,
+			diagnostics: job.diagnostics,
 		});
 	}
 

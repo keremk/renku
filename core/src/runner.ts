@@ -293,6 +293,7 @@ async function executeJob(
   const expectedArtifacts = job.produces.filter((id) =>
     isCanonicalArtifactId(id)
   );
+  let conditionFilteringDiagnostics: Record<string, unknown> | undefined;
 
   try {
     // Collect all required artifact IDs for this job
@@ -386,6 +387,16 @@ async function executeJob(
         inputConditions,
         conditionContext
       );
+      conditionFilteringDiagnostics = {
+        plannedInputs: [...job.inputs],
+        conditionalInputs: Object.keys(inputConditions),
+        conditionResults: Object.fromEntries(
+          Array.from(conditionResults.entries()).map(([inputId, result]) => [
+            inputId,
+            result,
+          ])
+        ),
+      };
 
       // Determine which inputs are conditional
       const conditionalInputIds = new Set(Object.keys(inputConditions));
@@ -444,7 +455,10 @@ async function executeJob(
           producer: job.producer,
           status: 'skipped',
           artifacts: [],
-          diagnostics: { reason: 'conditions_not_met' },
+          diagnostics: {
+            reason: 'conditions_not_met',
+            conditionFiltering: conditionFilteringDiagnostics,
+          },
           layerIndex,
           attempt,
           startedAt,
@@ -464,6 +478,13 @@ async function executeJob(
         conditionalInputIds,
         satisfiedConditionalIds
       );
+      conditionFilteringDiagnostics = {
+        ...conditionFilteringDiagnostics,
+        executedInputs: [...job.inputs],
+        filteredInputs: Object.keys(inputConditions).filter(
+          (inputId) => !satisfiedConditionalIds.has(inputId)
+        ),
+      };
     }
 
     // Merge resolved artifacts into job context
@@ -542,7 +563,12 @@ async function executeJob(
       producer: job.producer,
       status,
       artifacts,
-      diagnostics: result.diagnostics,
+      diagnostics: conditionFilteringDiagnostics
+        ? {
+            ...result.diagnostics,
+            conditionFiltering: conditionFilteringDiagnostics,
+          }
+        : result.diagnostics,
       layerIndex,
       attempt,
       startedAt,
@@ -551,7 +577,12 @@ async function executeJob(
   } catch (error) {
     const completedAt = clock.now();
     const serialized = serializeError(error);
-    const failureDiagnostics = buildFailureDiagnostics(error, serialized);
+    const failureDiagnostics = {
+      ...buildFailureDiagnostics(error, serialized),
+      ...(conditionFilteringDiagnostics
+        ? { conditionFiltering: conditionFilteringDiagnostics }
+        : {}),
+    };
 
     // Record failed artifacts for observability even when produce throws.
     try {
@@ -618,6 +649,7 @@ async function executeJob(
       startedAt,
       completedAt,
       error: serialized,
+      diagnostics: failureDiagnostics,
     };
   }
 }

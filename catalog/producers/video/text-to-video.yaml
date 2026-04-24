@@ -21,19 +21,23 @@ inputs:
   - name: NumFrames
     description: Number of frames (for frame-based models).
     type: integer
+    required: false
 
   # Sizing
   - name: Resolution
     description: Resolution as width/height pixel dimensions.
     type: resolution
+    required: false
 
   # Audio
   - name: GenerateAudio
     description: Whether to generate audio for the video.
     type: boolean
+    required: false
   - name: AudioUrl
     description: URL to background audio file.
     type: string
+    required: false
 
 outputs:
   - name: GeneratedVideo

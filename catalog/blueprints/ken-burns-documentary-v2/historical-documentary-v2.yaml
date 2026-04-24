@@ -40,6 +40,10 @@ inputs:
     description: Narration language (e.g., en, es, fr).
     type: string
     required: false
+  - name: VoiceId
+    description: Voice identifier for narration audio.
+    type: string
+    required: true
 
 outputs:
   - name: SegmentImage
@@ -128,6 +132,8 @@ connections:
     to: AudioProducer[segment].Text
   - from: SegmentDuration
     to: AudioProducer[segment].Duration
+  - from: VoiceId
+    to: AudioProducer[segment].VoiceId
   - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
   - from: AudioProducer[segment].GeneratedAudio

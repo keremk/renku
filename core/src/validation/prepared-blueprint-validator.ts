@@ -9,6 +9,7 @@ import {
   type BlueprintResolutionContext,
   type ResolutionSchemaSource,
 } from '../resolution/blueprint-resolution-context.js';
+import { buildBlueprintParseGraphProjection } from '../resolution/viewer-parse-projection.js';
 import type { BlueprintTreeNode } from '../types.js';
 import { validateBlueprintTree } from './blueprint-validator.js';
 import {
@@ -45,6 +46,7 @@ export async function validatePreparedBlueprintTree(
     let issues = [
       ...baseValidation.issues,
       ...validatePreparedGraphReferences(context.root, context.graph),
+      ...validateViewerProjection(context.root),
     ];
 
     if (args.options?.skipCodes) {
@@ -70,6 +72,30 @@ export async function validatePreparedBlueprintTree(
         ),
       ]),
     };
+  }
+}
+
+function validateViewerProjection(root: BlueprintTreeNode): ValidationIssue[] {
+  if (root.document.meta.kind === 'producer') {
+    return [];
+  }
+
+  try {
+    buildBlueprintParseGraphProjection(root);
+    return [];
+  } catch (error) {
+    return [
+      createError(
+        ValidationErrorCode.VIEWER_PROJECTION_INVALID,
+        `Viewer graph projection failed: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          filePath: root.sourcePath,
+          namespacePath: root.namespacePath,
+          context: 'viewer graph projection',
+        },
+        'Fix the blueprint graph so the same prepared graph can be rendered by the viewer.'
+      ),
+    ];
   }
 }
 

@@ -29,11 +29,13 @@ inputs:
   - name: Resolution
     description: Resolution as width/height pixel dimensions.
     type: resolution
+    required: false
 
   # Audio
   - name: GenerateAudio
     description: Whether to generate audio.
     type: boolean
+    required: false
 
 outputs:
   - name: GeneratedVideo

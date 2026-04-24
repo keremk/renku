@@ -61,6 +61,9 @@ export interface ExecuteOptions {
 	/** Run in dry-run mode (simulate without executing) */
 	dryRun?: boolean;
 
+	/** Stop after validation, input loading, and planning/preflight checks. */
+	preflightOnly?: boolean;
+
 	/** Skip interactive confirmation */
 	nonInteractive?: boolean;
 
@@ -114,6 +117,9 @@ export interface ExecuteResult {
 
 	/** Whether this was a dry-run execution */
 	isDryRun?: boolean;
+
+	/** Whether this command stopped after planning/preflight checks. */
+	isPreflightOnly?: boolean;
 
 	/** Dry-run validation coverage summary (present for dry-runs). */
 	dryRunValidation?: BlueprintDryRunValidationResult;
@@ -246,6 +252,26 @@ export async function runExecute(
 			logger,
 			movieId: options.movieId,
 		});
+	}
+
+	if (options.preflightOnly) {
+		logger.info?.(
+			`Preflight succeeded: blueprint, inputs, producer metadata, viewer projection, and plan scheduling are coherent for ${storageMovieId}.`
+		);
+		if (upToLayer !== undefined) {
+			logger.info?.(
+				`Preflight scope: layers 0-${upToLayer}. Later layers were not required for this check.`
+			);
+		}
+		return {
+			movieId: options.movieId ?? normalizePublicId(storageMovieId),
+			storageMovieId,
+			isPreflightOnly: true,
+			storagePath: movieDir,
+			rootOutputBindings: planResult.plan.rootOutputBindings,
+			finalStageProducerJobIds: planResult.plan.finalStageProducerJobIds,
+			resolvedInputs: planResult.resolvedInputs,
+		};
 	}
 
 	// For edits with no jobs, skip confirmation entirely
@@ -540,6 +566,11 @@ async function executeDryRunWithValidation(args: {
 				};
 			},
 		});
+		if (args.upToLayer !== undefined) {
+			dryRunValidation.warnings.push(
+				`Stage-limited dry-run: coverage applies only to scheduled layers 0-${args.upToLayer}. Later-layer condition fields are not expected in this run.`
+			);
+		}
 
 		if (cases.length > 1) {
 			const baselineCase = cases[0]!;

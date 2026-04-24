@@ -5,6 +5,7 @@ inputs:
   # Style directions
   VisualStyle: 'Cinematic documentary with painterly historical aesthetic, dramatic lighting, period-accurate details'
   NarratorTone: 'Authoritative yet storytelling, engaging and dramatic'
+  VoiceId: 'Rachel'
 
   # Video settings
   Resolution:

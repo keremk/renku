@@ -22,6 +22,7 @@ inputs:
   - name: AudioUrl
     description: URL to audio file for lip-sync.
     type: string
+    required: false
 
   # Duration
   - name: Duration
@@ -33,6 +34,7 @@ inputs:
   - name: Resolution
     description: Output resolution as pixel dimensions.
     type: resolution
+    required: false
 
 outputs:
   - name: GeneratedVideo

@@ -187,6 +187,7 @@ Create a new movie or continue an existing one.
 renku generate \
   --inputs=<path> \
   --blueprint=<path> \
+  [--preflight-only] \
   [--dry-run] \
   [--dry-run-profile=<path> | --profile=<path>] \
   [--non-interactive] \
@@ -216,6 +217,7 @@ renku generate --movie-id=<id> --pin="Artifact:ScriptProducer.NarrationScript[0]
 | `--inputs`, `--in`                     | Path to inputs YAML file (required)                                                                                                                                            |
 | `--blueprint`, `--bp`                  | Path to blueprint YAML file (required for new movies)                                                                                                                          |
 | `--movie-id`, `--id`                   | Continue a specific movie by ID                                                                                                                                                |
+| `--preflight-only`                     | Validate, load inputs, resolve model/producer metadata, build the plan, and exit before dry-run or live execution                                                             |
 | `--dry-run`                            | Execute without calling providers (mock run)                                                                                                                                   |
 | `--dry-run-profile`, `--profile`       | Use a pre-generated dry-run profile for simulation coverage (requires `--dry-run`)                                                                                             |
 | `--non-interactive`                    | Skip confirmation prompts                                                                                                                                                      |
@@ -230,9 +232,10 @@ renku generate --movie-id=<id> --pin="Artifact:ScriptProducer.NarrationScript[0]
 For new movies:
 
 1. Validates inputs and blueprint
-2. Generates a new movie ID
-3. Creates `builds/movie-{id}/` directory
-4. Executes the workflow
+2. Runs preflight planning checks
+3. Generates a new movie ID
+4. Creates `builds/movie-{id}/` directory
+5. Executes the workflow
 
 For continuing movies:
 
@@ -453,7 +456,9 @@ AudioProducer (2 audio models)
 
 Validate blueprint structure and references.
 
-This command performs static validation only (wiring/schema/graph). For simulated execution coverage, use `renku generate --dry-run`.
+This command performs static validation, prepared graph checks, and viewer projection checks. For plan-specific checks with real inputs, use `renku generate --preflight-only`. For simulated execution coverage, use `renku generate --dry-run`.
+
+For the conceptual difference between validation, preflight, and dry-run, see [Blueprint Validation and Preflight](/docs/blueprint-validation-and-preflight).
 
 **Usage:**
 
@@ -468,6 +473,8 @@ renku blueprints:validate <path-to-blueprint.yaml>
 - Module/producer references
 - Connection validity
 - Loop definitions
+- Viewer graph projection
+- Published-output endpoint rules
 
 **Example:**
 

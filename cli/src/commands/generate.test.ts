@@ -245,6 +245,45 @@ describe('runGenerate (new runs)', () => {
 		).rejects.toThrow();
 	});
 
+	it('can stop after preflight without executing or persisting a build', async () => {
+		const root = await createTempRoot();
+		const cliConfigPath = join(root, 'cli-config.json');
+		process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
+
+		const inputsPath = await createInputsFile({
+			root,
+			prompt: 'Check the plan before spending money',
+			models: AUDIO_ONLY_MODELS,
+			includeDefaults: false,
+			overrides: AUDIO_ONLY_OVERRIDES,
+		});
+		const result = await runGenerate({
+			...LOG_DEFAULTS,
+			inputsPath,
+			preflightOnly: true,
+			nonInteractive: true,
+			blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+			storageOverride: { root, basePath: 'builds' },
+		});
+
+		expect(result.isPreflightOnly).toBe(true);
+		expect(result.isDryRun).toBeFalsy();
+		expect(result.build).toBeUndefined();
+		expect(result.rootOutputBindings?.length).toBeGreaterThan(0);
+		await expect(
+			access(resolve(root, 'builds', formatMovieId(result.movieId), 'runs'))
+		).rejects.toThrow();
+		await expect(
+			access(resolve(root, 'builds', formatMovieId(result.movieId), 'events'))
+		).rejects.toThrow();
+	});
+
 	it('can save a dry run into a temp folder without touching the workspace', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
@@ -1015,6 +1054,11 @@ describe('runGenerate (new runs)', () => {
 		const jobIds = plan.layers.flat().map((job) => job.jobId);
 		expect(jobIds).toContain('Producer:ScriptProducer');
 		expect(jobIds).not.toContain('Producer:AudioProducer[0]');
+		expect(result.dryRunValidation?.warnings).toEqual(
+			expect.arrayContaining([
+				expect.stringMatching(/Stage-limited dry-run:.*layers 0-0/),
+			])
+		);
 	});
 
 	it('fails when the same canonical target is both pinned and regenerated', async () => {

@@ -55,6 +55,7 @@ export interface GenerateOptions {
 	inputsPath?: string;
 	blueprint?: string;
 	dryRun?: boolean;
+	preflightOnly?: boolean;
 	nonInteractive?: boolean;
 	costsOnly?: boolean;
 	/** Generate plan, display explanation, and exit without executing */
@@ -86,9 +87,17 @@ export interface GenerateResult {
 	build?: ExecuteResult['build'];
 	/** Whether this was a dry-run execution */
 	isDryRun?: boolean;
+	/** Whether this command stopped after planning/preflight checks. */
+	isPreflightOnly?: boolean;
 	/** Dry-run validation coverage summary (present for dry-runs). */
 	dryRunValidation?: BlueprintDryRunValidationResult;
 	storagePath: string;
+	/** Planned root output bindings, including preflight-only runs. */
+	rootOutputBindings?: ExecuteResult['rootOutputBindings'];
+	/** Planned terminal producer jobs, including preflight-only runs. */
+	finalStageProducerJobIds?: ExecuteResult['finalStageProducerJobIds'];
+	/** Resolved input values captured during planning/preflight. */
+	resolvedInputs?: ExecuteResult['resolvedInputs'];
 	/** Temp folder containing an inspectable saved dry-run snapshot. */
 	savedDryRunPath?: string;
 	/** Path to artifacts folder (symlinks to build outputs) */
@@ -237,6 +246,7 @@ export async function runGenerate(
 			blueprintSpecifier: options.blueprint, // Ignored for edits - uses metadata
 			pendingArtifacts: preflight.pendingArtifacts,
 			dryRun: options.dryRun,
+			preflightOnly: options.preflightOnly,
 			nonInteractive: options.nonInteractive,
 			costsOnly: options.costsOnly,
 			explain: options.explain,
@@ -289,8 +299,12 @@ export async function runGenerate(
 			targetRevision: editResult.targetRevision,
 			build: editResult.build,
 			isDryRun: editResult.isDryRun,
+			isPreflightOnly: editResult.isPreflightOnly,
 			dryRunValidation: editResult.dryRunValidation,
 			storagePath: editResult.storagePath,
+			rootOutputBindings: editResult.rootOutputBindings,
+			finalStageProducerJobIds: editResult.finalStageProducerJobIds,
+			resolvedInputs: editResult.resolvedInputs,
 			savedDryRunPath: editResult.savedDryRunPath,
 			artifactsRoot,
 			finalStageOutputs,
@@ -333,6 +347,7 @@ export async function runGenerate(
 		inputsPath: options.inputsPath,
 		blueprintSpecifier: options.blueprint,
 		dryRun: options.dryRun,
+		preflightOnly: options.preflightOnly,
 		nonInteractive: options.nonInteractive,
 		costsOnly: options.costsOnly,
 		explain: options.explain,
@@ -394,8 +409,12 @@ export async function runGenerate(
 		targetRevision: queryResult.targetRevision,
 		build: queryResult.build,
 		isDryRun: queryResult.isDryRun,
+		isPreflightOnly: queryResult.isPreflightOnly,
 		dryRunValidation: queryResult.dryRunValidation,
 		storagePath: queryResult.storagePath,
+		rootOutputBindings: queryResult.rootOutputBindings,
+		finalStageProducerJobIds: queryResult.finalStageProducerJobIds,
+		resolvedInputs: queryResult.resolvedInputs,
 		savedDryRunPath: queryResult.savedDryRunPath,
 		artifactsRoot,
 		finalStageOutputs,

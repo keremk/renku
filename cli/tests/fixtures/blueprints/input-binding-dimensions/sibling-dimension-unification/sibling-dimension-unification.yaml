@@ -66,7 +66,7 @@ connections:
 
   # VideoGenerator also receives input from another producer's output (different dimension source)
   # This tests cross-producer dimension alignment
-  - from: GeneratedImage[segment]
+  - from: ImageGenerator[segment].GeneratedImage
     to: VideoGenerator[segment].ThumbnailImage
   - from: SegmentDuration
     to: VideoGenerator[segment].Duration

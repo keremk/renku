@@ -20,6 +20,7 @@ function createInvokeRequest(args: {
   duration?: number;
 }): ProviderJobContext {
   const producerAlias = args.producerAlias ?? 'VideoStitcher';
+  const videoSegmentsInputId = `Input:${producerAlias}.VideoSegments`;
   const clipArtifactIds = args.clipArtifactIds ?? [
     'Artifact:ClipProducerA.GeneratedVideo',
     'Artifact:ClipProducerB.GeneratedVideo',
@@ -32,7 +33,7 @@ function createInvokeRequest(args: {
     layerIndex: 1,
     attempt: 1,
     inputs: [
-      `Input:${producerAlias}.VideoSegments`,
+      videoSegmentsInputId,
       `Input:${producerAlias}.Duration`,
     ],
     produces: ['Artifact:VideoStitcher.StitchedVideo'],
@@ -40,7 +41,7 @@ function createInvokeRequest(args: {
       providerConfig: {},
       extras: {
         resolvedInputs: {
-          [`Input:${producerAlias}.VideoSegments`]: {
+          [videoSegmentsInputId]: {
             groupBy: 'singleton',
             groups: [clipArtifactIds],
           },
@@ -60,6 +61,16 @@ function createInvokeRequest(args: {
           producerAlias,
           inputBindings: {
             Duration: 'Input:Duration',
+          },
+          fanIn: {
+            [videoSegmentsInputId]: {
+              groupBy: 'singleton',
+              members: clipArtifactIds.map((artifactId, index) => ({
+                id: artifactId,
+                group: 0,
+                order: index,
+              })),
+            },
           },
         },
       },

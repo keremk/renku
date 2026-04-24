@@ -9,6 +9,7 @@ inputs:
     height: 720
   Audience: 'Adult history enthusiasts'
   Language: 'en'
+  VoiceId: 'Rachel'
 models:
   - producerId: 'HistoricalScriptProducer'
     provider: 'openai'

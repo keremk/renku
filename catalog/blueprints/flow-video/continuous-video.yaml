@@ -28,6 +28,14 @@ inputs:
     description: Visual/artistic style (e.g., cinematic, anime, photorealistic, Ghibli).
     type: string
     required: true
+  - name: VoiceId
+    description: Voice identifier for narration audio.
+    type: string
+    required: true
+  - name: Emotion
+    description: Emotional tone for narration audio.
+    type: string
+    required: false
   - name: Resolution
     description: Video resolution as width/height pixel dimensions.
     type: resolution
@@ -130,6 +138,10 @@ connections:
     to: AudioProducer[segment].Text
   - from: SegmentDuration
     to: AudioProducer[segment].Duration
+  - from: VoiceId
+    to: AudioProducer[segment].VoiceId
+  - from: Emotion
+    to: AudioProducer[segment].Emotion
   - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
 

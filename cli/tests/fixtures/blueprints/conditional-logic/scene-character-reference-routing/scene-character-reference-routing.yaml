@@ -60,7 +60,7 @@ imports:
     producer: image/text-to-image
     loop: character
   - name: SceneVideoProducer
-    producer: video/ref-image-to-video
+    path: ./scene-video-producer.yaml
     loop: scene
 
 connections:

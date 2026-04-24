@@ -15,6 +15,7 @@ inputs:
   - name: NegativePrompt
     description: What to avoid in the video.
     type: string
+    required: false
 
   # Images
   - name: StartImage
@@ -23,6 +24,7 @@ inputs:
   - name: EndImage
     description: Ending frame image (optional, for interpolation).
     type: image
+    required: false
 
   # Duration
   - name: Duration
@@ -34,11 +36,13 @@ inputs:
   - name: Resolution
     description: Resolution as width/height pixel dimensions.
     type: resolution
+    required: false
 
   # Audio
   - name: GenerateAudio
     description: Whether to generate audio.
     type: boolean
+    required: false
 
 outputs:
   - name: GeneratedVideo

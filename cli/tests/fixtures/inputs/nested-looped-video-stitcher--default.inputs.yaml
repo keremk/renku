@@ -1,0 +1,24 @@
+inputs:
+  NumOfSegments: 2
+  FirstClipPrompts:
+    - A slow establishing shot of a paper boat floating through a miniature city.
+    - A close shot of a brass compass turning on an old desk.
+  SecondClipPrompts:
+    - The paper boat passes under a tiny bridge as warm lights turn on.
+    - The compass needle settles while dust glitters in a sunbeam.
+  ClipDuration: 2
+  Duration: 4
+  Resolution:
+    width: 640
+    height: 360
+
+models:
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: SegmentVideoProducer.FirstClipProducer
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: SegmentVideoProducer.SecondClipProducer
+  - model: ffmpeg/video-stitch
+    provider: renku
+    producerId: SegmentVideoProducer.VideoStitcher

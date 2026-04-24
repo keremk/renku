@@ -388,6 +388,27 @@ export type BlueprintConditionDefinitions = Record<
   NamedConditionDefinition
 >;
 
+export interface BlueprintSemanticValidationRule {
+  name: string;
+  condition: string;
+  requireGuardedConnections?: Array<{
+    from?: string;
+    to?: string;
+  }>;
+}
+
+export interface BlueprintCoverageRequiredBranch {
+  field: string;
+  values: unknown[];
+}
+
+export interface BlueprintValidationMetadata {
+  semanticRules?: BlueprintSemanticValidationRule[];
+  coverage?: {
+    requiredBranches?: BlueprintCoverageRequiredBranch[];
+  };
+}
+
 /**
  * Inline condition on an edge.
  */
@@ -473,6 +494,8 @@ export interface BlueprintDocument {
   loops?: BlueprintLoopDefinition[];
   /** Named condition definitions for reuse across edges */
   conditions?: BlueprintConditionDefinitions;
+  /** Optional authored validation assertions for advanced blueprints. */
+  validation?: BlueprintValidationMetadata;
   /** Provider/model-specific SDK mappings for media producers */
   mappings?: ProducerMappings;
 }

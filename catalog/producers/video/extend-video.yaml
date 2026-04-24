@@ -31,11 +31,13 @@ inputs:
   - name: Resolution
     description: 'Output resolution as explicit dimensions (width/height).'
     type: resolution
+    required: false
 
   # Audio
   - name: GenerateAudio
     description: Whether to generate audio.
     type: boolean
+    required: false
 
 outputs:
   - name: GeneratedVideo

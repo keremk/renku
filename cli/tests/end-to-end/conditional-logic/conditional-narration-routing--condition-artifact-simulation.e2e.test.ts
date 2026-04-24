@@ -303,16 +303,16 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 			enumValues.push(content);
 		}
 
-		// CRITICAL: Verify enum values vary per array index
-		// The condition hints generate alternating values between the expected value
-		// and a non-matching alternative. When the alternative is not in the enum,
-		// it falls through to schema enum cycling.
-		// - Index 0: 'ImageNarration' (from hint, 0 % 2 = 0)
-		// - Index 1: falls through to schema enum (1 % 4 = 1 = 'TalkingHead')
-		// - Index 2: 'ImageNarration' (from hint, 2 % 2 = 0)
+		// CRITICAL: Verify enum values vary per array index.
+		// Dry-run hints now preserve all declared expected branch values before
+		// adding alternatives, so both ImageNarration and TalkingHead are covered
+		// directly instead of relying on schema enum fallthrough.
+		// - Index 0: 'ImageNarration'
+		// - Index 1: 'TalkingHead'
+		// - Index 2: 'TalkingHead'
 		expect(enumValues[0]).toBe('ImageNarration');
 		expect(enumValues[1]).toBe('TalkingHead');
-		expect(enumValues[2]).toBe('ImageNarration');
+		expect(enumValues[2]).toBe('TalkingHead');
 
 		// ============================================================
 		// VERIFY: No unexpected errors or warnings
@@ -483,11 +483,11 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		//   any:
 		//     - when: NarrationType is: "TalkingHead"
 		//     - when: UseNarrationAudio is: true
-		// With enum values [ImageNarration, TalkingHead, ImageNarration] and
+		// With enum values [ImageNarration, TalkingHead, TalkingHead] and
 		// boolean values [true, false, true]:
 		// - Segment 0: ImageNarration OR true → true (runs)
 		// - Segment 1: TalkingHead OR false → true (runs, because NarrationType matches)
-		// - Segment 2: ImageNarration OR true → true (runs)
+		// - Segment 2: TalkingHead OR true → true (runs)
 		// So all audio jobs should succeed because of the OR condition
 		const audioJobStatuses = audioJobs
 			.sort((a: any, b: any) => a.jobId.localeCompare(b.jobId))
@@ -496,15 +496,15 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		expect(audioJobStatuses).toEqual(['succeeded', 'succeeded', 'succeeded']);
 
 		// VideoProducer jobs are conditioned on isTalkingHead (NarrationType is TalkingHead)
-		// With enum values [ImageNarration, TalkingHead, ImageNarration]:
+		// With enum values [ImageNarration, TalkingHead, TalkingHead]:
 		// - Segment 0: false (skipped)
 		// - Segment 1: true (runs)
-		// - Segment 2: false (skipped)
+		// - Segment 2: true (runs)
 		const videoJobs = jobs.filter((j: any) => j.producer === 'VideoProducer');
 		expect(videoJobs).toHaveLength(3);
 		const videoJobStatuses = videoJobs
 			.sort((a: any, b: any) => a.jobId.localeCompare(b.jobId))
 			.map((j: any) => j.status);
-		expect(videoJobStatuses).toEqual(['skipped', 'succeeded', 'skipped']);
+		expect(videoJobStatuses).toEqual(['skipped', 'succeeded', 'succeeded']);
 	});
 });

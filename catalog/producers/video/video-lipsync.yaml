@@ -20,6 +20,7 @@ inputs:
   - name: AudioUrl
     description: URL to audio file for lip-sync.
     type: string
+    required: false
   - name: Text
     description: Text to synthesize speech for lip-sync.
     type: string

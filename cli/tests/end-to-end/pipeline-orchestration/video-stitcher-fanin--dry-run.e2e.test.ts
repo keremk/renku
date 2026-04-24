@@ -84,4 +84,59 @@ describe('end-to-end: video stitcher fan-in dry run', () => {
       true
     );
   });
+
+  it('uses exact looped child fan-in input IDs instead of deriving them from producer aliases', async () => {
+    const blueprintPath = resolve(
+      CLI_FIXTURES_BLUEPRINTS,
+      'pipeline-orchestration',
+      'nested-looped-video-stitcher',
+      'nested-looped-video-stitcher.yaml'
+    );
+    const inputsPath = resolve(
+      CLI_FIXTURES_INPUTS,
+      'nested-looped-video-stitcher--default.inputs.yaml'
+    );
+
+    const { logger, warnings, errors } = createLoggerRecorder();
+    const movieId = 'e2e-nested-looped-video-stitcher';
+    const storageMovieId = formatMovieId(movieId);
+
+    const result = await runExecute({
+      storageMovieId,
+      movieId,
+      isNew: true,
+      inputsPath,
+      blueprintSpecifier: blueprintPath,
+      dryRun: true,
+      nonInteractive: true,
+      logger,
+    });
+
+    if (result.build?.status !== 'succeeded') {
+      throw new Error(`dryRun failed: ${JSON.stringify(result.build, null, 2)}`);
+    }
+
+    expect(result.build.counts.failed).toBe(0);
+    expect(warnings).toHaveLength(0);
+    expect(errors).toHaveLength(0);
+    await expectFileExists(result.planPath);
+
+    const plan = await readPlan(result.planPath);
+    const stitcherJobs = plan.layers
+      .flat()
+      .filter((job) => job !== undefined)
+      .filter((job) => job.producer === 'SegmentVideoProducer.VideoStitcher');
+
+    expect(stitcherJobs).toHaveLength(2);
+    for (const stitcherJob of stitcherJobs) {
+      const fanInInputIds = Object.keys(stitcherJob.context?.fanIn ?? {});
+      expect(fanInInputIds).toHaveLength(1);
+      expect(fanInInputIds[0]).not.toBe(
+        'Input:SegmentVideoProducer.VideoStitcher.VideoSegments'
+      );
+      expect(stitcherJob.context?.fanIn?.[fanInInputIds[0]!]!.members).toHaveLength(
+        2
+      );
+    }
+  });
 });

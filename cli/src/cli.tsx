@@ -79,6 +79,7 @@ const cli = meow(
 			inputs: { type: 'string' },
 			in: { type: 'string' },
 			dryRun: { type: 'boolean' },
+			preflightOnly: { type: 'boolean' },
 			nonInteractive: { type: 'boolean' },
 			blueprint: { type: 'string' },
 			bp: { type: 'string' },
@@ -117,6 +118,7 @@ async function main(): Promise<void> {
 		inputs?: string;
 		in?: string;
 		dryRun?: boolean;
+		preflightOnly?: boolean;
 		nonInteractive?: boolean;
 		blueprint?: string;
 		bp?: string;
@@ -292,6 +294,7 @@ async function main(): Promise<void> {
 					inputsPath: resolvedInputsPath,
 					blueprint: blueprintFlag,
 					dryRun: Boolean(flags.dryRun),
+					preflightOnly: Boolean(flags.preflightOnly),
 					nonInteractive: Boolean(flags.nonInteractive),
 					costsOnly: Boolean(flags.costsOnly),
 					explain: Boolean(flags.explain),
@@ -726,6 +729,8 @@ function printGenerateSummary(
 		logger.info(
 			colorizeStatus(`${statusInfo.label}: ${statusInfo.status}${jobsLabel}\n`)
 		);
+	} else if (result.isPreflightOnly) {
+		logger.info(chalk.green('Preflight: succeeded. No execution performed.\n'));
 	} else {
 		logger.info(chalk.yellow('No execution performed.\n'));
 	}
@@ -852,11 +857,53 @@ function printDryRunSummary(
 		if (failingJob.errorMessage) {
 			logger.info(`  Error: ${failingJob.errorMessage}`);
 		}
+		printJobConditionDiagnostics(logger, failingJob);
+	}
+
+	const skippedJob = jobs.find((job) => job.status === 'skipped');
+	if (skippedJob) {
+		logger.info('First skipped job:');
+		logger.info(
+			`  Layer ${skippedJob.layerIndex} – ${skippedJob.producer} (${skippedJob.jobId})`
+		);
+		printJobConditionDiagnostics(logger, skippedJob);
 	}
 
 	logger.info('No workspace files were written.');
 	if (savedDryRunPath) {
 		logger.info(`Saved dry-run snapshot: ${savedDryRunPath}`);
+	}
+}
+
+function printJobConditionDiagnostics(
+	logger: CoreLogger,
+	job: JobSummary
+): void {
+	const conditionFiltering = job.diagnostics?.conditionFiltering;
+	if (!conditionFiltering || typeof conditionFiltering !== 'object') {
+		return;
+	}
+	const details = conditionFiltering as Record<string, unknown>;
+	logger.info('  Condition filtering:');
+	if (Array.isArray(details.plannedInputs)) {
+		logger.info(`    Planned inputs: ${details.plannedInputs.join(', ')}`);
+	}
+	if (Array.isArray(details.executedInputs)) {
+		logger.info(`    Executed inputs: ${details.executedInputs.join(', ')}`);
+	}
+	if (Array.isArray(details.filteredInputs) && details.filteredInputs.length > 0) {
+		logger.info(`    Filtered inputs: ${details.filteredInputs.join(', ')}`);
+	}
+	const conditionResults = details.conditionResults;
+	if (conditionResults && typeof conditionResults === 'object') {
+		for (const [inputId, result] of Object.entries(
+			conditionResults as Record<string, { satisfied?: boolean; reason?: string }>
+		)) {
+			const reason = result.reason ? ` (${result.reason})` : '';
+			logger.info(
+				`    ${inputId}: ${result.satisfied ? 'active' : 'inactive'}${reason}`
+			);
+		}
 	}
 }
 

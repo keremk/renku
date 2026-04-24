@@ -18,25 +18,30 @@ inputs:
     required: true
   - name: GuidingPrompt
     description: Optional text prompt to guide voice style/tone.
-    type: string  
+    type: string
+    required: false
 
   # Voice selection (model-specific - no transformation possible)
   - name: VoiceId
     description: Voice identifier (model-specific, see model docs for available voices).
     type: string
+    required: false
   - name: ReferenceAudioUrl
     description: Reference audio URL for voice cloning (supported by some models).
     type: string
+    required: false
 
   # Voice modulation
   - name: Emotion
     description: Emotional tone (happy, sad, angry, neutral, etc.).
     type: string
+    required: false
 
   # Language
   - name: LanguageCode
     description: ISO 639-1 language code or language name.
     type: string
+    required: false
 
 outputs:
   - name: GeneratedAudio

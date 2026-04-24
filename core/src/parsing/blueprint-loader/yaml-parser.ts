@@ -27,6 +27,7 @@ import type {
   NamedConditionDefinition,
   ProducerConfig,
   ProducerMappings,
+  BlueprintValidationMetadata,
   ResolutionObjectFieldConfig,
   ResolutionProjectionMode,
   ResolutionTransformConfig,
@@ -69,6 +70,7 @@ const ALLOWED_TOP_LEVEL_BLUEPRINT_SECTIONS = new Set([
   'connections',
   'collectors',
   'conditions',
+  'validation',
   'mappings',
 ]);
 
@@ -192,6 +194,7 @@ export async function parseYamlBlueprintFile(
     );
   }
   const mappings = parseMappingsSection(raw.mappings);
+  const validation = parseValidationMetadata(raw.validation, conditionDefs, filePath);
 
   return {
     meta,
@@ -203,6 +206,7 @@ export async function parseYamlBlueprintFile(
     loops: loops.length > 0 ? loops : undefined,
     conditions:
       Object.keys(conditionDefs).length > 0 ? conditionDefs : undefined,
+    validation,
     mappings,
   };
 }
@@ -348,6 +352,8 @@ interface RawBlueprint {
   collectors?: unknown[];
   /** Named condition definitions for reuse across edges */
   conditions?: Record<string, unknown>;
+  /** Optional authored validation assertions for advanced blueprints */
+  validation?: unknown;
   /** Provider/model-specific SDK mappings */
   mappings?: unknown;
 }
@@ -371,6 +377,185 @@ function assertKnownTopLevelSections(
       suggestion: `Allowed sections: ${Array.from(ALLOWED_TOP_LEVEL_BLUEPRINT_SECTIONS).join(', ')}`,
     }
   );
+}
+
+function parseValidationMetadata(
+  raw: unknown,
+  conditionDefs: BlueprintConditionDefinitions,
+  filePath: string
+): BlueprintValidationMetadata | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_YAML_DOCUMENT,
+      `Blueprint YAML at ${filePath} field "validation" must be an object.`,
+      { filePath }
+    );
+  }
+
+  const source = raw as Record<string, unknown>;
+  const metadata: BlueprintValidationMetadata = {};
+
+  if (source.semanticRules !== undefined) {
+    if (!Array.isArray(source.semanticRules)) {
+      throw createParserError(
+        ParserErrorCode.INVALID_YAML_DOCUMENT,
+        `Blueprint YAML at ${filePath} field "validation.semanticRules" must be an array.`,
+        { filePath }
+      );
+    }
+    metadata.semanticRules = source.semanticRules.map((entry, index) =>
+      parseSemanticValidationRule(entry, index, conditionDefs, filePath)
+    );
+  }
+
+  if (source.coverage !== undefined) {
+    metadata.coverage = parseCoverageMetadata(source.coverage, filePath);
+  }
+
+  return metadata;
+}
+
+function parseSemanticValidationRule(
+  raw: unknown,
+  index: number,
+  conditionDefs: BlueprintConditionDefinitions,
+  filePath: string
+): NonNullable<BlueprintValidationMetadata['semanticRules']>[number] {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_YAML_DOCUMENT,
+      `Blueprint YAML at ${filePath} validation.semanticRules[${index}] must be an object.`,
+      { filePath }
+    );
+  }
+  const source = raw as Record<string, unknown>;
+  const name = readString(source, 'name');
+  const condition = readString(source, 'condition');
+  if (!conditionDefs[condition]) {
+    throw createParserError(
+      ParserErrorCode.INVALID_CONDITION_ENTRY,
+      `Blueprint YAML at ${filePath} validation semantic rule "${name}" references unknown condition "${condition}".`,
+      { filePath }
+    );
+  }
+
+  const requireGuardedConnections =
+    source.requireGuardedConnections === undefined
+      ? undefined
+      : parseRequiredGuardedConnections(
+          source.requireGuardedConnections,
+          index,
+          filePath
+        );
+
+  return {
+    name,
+    condition,
+    requireGuardedConnections,
+  };
+}
+
+function parseRequiredGuardedConnections(
+  raw: unknown,
+  ruleIndex: number,
+  filePath: string
+): NonNullable<
+  NonNullable<BlueprintValidationMetadata['semanticRules']>[number]['requireGuardedConnections']
+> {
+  if (!Array.isArray(raw)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_YAML_DOCUMENT,
+      `Blueprint YAML at ${filePath} validation.semanticRules[${ruleIndex}].requireGuardedConnections must be an array.`,
+      { filePath }
+    );
+  }
+
+  return raw.map((entry, index) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw createParserError(
+        ParserErrorCode.INVALID_YAML_DOCUMENT,
+        `Blueprint YAML at ${filePath} validation.semanticRules[${ruleIndex}].requireGuardedConnections[${index}] must be an object.`,
+        { filePath }
+      );
+    }
+    const source = entry as Record<string, unknown>;
+    const from = source.from;
+    const to = source.to;
+    if (from !== undefined && typeof from !== 'string') {
+      throw createParserError(
+        ParserErrorCode.INVALID_YAML_DOCUMENT,
+        `Blueprint YAML at ${filePath} guarded connection "from" must be a string.`,
+        { filePath }
+      );
+    }
+    if (to !== undefined && typeof to !== 'string') {
+      throw createParserError(
+        ParserErrorCode.INVALID_YAML_DOCUMENT,
+        `Blueprint YAML at ${filePath} guarded connection "to" must be a string.`,
+        { filePath }
+      );
+    }
+    if (from === undefined && to === undefined) {
+      throw createParserError(
+        ParserErrorCode.INVALID_YAML_DOCUMENT,
+        `Blueprint YAML at ${filePath} guarded connection must declare "from" or "to".`,
+        { filePath }
+      );
+    }
+    return {
+      ...(from !== undefined ? { from } : {}),
+      ...(to !== undefined ? { to } : {}),
+    };
+  });
+}
+
+function parseCoverageMetadata(
+  raw: unknown,
+  filePath: string
+): NonNullable<BlueprintValidationMetadata['coverage']> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_YAML_DOCUMENT,
+      `Blueprint YAML at ${filePath} field "validation.coverage" must be an object.`,
+      { filePath }
+    );
+  }
+  const source = raw as Record<string, unknown>;
+  if (source.requiredBranches === undefined) {
+    return {};
+  }
+  if (!Array.isArray(source.requiredBranches)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_YAML_DOCUMENT,
+      `Blueprint YAML at ${filePath} field "validation.coverage.requiredBranches" must be an array.`,
+      { filePath }
+    );
+  }
+  return {
+    requiredBranches: source.requiredBranches.map((entry, index) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        throw createParserError(
+          ParserErrorCode.INVALID_YAML_DOCUMENT,
+          `Blueprint YAML at ${filePath} validation.coverage.requiredBranches[${index}] must be an object.`,
+          { filePath }
+        );
+      }
+      const branch = entry as Record<string, unknown>;
+      const field = readString(branch, 'field');
+      const values = branch.values;
+      if (!Array.isArray(values) || values.length === 0) {
+        throw createParserError(
+          ParserErrorCode.INVALID_YAML_DOCUMENT,
+          `Blueprint YAML at ${filePath} validation.coverage.requiredBranches[${index}].values must be a non-empty array.`,
+          { filePath }
+        );
+      }
+      return { field, values };
+    }),
+  };
 }
 
 function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {

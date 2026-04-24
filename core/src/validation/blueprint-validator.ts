@@ -54,7 +54,10 @@ export function validateBlueprintTree(
   issues.push(...validateLoopCountInputs(tree));
   issues.push(...validateArtifactCountInputs(tree));
   issues.push(...validateConditionPaths(tree));
+  issues.push(...validatePublishedOutputsAreTerminal(tree));
   issues.push(...validateConditionalArtifactAvailability(tree));
+  issues.push(...validateRequiredInputConditionCoherence(tree));
+  issues.push(...validateSemanticRules(tree));
   issues.push(...validateTypes(tree));
   issues.push(...validateProducerCycles(tree));
   issues.push(...validateDimensionConsistency(tree));
@@ -957,6 +960,50 @@ function validateConditionDef(
   return issues;
 }
 
+export function validatePublishedOutputsAreTerminal(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateTree(node: BlueprintTreeNode): void {
+    const outputNames = getDeclaredArtifactNames(node);
+    const producerNames = getProducerImportNames(node);
+
+    for (const edge of node.document.edges) {
+      if (!isLocalReference(edge.from) || isLocalReference(edge.to)) {
+        continue;
+      }
+      const sourceName = extractSimpleReferenceName(edge.from);
+      if (!sourceName || !outputNames.has(sourceName)) {
+        continue;
+      }
+      if (!targetsProducer(edge.to, producerNames)) {
+        continue;
+      }
+
+      issues.push(
+        createError(
+          ValidationErrorCode.PUBLISHED_OUTPUT_USED_AS_INTERNAL_SOURCE,
+          `Published output "${edge.from}" cannot be used as an internal source for producer input "${edge.to}".`,
+          {
+            filePath: node.sourcePath,
+            namespacePath: node.namespacePath,
+            context: `connection from "${edge.from}" to "${edge.to}"`,
+          },
+          'Connect the downstream producer directly to the producer output that feeds this published output. Top-level outputs are publication endpoints, not internal routing nodes.'
+        )
+      );
+    }
+
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
 // ============================================================================
 // Type Validation
 // ============================================================================
@@ -1366,6 +1413,181 @@ export function validateConditionalArtifactAvailability(
 
   validateTree(tree);
   return issues;
+}
+
+export function validateRequiredInputConditionCoherence(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateTree(node: BlueprintTreeNode): void {
+    const producerNames = getProducerImportNames(node);
+    const producerActivation = buildProducerActivationConditions(node);
+
+    for (const producerName of producerNames) {
+      const producerChild = node.children.get(producerName);
+      if (!producerChild) {
+        continue;
+      }
+
+      const activationEntries = producerActivation.get(producerName) ?? [];
+      if (activationEntries.length === 0) {
+        continue;
+      }
+
+      for (const input of producerChild.document.inputs) {
+        if (!input.required || SYSTEM_INPUT_NAMES.has(input.name)) {
+          continue;
+        }
+
+        const inputEntries = activationEntries.filter(
+          (entry) =>
+            stripDimensions(parseReference(entry.targetReference).segments[1] ?? '') ===
+            input.name
+        );
+
+        if (inputEntries.length === 0) {
+          issues.push(
+            createError(
+              ValidationErrorCode.REQUIRED_INPUT_CONDITION_INCOHERENT,
+              `Required input "${producerName}.${input.name}" has no connection.`,
+              {
+                filePath: node.sourcePath,
+                namespacePath: node.namespacePath,
+                context: `producer "${producerName}" required input "${input.name}"`,
+              },
+              `Add an explicit connection to "${producerName}.${input.name}" or mark the producer input optional if it is not required.`
+            )
+          );
+          continue;
+        }
+
+        const representativeTarget = inputEntries[0]!.targetReference;
+        const activeCondition = resolveProducerActivationForReference(
+          activationEntries,
+          representativeTarget
+        );
+        const inputCondition = resolveProducerActivationForReference(
+          inputEntries,
+          representativeTarget
+        );
+
+        if (conditionImplies(activeCondition, inputCondition)) {
+          continue;
+        }
+
+        issues.push(
+          createError(
+            ValidationErrorCode.REQUIRED_INPUT_CONDITION_INCOHERENT,
+            `Required input "${producerName}.${input.name}" is not available in every branch where producer "${producerName}" can run.`,
+            {
+              filePath: node.sourcePath,
+              namespacePath: node.namespacePath,
+              context: `producer "${producerName}" required input "${input.name}"`,
+            },
+            `Make every activation branch for "${producerName}" also provide "${input.name}", or narrow the other incoming connections so they share the same condition.`
+          )
+        );
+      }
+    }
+
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
+export function validateSemanticRules(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateTree(node: BlueprintTreeNode): void {
+    for (const rule of node.document.validation?.semanticRules ?? []) {
+      const namedCondition = node.document.conditions?.[rule.condition];
+      if (!namedCondition) {
+        issues.push(
+          createError(
+            ValidationErrorCode.SEMANTIC_VALIDATION_RULE_FAILED,
+            `Semantic validation rule "${rule.name}" references unknown condition "${rule.condition}".`,
+            {
+              filePath: node.sourcePath,
+              namespacePath: node.namespacePath,
+              context: `semantic validation rule "${rule.name}"`,
+            },
+            `Define condition "${rule.condition}" under conditions: or update the semantic rule.`
+          )
+        );
+        continue;
+      }
+
+      const requiredCondition = conditionItemToDnf(namedCondition);
+      for (const requiredConnection of rule.requireGuardedConnections ?? []) {
+        const matchingEdges = node.document.edges.filter((edge) =>
+          guardedConnectionMatches(edge, requiredConnection)
+        );
+
+        if (matchingEdges.length === 0) {
+          issues.push(
+            createError(
+              ValidationErrorCode.SEMANTIC_VALIDATION_RULE_FAILED,
+              `Semantic validation rule "${rule.name}" expected a matching connection, but none was found.`,
+              {
+                filePath: node.sourcePath,
+                namespacePath: node.namespacePath,
+                context: `semantic validation rule "${rule.name}"`,
+              },
+              `Add the required connection or remove it from validation.semanticRules[].requireGuardedConnections.`
+            )
+          );
+          continue;
+        }
+
+        for (const edge of matchingEdges) {
+          const edgeCondition = resolveEdgeConditionDnf(node, edge);
+          if (conditionImplies(edgeCondition, requiredCondition)) {
+            continue;
+          }
+
+          issues.push(
+            createError(
+              ValidationErrorCode.SEMANTIC_VALIDATION_RULE_FAILED,
+              `Connection "${edge.from}" -> "${edge.to}" does not satisfy semantic validation rule "${rule.name}".`,
+              {
+                filePath: node.sourcePath,
+                namespacePath: node.namespacePath,
+                context: `connection from "${edge.from}" to "${edge.to}"`,
+              },
+              `Guard this connection with condition "${rule.condition}" or a stricter condition that implies it.`
+            )
+          );
+        }
+      }
+    }
+
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
+function guardedConnectionMatches(
+  edge: BlueprintEdgeDefinition,
+  requiredConnection: { from?: string; to?: string }
+): boolean {
+  if (requiredConnection.from !== undefined && edge.from !== requiredConnection.from) {
+    return false;
+  }
+  if (requiredConnection.to !== undefined && edge.to !== requiredConnection.to) {
+    return false;
+  }
+  return true;
 }
 
 /**

@@ -25,9 +25,11 @@ inputs:
   - name: VoiceId
     description: Voice identifier for narration.
     type: string
+    required: false
   - name: VoiceDescription
     description: Description of desired voice characteristics.
     type: string
+    required: false
 
   # Duration
   - name: Duration
@@ -39,6 +41,7 @@ inputs:
   - name: Resolution
     description: Resolution as width/height pixel dimensions.
     type: resolution
+    required: false
 
 outputs:
   - name: GeneratedVideo

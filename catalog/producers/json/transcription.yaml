@@ -14,6 +14,7 @@ inputs:
   - name: LanguageCode
     description: ISO 639-3 language code for transcription (e.g., eng, spa, fra).
     type: string
+    required: false
 
 outputs:
   - name: Transcription

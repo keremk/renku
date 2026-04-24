@@ -65,7 +65,7 @@ Inside a Claude Code session (CLI or Desktop), run:
 Then invoke the blueprint skill with:
 
 ```text
-/renku-plugin:create-blueprint
+/renku-plugin:renku-design-blueprint
 ```
 
 <Aside>
@@ -94,7 +94,7 @@ You can also verify from Codex chat/command input:
 Invoke a skill directly:
 
 ```text
-$create-blueprint
+$renku-design-blueprint
 ```
 
 To remove the symlinks created by the installer later:
@@ -109,13 +109,15 @@ To remove the symlinks created by the installer later:
 
 1. Open your Renku workspace in Claude Code or Codex.
 
-2. Run the blueprint skill (`/renku-plugin:create-blueprint` in Claude Code, or `$create-blueprint` in Codex).
+2. Run the blueprint skill (`/renku-plugin:renku-design-blueprint` in Claude Code, or `$renku-design-blueprint` in Codex).
 
 3. Describe the workflow you want, including whether it should stop at reusable assets and metadata or continue through composition and final export.
 
 4. Review the generated blueprint in your workspace, then run it with Renku.
 
 </Steps>
+
+Skills are meant to teach the agent the same safety rules Renku enforces. In particular, top-level blueprint outputs are publication endpoints, not internal routing nodes. For the human explanation of that rule, preflight, dry-run coverage, and stage-by-stage validation, see [Blueprint Validation and Preflight](/docs/blueprint-validation-and-preflight).
 
 ## Compatibility Notes
 
