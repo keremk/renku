@@ -1,0 +1,35 @@
+meta:
+  name: Seedance Text Prompt Producer
+  description: Converts one semantic scene intent into a Seedance text-to-video prompt.
+  id: SeedanceTextPromptProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./prompts.toml
+  outputSchema: ./output-schema.json
+
+inputs:
+  - name: Workflow
+    description: Workflow selector passed through for graph traceability.
+    type: string
+  - name: SceneIntent
+    description: Core visible scene, subject, and action.
+    type: string
+  - name: CameraIntent
+    description: Camera movement and framing intent.
+    type: string
+  - name: AudioIntent
+    description: Sound-design intent when native audio is requested.
+    type: string
+  - name: EnvironmentAndStyle
+    description: Environment, lighting, and visual texture.
+    type: string
+  - name: UseNativeAudio
+    description: Whether native clip audio is wanted.
+    type: boolean
+
+outputs:
+  - name: Prompt
+    description: Final Seedance text-to-video prompt for one clip.
+    type: string

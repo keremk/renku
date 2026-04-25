@@ -64,6 +64,7 @@ export {
 export * from './model-selection-extractor.js';
 export * from './export/index.js';
 export * from './catalog-blueprints.js';
+export * from './catalog-producers.js';
 export * from './workspace.js';
 export * from './workspace-service.js';
 export * from './settings-service.js';

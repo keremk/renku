@@ -22,6 +22,7 @@ inputs:
   - name: GenerateAudio
     description: Whether the clip should request native audio.
     type: boolean
+    required: false
 
 outputs:
   - name: GeneratedVideo
@@ -50,7 +51,11 @@ mappings:
           mode: aspectRatioAndPresetObject
           aspectRatioField: aspect_ratio
           presetField: resolution
-      GenerateAudio: generate_audio
+      GenerateAudio:
+        field: generate_audio
+        transform:
+          'true': true
+          'false': false
 
     bytedance/seedance-2.0/fast/text-to-video:
       Prompt: prompt
@@ -63,4 +68,8 @@ mappings:
           mode: aspectRatioAndPresetObject
           aspectRatioField: aspect_ratio
           presetField: resolution
-      GenerateAudio: generate_audio
+      GenerateAudio:
+        field: generate_audio
+        transform:
+          'true': true
+          'false': false

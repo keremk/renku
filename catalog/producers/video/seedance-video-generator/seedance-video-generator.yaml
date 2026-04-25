@@ -1,0 +1,286 @@
+meta:
+  name: Seedance Video Generator
+  description: Generates one Seedance motion clip from semantic motion intent, routing to the matching Seedance workflow internally.
+  id: SeedanceVideoGenerator
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Workflow
+    description: Motion workflow type. One of Text, Reference, StartEnd, or MultiShot.
+    type: string
+    required: true
+  - name: SceneIntent
+    description: Core visible scene, subject, and action.
+    type: string
+    required: true
+  - name: CameraIntent
+    description: Camera movement and framing intent.
+    type: string
+    required: true
+  - name: AudioIntent
+    description: Sound-design intent when native audio is wanted.
+    type: string
+    required: true
+  - name: EnvironmentAndStyle
+    description: Environment, lighting, and visual texture.
+    type: string
+    required: true
+  - name: EndFrameDescription
+    description: Ending-state description used for StartEnd transitions.
+    type: string
+    required: false
+  - name: ShotBreakdown
+    description: Explicit multi-shot breakdown used only for MultiShot.
+    type: string
+    required: false
+  - name: ReferenceMediaInstructions
+    description: Explicit explanation of what supplied reference images, videos, or audios contribute.
+    type: string
+    required: false
+  - name: StartEndAnchorsArePlain
+    description: Whether the first two stills are safe plain anchors for StartEnd.
+    type: boolean
+    required: false
+  - name: UseNativeAudio
+    description: Whether the clip should request native Seedance audio.
+    type: boolean
+    required: true
+  - name: ReferenceImage1
+    description: First reference image for Reference workflow.
+    type: image
+    required: false
+  - name: ReferenceImage2
+    description: Second reference image for Reference workflow.
+    type: image
+    required: false
+  - name: StartImage
+    description: Starting frame for StartEnd workflow.
+    type: image
+    required: false
+  - name: EndImage
+    description: Ending frame for StartEnd workflow.
+    type: image
+    required: false
+  - name: Duration
+    description: Motion clip duration in seconds.
+    type: integer
+    required: true
+  - name: Resolution
+    description: Output resolution for the motion clip.
+    type: resolution
+    required: true
+
+outputs:
+  - name: GeneratedVideo
+    description: Generated motion clip.
+    type: video
+
+conditions:
+  useText:
+    when: Workflow
+    is: Text
+  useReference:
+    when: Workflow
+    is: Reference
+  useStartEnd:
+    all:
+      - when: Workflow
+        is: StartEnd
+      - when: StartEndAnchorsArePlain
+        is: true
+  useMultiShot:
+    when: Workflow
+    is: MultiShot
+
+imports:
+  - name: TextPromptCompiler
+    path: ./seedance-text-prompt-producer/producer.yaml
+    if: useText
+  - name: TextClipProducer
+    path: ./seedance-text-clip/producer.yaml
+    if: useText
+  - name: ReferencePromptCompiler
+    path: ./seedance-reference-media-prompt-producer/producer.yaml
+    if: useReference
+  - name: ReferenceClipProducer
+    path: ./seedance-reference-media-clip/producer.yaml
+    if: useReference
+  - name: StartEndPromptCompiler
+    path: ./seedance-start-end-prompt-producer/producer.yaml
+    if: useStartEnd
+  - name: StartEndClipProducer
+    path: ./seedance-start-end-clip/producer.yaml
+    if: useStartEnd
+  - name: MultiShotPromptCompiler
+    path: ./seedance-multishot-prompt-producer/producer.yaml
+    if: useMultiShot
+  - name: MultiShotClipProducer
+    path: ./seedance-multishot-clip/producer.yaml
+    if: useMultiShot
+
+connections:
+  - from: Workflow
+    to: TextPromptCompiler.Workflow
+    if: useText
+  - from: SceneIntent
+    to: TextPromptCompiler.SceneIntent
+    if: useText
+  - from: CameraIntent
+    to: TextPromptCompiler.CameraIntent
+    if: useText
+  - from: AudioIntent
+    to: TextPromptCompiler.AudioIntent
+    if: useText
+  - from: EnvironmentAndStyle
+    to: TextPromptCompiler.EnvironmentAndStyle
+    if: useText
+  - from: UseNativeAudio
+    to: TextPromptCompiler.UseNativeAudio
+    if: useText
+  - from: TextPromptCompiler.Prompt
+    to: TextClipProducer.Prompt
+    if: useText
+  - from: Duration
+    to: TextClipProducer.Duration
+    if: useText
+  - from: Resolution
+    to: TextClipProducer.Resolution
+    if: useText
+  - from: UseNativeAudio
+    to: TextClipProducer.GenerateAudio
+    if: useText
+
+  - from: Workflow
+    to: ReferencePromptCompiler.Workflow
+    if: useReference
+  - from: SceneIntent
+    to: ReferencePromptCompiler.SceneIntent
+    if: useReference
+  - from: CameraIntent
+    to: ReferencePromptCompiler.CameraIntent
+    if: useReference
+  - from: AudioIntent
+    to: ReferencePromptCompiler.AudioIntent
+    if: useReference
+  - from: EnvironmentAndStyle
+    to: ReferencePromptCompiler.EnvironmentAndStyle
+    if: useReference
+  - from: ReferenceMediaInstructions
+    to: ReferencePromptCompiler.ReferenceMediaInstructions
+    if: useReference
+  - from: UseNativeAudio
+    to: ReferencePromptCompiler.UseNativeAudio
+    if: useReference
+  - from: ReferencePromptCompiler.Prompt
+    to: ReferenceClipProducer.Prompt
+    if: useReference
+  - from: ReferenceImage1
+    to: ReferenceClipProducer.ReferenceImages[0]
+    if: useReference
+  - from: ReferenceImage2
+    to: ReferenceClipProducer.ReferenceImages[1]
+    if: useReference
+  - from: Duration
+    to: ReferenceClipProducer.Duration
+    if: useReference
+  - from: Resolution
+    to: ReferenceClipProducer.Resolution
+    if: useReference
+  - from: UseNativeAudio
+    to: ReferenceClipProducer.GenerateAudio
+    if: useReference
+
+  - from: Workflow
+    to: StartEndPromptCompiler.Workflow
+    if: useStartEnd
+  - from: StartEndAnchorsArePlain
+    to: StartEndPromptCompiler.StartEndAnchorsArePlain
+    if: useStartEnd
+  - from: SceneIntent
+    to: StartEndPromptCompiler.SceneIntent
+    if: useStartEnd
+  - from: CameraIntent
+    to: StartEndPromptCompiler.CameraIntent
+    if: useStartEnd
+  - from: AudioIntent
+    to: StartEndPromptCompiler.AudioIntent
+    if: useStartEnd
+  - from: EnvironmentAndStyle
+    to: StartEndPromptCompiler.EnvironmentAndStyle
+    if: useStartEnd
+  - from: EndFrameDescription
+    to: StartEndPromptCompiler.EndFrameDescription
+    if: useStartEnd
+  - from: UseNativeAudio
+    to: StartEndPromptCompiler.UseNativeAudio
+    if: useStartEnd
+  - from: StartEndPromptCompiler.Prompt
+    to: StartEndClipProducer.Prompt
+    if: useStartEnd
+  - from: StartImage
+    to: StartEndClipProducer.StartImage
+    if: useStartEnd
+  - from: EndImage
+    to: StartEndClipProducer.EndImage
+    if: useStartEnd
+  - from: Duration
+    to: StartEndClipProducer.Duration
+    if: useStartEnd
+  - from: Resolution
+    to: StartEndClipProducer.Resolution
+    if: useStartEnd
+  - from: UseNativeAudio
+    to: StartEndClipProducer.GenerateAudio
+    if: useStartEnd
+
+  - from: Workflow
+    to: MultiShotPromptCompiler.Workflow
+    if: useMultiShot
+  - from: SceneIntent
+    to: MultiShotPromptCompiler.SceneIntent
+    if: useMultiShot
+  - from: CameraIntent
+    to: MultiShotPromptCompiler.CameraIntent
+    if: useMultiShot
+  - from: AudioIntent
+    to: MultiShotPromptCompiler.AudioIntent
+    if: useMultiShot
+  - from: EnvironmentAndStyle
+    to: MultiShotPromptCompiler.EnvironmentAndStyle
+    if: useMultiShot
+  - from: ShotBreakdown
+    to: MultiShotPromptCompiler.ShotBreakdown
+    if: useMultiShot
+  - from: UseNativeAudio
+    to: MultiShotPromptCompiler.UseNativeAudio
+    if: useMultiShot
+  - from: MultiShotPromptCompiler.Prompt
+    to: MultiShotClipProducer.Prompt
+    if: useMultiShot
+  - from: Duration
+    to: MultiShotClipProducer.Duration
+    if: useMultiShot
+  - from: Resolution
+    to: MultiShotClipProducer.Resolution
+    if: useMultiShot
+  - from: UseNativeAudio
+    to: MultiShotClipProducer.GenerateAudio
+    if: useMultiShot
+
+  - from: TextClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useText
+  - from: ReferenceClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useReference
+
+  - from: StartEndClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useStartEnd
+
+  - from: MultiShotClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useMultiShot

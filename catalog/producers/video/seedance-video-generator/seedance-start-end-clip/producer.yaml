@@ -1,7 +1,7 @@
 meta:
-  name: Seedance Reference Clip
-  description: Generate a Seedance 2.0 motion clip from a prompt plus reference images.
-  id: SeedanceReferenceClipProducer
+  name: Seedance Start End Clip
+  description: Generate a Seedance 2.0 motion clip that transitions from a required start image to a required end image.
+  id: SeedanceStartEndClipProducer
   kind: producer
   version: 0.1.0
   author: Renku
@@ -9,13 +9,15 @@ meta:
 
 inputs:
   - name: Prompt
-    description: Seedance-ready reference-video prompt.
+    description: Seedance-ready transition prompt.
     type: string
     storyboard: main
-  - name: ReferenceImages
-    description: Reference images for subject consistency. Use slot 0 for the canonical portrait and slot 1 for the character sheet.
-    type: array
-    itemType: image
+  - name: StartImage
+    description: Starting frame image.
+    type: image
+  - name: EndImage
+    description: Ending frame image.
+    type: image
   - name: Duration
     description: Motion clip duration in seconds.
     type: integer
@@ -26,6 +28,7 @@ inputs:
   - name: GenerateAudio
     description: Whether the clip should request native audio.
     type: boolean
+    required: false
 
 outputs:
   - name: GeneratedVideo
@@ -43,9 +46,10 @@ outputs:
 
 mappings:
   fal-ai:
-    bytedance/seedance-2.0/reference-to-video:
+    bytedance/seedance-2.0/image-to-video:
       Prompt: prompt
-      ReferenceImages: image_urls
+      StartImage: image_url
+      EndImage: end_image_url
       Duration:
         field: duration
         intToString: true
@@ -55,11 +59,16 @@ mappings:
           mode: aspectRatioAndPresetObject
           aspectRatioField: aspect_ratio
           presetField: resolution
-      GenerateAudio: generate_audio
+      GenerateAudio:
+        field: generate_audio
+        transform:
+          'true': true
+          'false': false
 
-    bytedance/seedance-2.0/fast/reference-to-video:
+    bytedance/seedance-2.0/fast/image-to-video:
       Prompt: prompt
-      ReferenceImages: image_urls
+      StartImage: image_url
+      EndImage: end_image_url
       Duration:
         field: duration
         intToString: true
@@ -69,4 +78,8 @@ mappings:
           mode: aspectRatioAndPresetObject
           aspectRatioField: aspect_ratio
           presetField: resolution
-      GenerateAudio: generate_audio
+      GenerateAudio:
+        field: generate_audio
+        transform:
+          'true': true
+          'false': false

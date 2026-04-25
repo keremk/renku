@@ -118,6 +118,7 @@ MotionPlan contains:
 - EnvironmentAndStyle
 - EndingState
 - ShotBreakdown
+- StartEndAnchorsArePlain
 - UseNativeAudio
 - ReferenceSubjectLabel
 - HistoricalCharacterReferences
@@ -138,6 +139,7 @@ When Enabled is false:
 - EnvironmentAndStyle must be the empty string
 - EndingState must be the empty string
 - ShotBreakdown must be the empty string
+- StartEndAnchorsArePlain must be false
 - UseNativeAudio must be false
 - ReferenceSubjectLabel must be the empty string
 - all HistoricalCharacterReferences[*].UseReference must be false
@@ -191,8 +193,13 @@ Use `MultiShot` when:
 - must already be written as `Shot 1: ...`, `Shot 2: ...`
 - empty string for other workflows
 
+`StartEndAnchorsArePlain`:
+- true only when Workflow is StartEnd and ImagePlans[0] plus ImagePlans[1] both have UseHistoricalReference=false
+- false for every other workflow
+
 `ReferenceSubjectLabel`:
-- the name or label of the selected historical character for Reference workflow
+- a reference-media instruction for Reference workflow, written for the downstream Seedance reference-to-video prompt compiler
+- when using the generated historical character bundle, mention that @Image1 is the selected character portrait and @Image2 is the selected character sheet
 - empty string for other workflows
 
 `HistoricalCharacterReferences`:
@@ -248,11 +255,7 @@ ScenePlanMarkdown must be plain markdown.
   Scene 1: SegmentStillImages[0][0], SegmentStillImages[0][1], SegmentNarrationAudio[0]
 - Use `SegmentReferenceStillImages[n][i][h]` instead of `SegmentStillImages[n][i]` for any still that uses a historical character reference bundle, where `h` is the selected historical character index.
 - Add SegmentMapImages[n] only when that segment has a map.
-- Add exactly one of these motion artifacts when that segment has motion:
-  - SegmentTextMotionVideos[n]
-  - SegmentReferenceMotionVideos[n][h]
-  - SegmentStartEndMotionVideos[n]
-  - SegmentMultiShotMotionVideos[n]
+- Add SegmentMotionVideos[n] when that segment has motion.
 - Add SegmentExpertTalkingHeadVideos[n][e] when an expert is active in that segment.
 - Do not include timings.
 - Do not include transition language.

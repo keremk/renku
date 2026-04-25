@@ -3,6 +3,6 @@
   "strict": true,
   "schema": {
     "type": "string",
-    "description": "Final Seedance-oriented motion prompt."
+    "description": "Final Seedance reference-to-video prompt."
   }
 }

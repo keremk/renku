@@ -453,6 +453,7 @@ function ArtifactGallery({
       <div className='flex h-full min-h-0 gap-4'>
         <ProducerNavigationPane
           producerIds={producerSections.map((section) => section.producerName)}
+          graphData={graphData}
           activeProducerId={activeSection?.producerName ?? null}
           onSelectProducer={handleActiveProducerChange}
           renderProducerActions={(producerId) => {

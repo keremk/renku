@@ -1,9 +1,11 @@
 import { useMemo, type ReactNode } from 'react';
 import { getProducerDisplayParts } from '@/lib/panel-utils';
 import { cn } from '@/lib/utils';
+import type { BlueprintGraphData, BlueprintGraphNode } from '@/types/blueprint-graph';
 
 interface ProducerNavigationPaneProps {
   producerIds: string[];
+  graphData?: BlueprintGraphData;
   activeProducerId: string | null;
   onSelectProducer: (producerId: string) => void;
   renderProducerActions?: (producerId: string) => ReactNode;
@@ -29,16 +31,66 @@ type ProducerListItem =
       }>;
     };
 
-function buildProducerListItems(producerIds: string[]): ProducerListItem[] {
-  const producerEntries = producerIds.map((producerId) => ({
-    producerId,
-    ...getProducerDisplayParts(producerId),
-  }));
-  const items: ProducerListItem[] = [];
-  let index = 0;
+interface ProducerNavigationEntry {
+  producerId: string;
+  groupKey: string | null;
+  groupLabel: string | null;
+  leafLabel: string;
+}
 
-  while (index < producerEntries.length) {
-    const entry = producerEntries[index];
+function formatLabel(label: string): string {
+  return getProducerDisplayParts(label).leafLabel;
+}
+
+function buildProducerNavigationEntry(
+  producerId: string,
+  producerNode: BlueprintGraphNode | undefined
+): ProducerNavigationEntry {
+  if (!producerNode) {
+    const displayParts = getProducerDisplayParts(producerId);
+    return {
+      producerId,
+      groupKey: displayParts.groupKey,
+      groupLabel: displayParts.groupLabel,
+      leafLabel: displayParts.leafLabel,
+    };
+  }
+
+  const groupPath =
+    producerNode.compositePath ??
+    (producerNode.namespacePath && producerNode.namespacePath.length > 1
+      ? producerNode.namespacePath.slice(0, -1)
+      : undefined);
+  const groupName =
+    producerNode.compositeName ??
+    (groupPath && groupPath.length > 0
+      ? groupPath[groupPath.length - 1]
+      : undefined);
+
+  return {
+    producerId,
+    groupKey: groupPath && groupPath.length > 0 ? groupPath.join('\u0000') : null,
+    groupLabel: groupName ? formatLabel(groupName) : null,
+    leafLabel: formatLabel(producerNode.label),
+  };
+}
+
+function buildProducerListItems(
+  producerIds: string[],
+  graphData?: BlueprintGraphData
+): ProducerListItem[] {
+  const producerNodeById = new Map(
+    (graphData?.nodes ?? [])
+      .filter((node) => node.type === 'producer')
+      .map((node) => [node.id, node])
+  );
+  const producerEntries = producerIds.map((producerId) =>
+    buildProducerNavigationEntry(producerId, producerNodeById.get(producerId))
+  );
+  const items: ProducerListItem[] = [];
+  const emittedGroupKeys = new Set<string>();
+
+  for (const entry of producerEntries) {
     if (!entry.groupKey || !entry.groupLabel) {
       items.push({
         type: 'producer',
@@ -46,35 +98,27 @@ function buildProducerListItems(producerIds: string[]): ProducerListItem[] {
         producerId: entry.producerId,
         leafLabel: entry.leafLabel,
       });
-      index += 1;
       continue;
     }
 
-    const groupProducers = [];
-    let runLength = 0;
-
-    while (index + runLength < producerEntries.length) {
-      const candidate = producerEntries[index + runLength];
-      if (candidate.groupKey !== entry.groupKey) {
-        break;
-      }
-
-      groupProducers.push({
-        producerId: candidate.producerId,
-        leafLabel: candidate.leafLabel,
-      });
-      runLength += 1;
+    if (emittedGroupKeys.has(entry.groupKey)) {
+      continue;
     }
+
+    emittedGroupKeys.add(entry.groupKey);
 
     items.push({
       type: 'group',
-      key: `${entry.groupKey}:${index}`,
+      key: entry.groupKey,
       groupKey: entry.groupKey,
       groupLabel: entry.groupLabel,
-      producers: groupProducers,
+      producers: producerEntries
+        .filter((candidate) => candidate.groupKey === entry.groupKey)
+        .map((candidate) => ({
+          producerId: candidate.producerId,
+          leafLabel: candidate.leafLabel,
+        })),
     });
-
-    index += runLength;
   }
 
   return items;
@@ -82,13 +126,17 @@ function buildProducerListItems(producerIds: string[]): ProducerListItem[] {
 
 export function ProducerNavigationPane({
   producerIds,
+  graphData,
   activeProducerId,
   onSelectProducer,
   renderProducerActions,
   className,
   title = 'Producers',
 }: ProducerNavigationPaneProps) {
-  const items = useMemo(() => buildProducerListItems(producerIds), [producerIds]);
+  const items = useMemo(
+    () => buildProducerListItems(producerIds, graphData),
+    [producerIds, graphData]
+  );
 
   return (
     <aside
@@ -182,9 +230,11 @@ function ProducerNavigationRow({
         </span>
       </button>
 
-      <div className='flex w-23 shrink-0 items-center justify-end gap-1'>
-        {actions}
-      </div>
+      {actions && (
+        <div className='flex w-23 shrink-0 items-center justify-end gap-1'>
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

@@ -873,6 +873,153 @@ describe('createRunner', () => {
     expect(observedInputBindings?.['ReferenceImages[1]']).toBeUndefined();
   });
 
+  it('selects one satisfied conditional scalar input binding before producer invocation', async () => {
+    const storage = createStorageContext({ kind: 'memory' });
+    await initializeMovieStorage(storage, 'movie-conditional-scalar-binding');
+    const eventLog = createEventLog(storage);
+
+    const appendArtifact = async (artifactId: string, data: string) => {
+      const hash = `${artifactId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 40)}hash`;
+      const dir = storage.resolve(
+        'movie-conditional-scalar-binding',
+        'blobs',
+        hash.slice(0, 2)
+      );
+      await storage.storage.createDirectory(dir, {});
+      const blobPath = storage.resolve(
+        'movie-conditional-scalar-binding',
+        'blobs',
+        hash.slice(0, 2),
+        formatBlobFileName(hash, 'text/plain')
+      );
+      await storage.storage.write(blobPath, Buffer.from(data), {
+        mimeType: 'text/plain',
+      });
+      await eventLog.appendArtifact('movie-conditional-scalar-binding', {
+        artifactId,
+        revision: 'rev-0001',
+        inputsHash: 'hash',
+        output: {
+          blob: {
+            hash,
+            size: data.length,
+            mimeType: 'text/plain',
+          },
+        },
+        status: 'succeeded',
+        producerJobId: 'Producer:CharacterAssets',
+        createdAt: new Date().toISOString(),
+      });
+    };
+
+    await appendArtifact('Artifact:CharacterAssets.Portrait[0]', 'portrait-0');
+    await appendArtifact('Artifact:CharacterAssets.Portrait[1]', 'portrait-1');
+    await appendArtifact('Artifact:CharacterAssets.Portrait[2]', 'portrait-2');
+
+    let observedInputBindings: Record<string, string> | undefined;
+
+    const runner = createRunner({
+      produce: async (request) => {
+        observedInputBindings = request.job.context?.inputBindings;
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artifacts: [],
+        };
+      },
+    });
+
+    const job: JobDescriptor = {
+      jobId: 'job-reference-video-0',
+      producer: 'ReferenceVideoProducer',
+      inputs: [
+        'Input:ReferenceVideoProducer.ReferenceImage',
+        'Artifact:CharacterAssets.Portrait[0]',
+        'Artifact:CharacterAssets.Portrait[1]',
+        'Artifact:CharacterAssets.Portrait[2]',
+      ],
+      produces: ['Artifact:ReferenceVideoProducer.Video[0]'],
+      provider: 'fal-ai',
+      providerModel: 'video/reference',
+      rateKey: 'video:reference',
+      context: {
+        namespacePath: [],
+        indices: { segment: 0 },
+        producerAlias: 'ReferenceVideoProducer',
+        producerId: 'Producer:ReferenceVideoProducer',
+        inputs: [
+          'Input:ReferenceVideoProducer.ReferenceImage',
+          'Artifact:CharacterAssets.Portrait[0]',
+          'Artifact:CharacterAssets.Portrait[1]',
+          'Artifact:CharacterAssets.Portrait[2]',
+        ],
+        produces: ['Artifact:ReferenceVideoProducer.Video[0]'],
+        inputBindings: {
+          ReferenceImage: 'Input:ReferenceVideoProducer.ReferenceImage',
+        },
+        conditionalInputBindings: {
+          ReferenceImage: [
+            {
+              sourceId: 'Artifact:CharacterAssets.Portrait[0]',
+              condition: { when: 'Input:UseReference[segment][character]', is: true },
+              indices: { segment: 0, character: 0 },
+            },
+            {
+              sourceId: 'Artifact:CharacterAssets.Portrait[1]',
+              condition: { when: 'Input:UseReference[segment][character]', is: true },
+              indices: { segment: 0, character: 1 },
+            },
+            {
+              sourceId: 'Artifact:CharacterAssets.Portrait[2]',
+              condition: { when: 'Input:UseReference[segment][character]', is: true },
+              indices: { segment: 0, character: 2 },
+            },
+          ],
+        },
+        inputConditions: {
+          'Artifact:CharacterAssets.Portrait[0]': {
+            condition: { when: 'Input:UseReference[segment][character]', is: true },
+            indices: { segment: 0, character: 0 },
+          },
+          'Artifact:CharacterAssets.Portrait[1]': {
+            condition: { when: 'Input:UseReference[segment][character]', is: true },
+            indices: { segment: 0, character: 1 },
+          },
+          'Artifact:CharacterAssets.Portrait[2]': {
+            condition: { when: 'Input:UseReference[segment][character]', is: true },
+            indices: { segment: 0, character: 2 },
+          },
+        },
+        extras: {
+          resolvedInputs: {
+            'Input:UseReference': [[false, false, true]],
+          },
+        },
+      },
+    };
+
+    const result = await runner.executeJob(job, {
+      movieId: 'movie-conditional-scalar-binding',
+      storage,
+      eventLog,
+      buildState: {
+        revision: 'rev-0001',
+        baseRevision: null,
+        createdAt: new Date().toISOString(),
+        inputs: {},
+        artifacts: {},
+      },
+      layerIndex: 0,
+      attempt: 1,
+      revision: 'rev-0002',
+    });
+
+    expect(result.status).toBe('succeeded');
+    expect(observedInputBindings?.ReferenceImage).toBe(
+      'Artifact:CharacterAssets.Portrait[2]'
+    );
+  });
+
   it('provides fan-in artifact blobs to downstream jobs', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-fanin-assets');

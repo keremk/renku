@@ -52,11 +52,11 @@ models:
 
   - model: openai/gpt-image-2
     provider: fal-ai
-    producerId: HistoricalCharacterSheetProducer
+    producerId: HistoricalCharacterAssetsProducer.CharacterSheetProducer
 
   - model: openai/gpt-image-2
     provider: fal-ai
-    producerId: HistoricalPortraitProducer
+    producerId: HistoricalCharacterAssetsProducer.PortraitProducer
 
   - model: eleven_v3
     provider: elevenlabs
@@ -68,32 +68,32 @@ models:
 
   - model: gpt-5.2
     provider: openai
-    producerId: SeedanceTextMotionPromptProducer
-
-  - model: gpt-5.2
-    provider: openai
-    producerId: SeedanceStartEndMotionPromptProducer
-
-  - model: gpt-5.2
-    provider: openai
-    producerId: SeedanceMultiShotMotionPromptProducer
+    producerId: SeedanceVideoGenerator.TextPromptCompiler
 
   - model: bytedance/seedance-2.0/text-to-video
     provider: fal-ai
-    producerId: SeedanceTextClipProducer
+    producerId: SeedanceVideoGenerator.TextClipProducer
 
   - model: gpt-5.2
     provider: openai
-    producerId: SeedanceReferenceMotionPromptProducer
+    producerId: SeedanceVideoGenerator.ReferencePromptCompiler
 
   - model: bytedance/seedance-2.0/reference-to-video
     provider: fal-ai
-    producerId: SeedanceReferenceClipProducer
+    producerId: SeedanceVideoGenerator.ReferenceClipProducer
+
+  - model: gpt-5.2
+    provider: openai
+    producerId: SeedanceVideoGenerator.StartEndPromptCompiler
 
   - model: bytedance/seedance-2.0/image-to-video
     provider: fal-ai
-    producerId: SeedanceStartEndClipProducer
+    producerId: SeedanceVideoGenerator.StartEndClipProducer
+
+  - model: gpt-5.2
+    provider: openai
+    producerId: SeedanceVideoGenerator.MultiShotPromptCompiler
 
   - model: bytedance/seedance-2.0/text-to-video
     provider: fal-ai
-    producerId: SeedanceMultiShotClipProducer
+    producerId: SeedanceVideoGenerator.MultiShotClipProducer

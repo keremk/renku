@@ -1,0 +1,41 @@
+meta:
+  name: Seedance Start End Prompt Producer
+  description: Converts one semantic scene intent into a Seedance start/end image transition prompt.
+  id: SeedanceStartEndPromptProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./prompts.toml
+  outputSchema: ./output-schema.json
+
+inputs:
+  - name: Workflow
+    description: Workflow selector passed through for graph traceability.
+    type: string
+  - name: StartEndAnchorsArePlain
+    description: Whether the first two stills are safe plain anchors for StartEnd.
+    type: boolean
+  - name: SceneIntent
+    description: Core visible scene, subject, and action.
+    type: string
+  - name: CameraIntent
+    description: Camera movement and framing intent.
+    type: string
+  - name: AudioIntent
+    description: Sound-design intent when native audio is requested.
+    type: string
+  - name: EnvironmentAndStyle
+    description: Environment, lighting, and visual texture.
+    type: string
+  - name: EndFrameDescription
+    description: Description of the intended ending state.
+    type: string
+  - name: UseNativeAudio
+    description: Whether native clip audio is wanted.
+    type: boolean
+
+outputs:
+  - name: Prompt
+    description: Final Seedance start/end transition prompt for one clip.
+    type: string

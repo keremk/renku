@@ -1,0 +1,51 @@
+meta:
+  name: Historical Character Assets
+  description: Generate the reusable character sheet and portrait for one historical character.
+  id: HistoricalCharacterAssets
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: CharacterSheetPrompt
+    description: Prompt for the production-style historical character model sheet.
+    type: string
+    required: true
+  - name: PortraitPrompt
+    description: Prompt for the canonical historical character portrait.
+    type: string
+    required: true
+  - name: Resolution
+    description: Shared output resolution for generated image assets.
+    type: resolution
+    required: true
+
+outputs:
+  - name: CharacterSheet
+    description: Production-style historical character model sheet.
+    type: image
+  - name: Portrait
+    description: Canonical historical character portrait.
+    type: image
+
+imports:
+  - name: CharacterSheetProducer
+    producer: image/text-to-image
+  - name: PortraitProducer
+    producer: image/text-to-image
+
+connections:
+  - from: CharacterSheetPrompt
+    to: CharacterSheetProducer.Prompt
+  - from: Resolution
+    to: CharacterSheetProducer.Resolution
+  - from: CharacterSheetProducer.GeneratedImage
+    to: CharacterSheet
+
+  - from: PortraitPrompt
+    to: PortraitProducer.Prompt
+  - from: Resolution
+    to: PortraitProducer.Resolution
+  - from: PortraitProducer.GeneratedImage
+    to: Portrait

@@ -215,6 +215,7 @@ export function ModelsPanel({
       <div className='flex-1 min-h-0 flex gap-4'>
         <ProducerNavigationPane
           producerIds={producerIds}
+          graphData={graphData}
           activeProducerId={activeProducerId}
           onSelectProducer={handleActiveProducerChange}
         />

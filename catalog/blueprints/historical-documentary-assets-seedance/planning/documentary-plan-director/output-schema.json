@@ -14,7 +14,7 @@
       },
       "ScenePlanMarkdown": {
         "type": "string",
-        "description": "Scene-by-scene markdown ordering the generated assets. Each scene line must reference artifact names like SegmentStillImages[0][0], SegmentReferenceStillImages[0][0][1], SegmentMapImages[0], SegmentNarrationAudio[0], SegmentTextMotionVideos[0], SegmentReferenceMotionVideos[0][1], SegmentStartEndMotionVideos[0], SegmentMultiShotMotionVideos[0], or SegmentExpertTalkingHeadVideos[0][1]. Do not include timing or transition instructions."
+        "description": "Scene-by-scene markdown ordering the generated assets. Each scene line must reference artifact names like SegmentStillImages[0][0], SegmentReferenceStillImages[0][0][1], SegmentMapImages[0], SegmentNarrationAudio[0], SegmentMotionVideos[0], or SegmentExpertTalkingHeadVideos[0][1]. Do not include timing or transition instructions."
       },
       "Segments": {
         "type": "array",
@@ -88,7 +88,13 @@
                 },
                 "Workflow": {
                   "type": "string",
-                  "description": "One of Text, Reference, StartEnd, or MultiShot. Empty string when Enabled is false. When Workflow is StartEnd, ImagePlans[0] and ImagePlans[1] must both use plain generation with UseHistoricalReference=false because those first two stills become the start and end frames."
+                  "enum": [
+                    "Text",
+                    "Reference",
+                    "StartEnd",
+                    "MultiShot"
+                  ],
+                  "description": "Seedance motion workflow. When Workflow is StartEnd, ImagePlans[0] and ImagePlans[1] must both use plain generation with UseHistoricalReference=false because those first two stills become the start and end frames."
                 },
                 "SubjectAndAction": {
                   "type": "string",
@@ -114,13 +120,17 @@
                   "type": "string",
                   "description": "Explicit multi-shot breakdown only for MultiShot clips. Empty string otherwise."
                 },
+                "StartEndAnchorsArePlain": {
+                  "type": "boolean",
+                  "description": "True only when Workflow is StartEnd and ImagePlans[0] and ImagePlans[1] both use plain generation with UseHistoricalReference=false. False for every other workflow."
+                },
                 "UseNativeAudio": {
                   "type": "boolean",
                   "description": "Whether the clip should preserve Seedance-native audio."
                 },
                 "ReferenceSubjectLabel": {
                   "type": "string",
-                  "description": "Name or label of the referenced historical character for the motion prompt. Empty string when no historical reference is used."
+                  "description": "Reference-media instruction for the Reference workflow. Mention @Image1 as the selected character portrait and @Image2 as the selected character sheet when those references should guide identity and costume. Empty string when no historical reference is used."
                 },
                 "HistoricalCharacterReferences": {
                   "type": "array",
@@ -149,6 +159,7 @@
                 "EnvironmentAndStyle",
                 "EndingState",
                 "ShotBreakdown",
+                "StartEndAnchorsArePlain",
                 "UseNativeAudio",
                 "ReferenceSubjectLabel",
                 "HistoricalCharacterReferences"

@@ -465,6 +465,10 @@ export interface BlueprintImportDefinition {
   description?: string;
   /** Loop variable if this producer runs in a loop context */
   loop?: string;
+  /** Reference to a named condition defined in the parent blueprint's conditions block */
+  if?: string;
+  /** Inline condition definition for this imported module */
+  conditions?: EdgeConditionDefinition;
 }
 
 /**
@@ -507,6 +511,8 @@ export interface BlueprintTreeNode {
   children: Map<string, BlueprintTreeNode>;
   /** Absolute path to the source YAML file */
   sourcePath: string;
+  /** Condition inherited from the parent import declaration, if any. */
+  importConditions?: EdgeConditionDefinition;
 }
 
 /**
@@ -564,6 +570,12 @@ export interface InputConditionInfo {
   indices: Record<string, number>;
 }
 
+export interface ConditionalInputBindingCandidate {
+  sourceId: Id;
+  condition: EdgeConditionDefinition;
+  indices: Record<string, number>;
+}
+
 export interface ProducerJobContext {
   namespacePath: string[];
   indices: Record<string, number>;
@@ -575,6 +587,7 @@ export interface ProducerJobContext {
   /** Canonical Artifact:... IDs only. Output connectors must never appear here. */
   produces: Id[];
   inputBindings?: Record<string, Id>;
+  conditionalInputBindings?: Record<string, ConditionalInputBindingCandidate[]>;
   sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   extras?: ProducerJobContextExtras;

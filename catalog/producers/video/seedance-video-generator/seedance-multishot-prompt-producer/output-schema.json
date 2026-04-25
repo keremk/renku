@@ -3,6 +3,6 @@
   "strict": true,
   "schema": {
     "type": "string",
-    "description": "Final Seedance 2.0 reference-to-video prompt."
+    "description": "Final Seedance multi-shot prompt."
   }
 }

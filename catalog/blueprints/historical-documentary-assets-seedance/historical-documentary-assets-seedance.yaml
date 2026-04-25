@@ -84,25 +84,15 @@ outputs:
     type: array
     itemType: image
     countInput: NumOfSegments
-  - name: SegmentTextMotionVideos
-    description: Seedance text-to-video clips for segments that use the plain text workflow.
+  - name: SegmentMotionVideos
+    description: Seedance motion clips generated through the workflow-selected Seedance video generator.
     type: array
     itemType: video
     countInput: NumOfSegments
-  - name: SegmentReferenceMotionVideos
-    description: Seedance reference-to-video clips keyed by segment and historical character.
+  - name: SegmentMotionHistoricalCharacterReferences
+    description: Boolean selector matrix showing which historical character reference bundle was selected for each reference motion clip.
     type: multiDimArray
-    itemType: video
-  - name: SegmentStartEndMotionVideos
-    description: Seedance start-end transition clips for segments that animate between the first two stills.
-    type: array
-    itemType: video
-    countInput: NumOfSegments
-  - name: SegmentMultiShotMotionVideos
-    description: Seedance multi-shot clips for segments that need an explicit shot-labeled structure.
-    type: array
-    itemType: video
-    countInput: NumOfSegments
+    itemType: boolean
   - name: ExpertPortraits
     description: Canonical expert portrait images used as the consistent talking-head anchor.
     type: array
@@ -152,6 +142,12 @@ conditions:
   imageUsesPlainGeneration:
     when: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].UseHistoricalReference
     is: false
+  imageUsesPlainGenerationOrStartEndAnchor:
+    any:
+      - when: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].UseHistoricalReference
+        is: false
+      - when: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
+        is: StartEnd
   imageReferencesHistoricalCharacter:
     all:
       - when: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].UseHistoricalReference
@@ -216,38 +212,14 @@ imports:
   - name: MapImageProducer
     producer: image/text-to-image
     loop: segment
-  - name: SeedanceTextMotionPromptProducer
-    path: ./motion/seedance-motion-prompt-producer/producer.yaml
-    loop: segment
-  - name: SeedanceStartEndMotionPromptProducer
-    path: ./motion/seedance-motion-prompt-producer/producer.yaml
-    loop: segment
-  - name: SeedanceMultiShotMotionPromptProducer
-    path: ./motion/seedance-motion-prompt-producer/producer.yaml
-    loop: segment
-  - name: SeedanceTextClipProducer
-    path: ./motion/seedance-text-clip/producer.yaml
-    loop: segment
-  - name: SeedanceReferenceMotionPromptProducer
-    path: ./motion/seedance-reference-motion-prompt-producer/producer.yaml
-    loop: segment.historicalcharacter
-  - name: SeedanceReferenceClipProducer
-    path: ./motion/seedance-reference-clip/producer.yaml
-    loop: segment.historicalcharacter
-  - name: SeedanceStartEndClipProducer
-    path: ./motion/seedance-start-end-clip/producer.yaml
-    loop: segment
-  - name: SeedanceMultiShotClipProducer
-    path: ./motion/seedance-multishot-clip/producer.yaml
+  - name: SeedanceVideoGenerator
+    producer: video/seedance-video-generator
     loop: segment
   - name: ExpertPortraitProducer
     producer: image/text-to-image
     loop: expert
-  - name: HistoricalCharacterSheetProducer
-    producer: image/text-to-image
-    loop: historicalcharacter
-  - name: HistoricalPortraitProducer
-    producer: image/text-to-image
+  - name: HistoricalCharacterAssetsProducer
+    path: ./characters/historical-character-assets.yaml
     loop: historicalcharacter
   - name: ExpertTalkingHeadAudioProducer
     producer: audio/text-to-speech
@@ -325,17 +297,14 @@ connections:
     to: ExpertPortraits[expert]
 
   - from: HistoricalCharacterDirector.HistoricalCharacterSet.HistoricalCharacters[historicalcharacter].CharacterSheetPrompt
-    to: HistoricalCharacterSheetProducer[historicalcharacter].Prompt
+    to: HistoricalCharacterAssetsProducer[historicalcharacter].CharacterSheetPrompt
   - from: Resolution
-    to: HistoricalCharacterSheetProducer[historicalcharacter].Resolution
-  - from: HistoricalCharacterSheetProducer[historicalcharacter].GeneratedImage
-    to: HistoricalCharacterSheets[historicalcharacter]
-
+    to: HistoricalCharacterAssetsProducer[historicalcharacter].Resolution
   - from: HistoricalCharacterDirector.HistoricalCharacterSet.HistoricalCharacters[historicalcharacter].PortraitPrompt
-    to: HistoricalPortraitProducer[historicalcharacter].Prompt
-  - from: Resolution
-    to: HistoricalPortraitProducer[historicalcharacter].Resolution
-  - from: HistoricalPortraitProducer[historicalcharacter].GeneratedImage
+    to: HistoricalCharacterAssetsProducer[historicalcharacter].PortraitPrompt
+  - from: HistoricalCharacterAssetsProducer[historicalcharacter].CharacterSheet
+    to: HistoricalCharacterSheets[historicalcharacter]
+  - from: HistoricalCharacterAssetsProducer[historicalcharacter].Portrait
     to: HistoricalPortraits[historicalcharacter]
 
   - from: PlanDirector.AssetPlan.Segments[segment].NarrationScript
@@ -351,13 +320,13 @@ connections:
 
   - from: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].Prompt
     to: SegmentPlainImageProducer[segment][image].Prompt
-    if: imageUsesPlainGeneration
+    if: imageUsesPlainGenerationOrStartEndAnchor
   - from: Resolution
     to: SegmentPlainImageProducer[segment][image].Resolution
-    if: imageUsesPlainGeneration
+    if: imageUsesPlainGenerationOrStartEndAnchor
   - from: SegmentPlainImageProducer[segment][image].GeneratedImage
     to: SegmentStillImages[segment][image]
-    if: imageUsesPlainGeneration
+    if: imageUsesPlainGenerationOrStartEndAnchor
 
   - from: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].Prompt
     to: HistoricalReferenceStillPromptProducer[segment][image][historicalcharacter].BasePrompt
@@ -368,10 +337,10 @@ connections:
   - from: HistoricalReferenceStillPromptProducer[segment][image][historicalcharacter].Prompt
     to: SegmentReferenceImageProducer[segment][image][historicalcharacter].Prompt
     if: imageReferencesHistoricalCharacter
-  - from: HistoricalPortraitProducer[historicalcharacter].GeneratedImage
+  - from: HistoricalCharacterAssetsProducer[historicalcharacter].Portrait
     to: SegmentReferenceImageProducer[segment][image][historicalcharacter].SourceImages[0]
     if: imageReferencesHistoricalCharacter
-  - from: HistoricalCharacterSheetProducer[historicalcharacter].GeneratedImage
+  - from: HistoricalCharacterAssetsProducer[historicalcharacter].CharacterSheet
     to: SegmentReferenceImageProducer[segment][image][historicalcharacter].SourceImages[1]
     if: imageReferencesHistoricalCharacter
   - from: Resolution
@@ -392,180 +361,45 @@ connections:
     if: hasMap
 
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
-    to: SeedanceTextMotionPromptProducer[segment].Workflow
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].Workflow
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.SubjectAndAction
-    to: SeedanceTextMotionPromptProducer[segment].SubjectAndAction
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].SceneIntent
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.CameraIntent
-    to: SeedanceTextMotionPromptProducer[segment].CameraIntent
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].CameraIntent
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.AudioIntent
-    to: SeedanceTextMotionPromptProducer[segment].AudioIntent
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].AudioIntent
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EnvironmentAndStyle
-    to: SeedanceTextMotionPromptProducer[segment].EnvironmentAndStyle
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].EnvironmentAndStyle
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EndingState
-    to: SeedanceTextMotionPromptProducer[segment].EndingState
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].EndFrameDescription
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ShotBreakdown
-    to: SeedanceTextMotionPromptProducer[segment].ShotBreakdown
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].ShotBreakdown
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ReferenceSubjectLabel
-    to: SeedanceTextMotionPromptProducer[segment].ReferenceSubjectLabel
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].ReferenceMediaInstructions
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
-    to: SeedanceTextMotionPromptProducer[segment].UseNativeAudio
-    if: motionIsText
-  - from: SeedanceTextMotionPromptProducer[segment].Prompt
-    to: SeedanceTextClipProducer[segment].Prompt
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].UseNativeAudio
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.StartEndAnchorsArePlain
+    to: SeedanceVideoGenerator[segment].StartEndAnchorsArePlain
   - from: SegmentDuration
-    to: SeedanceTextClipProducer[segment].Duration
-    if: motionIsText
+    to: SeedanceVideoGenerator[segment].Duration
   - from: Resolution
-    to: SeedanceTextClipProducer[segment].Resolution
-    if: motionIsText
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
-    to: SeedanceTextClipProducer[segment].GenerateAudio
-    if: motionIsText
-
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.SubjectAndAction
-    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].SubjectAndAction
-    if: motionReferencesHistoricalCharacter
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.CameraIntent
-    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].CameraIntent
-    if: motionReferencesHistoricalCharacter
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.AudioIntent
-    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].AudioIntent
-    if: motionReferencesHistoricalCharacter
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EnvironmentAndStyle
-    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].EnvironmentAndStyle
-    if: motionReferencesHistoricalCharacter
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
-    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].UseNativeAudio
-    if: motionReferencesHistoricalCharacter
-  - from: HistoricalCharacterDirector.HistoricalCharacterSet.HistoricalCharacters[historicalcharacter].DisplayName
-    to: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].ReferenceCharacterName
-    if: motionReferencesHistoricalCharacter
-  - from: SeedanceReferenceMotionPromptProducer[segment][historicalcharacter].Prompt
-    to: SeedanceReferenceClipProducer[segment][historicalcharacter].Prompt
-    if: motionReferencesHistoricalCharacter
-  - from: HistoricalPortraitProducer[historicalcharacter].GeneratedImage
-    to: SeedanceReferenceClipProducer[segment][historicalcharacter].ReferenceImages[0]
-    if: motionReferencesHistoricalCharacter
-  - from: HistoricalCharacterSheetProducer[historicalcharacter].GeneratedImage
-    to: SeedanceReferenceClipProducer[segment][historicalcharacter].ReferenceImages[1]
-    if: motionReferencesHistoricalCharacter
-  - from: SegmentDuration
-    to: SeedanceReferenceClipProducer[segment][historicalcharacter].Duration
-    if: motionReferencesHistoricalCharacter
-  - from: Resolution
-    to: SeedanceReferenceClipProducer[segment][historicalcharacter].Resolution
-    if: motionReferencesHistoricalCharacter
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
-    to: SeedanceReferenceClipProducer[segment][historicalcharacter].GenerateAudio
-    if: motionReferencesHistoricalCharacter
-
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
-    to: SeedanceStartEndMotionPromptProducer[segment].Workflow
-    if: motionIsStartEndWithPlainAnchors
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.SubjectAndAction
-    to: SeedanceStartEndMotionPromptProducer[segment].SubjectAndAction
-    if: motionIsStartEndWithPlainAnchors
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.CameraIntent
-    to: SeedanceStartEndMotionPromptProducer[segment].CameraIntent
-    if: motionIsStartEndWithPlainAnchors
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.AudioIntent
-    to: SeedanceStartEndMotionPromptProducer[segment].AudioIntent
-    if: motionIsStartEndWithPlainAnchors
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EnvironmentAndStyle
-    to: SeedanceStartEndMotionPromptProducer[segment].EnvironmentAndStyle
-    if: motionIsStartEndWithPlainAnchors
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EndingState
-    to: SeedanceStartEndMotionPromptProducer[segment].EndingState
-    if: motionIsStartEndWithPlainAnchors
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ShotBreakdown
-    to: SeedanceStartEndMotionPromptProducer[segment].ShotBreakdown
-    if: motionIsStartEndWithPlainAnchors
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ReferenceSubjectLabel
-    to: SeedanceStartEndMotionPromptProducer[segment].ReferenceSubjectLabel
-    if: motionIsStartEndWithPlainAnchors
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
-    to: SeedanceStartEndMotionPromptProducer[segment].UseNativeAudio
-    if: motionIsStartEndWithPlainAnchors
-  - from: SeedanceStartEndMotionPromptProducer[segment].Prompt
-    to: SeedanceStartEndClipProducer[segment].Prompt
-    if: motionIsStartEndWithPlainAnchors
+    to: SeedanceVideoGenerator[segment].Resolution
   - from: SegmentPlainImageProducer[segment][0].GeneratedImage
-    to: SeedanceStartEndClipProducer[segment].StartImage
-    if: motionIsStartEndWithPlainAnchors
+    to: SeedanceVideoGenerator[segment].StartImage
+    if: motionIsStartEnd
   - from: SegmentPlainImageProducer[segment][1].GeneratedImage
-    to: SeedanceStartEndClipProducer[segment].EndImage
-    if: motionIsStartEndWithPlainAnchors
-  - from: SegmentDuration
-    to: SeedanceStartEndClipProducer[segment].Duration
-    if: motionIsStartEndWithPlainAnchors
-  - from: Resolution
-    to: SeedanceStartEndClipProducer[segment].Resolution
-    if: motionIsStartEndWithPlainAnchors
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
-    to: SeedanceStartEndClipProducer[segment].GenerateAudio
-    if: motionIsStartEndWithPlainAnchors
-
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.Workflow
-    to: SeedanceMultiShotMotionPromptProducer[segment].Workflow
-    if: motionIsMultiShot
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.SubjectAndAction
-    to: SeedanceMultiShotMotionPromptProducer[segment].SubjectAndAction
-    if: motionIsMultiShot
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.CameraIntent
-    to: SeedanceMultiShotMotionPromptProducer[segment].CameraIntent
-    if: motionIsMultiShot
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.AudioIntent
-    to: SeedanceMultiShotMotionPromptProducer[segment].AudioIntent
-    if: motionIsMultiShot
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EnvironmentAndStyle
-    to: SeedanceMultiShotMotionPromptProducer[segment].EnvironmentAndStyle
-    if: motionIsMultiShot
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.EndingState
-    to: SeedanceMultiShotMotionPromptProducer[segment].EndingState
-    if: motionIsMultiShot
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ShotBreakdown
-    to: SeedanceMultiShotMotionPromptProducer[segment].ShotBreakdown
-    if: motionIsMultiShot
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.ReferenceSubjectLabel
-    to: SeedanceMultiShotMotionPromptProducer[segment].ReferenceSubjectLabel
-    if: motionIsMultiShot
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
-    to: SeedanceMultiShotMotionPromptProducer[segment].UseNativeAudio
-    if: motionIsMultiShot
-  - from: SeedanceMultiShotMotionPromptProducer[segment].Prompt
-    to: SeedanceMultiShotClipProducer[segment].Prompt
-    if: motionIsMultiShot
-  - from: SegmentDuration
-    to: SeedanceMultiShotClipProducer[segment].Duration
-    if: motionIsMultiShot
-  - from: Resolution
-    to: SeedanceMultiShotClipProducer[segment].Resolution
-    if: motionIsMultiShot
-  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.UseNativeAudio
-    to: SeedanceMultiShotClipProducer[segment].GenerateAudio
-    if: motionIsMultiShot
-
-  - from: SeedanceTextClipProducer[segment].GeneratedVideo
-    to: SegmentTextMotionVideos[segment]
-    if: motionIsText
-  - from: SeedanceReferenceClipProducer[segment][historicalcharacter].GeneratedVideo
-    to: SegmentReferenceMotionVideos[segment][historicalcharacter]
+    to: SeedanceVideoGenerator[segment].EndImage
+    if: motionIsStartEnd
+  - from: HistoricalCharacterAssetsProducer[historicalcharacter].Portrait
+    to: SeedanceVideoGenerator[segment].ReferenceImage1
     if: motionReferencesHistoricalCharacter
-  - from: SeedanceStartEndClipProducer[segment].GeneratedVideo
-    to: SegmentStartEndMotionVideos[segment]
-    if: motionIsStartEndWithPlainAnchors
-  - from: SeedanceMultiShotClipProducer[segment].GeneratedVideo
-    to: SegmentMultiShotMotionVideos[segment]
-    if: motionIsMultiShot
+  - from: HistoricalCharacterAssetsProducer[historicalcharacter].CharacterSheet
+    to: SeedanceVideoGenerator[segment].ReferenceImage2
+    if: motionReferencesHistoricalCharacter
+  - from: SeedanceVideoGenerator[segment].GeneratedVideo
+    to: SegmentMotionVideos[segment]
+  - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.HistoricalCharacterReferences[historicalcharacter].UseReference
+    to: SegmentMotionHistoricalCharacterReferences[segment][historicalcharacter]
 
   - from: PlanDirector.AssetPlan.Segments[segment].ExpertTalkingHeads[expert].TalkingHeadText
     to: ExpertTalkingHeadAudioProducer[segment][expert].Text

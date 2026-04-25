@@ -1,9 +1,10 @@
 import { parse as parseYaml } from 'yaml';
-import { existsSync, promises as fs } from 'node:fs';
+import { promises as fs } from 'node:fs';
 import { dirname, resolve, relative, sep } from 'node:path';
 import type { FileStorage } from '@flystorage/file-storage';
 import { createParserError, ParserErrorCode } from '../../errors/index.js';
 import { isRenkuError } from '../../errors/types.js';
+import { resolveCatalogProducerPath } from '../../catalog-producers.js';
 import type {
   ArrayDimensionMapping,
   BlueprintImportDefinition,
@@ -159,7 +160,9 @@ export async function parseYamlBlueprintFile(
     );
   }
   const outputs = outputSource.map((entry) => parseOutput(entry, filePath));
-  const imports = rawImports.map((entry) => parseBlueprintImport(entry));
+  const imports = rawImports.map((entry) =>
+    parseBlueprintImport(entry, conditionDefs, loopSymbols)
+  );
   if (!isProducerBlueprint && imports.length === 0) {
     throw createParserError(
       ParserErrorCode.INVALID_PRODUCER_BLUEPRINT_KIND,
@@ -227,7 +230,8 @@ async function loadNode(
   namespacePath: string[],
   reader: BlueprintResourceReader,
   visiting: Set<string>,
-  options: BlueprintLoadOptions = {}
+  options: BlueprintLoadOptions = {},
+  importConditions?: EdgeConditionDefinition
 ): Promise<BlueprintTreeNode> {
   const absolute = resolve(filePath);
   if (visiting.has(absolute)) {
@@ -245,6 +249,7 @@ async function loadNode(
     document,
     children: new Map(),
     sourcePath: absolute,
+    importConditions,
   };
 
   // Imported blueprints use the authored alias as a scope for their internal nodes.
@@ -260,7 +265,8 @@ async function loadNode(
       aliasPath,
       reader,
       visiting,
-      options
+      options,
+      blueprintImport.conditions
     );
     node.children.set(blueprintImport.name, child);
   }
@@ -280,18 +286,24 @@ function resolveBlueprintImportPath(
 
   if (blueprintImport.producer && options.catalogRoot) {
     const producersRoot = resolve(options.catalogRoot, 'producers');
-    const resolved = findProducerByQualifiedName(
+    const resolved = resolveCatalogProducerPath(
       producersRoot,
       blueprintImport.producer
     );
-    if (resolved) {
-      return resolved;
+    if (resolved.status === 'found') {
+      return resolved.path;
+    }
+    if (resolved.status === 'invalidFolder') {
+      throw createParserError(
+        ParserErrorCode.UNKNOWN_PRODUCER_REFERENCE,
+        resolved.message,
+        { filePath: parentFile }
+      );
     }
     throw createParserError(
       ParserErrorCode.UNKNOWN_PRODUCER_REFERENCE,
       `Producer "${blueprintImport.producer}" not found in ${producersRoot}. ` +
-        `Tried: ${producersRoot}/${blueprintImport.producer}.yaml and ` +
-        `${producersRoot}/${blueprintImport.producer}/${blueprintImport.producer.split('/').pop()}.yaml`,
+        `Tried: ${resolved.attempted.join(' and ')}`,
       { filePath: parentFile }
     );
   }
@@ -311,33 +323,6 @@ function resolveBlueprintImportPath(
     `Blueprint import "${blueprintImport.name}" must declare exactly one import source: "path" or "producer".`,
     { filePath: parentFile }
   );
-}
-
-/**
- * Finds a producer by qualified name in the producers directory.
- * Tries two patterns:
- * 1. {producersRoot}/{qualifiedName}.yaml (e.g., producers/audio/text-to-speech.yaml)
- * 2. {producersRoot}/{qualifiedName}/{name}.yaml (e.g., producers/prompt/script/script.yaml)
- */
-function findProducerByQualifiedName(
-  producersRoot: string,
-  qualifiedName: string
-): string | null {
-  // Try: producers/audio/text-to-speech.yaml
-  const directPath = resolve(producersRoot, `${qualifiedName}.yaml`);
-  if (existsSync(directPath)) {
-    return directPath;
-  }
-
-  // Try: producers/prompt/script/script.yaml (nested with same name as last segment)
-  const parts = qualifiedName.split('/');
-  const name = parts[parts.length - 1];
-  const nestedPath = resolve(producersRoot, qualifiedName, `${name}.yaml`);
-  if (existsSync(nestedPath)) {
-    return nestedPath;
-  }
-
-  return null;
 }
 
 interface RawBlueprint {
@@ -825,7 +810,11 @@ function parseArraysMetadata(
   });
 }
 
-function parseBlueprintImport(raw: unknown): BlueprintImportDefinition {
+function parseBlueprintImport(
+  raw: unknown,
+  conditionDefs: BlueprintConditionDefinitions,
+  allowedDimensions: Set<string>
+): BlueprintImportDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_PRODUCER_ENTRY,
@@ -853,6 +842,36 @@ function parseBlueprintImport(raw: unknown): BlueprintImportDefinition {
     );
   }
 
+  let conditions: EdgeConditionDefinition | undefined;
+  const ifRef = entry.if;
+  if (ifRef !== undefined) {
+    if (typeof ifRef !== 'string' || ifRef.trim().length === 0) {
+      throw createParserError(
+        ParserErrorCode.INVALID_CONDITION_ENTRY,
+        `Invalid 'if' reference in import "${name}": expected string, got ${typeof ifRef}`
+      );
+    }
+    const conditionName = ifRef.trim();
+    const def = conditionDefs[conditionName];
+    if (!def) {
+      throw createParserError(
+        ParserErrorCode.INVALID_CONDITION_ENTRY,
+        `Unknown condition "${conditionName}" in import "${name}". Define it under conditions[].`
+      );
+    }
+    conditions = def;
+  }
+
+  if (entry.conditions !== undefined) {
+    if (conditions !== undefined) {
+      throw createParserError(
+        ParserErrorCode.INVALID_PRODUCER_ENTRY,
+        `Blueprint import "${name}" cannot have both 'if' and 'conditions'. Use one or the other.`
+      );
+    }
+    conditions = parseEdgeConditions(entry.conditions, allowedDimensions);
+  }
+
   return {
     name,
     path,
@@ -860,6 +879,8 @@ function parseBlueprintImport(raw: unknown): BlueprintImportDefinition {
     description:
       typeof entry.description === 'string' ? entry.description : undefined,
     loop: typeof entry.loop === 'string' ? entry.loop.trim() : undefined,
+    if: typeof ifRef === 'string' ? ifRef.trim() : undefined,
+    conditions,
   };
 }
 
@@ -1167,6 +1188,9 @@ function canonicalizeConditionWhenPath(whenPath: string): string {
     isCanonicalInputId(trimmed) ||
     isCanonicalOutputId(trimmed)
   ) {
+    return trimmed;
+  }
+  if (!trimmed.includes('.') && !trimmed.includes('[')) {
     return trimmed;
   }
   return `Artifact:${trimmed}`;

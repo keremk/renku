@@ -1,7 +1,7 @@
 meta:
-  name: Seedance Start End Clip
-  description: Generate a Seedance 2.0 motion clip that transitions from a required start image to a required end image.
-  id: SeedanceStartEndClipProducer
+  name: Seedance Reference Media Clip
+  description: Generate a Seedance 2.0 motion clip from a prompt plus reference images, videos, and/or audio.
+  id: SeedanceReferenceMediaClipProducer
   kind: producer
   version: 0.1.0
   author: Renku
@@ -9,15 +9,24 @@ meta:
 
 inputs:
   - name: Prompt
-    description: Seedance-ready transition prompt.
+    description: Seedance-ready reference-to-video prompt.
     type: string
     storyboard: main
-  - name: StartImage
-    description: Starting frame image.
-    type: image
-  - name: EndImage
-    description: Ending frame image.
-    type: image
+  - name: ReferenceImages
+    description: Reference images for subject, style, composition, or visual continuity.
+    type: array
+    itemType: image
+    required: false
+  - name: ReferenceVideos
+    description: Reference videos for motion, timing, or visual continuity.
+    type: array
+    itemType: video
+    required: false
+  - name: ReferenceAudios
+    description: Reference audio files for sound, rhythm, or voice texture.
+    type: array
+    itemType: audio
+    required: false
   - name: Duration
     description: Motion clip duration in seconds.
     type: integer
@@ -28,6 +37,7 @@ inputs:
   - name: GenerateAudio
     description: Whether the clip should request native audio.
     type: boolean
+    required: false
 
 outputs:
   - name: GeneratedVideo
@@ -45,10 +55,11 @@ outputs:
 
 mappings:
   fal-ai:
-    bytedance/seedance-2.0/image-to-video:
+    bytedance/seedance-2.0/reference-to-video:
       Prompt: prompt
-      StartImage: image_url
-      EndImage: end_image_url
+      ReferenceImages: image_urls
+      ReferenceVideos: video_urls
+      ReferenceAudios: audio_urls
       Duration:
         field: duration
         intToString: true
@@ -58,12 +69,17 @@ mappings:
           mode: aspectRatioAndPresetObject
           aspectRatioField: aspect_ratio
           presetField: resolution
-      GenerateAudio: generate_audio
+      GenerateAudio:
+        field: generate_audio
+        transform:
+          'true': true
+          'false': false
 
-    bytedance/seedance-2.0/fast/image-to-video:
+    bytedance/seedance-2.0/fast/reference-to-video:
       Prompt: prompt
-      StartImage: image_url
-      EndImage: end_image_url
+      ReferenceImages: image_urls
+      ReferenceVideos: video_urls
+      ReferenceAudios: audio_urls
       Duration:
         field: duration
         intToString: true
@@ -73,4 +89,8 @@ mappings:
           mode: aspectRatioAndPresetObject
           aspectRatioField: aspect_ratio
           presetField: resolution
-      GenerateAudio: generate_audio
+      GenerateAudio:
+        field: generate_audio
+        transform:
+          'true': true
+          'false': false

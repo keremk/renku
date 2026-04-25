@@ -796,10 +796,162 @@ describe('expandBlueprintGraph', () => {
 
     expect(matchingVoiceEdge).toBeDefined();
     expect(matchingVoiceEdge?.conditions).toEqual({
-      when: 'UseThisExpert[1][0]',
+      when: 'Input:UseThisExpert[1][0]',
       is: true,
     });
     expect(mismatchedVoiceEdge).toBeUndefined();
+  });
+
+  it('preserves conditional cross-dimension input candidates without positional alignment', () => {
+    const characterDoc: BlueprintDocument = {
+      meta: { id: 'CharacterAssets', name: 'CharacterAssets', kind: 'producer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      outputs: [{ name: 'Portrait', type: 'image' }],
+      producers: [
+        { name: 'CharacterProducer', provider: 'openai', model: 'gpt-image' },
+      ],
+      imports: [],
+      edges: [
+        { from: 'Prompt', to: 'CharacterProducer' },
+        { from: 'CharacterProducer', to: 'Portrait' },
+      ],
+    };
+
+    const videoDoc: BlueprintDocument = {
+      meta: { id: 'VideoProducer', name: 'VideoProducer', kind: 'producer' },
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'ReferenceImage', type: 'image', required: false },
+      ],
+      outputs: [{ name: 'Video', type: 'video' }],
+      producers: [
+        { name: 'ClipProducer', provider: 'fal-ai', model: 'video' },
+      ],
+      imports: [],
+      edges: [
+        { from: 'Prompt', to: 'ClipProducer' },
+        { from: 'ReferenceImage', to: 'ClipProducer' },
+        { from: 'ClipProducer', to: 'Video' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [
+        { name: 'NumSegments', type: 'int', required: true },
+        { name: 'NumCharacters', type: 'int', required: true },
+        { name: 'CharacterPrompt', type: 'string', required: true },
+        { name: 'VideoPrompt', type: 'string', required: true },
+        {
+          name: 'UseReference',
+          type: 'multiDimArray',
+          itemType: 'boolean',
+          required: true,
+        },
+      ],
+      outputs: [],
+      producers: [],
+      imports: [
+        {
+          name: 'CharacterAssets',
+          path: './character.yaml',
+          loop: 'character',
+        },
+        { name: 'VideoProducer', path: './video.yaml', loop: 'segment' },
+      ],
+      loops: [
+        { name: 'segment', countInput: 'NumSegments' },
+        { name: 'character', countInput: 'NumCharacters' },
+      ],
+      edges: [
+        {
+          from: 'CharacterPrompt',
+          to: 'CharacterAssets[character].Prompt',
+        },
+        { from: 'VideoPrompt', to: 'VideoProducer[segment].Prompt' },
+        {
+          from: 'CharacterAssets[character].Portrait',
+          to: 'VideoProducer[segment].ReferenceImage',
+          conditions: {
+            when: 'UseReference[segment][character]',
+            is: true,
+          },
+        },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'CharacterAssets',
+          {
+            id: 'CharacterAssets',
+            namespacePath: ['CharacterAssets'],
+            document: characterDoc,
+            children: new Map(),
+            sourcePath: '/test/character.yaml',
+          },
+        ],
+        [
+          'VideoProducer',
+          {
+            id: 'VideoProducer',
+            namespacePath: ['VideoProducer'],
+            document: videoDoc,
+            children: new Map(),
+            sourcePath: '/test/video.yaml',
+          },
+        ],
+      ]),
+      sourcePath: '/test/root.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:NumSegments': 2,
+        'Input:NumCharacters': 3,
+        'Input:CharacterPrompt': 'portrait',
+        'Input:VideoPrompt': 'motion',
+        'Input:UseReference': [
+          [false, false, true],
+          [true, false, false],
+        ],
+      },
+      inputSources
+    );
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    const segmentZeroBindings = Object.entries(
+      expanded.conditionalInputBindings
+    ).find(([producerId]) => producerId.includes('VideoProducer[0]'))?.[1];
+    const segmentOneBindings = Object.entries(
+      expanded.conditionalInputBindings
+    ).find(([producerId]) => producerId.includes('VideoProducer[1]'))?.[1];
+
+    expect(segmentZeroBindings?.ReferenceImage).toEqual(
+      expect.arrayContaining([
+        {
+          sourceId: 'Artifact:CharacterAssets.Portrait[2]',
+          condition: { when: 'Input:UseReference[segment][character]', is: true },
+          indices: expect.any(Object),
+        },
+      ])
+    );
+    expect(segmentOneBindings?.ReferenceImage).toEqual(
+      expect.arrayContaining([
+        {
+          sourceId: 'Artifact:CharacterAssets.Portrait[0]',
+          condition: { when: 'Input:UseReference[segment][character]', is: true },
+          indices: expect.any(Object),
+        },
+      ])
+    );
   });
 
   it('handles input aliases correctly', () => {
@@ -1646,7 +1798,7 @@ describe('expandBlueprintGraph', () => {
       )
     ).toMatchObject({
       conditions: {
-        when: 'UseReferenceImage[0]',
+        when: 'Input:UseReferenceImage[0]',
         is: true,
       },
     });
@@ -1660,7 +1812,7 @@ describe('expandBlueprintGraph', () => {
       )
     ).toMatchObject({
       conditions: {
-        when: 'UseReferenceImage[0]',
+        when: 'Input:UseReferenceImage[0]',
         is: true,
       },
     });
@@ -1951,5 +2103,284 @@ describe('expandBlueprintGraph', () => {
     expect(fanIn?.groupBy).toBe('character');
     expect(fanIn?.members).toHaveLength(4);
     expect(fanIn?.members.map((member) => member.group)).toEqual([0, 1, 0, 1]);
+  });
+
+  it('propagates import-level conditions onto unguarded child producer bindings', () => {
+    const promptCompilerDoc: BlueprintDocument = {
+      meta: { id: 'PromptCompiler', name: 'PromptCompiler', kind: 'producer' },
+      inputs: [
+        { name: 'Workflow', type: 'string', required: true },
+        { name: 'SceneIntent', type: 'string', required: true },
+      ],
+      outputs: [{ name: 'Prompt', type: 'string' }],
+      producers: [
+        { name: 'PromptCompiler', provider: 'openai', model: 'gpt' },
+      ],
+      imports: [],
+      edges: [
+        { from: 'Workflow', to: 'PromptCompiler' },
+        { from: 'SceneIntent', to: 'PromptCompiler' },
+        { from: 'PromptCompiler', to: 'Prompt' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [
+        { name: 'Workflow', type: 'string', required: true },
+        { name: 'SceneIntent', type: 'string', required: true },
+      ],
+      outputs: [{ name: 'Prompt', type: 'string' }],
+      producers: [],
+      imports: [
+        {
+          name: 'TextPromptCompiler',
+          path: './prompt-compiler.yaml',
+          conditions: { when: 'Workflow', is: 'Text' },
+        },
+      ],
+      edges: [
+        { from: 'Workflow', to: 'TextPromptCompiler.Workflow' },
+        { from: 'SceneIntent', to: 'TextPromptCompiler.SceneIntent' },
+        { from: 'TextPromptCompiler.Prompt', to: 'Prompt' },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'TextPromptCompiler',
+          {
+            id: 'PromptCompiler',
+            namespacePath: ['TextPromptCompiler'],
+            document: promptCompilerDoc,
+            children: new Map(),
+            sourcePath: '/test/prompt-compiler.yaml',
+            importConditions: { when: 'Workflow', is: 'Text' },
+          },
+        ],
+      ]),
+      sourcePath: '/test/root.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:Workflow': 'Text',
+        'Input:SceneIntent': 'Ottoman cannons bombing the castle',
+      },
+      inputSources
+    );
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    const sceneIntentEdge = expanded.edges.find(
+      (edge) =>
+        edge.from === 'Input:SceneIntent' &&
+        edge.to === 'Producer:TextPromptCompiler'
+    );
+    expect(sceneIntentEdge?.conditions).toEqual({
+      when: 'Input:Workflow',
+      is: 'Text',
+    });
+
+    const rootPromptBinding = expanded.outputSourceBindings.find(
+      (binding) =>
+        binding.outputId === 'Output:Prompt' &&
+        binding.sourceId === 'Artifact:TextPromptCompiler.Prompt'
+    );
+    expect(rootPromptBinding?.conditions).toEqual(
+      expect.arrayContaining([{ when: 'Input:Workflow', is: 'Text' }])
+    );
+  });
+
+  it('collapses one public output to multiple explicit conditional route sources', () => {
+    const routeProducerDoc: BlueprintDocument = {
+      meta: { id: 'RouteProducer', name: 'RouteProducer', kind: 'producer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      outputs: [{ name: 'GeneratedVideo', type: 'video' }],
+      producers: [
+        { name: 'VideoProducer', provider: 'fal-ai', model: 'video' },
+      ],
+      imports: [],
+      edges: [
+        { from: 'Prompt', to: 'VideoProducer' },
+        { from: 'VideoProducer', to: 'GeneratedVideo' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [
+        { name: 'Workflow', type: 'string', required: true },
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      outputs: [{ name: 'GeneratedVideo', type: 'video' }],
+      producers: [],
+      imports: [
+        { name: 'TextRoute', path: './route.yaml' },
+        { name: 'ReferenceRoute', path: './route.yaml' },
+      ],
+      edges: [
+        { from: 'Prompt', to: 'TextRoute.Prompt' },
+        { from: 'Prompt', to: 'ReferenceRoute.Prompt' },
+        {
+          from: 'TextRoute.GeneratedVideo',
+          to: 'GeneratedVideo',
+          conditions: { when: 'Workflow', is: 'Text' },
+        },
+        {
+          from: 'ReferenceRoute.GeneratedVideo',
+          to: 'GeneratedVideo',
+          conditions: { when: 'Workflow', is: 'Reference' },
+        },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'TextRoute',
+          {
+            id: 'RouteProducer',
+            namespacePath: ['TextRoute'],
+            document: routeProducerDoc,
+            children: new Map(),
+            sourcePath: '/test/route.yaml',
+          },
+        ],
+        [
+          'ReferenceRoute',
+          {
+            id: 'RouteProducer',
+            namespacePath: ['ReferenceRoute'],
+            document: routeProducerDoc,
+            children: new Map(),
+            sourcePath: '/test/route.yaml',
+          },
+        ],
+      ]),
+      sourcePath: '/test/root.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:Workflow': 'Text',
+        'Input:Prompt': 'Ottoman cannons bombing the castle',
+      },
+      inputSources
+    );
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    expect(expanded.outputSources).not.toHaveProperty('Output:GeneratedVideo');
+    expect(expanded.outputSourceBindings).toEqual(
+      expect.arrayContaining([
+        {
+          outputId: 'Output:GeneratedVideo',
+          sourceId: 'Artifact:TextRoute.GeneratedVideo',
+          conditions: { when: 'Input:Workflow', is: 'Text' },
+          indices: {},
+        },
+        {
+          outputId: 'Output:GeneratedVideo',
+          sourceId: 'Artifact:ReferenceRoute.GeneratedVideo',
+          conditions: { when: 'Input:Workflow', is: 'Reference' },
+          indices: {},
+        },
+      ])
+    );
+  });
+
+  it('rejects multi-source public outputs without explicit route conditions', () => {
+    const routeProducerDoc: BlueprintDocument = {
+      meta: { id: 'RouteProducer', name: 'RouteProducer', kind: 'producer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      outputs: [{ name: 'GeneratedVideo', type: 'video' }],
+      producers: [
+        { name: 'VideoProducer', provider: 'fal-ai', model: 'video' },
+      ],
+      imports: [],
+      edges: [
+        { from: 'Prompt', to: 'VideoProducer' },
+        { from: 'VideoProducer', to: 'GeneratedVideo' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [
+        { name: 'Workflow', type: 'string', required: true },
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      outputs: [{ name: 'GeneratedVideo', type: 'video' }],
+      producers: [],
+      imports: [
+        { name: 'TextRoute', path: './route.yaml' },
+        { name: 'ReferenceRoute', path: './route.yaml' },
+      ],
+      edges: [
+        { from: 'Prompt', to: 'TextRoute.Prompt' },
+        { from: 'Prompt', to: 'ReferenceRoute.Prompt' },
+        { from: 'TextRoute.GeneratedVideo', to: 'GeneratedVideo' },
+        {
+          from: 'ReferenceRoute.GeneratedVideo',
+          to: 'GeneratedVideo',
+          conditions: { when: 'Workflow', is: 'Reference' },
+        },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'TextRoute',
+          {
+            id: 'RouteProducer',
+            namespacePath: ['TextRoute'],
+            document: routeProducerDoc,
+            children: new Map(),
+            sourcePath: '/test/route.yaml',
+          },
+        ],
+        [
+          'ReferenceRoute',
+          {
+            id: 'RouteProducer',
+            namespacePath: ['ReferenceRoute'],
+            document: routeProducerDoc,
+            children: new Map(),
+            sourcePath: '/test/route.yaml',
+          },
+        ],
+      ]),
+      sourcePath: '/test/root.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:Workflow': 'Text',
+        'Input:Prompt': 'Ottoman cannons bombing the castle',
+      },
+      inputSources
+    );
+
+    expect(() =>
+      expandBlueprintGraph(graph, canonicalInputs, inputSources)
+    ).toThrow(
+      'Every route to a multi-source Output must declare an explicit condition'
+    );
   });
 });

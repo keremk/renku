@@ -4,12 +4,17 @@ import type {
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
   BlueprintTreeNode,
+  EdgeConditionClause,
   EdgeConditionDefinition,
+  EdgeConditionGroup,
   NodeKind,
   ProducerConfig,
 } from '../types.js';
 import { SYSTEM_INPUTS } from '../types.js';
-import { formatCanonicalProducerId } from '../parsing/canonical-ids.js';
+import {
+  formatCanonicalProducerId,
+  isCanonicalId,
+} from '../parsing/canonical-ids.js';
 import {
   parseDimensionSelector,
   type DimensionSelector,
@@ -694,12 +699,36 @@ function collectGraphEdges(
   namespaceDims: Map<string, DimensionSymbol[]>,
   localDims: Map<BlueprintTreeNode, LocalNodeDims>,
   output: BlueprintGraphEdge[],
-  root: BlueprintTreeNode
+  root: BlueprintTreeNode,
+  inheritedConditions?: EdgeConditionDefinition
 ): void {
   for (const edge of tree.document.edges) {
     if (isRedundantProducerOutputEdge(tree, edge)) {
       continue;
     }
+    const endpointConditions = combineEdgeConditions(
+      resolveConditionDefinitionReferences(
+        importConditionForReference(edge.from, tree),
+        tree,
+        namespaceDims,
+        localDims,
+        root
+      ),
+      resolveConditionDefinitionReferences(
+        importConditionForReference(edge.to, tree),
+        tree,
+        namespaceDims,
+        localDims,
+        root
+      )
+    );
+    const edgeConditions = resolveConditionDefinitionReferences(
+      edge.conditions,
+      tree,
+      namespaceDims,
+      localDims,
+      root
+    );
     output.push({
       from: resolveEdgeEndpoint(
         edge.from,
@@ -713,7 +742,10 @@ function collectGraphEdges(
       groupBy: edge.groupBy,
       orderBy: edge.orderBy,
       conditionName: edge.if,
-      conditions: edge.conditions,
+      conditions: combineEdgeConditions(
+        combineEdgeConditions(inheritedConditions, endpointConditions),
+        edgeConditions
+      ),
     });
   }
 
@@ -742,6 +774,7 @@ function collectGraphEdges(
           namespaceDims,
           localDims
         ),
+        conditions: inheritedConditions,
       });
     }
 
@@ -762,6 +795,7 @@ function collectGraphEdges(
             namespaceDims,
             localDims
           ),
+          conditions: inheritedConditions,
         });
         output.push({
           from: buildLocalEdgeEndpoint(
@@ -778,14 +812,174 @@ function collectGraphEdges(
             namespaceDims,
             localDims
           ),
+          conditions: inheritedConditions,
         });
       }
     }
   }
 
   for (const child of tree.children.values()) {
-    collectGraphEdges(child, namespaceDims, localDims, output, root);
+    const childImportConditions = resolveConditionDefinitionReferences(
+      child.importConditions,
+      tree,
+      namespaceDims,
+      localDims,
+      root
+    );
+    collectGraphEdges(
+      child,
+      namespaceDims,
+      localDims,
+      output,
+      root,
+      combineEdgeConditions(inheritedConditions, childImportConditions)
+    );
   }
+}
+
+function resolveConditionDefinitionReferences(
+  condition: EdgeConditionDefinition | undefined,
+  context: BlueprintTreeNode,
+  namespaceDims: Map<string, DimensionSymbol[]>,
+  localDims: Map<BlueprintTreeNode, LocalNodeDims>,
+  root: BlueprintTreeNode
+): EdgeConditionDefinition | undefined {
+  if (!condition) {
+    return undefined;
+  }
+  if (Array.isArray(condition)) {
+    return condition.map((item) =>
+      resolveConditionItemReferences(item, context, namespaceDims, localDims, root)
+    );
+  }
+  return resolveConditionItemReferences(
+    condition,
+    context,
+    namespaceDims,
+    localDims,
+    root
+  );
+}
+
+function resolveConditionItemReferences(
+  item: EdgeConditionClause | EdgeConditionGroup,
+  context: BlueprintTreeNode,
+  namespaceDims: Map<string, DimensionSymbol[]>,
+  localDims: Map<BlueprintTreeNode, LocalNodeDims>,
+  root: BlueprintTreeNode
+): EdgeConditionClause | EdgeConditionGroup {
+  if ('when' in item) {
+    return {
+      ...item,
+      when: resolveConditionWhenReference(
+        item.when,
+        context,
+        namespaceDims,
+        localDims,
+        root
+      ),
+    };
+  }
+  return {
+    ...(item.all
+      ? {
+          all: item.all.map((clause) =>
+            resolveConditionItemReferences(
+              clause,
+              context,
+              namespaceDims,
+              localDims,
+              root
+            ) as EdgeConditionClause
+          ),
+        }
+      : {}),
+    ...(item.any
+      ? {
+          any: item.any.map((clause) =>
+            resolveConditionItemReferences(
+              clause,
+              context,
+              namespaceDims,
+              localDims,
+              root
+            ) as EdgeConditionClause
+          ),
+        }
+      : {}),
+  };
+}
+
+function resolveConditionWhenReference(
+  when: string,
+  context: BlueprintTreeNode,
+  namespaceDims: Map<string, DimensionSymbol[]>,
+  localDims: Map<BlueprintTreeNode, LocalNodeDims>,
+  root: BlueprintTreeNode
+): string {
+  if (isCanonicalId(when)) {
+    return when;
+  }
+  const endpoint = resolveEdgeEndpoint(when, context, namespaceDims, localDims, root);
+  if (endpoint.nodeId.startsWith('InputSource:')) {
+    return `Input:${endpoint.nodeId.slice('InputSource:'.length)}${formatConditionDimensionSuffix(endpoint.dimensions)}${formatConditionSelectorSuffix(endpoint.arraySelectors)}`;
+  }
+  return endpoint.nodeId;
+}
+
+function formatConditionDimensionSuffix(dimensions: string[]): string {
+  return dimensions
+    .map((dimension) => {
+      const raw = dimension.slice(dimension.lastIndexOf(':') + 1);
+      return `[${raw}]`;
+    })
+    .join('');
+}
+
+function formatConditionSelectorSuffix(
+  selectors: DimensionSelector[] | undefined
+): string {
+  if (!selectors) {
+    return '';
+  }
+  return selectors
+    .map((selector) =>
+      selector.kind === 'const'
+        ? `[${selector.value}]`
+        : `[${selector.symbol}${selector.offset === 0 ? '' : selector.offset > 0 ? `+${selector.offset}` : selector.offset}]`
+    )
+    .join('');
+}
+
+function importConditionForReference(
+  reference: string,
+  tree: BlueprintTreeNode
+): EdgeConditionDefinition | undefined {
+  const parsed = parseReference(reference);
+  const firstNamespace = parsed.namespaceSegments[0]?.name;
+  if (!firstNamespace) {
+    return undefined;
+  }
+  return tree.children.get(firstNamespace)?.importConditions;
+}
+
+function combineEdgeConditions(
+  left?: EdgeConditionDefinition,
+  right?: EdgeConditionDefinition
+): EdgeConditionDefinition | undefined {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  return [...normalizeConditionList(left), ...normalizeConditionList(right)];
+}
+
+function normalizeConditionList(
+  condition: EdgeConditionDefinition
+): Array<EdgeConditionClause | EdgeConditionGroup> {
+  return Array.isArray(condition) ? condition : [condition];
 }
 
 function isRedundantProducerOutputEdge(

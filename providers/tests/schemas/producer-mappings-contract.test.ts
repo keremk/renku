@@ -1,15 +1,16 @@
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
-import { resolve, extname, relative } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { resolve, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import Ajv, { type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import { parse as parseYaml } from 'yaml';
 import { describe, it, expect } from 'vitest';
 import type { JSONSchema7 } from 'ai';
-import type {
-  MappingCondition,
-  MappingFieldDefinition,
-  MappingValue,
+import {
+  listCatalogProducerEntrypoints,
+  type MappingCondition,
+  type MappingFieldDefinition,
+  type MappingValue,
 } from '@gorenku/core';
 import {
   loadModelCatalog,
@@ -586,7 +587,9 @@ describe('producer mapping contracts', () => {
 });
 
 async function collectProducerModelCases(): Promise<ProducerModelCase[]> {
-  const producerPaths = await listYamlFiles(CATALOG_PRODUCERS_ROOT);
+  const producerPaths = (await listCatalogProducerEntrypoints(
+    CATALOG_PRODUCERS_ROOT
+  )).map((entry) => entry.path);
   const cases: ProducerModelCase[] = [];
 
   for (const producerPath of producerPaths) {
@@ -2733,24 +2736,6 @@ function sanitizeSchemaNode(
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-async function listYamlFiles(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const paths: string[] = [];
-
-  for (const entry of entries) {
-    const fullPath = resolve(dir, entry.name);
-    if (entry.isDirectory()) {
-      paths.push(...(await listYamlFiles(fullPath)));
-      continue;
-    }
-    if (entry.isFile() && extname(entry.name).toLowerCase() === '.yaml') {
-      paths.push(fullPath);
-    }
-  }
-
-  return paths;
 }
 
 async function writeDebugSnapshot(args: {

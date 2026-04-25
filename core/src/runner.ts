@@ -375,7 +375,12 @@ async function executeJob(
 
     // Evaluate input conditions if present
     const inputConditions = job.context?.inputConditions;
-    if (inputConditions && Object.keys(inputConditions).length > 0) {
+    const hasInputConditions =
+      inputConditions && Object.keys(inputConditions).length > 0;
+    const hasConditionalInputBindings =
+      job.context?.conditionalInputBindings &&
+      Object.keys(job.context.conditionalInputBindings).length > 0;
+    if (hasInputConditions || hasConditionalInputBindings) {
       const resolvedInputs =
         (job.context?.extras?.resolvedInputs as Record<string, unknown> | undefined) ??
         {};
@@ -383,13 +388,17 @@ async function executeJob(
         resolvedArtifacts,
         resolvedInputs,
       };
+      const conditionalBindingConditions = collectConditionalBindingConditions(job);
       const conditionResults = evaluateInputConditions(
-        inputConditions,
+        {
+          ...conditionalBindingConditions,
+          ...inputConditions,
+        },
         conditionContext
       );
       conditionFilteringDiagnostics = {
         plannedInputs: [...job.inputs],
-        conditionalInputs: Object.keys(inputConditions),
+        conditionalInputs: Object.keys(inputConditions ?? {}),
         conditionResults: Object.fromEntries(
           Array.from(conditionResults.entries()).map(([inputId, result]) => [
             inputId,
@@ -399,21 +408,25 @@ async function executeJob(
       };
 
       // Determine which inputs are conditional
-      const conditionalInputIds = new Set(Object.keys(inputConditions));
+      const conditionalInputIds = new Set(Object.keys(inputConditions ?? {}));
+      const filteringConditionalInputIds = new Set([
+        ...conditionalInputIds,
+        ...Object.keys(conditionalBindingConditions),
+      ]);
 
-      // Check if any conditional inputs are satisfied
-      let anySatisfied = false;
-      for (const [, result] of conditionResults) {
-        if (result.satisfied) {
-          anySatisfied = true;
-          break;
-        }
-      }
+      const anySatisfied = Array.from(conditionalInputIds).some(
+        (inputId) => conditionResults.get(inputId)?.satisfied === true
+      );
+      const anyCandidateSatisfied =
+        conditionalInputIds.size === 0 &&
+        Object.keys(conditionalBindingConditions).some(
+          (inputId) => conditionResults.get(inputId)?.satisfied === true
+        );
 
       // Check if there are unconditional artifact inputs that would provide data
       // This includes direct artifact inputs and fanIn members without conditions
       const hasUnconditionalArtifactInputs = job.inputs.some((inputId) => {
-        if (conditionalInputIds.has(inputId)) {
+        if (filteringConditionalInputIds.has(inputId)) {
           return false; // This input is conditional
         }
         return isCanonicalArtifactId(inputId);
@@ -424,13 +437,14 @@ async function executeJob(
       const hasUnconditionalFanInMembers =
         fanIn &&
         Object.values(fanIn).some((spec) =>
-          spec.members.some((member) => !conditionalInputIds.has(member.id))
+          spec.members.some((member) => !filteringConditionalInputIds.has(member.id))
         );
 
       // If there are conditional inputs but none are satisfied, skip the job
       // UNLESS there are unconditional artifact inputs or fanIn members that provide data
       if (
         !anySatisfied &&
+        !anyCandidateSatisfied &&
         !hasUnconditionalArtifactInputs &&
         !hasUnconditionalFanInMembers
       ) {
@@ -475,13 +489,13 @@ async function executeJob(
 
       job = applyConditionalInputFiltering(
         job,
-        conditionalInputIds,
+        filteringConditionalInputIds,
         satisfiedConditionalIds
       );
       conditionFilteringDiagnostics = {
         ...conditionFilteringDiagnostics,
         executedInputs: [...job.inputs],
-        filteredInputs: Object.keys(inputConditions).filter(
+        filteredInputs: Object.keys(inputConditions ?? {}).filter(
           (inputId) => !satisfiedConditionalIds.has(inputId)
         ),
       };
@@ -912,6 +926,30 @@ function applyConditionalInputFiltering(
         })
       )
     : undefined;
+  const selectedConditionalBindings: Record<string, string> = {};
+  if (job.context.conditionalInputBindings) {
+    for (const [alias, candidates] of Object.entries(
+      job.context.conditionalInputBindings
+    )) {
+      const satisfied = candidates.filter((candidate) =>
+        satisfiedConditionalIds.has(candidate.sourceId)
+      );
+      if (satisfied.length > 1) {
+        throw createRuntimeError(
+          RuntimeErrorCode.INVALID_INPUT_BINDING,
+          `Conditional input binding "${alias}" for job ${job.jobId} matched ${satisfied.length} sources. Scalar producer inputs must resolve to exactly one source.`
+        );
+      }
+      const selected = satisfied[0];
+      if (selected) {
+        selectedConditionalBindings[alias] = selected.sourceId;
+      }
+    }
+  }
+  const nextInputBindings = {
+    ...(filteredBindings ?? {}),
+    ...selectedConditionalBindings,
+  };
 
   const filteredFanIn = job.context.fanIn
     ? Object.fromEntries(
@@ -947,9 +985,10 @@ function applyConditionalInputFiltering(
       ...job.context,
       inputs: filteredInputs,
       inputBindings:
-        filteredBindings && Object.keys(filteredBindings).length > 0
-          ? filteredBindings
+        Object.keys(nextInputBindings).length > 0
+          ? nextInputBindings
           : undefined,
+      conditionalInputBindings: undefined,
       fanIn:
         filteredFanIn && Object.keys(filteredFanIn).length > 0
           ? filteredFanIn
@@ -960,6 +999,23 @@ function applyConditionalInputFiltering(
           : undefined,
     },
   };
+}
+
+function collectConditionalBindingConditions(
+  job: JobDescriptor
+): NonNullable<ProducerJobContext['inputConditions']> {
+  const conditions: NonNullable<ProducerJobContext['inputConditions']> = {};
+  for (const candidates of Object.values(
+    job.context?.conditionalInputBindings ?? {}
+  )) {
+    for (const candidate of candidates) {
+      conditions[candidate.sourceId] = {
+        condition: candidate.condition,
+        indices: candidate.indices,
+      };
+    }
+  }
+  return conditions;
 }
 
 /**

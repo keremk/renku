@@ -17,6 +17,7 @@ import type {
   EdgeConditionDefinition,
   EdgeConditionGroup,
   FanInDescriptor,
+  ConditionalInputBindingCandidate,
   InputArtifactSource,
   InputConditionInfo,
   ProducerCatalog,
@@ -105,6 +106,14 @@ export function createProducerGraph(
 
     // Get input bindings early for building inputs list and dependency tracking
     const inputBindings = canonical.inputBindings[node.id];
+    const conditionalInputBindings =
+      canonical.conditionalInputBindings?.[node.id];
+    const resolvedConditionalInputBindings = conditionalInputBindings
+      ? resolveConditionalInputBindingConditions(
+          conditionalInputBindings,
+          canonical.outputSources
+        )
+      : undefined;
 
     // Add artifact IDs from inputBindings to the inputs list
     // This ensures element-level bindings (e.g., ReferenceImages[0] -> Artifact:...) are included
@@ -113,6 +122,19 @@ export function createProducerGraph(
         if (typeof sourceId === 'string' && isCanonicalArtifactId(sourceId)) {
           if (!allInputs.includes(sourceId)) {
             allInputs.push(sourceId);
+          }
+        }
+      }
+    }
+    if (conditionalInputBindings) {
+      for (const candidates of Object.values(conditionalInputBindings)) {
+        for (const candidate of candidates) {
+          if (
+            typeof candidate.sourceId === 'string' &&
+            isCanonicalArtifactId(candidate.sourceId) &&
+            !allInputs.includes(candidate.sourceId)
+          ) {
+            allInputs.push(candidate.sourceId);
           }
         }
       }
@@ -140,6 +162,15 @@ export function createProducerGraph(
       for (const sourceId of Object.values(inputBindings)) {
         if (typeof sourceId === 'string' && isCanonicalArtifactId(sourceId)) {
           dependencyKeys.add(sourceId);
+        }
+      }
+    }
+    if (conditionalInputBindings) {
+      for (const candidates of Object.values(conditionalInputBindings)) {
+        for (const candidate of candidates) {
+          if (isCanonicalArtifactId(candidate.sourceId)) {
+            dependencyKeys.add(candidate.sourceId);
+          }
         }
       }
     }
@@ -199,11 +230,11 @@ export function createProducerGraph(
         }
       }
     }
-
     const inputArtifactSources = buildInputArtifactSources({
       allInputs,
       fanInForJob,
       inputBindings,
+      conditionalInputBindings,
       artifactProducers,
       nodeMap,
       catalog,
@@ -222,6 +253,11 @@ export function createProducerGraph(
       inputs: allInputs,
       produces: producedArtifacts,
       inputBindings: inputBindings && Object.keys(inputBindings).length > 0 ? inputBindings : undefined,
+      conditionalInputBindings:
+        resolvedConditionalInputBindings &&
+        Object.keys(resolvedConditionalInputBindings).length > 0
+          ? resolvedConditionalInputBindings
+          : undefined,
       sdkMapping: canonicalSdkMapping,
       outputs: option.outputs ?? node.producer?.outputs,
       fanIn: Object.keys(fanInForJob).length > 0 ? fanInForJob : undefined,
@@ -278,6 +314,24 @@ function normalizeSdkMapping(
   return mapping ?? {};
 }
 
+function resolveConditionalInputBindingConditions(
+  bindings: Record<string, ConditionalInputBindingCandidate[]>,
+  outputSources: Record<string, string>
+): Record<string, ConditionalInputBindingCandidate[]> {
+  return Object.fromEntries(
+    Object.entries(bindings).map(([alias, candidates]) => [
+      alias,
+      candidates.map((candidate) => ({
+        ...candidate,
+        condition: resolveConditionOutputSources(
+          candidate.condition,
+          outputSources
+        ),
+      })),
+    ])
+  );
+}
+
 function matchesProducerInputSourceTarget(
   targetNode: CanonicalBlueprint['nodes'][number] | undefined,
   producerNode: CanonicalBlueprint['nodes'][number],
@@ -312,6 +366,9 @@ function buildInputArtifactSources(args: {
   allInputs: string[];
   fanInForJob: Record<string, FanInDescriptor>;
   inputBindings: Record<string, string> | undefined;
+  conditionalInputBindings:
+    | CanonicalBlueprint['conditionalInputBindings'][string]
+    | undefined;
   artifactProducers: Map<string, string>;
   nodeMap: Map<string, CanonicalBlueprint['nodes'][number]>;
   catalog: ProducerCatalog;
@@ -320,6 +377,7 @@ function buildInputArtifactSources(args: {
     allInputs,
     fanInForJob,
     inputBindings,
+    conditionalInputBindings,
     artifactProducers,
     nodeMap,
     catalog,
@@ -338,6 +396,15 @@ function buildInputArtifactSources(args: {
     for (const sourceId of Object.values(inputBindings)) {
       if (isCanonicalArtifactId(sourceId)) {
         artifactIds.add(sourceId);
+      }
+    }
+  }
+  if (conditionalInputBindings) {
+    for (const candidates of Object.values(conditionalInputBindings)) {
+      for (const candidate of candidates) {
+        if (isCanonicalArtifactId(candidate.sourceId)) {
+          artifactIds.add(candidate.sourceId);
+        }
       }
     }
   }
@@ -429,7 +496,13 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
   // Only top-level blueprint outputs keep an artifact "connected" on their own.
   // Imported producer-local Output nodes should not force unrelated schema-decomposed
   // fields into the producer job contract unless something downstream actually uses them.
-  for (const [outputId, sourceId] of Object.entries(canonical.outputSources ?? {})) {
+  const rootOutputBindings = canonical.outputSourceBindings?.length
+    ? canonical.outputSourceBindings
+    : Object.entries(canonical.outputSources ?? {}).map(([outputId, sourceId]) => ({
+        outputId,
+        sourceId,
+      }));
+  for (const { outputId, sourceId } of rootOutputBindings) {
     const parsedOutputId = parseCanonicalOutputId(outputId);
     if (parsedOutputId.path.length > 0) {
       continue;

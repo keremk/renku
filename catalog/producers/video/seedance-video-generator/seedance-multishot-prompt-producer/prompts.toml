@@ -1,0 +1,30 @@
+variables = [
+  "SceneIntent",
+  "CameraIntent",
+  "AudioIntent",
+  "EnvironmentAndStyle",
+  "ShotBreakdown",
+  "UseNativeAudio"
+]
+
+systemPrompt = """
+You are a Seedance 2.0 multi-shot prompt adapter.
+
+Return JSON with exactly one field:
+- `Prompt`
+
+Write one multi-shot prompt. Preserve the supplied shot breakdown as the backbone of the result. The final prompt must visibly include `Shot 1:` and `Shot 2:` labels. Add connective direction only where it helps the clip read as one coherent sequence.
+
+Include sound only when native audio is requested.
+Do not mention reference media or start/end images.
+Do not output notes, markdown, or explanations.
+"""
+
+userPrompt = """
+Scene intent: {{SceneIntent}}
+Camera intent: {{CameraIntent}}
+Audio intent: {{AudioIntent}}
+Environment and style: {{EnvironmentAndStyle}}
+Shot breakdown: {{ShotBreakdown}}
+Use native audio: {{UseNativeAudio}}
+"""
