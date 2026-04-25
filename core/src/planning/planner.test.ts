@@ -711,6 +711,83 @@ describe('planner', () => {
     expect(jobs).not.toContain('Producer:TransitionVideoProducer[0]');
   });
 
+  it('does not use legacy edge conditions to infer downstream activation', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const graph = buildConditionArtifactGraph();
+    const planner = createPlanner();
+
+    const transitionNode = graph.nodes.find(
+      (node) => node.jobId === 'Producer:TransitionVideoProducer[0]'
+    );
+    if (!transitionNode?.context) {
+      throw new Error('TransitionVideoProducer test node is missing context');
+    }
+    const contextWithoutActivation = { ...transitionNode.context };
+    delete contextWithoutActivation.activation;
+    transitionNode.context = contextWithoutActivation;
+    graph.edges[0] = {
+      ...graph.edges[0]!,
+      conditions: {
+        logic: 'and',
+        conditions: [
+          {
+            sourceArtifactId:
+              'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
+            fieldPath: [],
+            operator: 'is',
+            compareValue: true,
+          },
+        ],
+      },
+    };
+
+    const baseRevision = 'rev-0001';
+    const baseline = createInputEvents(
+      { 'Input:Prompt': 'Keep transitions correct' },
+      baseRevision as RevisionId
+    );
+    for (const event of baseline) {
+      await eventLog.appendInput('demo', event);
+    }
+
+    const buildState = createSucceededBuildState(baseline, {
+      revision: baseRevision as RevisionId,
+      artifacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+          hash: 'meeting-hash',
+          producerJobId: 'Producer:DirectorProducer',
+        },
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition': {
+          hash: 'has-transition-hash',
+          producerJobId: 'Producer:DirectorProducer',
+        },
+      },
+    });
+
+    const pending = createInputEvents(
+      { 'Input:Prompt': 'Prompt changed' },
+      'rev-0002' as RevisionId
+    );
+
+    const { plan } = await planner.computePlan({
+      movieId: 'demo',
+      buildState,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0002',
+      pendingEdits: pending,
+      resolvedConditionArtifacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition': false,
+      },
+    });
+
+    const jobs = plan.layers.flat().map((job) => job.jobId);
+    expect(jobs).toContain('Producer:DirectorProducer');
+    expect(jobs).toContain('Producer:TransitionVideoProducer[0]');
+  });
+
   it('treats canonical condition artifacts in the event log as available even when persisted succeeded build state is stale', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');

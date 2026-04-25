@@ -55,8 +55,6 @@ export function validateBlueprintTree(
   issues.push(...validateArtifactCountInputs(tree));
   issues.push(...validateConditionPaths(tree));
   issues.push(...validatePublishedOutputsAreTerminal(tree));
-  issues.push(...validateConditionalArtifactAvailability(tree));
-  issues.push(...validateRequiredInputConditionCoherence(tree));
   issues.push(...validateSemanticRules(tree));
   issues.push(...validateTypes(tree));
   issues.push(...validateProducerCycles(tree));
@@ -67,7 +65,6 @@ export function validateBlueprintTree(
     issues.push(...findUnusedInputs(tree));
     issues.push(...findUnusedArtifacts(tree));
     issues.push(...findUnreachableProducers(tree));
-    issues.push(...findConditionallyUnusedProducerOutputs(tree));
   }
 
   // Filter out skipped codes
@@ -1337,174 +1334,14 @@ function targetsFanInInput(
 }
 
 // ============================================================================
-// Conditional Producer Availability Validation
+// Explicit Condition Comparison Helpers
 // ============================================================================
 
 type SimpleConditionAtom = string;
 type SimpleConditionConjunction = Set<SimpleConditionAtom>;
 type SimpleConditionDnf = SimpleConditionConjunction[];
-interface ProducerActivationCondition {
-  targetReference: string;
-  condition: SimpleConditionDnf;
-}
 
 const TRUE_CONDITION_DNF: SimpleConditionDnf = [new Set()];
-
-/**
- * Validates that conditional producer-to-producer artifact inputs are not broader
- * than the producer branch that creates the source artifact.
- */
-export function validateConditionalArtifactAvailability(
-  tree: BlueprintTreeNode
-): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-
-  function validateTree(node: BlueprintTreeNode): void {
-    const producerNames = getProducerImportNames(node);
-    const producerActivation = buildProducerActivationConditions(node);
-
-    for (const edge of node.document.edges) {
-      if (
-        isLocalReference(edge.from) ||
-        isLocalReference(edge.to) ||
-        !targetsProducer(edge.from, producerNames) ||
-        !targetsProducer(edge.to, producerNames)
-      ) {
-        continue;
-      }
-
-      const sourceProducer = parseReference(edge.from).baseName;
-      const targetProducer = parseReference(edge.to).baseName;
-      if (sourceProducer === targetProducer) {
-        continue;
-      }
-
-      const sourceCondition = resolveProducerActivationForReference(
-        producerActivation.get(sourceProducer) ?? [],
-        edge.from
-      );
-      if (isAlwaysCondition(sourceCondition)) {
-        continue;
-      }
-
-      const consumerCondition = resolveEdgeConditionDnf(node, edge);
-      if (conditionImplies(consumerCondition, sourceCondition)) {
-        continue;
-      }
-
-      issues.push(
-        createError(
-          ValidationErrorCode.CONDITIONAL_INPUT_SOURCE_UNAVAILABLE,
-          `Conditional input "${edge.to}" may require "${edge.from}" in a branch where producer "${sourceProducer}" is inactive.`,
-          {
-            filePath: node.sourcePath,
-            namespacePath: node.namespacePath,
-            context: `connection from "${edge.from}" to "${edge.to}"`,
-          },
-          `Make the consumer condition include the source producer's activation condition, or route "${edge.to}" from an artifact that is produced under the same branch.`
-        )
-      );
-    }
-
-    for (const child of node.children.values()) {
-      validateTree(child);
-    }
-  }
-
-  validateTree(tree);
-  return issues;
-}
-
-export function validateRequiredInputConditionCoherence(
-  tree: BlueprintTreeNode
-): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-
-  function validateTree(node: BlueprintTreeNode): void {
-    const producerNames = getProducerImportNames(node);
-    const producerActivation = buildProducerActivationConditions(node);
-
-    for (const producerName of producerNames) {
-      const producerChild = node.children.get(producerName);
-      if (!producerChild) {
-        continue;
-      }
-
-      const activationEntries = producerActivation.get(producerName) ?? [];
-      const hasOutgoingEdges = node.document.edges.some(
-        (edge) =>
-          !isLocalReference(edge.from) &&
-          targetsProducer(edge.from, producerNames) &&
-          parseReference(edge.from).baseName === producerName
-      );
-      if (activationEntries.length === 0 && !hasOutgoingEdges) {
-        continue;
-      }
-
-      for (const input of producerChild.document.inputs) {
-        if (!input.required || SYSTEM_INPUT_NAMES.has(input.name)) {
-          continue;
-        }
-
-        const inputEntries = activationEntries.filter(
-          (entry) =>
-            stripDimensions(parseReference(entry.targetReference).segments[1] ?? '') ===
-            input.name
-        );
-
-        if (inputEntries.length === 0) {
-          issues.push(
-            createError(
-              ValidationErrorCode.REQUIRED_INPUT_CONDITION_INCOHERENT,
-              `Required input "${producerName}.${input.name}" has no connection.`,
-              {
-                filePath: node.sourcePath,
-                namespacePath: node.namespacePath,
-                context: `producer "${producerName}" required input "${input.name}"`,
-              },
-              `Add an explicit connection to "${producerName}.${input.name}" or mark the producer input optional if it is not required.`
-            )
-          );
-          continue;
-        }
-
-        const representativeTarget = inputEntries[0]!.targetReference;
-        const activeCondition = resolveProducerActivationForReference(
-          activationEntries,
-          representativeTarget
-        );
-        const inputCondition = resolveProducerActivationForReference(
-          inputEntries,
-          representativeTarget
-        );
-
-        if (conditionImplies(activeCondition, inputCondition)) {
-          continue;
-        }
-
-        issues.push(
-          createError(
-            ValidationErrorCode.REQUIRED_INPUT_CONDITION_INCOHERENT,
-            `Required input "${producerName}.${input.name}" is not available in every branch where producer "${producerName}" can run.`,
-            {
-              filePath: node.sourcePath,
-              namespacePath: node.namespacePath,
-              context: `producer "${producerName}" required input "${input.name}"`,
-            },
-            `Make every activation branch for "${producerName}" also provide "${input.name}", or narrow the other incoming connections so they share the same condition.`
-          )
-        );
-      }
-    }
-
-    for (const child of node.children.values()) {
-      validateTree(child);
-    }
-  }
-
-  validateTree(tree);
-  return issues;
-}
 
 export function validateSemanticRules(
   tree: BlueprintTreeNode
@@ -1594,161 +1431,6 @@ function guardedConnectionMatches(
     return false;
   }
   return true;
-}
-
-/**
- * Finds conditional producers that can run in branches where none of their
- * outputs are consumed by another active producer input.
- */
-export function findConditionallyUnusedProducerOutputs(
-  tree: BlueprintTreeNode
-): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-
-  function validateTree(node: BlueprintTreeNode): void {
-    const producerNames = getProducerImportNames(node);
-    const producerActivation = buildProducerActivationConditions(node);
-
-    for (const [producerName, activationConditions] of producerActivation) {
-      const activationCondition = orConditions(
-        activationConditions.map((entry) => entry.condition)
-      );
-      if (isAlwaysCondition(activationCondition)) {
-        continue;
-      }
-
-      const consumerConditions = node.document.edges
-        .filter(
-          (edge) =>
-            !isLocalReference(edge.from) &&
-            targetsProducer(edge.from, producerNames) &&
-            parseReference(edge.from).baseName === producerName
-        )
-        .map((edge) => resolveEdgeConditionDnf(node, edge));
-
-      if (consumerConditions.length === 0) {
-        continue;
-      }
-
-      const downstreamCondition = orConditions(consumerConditions);
-      if (conditionImplies(activationCondition, downstreamCondition)) {
-        continue;
-      }
-
-      issues.push(
-        createWarning(
-          ValidationErrorCode.CONDITIONAL_PRODUCER_OUTPUT_UNUSED,
-          `Producer "${producerName}" can run in a branch where none of its outputs feed an active downstream producer.`,
-          {
-            filePath: node.sourcePath,
-            namespacePath: node.namespacePath,
-            context: `producer "${producerName}"`,
-          },
-          `Narrow the incoming conditions for "${producerName}" so they match the downstream branches that consume its outputs.`
-        )
-      );
-    }
-
-    for (const child of node.children.values()) {
-      validateTree(child);
-    }
-  }
-
-  validateTree(tree);
-  return issues;
-}
-
-function buildProducerActivationConditions(
-  node: BlueprintTreeNode
-): Map<string, ProducerActivationCondition[]> {
-  const producerNames = getProducerImportNames(node);
-  const conditionsByProducer = new Map<string, ProducerActivationCondition[]>();
-
-  for (const edge of node.document.edges) {
-    if (isLocalReference(edge.to) || !targetsProducer(edge.to, producerNames)) {
-      continue;
-    }
-
-    const producerName = parseReference(edge.to).baseName;
-    const conditions = conditionsByProducer.get(producerName) ?? [];
-    conditions.push({
-      targetReference: edge.to,
-      condition: resolveEdgeConditionDnf(node, edge),
-    });
-    conditionsByProducer.set(producerName, conditions);
-  }
-
-  return conditionsByProducer;
-}
-
-function resolveProducerActivationForReference(
-  activationConditions: ProducerActivationCondition[],
-  producerReference: string
-): SimpleConditionDnf {
-  if (activationConditions.length === 0) {
-    return TRUE_CONDITION_DNF;
-  }
-
-  return orConditions(
-    activationConditions.map((entry) =>
-      substituteConditionDimensions(
-        entry.condition,
-        extractProducerDimensionBindings(entry.targetReference, producerReference)
-      )
-    )
-  );
-}
-
-function extractProducerDimensionBindings(
-  patternReference: string,
-  concreteReference: string
-): Map<string, string> {
-  const patternDimensions = extractFirstSegmentDimensions(patternReference);
-  const concreteDimensions = extractFirstSegmentDimensions(concreteReference);
-  const bindings = new Map<string, string>();
-
-  for (let index = 0; index < patternDimensions.length; index += 1) {
-    const patternDimension = patternDimensions[index];
-    const concreteDimension = concreteDimensions[index];
-    if (!patternDimension || !concreteDimension) {
-      continue;
-    }
-    if (/^\d+$/.test(patternDimension)) {
-      continue;
-    }
-    bindings.set(patternDimension, concreteDimension);
-  }
-
-  return bindings;
-}
-
-function extractFirstSegmentDimensions(reference: string): string[] {
-  const firstSegment = parseReference(reference).first;
-  return Array.from(firstSegment.matchAll(/\[([^\]]+)\]/g)).map(
-    (match) => match[1]!
-  );
-}
-
-function substituteConditionDimensions(
-  condition: SimpleConditionDnf,
-  bindings: Map<string, string>
-): SimpleConditionDnf {
-  if (bindings.size === 0) {
-    return condition;
-  }
-
-  return condition.map(
-    (branch) =>
-      new Set(
-        Array.from(branch).map((atom) =>
-          Array.from(bindings.entries()).reduce(
-            (value, [symbol, replacement]) =>
-              value.replaceAll(`[${symbol}]`, `[${replacement}]`),
-            atom
-          )
-        )
-      )
-  );
 }
 
 function resolveEdgeConditionDnf(
@@ -1875,10 +1557,6 @@ function setContainsAll(
     }
   }
   return true;
-}
-
-function isAlwaysCondition(condition: SimpleConditionDnf): boolean {
-  return condition.some((branch) => branch.size === 0);
 }
 
 // ============================================================================

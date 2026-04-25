@@ -25,8 +25,6 @@ import {
   type InputEvent,
   type ArtifactEvent,
   type ProducerGraph,
-  type ResolvedEdgeCondition,
-  type ResolvedEdgeConditionGroup,
   type RevisionId,
   type SurgicalRegenerationScope,
 } from '../types.js';
@@ -887,11 +885,7 @@ function propagateDirtyJobs(
 ): PropagateResult {
   const dirty = new Set(initialDirty);
   const queue = Array.from(initialDirty);
-  const adjacency = buildAdjacencyMap(
-    blueprint,
-    resolvedConditionArtifacts,
-    resolvedConditionInputs,
-  );
+  const adjacency = buildAdjacencyMap(blueprint);
   const artifactProducer = buildArtifactProducerMap(metadata);
   const conditionResultsCache = new Map<
     string,
@@ -1412,237 +1406,19 @@ function hasActiveArtifactDependency(
 }
 
 function buildAdjacencyMap(
-  blueprint: ProducerGraph,
-  resolvedConditionArtifacts?: Record<string, unknown>,
-  _resolvedConditionInputs?: Record<string, unknown>,
+  blueprint: ProducerGraph
 ): Map<string, Set<string>> {
   const adjacency = new Map<string, Set<string>>();
   for (const node of blueprint.nodes) {
     adjacency.set(node.jobId, new Set());
   }
   for (const edge of blueprint.edges) {
-    if (
-      edge.conditions &&
-      resolvedConditionArtifacts !== undefined &&
-      !isResolvedConditionGroupSatisfied(
-        edge.conditions,
-        resolvedConditionArtifacts
-      )
-    ) {
-      continue;
-    }
-
     if (!adjacency.has(edge.from)) {
       adjacency.set(edge.from, new Set());
     }
     adjacency.get(edge.from)!.add(edge.to);
   }
   return adjacency;
-}
-
-function isResolvedConditionGroupSatisfied(
-  group: ResolvedEdgeConditionGroup,
-  resolvedArtifacts: Record<string, unknown>
-): boolean {
-  const evaluations = group.conditions.map((condition) =>
-    isResolvedConditionSatisfied(condition, resolvedArtifacts)
-  );
-  if (group.logic === 'and') {
-    return evaluations.every((value) => value);
-  }
-  return evaluations.some((value) => value);
-}
-
-function isResolvedConditionSatisfied(
-  condition: ResolvedEdgeCondition | ResolvedEdgeConditionGroup,
-  resolvedArtifacts: Record<string, unknown>
-): boolean {
-  if ('logic' in condition) {
-    return isResolvedConditionGroupSatisfied(condition, resolvedArtifacts);
-  }
-  return evaluateResolvedCondition(condition, resolvedArtifacts);
-}
-
-function evaluateResolvedCondition(
-  condition: ResolvedEdgeCondition,
-  resolvedArtifacts: Record<string, unknown>
-): boolean {
-  const value = readResolvedConditionValue(
-    condition.sourceArtifactId,
-    condition.fieldPath,
-    resolvedArtifacts
-  );
-  return evaluateResolvedOperator(
-    condition.operator,
-    value,
-    condition.compareValue
-  );
-}
-
-function readResolvedConditionValue(
-  sourceArtifactId: string,
-  fieldPath: string[],
-  resolvedArtifacts: Record<string, unknown>
-): unknown {
-  let current: unknown = resolvedArtifacts[sourceArtifactId];
-  for (const segment of fieldPath) {
-    current = readResolvedSegment(current, segment);
-    if (current === undefined) {
-      break;
-    }
-  }
-  return current;
-}
-
-function readResolvedSegment(value: unknown, segment: string): unknown {
-  if (value === null || value === undefined) {
-    return undefined;
-  }
-
-  const directIndexMatch = segment.match(/^\[(\d+)\]$/);
-  if (directIndexMatch) {
-    if (!Array.isArray(value)) {
-      return undefined;
-    }
-    const index = Number.parseInt(directIndexMatch[1]!, 10);
-    return value[index];
-  }
-
-  if (typeof value !== 'object' || Array.isArray(value)) {
-    return undefined;
-  }
-
-  const objectValue = value as Record<string, unknown>;
-  const withIndexMatch = segment.match(/^([^[]+)((?:\[\d+\])+)$/);
-  if (!withIndexMatch) {
-    return objectValue[segment];
-  }
-
-  const baseKey = withIndexMatch[1]!;
-  const indexSuffix = withIndexMatch[2]!;
-  let current: unknown = objectValue[baseKey];
-  const indices = Array.from(indexSuffix.matchAll(/\[(\d+)\]/g)).map((match) =>
-    Number.parseInt(match[1]!, 10)
-  );
-  for (const index of indices) {
-    if (!Array.isArray(current)) {
-      return undefined;
-    }
-    current = current[index];
-  }
-  return current;
-}
-
-function evaluateResolvedOperator(
-  operator: string,
-  value: unknown,
-  compareValue: unknown
-): boolean {
-  const coercedValue = coerceConditionValue(value, compareValue);
-
-  switch (operator) {
-    case 'is':
-      return deepEqualValue(coercedValue, compareValue);
-    case 'isNot':
-      return !deepEqualValue(coercedValue, compareValue);
-    case 'contains':
-      if (typeof value === 'string' && typeof compareValue === 'string') {
-        return value.includes(compareValue);
-      }
-      if (Array.isArray(value)) {
-        return value.some((item) => deepEqualValue(item, compareValue));
-      }
-      return false;
-    case 'greaterThan':
-      return (
-        typeof coercedValue === 'number' &&
-        typeof compareValue === 'number' &&
-        coercedValue > compareValue
-      );
-    case 'lessThan':
-      return (
-        typeof coercedValue === 'number' &&
-        typeof compareValue === 'number' &&
-        coercedValue < compareValue
-      );
-    case 'greaterOrEqual':
-      return (
-        typeof coercedValue === 'number' &&
-        typeof compareValue === 'number' &&
-        coercedValue >= compareValue
-      );
-    case 'lessOrEqual':
-      return (
-        typeof coercedValue === 'number' &&
-        typeof compareValue === 'number' &&
-        coercedValue <= compareValue
-      );
-    case 'exists': {
-      const shouldExist = compareValue === true;
-      const doesExist = value !== null && value !== undefined;
-      return shouldExist === doesExist;
-    }
-    case 'matches':
-      if (typeof value !== 'string' || typeof compareValue !== 'string') {
-        return false;
-      }
-      return new RegExp(compareValue).test(value);
-    default:
-      return false;
-  }
-}
-
-function coerceConditionValue(value: unknown, compareValue: unknown): unknown {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (typeof compareValue === 'boolean') {
-      if (trimmed === 'true') {
-        return true;
-      }
-      if (trimmed === 'false') {
-        return false;
-      }
-    }
-    if (typeof compareValue === 'number') {
-      const parsed = Number(trimmed);
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-    }
-  }
-  return value;
-}
-
-function deepEqualValue(a: unknown, b: unknown): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (typeof a !== typeof b) {
-    return false;
-  }
-  if (a === null || b === null) {
-    return a === b;
-  }
-  if (typeof a !== 'object') {
-    return false;
-  }
-  if (Array.isArray(a) !== Array.isArray(b)) {
-    return false;
-  }
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) {
-      return false;
-    }
-    return a.every((item, index) => deepEqualValue(item, b[index]));
-  }
-  const recordA = a as Record<string, unknown>;
-  const recordB = b as Record<string, unknown>;
-  const keysA = Object.keys(recordA);
-  const keysB = Object.keys(recordB);
-  if (keysA.length !== keysB.length) {
-    return false;
-  }
-  return keysA.every((key) => deepEqualValue(recordA[key], recordB[key]));
 }
 
 async function readLatestInputs(

@@ -375,19 +375,29 @@ export function deriveConditionalUpToLayer(
   let maxConditionalLayer = -1;
   for (let layerIndex = 0; layerIndex < plan.layers.length; layerIndex += 1) {
     const layer = plan.layers[layerIndex] ?? [];
-    const hasConditionalJobs = layer.some((job) => {
-      const inputConditions = job.context?.inputConditions;
-      return Boolean(
-        (inputConditions && Object.keys(inputConditions).length > 0) ||
-          job.context?.activation?.condition
-      );
-    });
+    const hasConditionalJobs = layer.some((job) =>
+      hasConditionalDryRunSurface(job)
+    );
     if (hasConditionalJobs) {
       maxConditionalLayer = layerIndex;
     }
   }
 
   return maxConditionalLayer >= 0 ? maxConditionalLayer : undefined;
+}
+
+function hasConditionalDryRunSurface(
+  job: ExecutionPlan['layers'][number][number]
+): boolean {
+  if (job.context?.activation?.condition) {
+    return true;
+  }
+
+  const optionalOrFanInConditions = job.context?.inputConditions;
+  return Boolean(
+    optionalOrFanInConditions &&
+      Object.keys(optionalOrFanInConditions).length > 0
+  );
 }
 
 function parseScenarioContents(contents: string, path: string): unknown {
