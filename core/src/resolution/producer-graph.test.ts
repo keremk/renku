@@ -905,6 +905,167 @@ describe('createProducerGraph', () => {
     });
   });
 
+  describe('resolved condition projection', () => {
+    it('reads scalar and fan-in conditions from resolved structures before legacy edge conditions', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:TestProducer',
+            type: 'Producer',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'TestProducer',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          {
+            from: 'Input:Prompt',
+            to: 'Producer:TestProducer',
+            conditions: {
+              when: 'Artifact:LegacyScalarGate',
+              is: true,
+            },
+            indices: {},
+          },
+          {
+            from: 'Artifact:Clip',
+            to: 'Producer:TestProducer',
+            conditions: {
+              when: 'Artifact:LegacyFanInGate',
+              is: true,
+            },
+            indices: {},
+          },
+        ],
+        inputBindings: {
+          'Producer:TestProducer': {
+            Prompt: 'Input:Prompt',
+          },
+        },
+        outputSources: {},
+        outputSourceBindings: [],
+        fanIn: {},
+        resolvedProducerActivations: {
+          'Producer:TestProducer': {
+            indices: {},
+            inheritedFrom: [],
+          },
+        },
+        resolvedScalarBindings: {
+          'Producer:TestProducer': [
+            {
+              inputId: 'Prompt',
+              sourceId: 'Input:Prompt',
+              optionalCondition: {
+                condition: {
+                  when: 'Artifact:ResolvedScalarGate',
+                  is: true,
+                },
+                indices: {},
+              },
+            },
+          ],
+        },
+        resolvedFanInDescriptors: {
+          'Artifact:Clip': {
+            groupBy: 'singleton',
+            members: [
+              {
+                id: 'Artifact:Clip',
+                group: 0,
+                order: 0,
+                condition: {
+                  condition: {
+                    when: 'Artifact:ResolvedFanInGate',
+                    is: true,
+                  },
+                  indices: {},
+                },
+              },
+            ],
+          },
+        },
+        resolvedOutputRoutes: [],
+      };
+
+      const options = createDefaultOptions(['TestProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      const node = result.nodes[0]!;
+      expect(node.context!.inputConditions).toEqual({
+        'Input:Prompt': {
+          condition: {
+            when: 'Artifact:ResolvedScalarGate',
+            is: true,
+          },
+          indices: {},
+        },
+        'Artifact:Clip': {
+          condition: {
+            when: 'Artifact:ResolvedFanInGate',
+            is: true,
+          },
+          indices: {},
+        },
+      });
+    });
+
+    it('keeps artifacts connected through resolved output routes', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:TestProducer',
+            type: 'Producer',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'TestProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:FinalVideo',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['TestProducer'],
+            name: 'FinalVideo',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          { from: 'Producer:TestProducer', to: 'Artifact:FinalVideo' },
+        ],
+        inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
+        fanIn: {},
+        resolvedProducerActivations: {
+          'Producer:TestProducer': {
+            indices: {},
+            inheritedFrom: [],
+          },
+        },
+        resolvedScalarBindings: {
+          'Producer:TestProducer': [],
+        },
+        resolvedFanInDescriptors: {},
+        resolvedOutputRoutes: [
+          {
+            outputId: 'Output:FinalVideo',
+            sourceId: 'Artifact:FinalVideo',
+          },
+        ],
+      };
+
+      const options = createDefaultOptions(['TestProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      expect(result.nodes[0]?.produces).toContain('Artifact:FinalVideo');
+    });
+  });
+
   describe('namespaced producers', () => {
     it('handles producers with namespace paths', () => {
       const canonical: CanonicalBlueprint = {

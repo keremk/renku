@@ -529,6 +529,43 @@ export interface ProducerActivation {
   inheritedFrom: ProducerActivationImportProvenance[];
 }
 
+export interface ResolvedConditionInfo {
+  condition: EdgeConditionDefinition;
+  indices: Record<string, number>;
+}
+
+export interface ResolvedProducerActivation {
+  condition?: EdgeConditionDefinition;
+  indices: Record<string, number>;
+  inheritedFrom: ProducerActivationImportProvenance[];
+}
+
+export interface ResolvedScalarBinding {
+  inputId: Id;
+  sourceId: Id;
+  optionalCondition?: ResolvedConditionInfo;
+}
+
+export interface ResolvedFanInMember {
+  id: Id;
+  group: number;
+  order?: number;
+  condition?: ResolvedConditionInfo;
+}
+
+export interface ResolvedFanInDescriptor {
+  groupBy: string;
+  orderBy?: string;
+  members: ResolvedFanInMember[];
+}
+
+export interface ResolvedOutputRoute {
+  outputId: Id;
+  sourceId: Id;
+  condition?: EdgeConditionDefinition;
+  indices?: Record<string, number>;
+}
+
 /**
  * Configuration for blueprint expansion.
  */
@@ -572,6 +609,7 @@ export interface FanInMember {
   id: Id;
   group: number;
   order?: number;
+  condition?: ResolvedConditionInfo;
 }
 
 /**

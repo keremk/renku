@@ -2367,6 +2367,219 @@ describe('expandBlueprintGraph', () => {
     );
   });
 
+  it('exposes resolved activation, scalar binding, fan-in, and output route structures', () => {
+    const gateDoc: BlueprintDocument = {
+      meta: { id: 'GateProducer', name: 'GateProducer', kind: 'producer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      outputs: [{ name: 'ShouldPublish', type: 'json' }],
+      producers: [{ name: 'GateProducer', provider: 'openai', model: 'gpt-4o' }],
+      imports: [],
+      edges: [
+        { from: 'Prompt', to: 'GateProducer' },
+        { from: 'GateProducer', to: 'ShouldPublish' },
+      ],
+    };
+
+    const previewDoc: BlueprintDocument = {
+      meta: { id: 'PreviewProducer', name: 'PreviewProducer', kind: 'producer' },
+      inputs: [
+        { name: 'Duration', type: 'int', required: true },
+        { name: 'OptionalNote', type: 'string', required: false },
+      ],
+      outputs: [{ name: 'GeneratedVideo', type: 'video' }],
+      producers: [
+        { name: 'PreviewProducer', provider: 'fal-ai', model: 'video' },
+      ],
+      imports: [],
+      edges: [
+        { from: 'Duration', to: 'PreviewProducer' },
+        { from: 'OptionalNote', to: 'PreviewProducer' },
+        { from: 'PreviewProducer', to: 'GeneratedVideo' },
+      ],
+    };
+
+    const timelineDoc: BlueprintDocument = {
+      meta: { id: 'TimelineProducer', name: 'TimelineProducer', kind: 'producer' },
+      inputs: [{ name: 'Clips', type: 'array', required: false, fanIn: true }],
+      outputs: [{ name: 'Movie', type: 'video' }],
+      producers: [
+        { name: 'TimelineProducer', provider: 'renku', model: 'timeline' },
+      ],
+      imports: [],
+      edges: [
+        { from: 'Clips', to: 'TimelineProducer' },
+        { from: 'TimelineProducer', to: 'Movie' },
+      ],
+    };
+
+    const usePreview = { when: 'UsePreview', is: true };
+    const publishPreview = {
+      when: 'GateProducer.ShouldPublish',
+      is: true,
+    };
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [
+        { name: 'UsePreview', type: 'boolean', required: true },
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'int', required: true },
+        { name: 'OptionalNote', type: 'string', required: false },
+      ],
+      outputs: [
+        { name: 'Movie', type: 'video' },
+        { name: 'PreviewVideo', type: 'video' },
+      ],
+      producers: [],
+      imports: [],
+      edges: [
+        { from: 'Prompt', to: 'GateProducer.Prompt' },
+        { from: 'Duration', to: 'PreviewProducer.Duration' },
+        {
+          from: 'OptionalNote',
+          to: 'PreviewProducer.OptionalNote',
+          conditions: publishPreview,
+        },
+        {
+          from: 'PreviewProducer.GeneratedVideo',
+          to: 'TimelineProducer.Clips',
+          conditions: publishPreview,
+        },
+        { from: 'TimelineProducer.Movie', to: 'Movie' },
+        {
+          from: 'PreviewProducer.GeneratedVideo',
+          to: 'PreviewVideo',
+          conditions: publishPreview,
+        },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'GateProducer',
+          {
+            id: 'GateProducer',
+            namespacePath: ['GateProducer'],
+            document: gateDoc,
+            children: new Map(),
+            sourcePath: '/test/gate.yaml',
+          },
+        ],
+        [
+          'PreviewProducer',
+          {
+            id: 'PreviewProducer',
+            namespacePath: ['PreviewProducer'],
+            document: previewDoc,
+            children: new Map(),
+            sourcePath: '/test/preview.yaml',
+            importConditions: usePreview,
+          },
+        ],
+        [
+          'TimelineProducer',
+          {
+            id: 'TimelineProducer',
+            namespacePath: ['TimelineProducer'],
+            document: timelineDoc,
+            children: new Map(),
+            sourcePath: '/test/timeline.yaml',
+          },
+        ],
+      ]),
+      sourcePath: '/test/root.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:UsePreview': true,
+        'Input:Prompt': 'preview this',
+        'Input:Duration': 8,
+        'Input:OptionalNote': 'lower thirds',
+      },
+      inputSources
+    );
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    expect(
+      expanded.resolvedProducerActivations['Producer:PreviewProducer']
+    ).toMatchObject({
+      condition: { when: 'Input:UsePreview', is: true },
+      indices: {},
+      inheritedFrom: [
+        expect.objectContaining({
+          importName: 'PreviewProducer',
+          namespacePath: ['PreviewProducer'],
+        }),
+      ],
+    });
+
+    const previewScalarBindings =
+      expanded.resolvedScalarBindings['Producer:PreviewProducer'] ?? [];
+    expect(previewScalarBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          inputId: 'Duration',
+          sourceId: 'Input:Duration',
+          optionalCondition: expect.objectContaining({
+            indices: {},
+          }),
+        }),
+        expect.objectContaining({
+          inputId: 'OptionalNote',
+          sourceId: 'Input:OptionalNote',
+          optionalCondition: expect.objectContaining({
+            indices: {},
+          }),
+        }),
+      ])
+    );
+    expect(JSON.stringify(previewScalarBindings)).toContain('Input:UsePreview');
+    expect(JSON.stringify(previewScalarBindings)).toContain(
+      'Output:GateProducer.ShouldPublish'
+    );
+
+    const clipsFanIn =
+      expanded.resolvedFanInDescriptors['Input:TimelineProducer.Clips'];
+    expect(clipsFanIn).toMatchObject({
+      groupBy: 'singleton',
+      orderBy: undefined,
+      members: [
+        expect.objectContaining({
+          id: 'Artifact:PreviewProducer.GeneratedVideo',
+          group: 0,
+          order: 0,
+          condition: expect.objectContaining({
+            indices: {},
+          }),
+        }),
+      ],
+    });
+    expect(JSON.stringify(clipsFanIn)).toContain('Input:UsePreview');
+    expect(JSON.stringify(clipsFanIn)).toContain(
+      'Artifact:GateProducer.ShouldPublish'
+    );
+
+    const previewRoute = expanded.resolvedOutputRoutes.find(
+      (route) => route.outputId === 'Output:PreviewVideo'
+    );
+    expect(previewRoute).toMatchObject({
+      outputId: 'Output:PreviewVideo',
+      sourceId: 'Artifact:PreviewProducer.GeneratedVideo',
+      indices: {},
+    });
+    expect(JSON.stringify(previewRoute)).toContain('Input:UsePreview');
+    expect(JSON.stringify(previewRoute)).toContain(
+      'Artifact:GateProducer.ShouldPublish'
+    );
+  });
+
   it('rejects multi-source public outputs without explicit route conditions', () => {
     const routeProducerDoc: BlueprintDocument = {
       meta: { id: 'RouteProducer', name: 'RouteProducer', kind: 'producer' },

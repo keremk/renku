@@ -24,6 +24,8 @@ import type {
   ProducerGraph,
   ProducerGraphEdge,
   ProducerGraphNode,
+  ResolvedOutputRoute,
+  ResolvedScalarBinding,
 } from '../types.js';
 import type { CanonicalEdgeInstance } from './canonical-expander.js';
 
@@ -105,6 +107,11 @@ export function createProducerGraph(
     const allInputs = Array.from(new Set([...inboundInputs, ...extraInputs]));
 
     // Get input bindings early for building inputs list and dependency tracking
+    const resolvedScalarBindings = readResolvedScalarBindingsForProducer(
+      canonical,
+      node.id
+    );
+
     const inputBindings = canonical.inputBindings[node.id];
     const conditionalInputBindings =
       canonical.conditionalInputBindings?.[node.id];
@@ -139,8 +146,19 @@ export function createProducerGraph(
         }
       }
     }
+    if (resolvedScalarBindings) {
+      for (const binding of resolvedScalarBindings) {
+        if (
+          isCanonicalArtifactId(binding.sourceId) &&
+          !allInputs.includes(binding.sourceId)
+        ) {
+          allInputs.push(binding.sourceId);
+        }
+      }
+    }
 
-    const fanInSpecs = canonical.fanIn;
+    const fanInSpecs =
+      canonical.resolvedFanInDescriptors ?? canonical.fanIn;
     const fanInForJob: Record<string, FanInDescriptor> = {};
     if (fanInSpecs) {
       for (const inputId of allInputs) {
@@ -190,46 +208,23 @@ export function createProducerGraph(
       option.sdkMapping ?? node.producer?.sdkMapping,
     );
 
-    // Collect input conditions from edges targeting this producer
-    const inputConditions: Record<string, InputConditionInfo> = {};
-    const incomingEdges = edgesByTargetProducer.get(node.id) ?? [];
-    for (const edge of incomingEdges) {
-      if (edge.conditions && edge.indices) {
-        inputConditions[edge.from] = {
-          condition: resolveConditionOutputSources(
-            edge.conditions,
+    const legacyInputConditions = collectLegacyInputConditions({
+      node,
+      nodeMap,
+      edgesByTargetProducer,
+      inputBindings,
+      outputSources: canonical.outputSources,
+    });
+    const inputConditions = resolvedScalarBindings
+      ? mergeLegacyInputConditionsForUnresolvedEdges(
+          buildResolvedInputConditions(
+            resolvedScalarBindings,
+            fanInForJob,
             canonical.outputSources
           ),
-          indices: edge.indices,
-        };
-      }
-    }
-    if (inputBindings) {
-      for (const [alias, sourceId] of Object.entries(inputBindings)) {
-        if (inputConditions[sourceId]) {
-          continue;
-        }
-
-        const bindingEdge = canonical.edges.find((edge) => {
-          if (edge.from !== sourceId || !edge.conditions || !edge.indices) {
-            return false;
-          }
-
-          const targetNode = nodeMap.get(edge.to);
-          return matchesProducerInputSourceTarget(targetNode, node, alias);
-        });
-
-        if (bindingEdge?.conditions && bindingEdge.indices) {
-          inputConditions[sourceId] = {
-            condition: resolveConditionOutputSources(
-              bindingEdge.conditions,
-              canonical.outputSources
-            ),
-            indices: bindingEdge.indices,
-          };
-        }
-      }
-    }
+          legacyInputConditions
+        )
+      : legacyInputConditions;
     const inputArtifactSources = buildInputArtifactSources({
       allInputs,
       fanInForJob,
@@ -312,6 +307,151 @@ function normalizeSdkMapping(
   mapping: Record<string, BlueprintProducerSdkMappingField> | undefined,
 ): Record<string, BlueprintProducerSdkMappingField> {
   return mapping ?? {};
+}
+
+function readResolvedScalarBindingsForProducer(
+  canonical: CanonicalBlueprint,
+  producerId: string
+): ResolvedScalarBinding[] | undefined {
+  if (!canonical.resolvedScalarBindings) {
+    return undefined;
+  }
+
+  const bindings = canonical.resolvedScalarBindings[producerId];
+  if (!bindings) {
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+      `Canonical blueprint is missing resolved scalar bindings for producer "${producerId}".`
+    );
+  }
+
+  return bindings;
+}
+
+function buildResolvedInputConditions(
+  resolvedScalarBindings: ResolvedScalarBinding[],
+  fanInForJob: Record<string, FanInDescriptor>,
+  outputSources: Record<string, string>
+): Record<string, InputConditionInfo> {
+  const inputConditions: Record<string, InputConditionInfo> = {};
+
+  for (const binding of resolvedScalarBindings) {
+    if (!binding.optionalCondition) {
+      continue;
+    }
+    setInputCondition(inputConditions, binding.sourceId, {
+      condition: resolveConditionOutputSources(
+        binding.optionalCondition.condition,
+        outputSources
+      ),
+      indices: binding.optionalCondition.indices,
+    });
+  }
+
+  for (const descriptor of Object.values(fanInForJob)) {
+    for (const member of descriptor.members) {
+      if (!member.condition) {
+        continue;
+      }
+      setInputCondition(inputConditions, member.id, {
+        condition: resolveConditionOutputSources(
+          member.condition.condition,
+          outputSources
+        ),
+        indices: member.condition.indices,
+      });
+    }
+  }
+
+  return inputConditions;
+}
+
+function setInputCondition(
+  inputConditions: Record<string, InputConditionInfo>,
+  inputId: string,
+  conditionInfo: InputConditionInfo
+): void {
+  const existing = inputConditions[inputId];
+  if (
+    existing &&
+    JSON.stringify(existing) !== JSON.stringify(conditionInfo)
+  ) {
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+      `Resolved input "${inputId}" has conflicting condition metadata.`
+    );
+  }
+  inputConditions[inputId] = conditionInfo;
+}
+
+function mergeLegacyInputConditionsForUnresolvedEdges(
+  resolved: Record<string, InputConditionInfo>,
+  legacy: Record<string, InputConditionInfo>
+): Record<string, InputConditionInfo> {
+  const merged = { ...resolved };
+  for (const [inputId, conditionInfo] of Object.entries(legacy)) {
+    if (merged[inputId]) {
+      continue;
+    }
+    merged[inputId] = conditionInfo;
+  }
+  return merged;
+}
+
+function collectLegacyInputConditions(args: {
+  node: CanonicalBlueprint['nodes'][number];
+  nodeMap: Map<string, CanonicalBlueprint['nodes'][number]>;
+  edgesByTargetProducer: Map<string, CanonicalEdgeInstance[]>;
+  inputBindings: Record<string, string> | undefined;
+  outputSources: Record<string, string>;
+}): Record<string, InputConditionInfo> {
+  const {
+    node,
+    nodeMap,
+    edgesByTargetProducer,
+    inputBindings,
+    outputSources,
+  } = args;
+  const inputConditions: Record<string, InputConditionInfo> = {};
+  const incomingEdges = edgesByTargetProducer.get(node.id) ?? [];
+  for (const edge of incomingEdges) {
+    if (edge.conditions && edge.indices) {
+      inputConditions[edge.from] = {
+        condition: resolveConditionOutputSources(
+          edge.conditions,
+          outputSources
+        ),
+        indices: edge.indices,
+      };
+    }
+  }
+  if (inputBindings) {
+    for (const [alias, sourceId] of Object.entries(inputBindings)) {
+      if (inputConditions[sourceId]) {
+        continue;
+      }
+
+      const bindingEdge = incomingEdges.find((edge) => {
+        if (edge.from !== sourceId || !edge.conditions || !edge.indices) {
+          return false;
+        }
+
+        const targetNode = nodeMap.get(edge.to);
+        return matchesProducerInputSourceTarget(targetNode, node, alias);
+      });
+
+      if (bindingEdge?.conditions && bindingEdge.indices) {
+        inputConditions[sourceId] = {
+          condition: resolveConditionOutputSources(
+            bindingEdge.conditions,
+            outputSources
+          ),
+          indices: bindingEdge.indices,
+        };
+      }
+    }
+  }
+  return inputConditions;
 }
 
 function resolveConditionalInputBindingConditions(
@@ -496,8 +636,10 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
   // Only top-level blueprint outputs keep an artifact "connected" on their own.
   // Imported producer-local Output nodes should not force unrelated schema-decomposed
   // fields into the producer job contract unless something downstream actually uses them.
-  const rootOutputBindings = canonical.outputSourceBindings?.length
-    ? canonical.outputSourceBindings
+  const rootOutputBindings = canonical.resolvedOutputRoutes?.length
+    ? canonical.resolvedOutputRoutes
+    : canonical.outputSourceBindings?.length
+      ? canonical.outputSourceBindings
     : Object.entries(canonical.outputSources ?? {}).map(([outputId, sourceId]) => ({
         outputId,
         sourceId,
@@ -520,13 +662,17 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
   }
 
   // Include artifacts referenced in condition `when` clauses
+  const outputRoutesForConditions =
+    canonical.resolvedOutputRoutes?.length
+      ? canonical.resolvedOutputRoutes
+      : canonical.outputSourceBindings;
   const outputConditionEdges: CanonicalEdgeInstance[] =
-    canonical.outputSourceBindings?.flatMap((binding) =>
+    outputRoutesForConditions?.flatMap((binding) =>
       isCanonicalArtifactId(binding.sourceId)
         ? [{
             from: binding.sourceId,
             to: binding.outputId,
-            conditions: binding.conditions,
+            conditions: outputRouteCondition(binding),
             indices: binding.indices,
           }]
         : []
@@ -545,6 +691,15 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
   }
 
   return connected;
+}
+
+function outputRouteCondition(
+  binding: ResolvedOutputRoute | CanonicalBlueprint['outputSourceBindings'][number]
+): EdgeConditionDefinition | undefined {
+  return (
+    (binding as CanonicalBlueprint['outputSourceBindings'][number]).conditions ??
+    (binding as ResolvedOutputRoute).condition
+  );
 }
 
 function collectProducedOutputDefinitions(args: {

@@ -15,6 +15,10 @@ import type {
   FanInDescriptor,
   ConditionalInputBindingCandidate,
   ProducerActivation,
+  ResolvedFanInDescriptor,
+  ResolvedOutputRoute,
+  ResolvedProducerActivation,
+  ResolvedScalarBinding,
 } from '../types.js';
 import {
   formatProducerAlias,
@@ -85,6 +89,10 @@ export interface CanonicalBlueprint {
   outputSources: Record<string, string>;
   outputSourceBindings: CanonicalOutputBinding[];
   fanIn: Record<string, FanInDescriptor>;
+  resolvedProducerActivations: Record<string, ResolvedProducerActivation>;
+  resolvedScalarBindings: Record<string, ResolvedScalarBinding[]>;
+  resolvedFanInDescriptors: Record<string, ResolvedFanInDescriptor>;
+  resolvedOutputRoutes: ResolvedOutputRoute[];
 }
 
 export function expandBlueprintGraph(
@@ -130,7 +138,13 @@ export function expandBlueprintGraph(
     collapsedInputs.conditionalInputBindings,
     outputSources
   );
+  const resolvedScalarBindings = normalizeResolvedScalarBindings(
+    collapsedInputs.resolvedScalarBindings,
+    outputSources
+  );
   const fanIn = buildFanInCollections(nodes, edges, instanceByCanonicalId);
+  const resolvedProducerActivations = buildResolvedProducerActivations(nodes);
+  const resolvedOutputRoutes = buildResolvedOutputRoutes(outputSourceBindings);
 
   return {
     nodes,
@@ -140,7 +154,73 @@ export function expandBlueprintGraph(
     outputSources,
     outputSourceBindings,
     fanIn,
+    resolvedProducerActivations,
+    resolvedScalarBindings,
+    resolvedFanInDescriptors: fanIn,
+    resolvedOutputRoutes,
   };
+}
+
+function buildResolvedProducerActivations(
+  nodes: CanonicalNodeInstance[]
+): Record<string, ResolvedProducerActivation> {
+  const activations: Record<string, ResolvedProducerActivation> = {};
+
+  for (const node of nodes) {
+    if (node.type !== 'Producer') {
+      continue;
+    }
+    activations[node.id] = {
+      ...(node.activation?.condition
+        ? { condition: node.activation.condition }
+        : {}),
+      indices: node.indices,
+      inheritedFrom: node.activation?.inheritedFrom ?? [],
+    };
+  }
+
+  return activations;
+}
+
+function buildResolvedOutputRoutes(
+  outputSourceBindings: CanonicalOutputBinding[]
+): ResolvedOutputRoute[] {
+  return outputSourceBindings.map((binding) => ({
+    outputId: binding.outputId,
+    sourceId: binding.sourceId,
+    ...(binding.conditions ? { condition: binding.conditions } : {}),
+    ...(binding.indices ? { indices: binding.indices } : {}),
+  }));
+}
+
+function normalizeResolvedScalarBindings(
+  bindings: Record<string, ResolvedScalarBinding[]>,
+  outputSources: Record<string, string>
+): Record<string, ResolvedScalarBinding[]> {
+  const normalized: Record<string, ResolvedScalarBinding[]> = {};
+
+  for (const [targetId, targetBindings] of Object.entries(bindings)) {
+    normalized[targetId] = targetBindings.map((binding) => {
+      if (!isCanonicalOutputId(binding.sourceId)) {
+        return binding;
+      }
+
+      const sourceId = outputSources[binding.sourceId];
+      if (!sourceId) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+          `Resolved scalar binding for ${targetId}.${binding.inputId} references route-selected output ${binding.sourceId}. Bind to a concrete canonical input or artifact, or add explicit route handling before producer graph creation.`
+        );
+      }
+
+      return {
+        ...binding,
+        sourceId,
+      };
+    });
+  }
+
+  return normalized;
 }
 
 function normalizeCollapsedConditionalInputBindings(
@@ -585,7 +665,7 @@ function buildFanInCollections(
   nodes: CanonicalNodeInstance[],
   edges: CanonicalEdgeInstance[],
   instancesById: Map<string, CanonicalNodeInstance>
-): Record<string, FanInDescriptor> {
+): Record<string, ResolvedFanInDescriptor> {
   const inbound = new Map<
     string,
     Array<{
@@ -593,6 +673,8 @@ function buildFanInCollections(
       position: number;
       groupBy?: string;
       orderBy?: string;
+      conditions?: EdgeConditionDefinition;
+      indices?: Record<string, number>;
     }>
   >();
 
@@ -606,11 +688,13 @@ function buildFanInCollections(
       position,
       groupBy: edge.groupBy,
       orderBy: edge.orderBy,
+      ...(edge.conditions ? { conditions: edge.conditions } : {}),
+      ...(edge.indices ? { indices: edge.indices } : {}),
     });
     inbound.set(edge.to, list);
   }
 
-  const fanIn: Record<string, FanInDescriptor> = {};
+  const fanIn: Record<string, ResolvedFanInDescriptor> = {};
   for (const node of nodes) {
     if (node.type !== 'Input' || !node.input?.fanIn) {
       continue;
@@ -636,10 +720,24 @@ function buildFanInCollections(
         instance,
         entry.position
       );
+      if (entry.conditions && !entry.indices) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+          `Fan-in member ${entry.sourceId} for input node ${targetId} has conditions but no resolved condition indices.`
+        );
+      }
       return {
         id: entry.sourceId,
         group,
         order,
+        ...(entry.conditions && entry.indices
+          ? {
+              condition: {
+                condition: entry.conditions,
+                indices: entry.indices,
+              },
+            }
+          : {}),
       };
     });
 
@@ -1123,6 +1221,7 @@ interface CollapseResult {
   nodes: CanonicalNodeInstance[];
   inputBindings: Record<string, Record<string, string>>;
   conditionalInputBindings: Record<string, Record<string, ConditionalInputBindingCandidate[]>>;
+  resolvedScalarBindings: Record<string, ResolvedScalarBinding[]>;
 }
 
 interface CanonicalEdgeConditionFields {
@@ -1384,6 +1483,58 @@ function collapseInputNodes(
     string,
     Map<string, ConditionalInputBindingCandidate[]>
   >();
+  const resolvedScalarBindingMap = new Map<string, ResolvedScalarBinding[]>();
+
+  for (const node of nodes) {
+    if (node.type === 'Producer') {
+      resolvedScalarBindingMap.set(node.id, []);
+    }
+  }
+
+  function recordResolvedScalarBinding(
+    targetId: string,
+    alias: string,
+    canonicalId: string,
+    conditions: CanonicalEdgeInstance['conditions'],
+    indices: CanonicalEdgeInstance['indices']
+  ): void {
+    if (!alias) {
+      return;
+    }
+    if (conditions && !indices) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Resolved scalar binding for ${targetId}.${alias} has conditions but no resolved condition indices.`
+      );
+    }
+
+    const bindings = resolvedScalarBindingMap.get(targetId) ?? [];
+    const binding: ResolvedScalarBinding = {
+      inputId: alias,
+      sourceId: canonicalId,
+      ...(conditions && indices
+        ? {
+            optionalCondition: {
+              condition: conditions,
+              indices,
+            },
+          }
+        : {}),
+    };
+    const duplicate = bindings.some(
+      (candidate) =>
+        candidate.inputId === binding.inputId &&
+        candidate.sourceId === binding.sourceId &&
+        JSON.stringify(candidate.optionalCondition) ===
+          JSON.stringify(binding.optionalCondition)
+    );
+    if (duplicate) {
+      return;
+    }
+
+    bindings.push(binding);
+    resolvedScalarBindingMap.set(targetId, bindings);
+  }
 
   function recordConditionalBinding(
     targetId: string,
@@ -1429,6 +1580,7 @@ function collapseInputNodes(
     if (!alias) {
       return;
     }
+    recordResolvedScalarBinding(targetId, alias, canonicalId, conditions, indices);
     if (conditions && conditionalCandidate) {
       recordConditionalBinding(targetId, alias, canonicalId, conditions, indices);
       return;
@@ -1735,6 +1887,7 @@ function collapseInputNodes(
     nodes: filteredNodes,
     inputBindings: mapOfMapsToRecord(bindingMap),
     conditionalInputBindings: mapOfMapsToRecord(conditionalBindingMap),
+    resolvedScalarBindings: mapOfArraysToRecord(resolvedScalarBindingMap),
   };
 }
 
@@ -2198,6 +2351,12 @@ function mapOfMapsToRecord<T>(
     record[key] = Object.fromEntries(inner.entries());
   }
   return record;
+}
+
+function mapOfArraysToRecord<T>(
+  map: Map<string, T[]>
+): Record<string, T[]> {
+  return Object.fromEntries(map.entries());
 }
 
 function getDimensionIndex(
