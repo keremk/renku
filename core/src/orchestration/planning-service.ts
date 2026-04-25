@@ -428,6 +428,12 @@ function collectJobResolvedInputs(
   }
 
   collectConditionInputIds(job.context?.inputConditions, relevantInputIds);
+  if (job.context?.activation?.condition) {
+    collectConditionDefinitionInputIds(
+      job.context.activation.condition,
+      relevantInputIds
+    );
+  }
   collectConditionalBindingInputIds(
     job.context?.conditionalInputBindings,
     relevantInputIds

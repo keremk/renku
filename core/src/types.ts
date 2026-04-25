@@ -628,6 +628,12 @@ export interface ConditionalInputBindingCandidate {
   indices: Record<string, number>;
 }
 
+export interface ProducerJobActivation {
+  condition?: EdgeConditionDefinition;
+  indices: Record<string, number>;
+  inheritedFrom: ProducerActivation['inheritedFrom'];
+}
+
 export interface ProducerJobContext {
   namespacePath: string[];
   indices: Record<string, number>;
@@ -644,6 +650,8 @@ export interface ProducerJobContext {
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   extras?: ProducerJobContextExtras;
   fanIn?: Record<string, FanInDescriptor>;
+  /** Producer/import activation metadata for diagnostics. Not used for pruning in Phase 3. */
+  activation?: ProducerJobActivation;
   /** Conditions for each input (keyed by input ID) */
   inputConditions?: Record<Id, InputConditionInfo>;
 }

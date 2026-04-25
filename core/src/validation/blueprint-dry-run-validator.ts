@@ -378,7 +378,8 @@ export function deriveConditionalUpToLayer(
     const hasConditionalJobs = layer.some((job) => {
       const inputConditions = job.context?.inputConditions;
       return Boolean(
-        inputConditions && Object.keys(inputConditions).length > 0
+        (inputConditions && Object.keys(inputConditions).length > 0) ||
+          job.context?.activation?.condition
       );
     });
     if (hasConditionalJobs) {

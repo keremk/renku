@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildBlueprintValidationCases,
+  deriveConditionalUpToLayer,
   parseBlueprintValidationScenario,
   runBlueprintDryRunValidation,
   type BlueprintValidationScenarioCase,
@@ -8,6 +9,57 @@ import {
 import type { ConditionAnalysis } from '../analysis/condition-analyzer.js';
 
 describe('blueprint dry-run validator', () => {
+  it('treats activation-gated jobs as conditional dry-run layers', () => {
+    const upToLayer = deriveConditionalUpToLayer({
+      revision: 'rev-test',
+      baselineHash: 'baseline',
+      createdAt: '2026-04-25T00:00:00.000Z',
+      blueprintLayerCount: 2,
+      layers: [
+        [
+          {
+            jobId: 'Producer:SetupProducer',
+            producer: 'SetupProducer',
+            inputs: [],
+            produces: [],
+            provider: 'openai',
+            providerModel: 'gpt-4o',
+            rateKey: 'openai-gpt4o',
+          },
+        ],
+        [
+          {
+            jobId: 'Producer:PreviewProducer',
+            producer: 'PreviewProducer',
+            inputs: [],
+            produces: [],
+            provider: 'openai',
+            providerModel: 'gpt-4o',
+            rateKey: 'openai-gpt4o',
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'PreviewProducer',
+              producerId: 'Producer:PreviewProducer',
+              inputs: [],
+              produces: [],
+              activation: {
+                condition: {
+                  when: 'Input:UsePreview',
+                  is: true,
+                },
+                indices: {},
+                inheritedFrom: [],
+              },
+            },
+          },
+        ],
+      ],
+    });
+
+    expect(upToLayer).toBe(1);
+  });
+
   it('parses YAML scenario documents', () => {
     const parsed = parseBlueprintValidationScenario(
       `version: 1

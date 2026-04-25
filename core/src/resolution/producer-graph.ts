@@ -24,7 +24,9 @@ import type {
   ProducerGraph,
   ProducerGraphEdge,
   ProducerGraphNode,
+  ProducerJobActivation,
   ResolvedOutputRoute,
+  ResolvedProducerActivation,
   ResolvedScalarBinding,
 } from '../types.js';
 import type { CanonicalEdgeInstance } from './canonical-expander.js';
@@ -239,6 +241,11 @@ export function createProducerGraph(
       canonical,
       nodeMap,
     });
+    const activation = readProducerActivationForJob(
+      canonical,
+      node,
+      canonical.outputSources
+    );
 
     const nodeContext = {
       namespacePath: node.namespacePath,
@@ -256,6 +263,7 @@ export function createProducerGraph(
       sdkMapping: canonicalSdkMapping,
       outputs: option.outputs ?? node.producer?.outputs,
       fanIn: Object.keys(fanInForJob).length > 0 ? fanInForJob : undefined,
+      activation,
       inputConditions: Object.keys(inputConditions).length > 0 ? inputConditions : undefined,
       extras: {
         schema: {
@@ -326,6 +334,50 @@ function readResolvedScalarBindingsForProducer(
   }
 
   return bindings;
+}
+
+function readProducerActivationForJob(
+  canonical: CanonicalBlueprint,
+  node: CanonicalBlueprint['nodes'][number],
+  outputSources: Record<string, string>
+): ProducerJobActivation | undefined {
+  const resolvedActivation = canonical.resolvedProducerActivations?.[node.id];
+  if (resolvedActivation) {
+    return toProducerJobActivation(resolvedActivation, outputSources);
+  }
+
+  if (node.activation) {
+    return toProducerJobActivation(
+      {
+        ...(node.activation.condition
+          ? { condition: node.activation.condition }
+          : {}),
+        indices: node.activation.indices ?? node.indices,
+        inheritedFrom: node.activation.inheritedFrom,
+      },
+      outputSources
+    );
+  }
+
+  return undefined;
+}
+
+function toProducerJobActivation(
+  activation: ResolvedProducerActivation,
+  outputSources: Record<string, string>
+): ProducerJobActivation {
+  return {
+    ...(activation.condition
+      ? {
+          condition: resolveConditionOutputSources(
+            activation.condition,
+            outputSources
+          ),
+        }
+      : {}),
+    indices: activation.indices,
+    inheritedFrom: activation.inheritedFrom,
+  };
 }
 
 function buildResolvedInputConditions(

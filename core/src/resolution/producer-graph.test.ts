@@ -906,6 +906,261 @@ describe('createProducerGraph', () => {
   });
 
   describe('resolved condition projection', () => {
+    it('projects root-input activation metadata from resolved producer activations', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:TestProducer',
+            type: 'Producer',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'TestProducer',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          {
+            from: 'Input:Prompt',
+            to: 'Producer:TestProducer',
+            conditions: {
+              when: 'Input:LegacyGate',
+              is: true,
+            },
+            indices: {},
+          },
+        ],
+        inputBindings: {
+          'Producer:TestProducer': {
+            Prompt: 'Input:Prompt',
+          },
+        },
+        outputSources: {},
+        outputSourceBindings: [],
+        fanIn: {},
+        resolvedProducerActivations: {
+          'Producer:TestProducer': {
+            condition: {
+              when: 'Input:UsePreview',
+              is: true,
+            },
+            indices: {},
+            inheritedFrom: [
+              {
+                namespacePath: ['PreviewProducer'],
+                importName: 'PreviewProducer',
+                parentNamespacePath: [],
+                sourcePath: '/test/preview.yaml',
+                condition: {
+                  when: 'Input:UsePreview',
+                  is: true,
+                },
+              },
+            ],
+          },
+        },
+        resolvedScalarBindings: {
+          'Producer:TestProducer': [],
+        },
+        resolvedFanInDescriptors: {},
+        resolvedOutputRoutes: [],
+      };
+
+      const options = createDefaultOptions(['TestProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      expect(result.nodes[0]?.context?.activation).toEqual({
+        condition: {
+          when: 'Input:UsePreview',
+          is: true,
+        },
+        indices: {},
+        inheritedFrom: [
+          {
+            namespacePath: ['PreviewProducer'],
+            importName: 'PreviewProducer',
+            parentNamespacePath: [],
+            sourcePath: '/test/preview.yaml',
+            condition: {
+              when: 'Input:UsePreview',
+              is: true,
+            },
+          },
+        ],
+      });
+      expect(result.nodes[0]?.context?.inputConditions).toEqual({
+        'Input:Prompt': {
+          condition: {
+            when: 'Input:LegacyGate',
+            is: true,
+          },
+          indices: {},
+        },
+      });
+    });
+
+    it('projects generated-artifact activation metadata through output source resolution', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:ScriptProducer',
+            type: 'Producer',
+            producerAlias: 'ScriptProducer',
+            namespacePath: [],
+            name: 'ScriptProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Producer:TestProducer',
+            type: 'Producer',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'TestProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:ScriptProducer.Decision',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['ScriptProducer'],
+            name: 'Decision',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          {
+            from: 'Producer:ScriptProducer',
+            to: 'Artifact:ScriptProducer.Decision',
+          },
+        ],
+        inputBindings: {},
+        outputSources: {
+          'Output:ScriptProducer.Decision': 'Artifact:ScriptProducer.Decision',
+        },
+        outputSourceBindings: [],
+        fanIn: {},
+        resolvedProducerActivations: {
+          'Producer:ScriptProducer': {
+            indices: {},
+            inheritedFrom: [],
+          },
+          'Producer:TestProducer': {
+            condition: {
+              when: 'Output:ScriptProducer.Decision',
+              is: true,
+            },
+            indices: {},
+            inheritedFrom: [
+              {
+                namespacePath: ['TestProducer'],
+                importName: 'TestProducer',
+                parentNamespacePath: [],
+                sourcePath: '/test/test-producer.yaml',
+                condition: {
+                  when: 'Output:ScriptProducer.Decision',
+                  is: true,
+                },
+              },
+            ],
+          },
+        },
+        resolvedScalarBindings: {
+          'Producer:ScriptProducer': [],
+          'Producer:TestProducer': [],
+        },
+        resolvedFanInDescriptors: {},
+        resolvedOutputRoutes: [],
+      };
+
+      const options = createDefaultOptions(['ScriptProducer', 'TestProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+      const testNode = result.nodes.find(
+        (node) => node.jobId === 'Producer:TestProducer'
+      );
+
+      expect(testNode?.context?.activation).toMatchObject({
+        condition: {
+          when: 'Artifact:ScriptProducer.Decision',
+          is: true,
+        },
+        indices: {},
+      });
+    });
+
+    it('projects loop-indexed activation metadata without deriving it from input conditions', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:TestProducer[1]',
+            type: 'Producer',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'TestProducer',
+            indices: { 'Loop::segment': 1 },
+            dimensions: ['Loop::segment'],
+          },
+        ],
+        edges: [],
+        inputBindings: {},
+        outputSources: {},
+        outputSourceBindings: [],
+        fanIn: {},
+        resolvedProducerActivations: {
+          'Producer:TestProducer[1]': {
+            condition: {
+              when: 'Input:UseSegment[segment]',
+              is: true,
+            },
+            indices: { 'Loop::segment': 1 },
+            inheritedFrom: [
+              {
+                namespacePath: ['SegmentProducer'],
+                importName: 'SegmentProducer',
+                parentNamespacePath: [],
+                sourcePath: '/test/segment-producer.yaml',
+                condition: {
+                  when: 'Input:UseSegment[segment]',
+                  is: true,
+                },
+              },
+            ],
+          },
+        },
+        resolvedScalarBindings: {
+          'Producer:TestProducer[1]': [],
+        },
+        resolvedFanInDescriptors: {},
+        resolvedOutputRoutes: [],
+      };
+
+      const options = createDefaultOptions(['TestProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      expect(result.nodes[0]?.context?.activation).toEqual({
+        condition: {
+          when: 'Input:UseSegment[segment]',
+          is: true,
+        },
+        indices: { 'Loop::segment': 1 },
+        inheritedFrom: [
+          {
+            namespacePath: ['SegmentProducer'],
+            importName: 'SegmentProducer',
+            parentNamespacePath: [],
+            sourcePath: '/test/segment-producer.yaml',
+            condition: {
+              when: 'Input:UseSegment[segment]',
+              is: true,
+            },
+          },
+        ],
+      });
+      expect(result.nodes[0]?.context?.inputConditions).toBeUndefined();
+    });
+
     it('reads scalar and fan-in conditions from resolved structures before legacy edge conditions', () => {
       const canonical: CanonicalBlueprint = {
         nodes: [
