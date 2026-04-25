@@ -14,6 +14,7 @@ import type {
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
   BlueprintTreeNode,
+  ProducerActivation,
 } from '../types.js';
 import {
   buildBlueprintGraph,
@@ -55,6 +56,7 @@ export interface BlueprintParseGraphNode {
   runnable?: boolean;
   producerType?: string;
   description?: string;
+  activation?: ProducerActivation;
   inputBindings?: ProducerBinding[];
   outputBindings?: ProducerBinding[];
 }
@@ -310,6 +312,9 @@ export function collectNodesAndEdges(
         producerGraphNode.producer,
         'description'
       ),
+      ...(producerGraphNode.activation
+        ? { activation: producerGraphNode.activation }
+        : {}),
       inputBindings: [],
       outputBindings: [],
     };
@@ -950,7 +955,13 @@ function mergeConditionName(
 }
 
 function edgeIsConditional(edge: BlueprintGraphEdge): boolean {
-  return Boolean(edge.conditions || edge.conditionName);
+  return Boolean(
+    edge.activationConditions ||
+      edge.endpointConditions ||
+      edge.authoredEdgeConditions ||
+      edge.conditions ||
+      edge.conditionName
+  );
 }
 
 function buildInputEndpoint(

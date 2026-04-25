@@ -14,6 +14,7 @@ import type {
   ProducerConfig,
   FanInDescriptor,
   ConditionalInputBindingCandidate,
+  ProducerActivation,
 } from '../types.js';
 import {
   formatProducerAlias,
@@ -39,6 +40,7 @@ export interface CanonicalNodeInstance {
   output?: BlueprintOutputDefinition;
   input?: BlueprintInputDefinition;
   producer?: ProducerConfig;
+  activation?: ProducerActivation;
 }
 
 export interface CanonicalEdgeInstance {
@@ -49,7 +51,17 @@ export interface CanonicalEdgeInstance {
   orderBy?: string;
   /** Input alias override used for dynamic array element bindings. */
   bindingAlias?: string;
-  /** Conditions that must be satisfied for this edge to be active (evaluated at runtime) */
+  /** Conditions inherited from enclosing producer/import activation. */
+  activationConditions?: EdgeConditionDefinition;
+  /** Conditions inherited from the imported endpoint referenced by this edge. */
+  endpointConditions?: EdgeConditionDefinition;
+  /** Conditions authored directly on this edge. */
+  authoredEdgeConditions?: EdgeConditionDefinition;
+  /**
+   * Compatibility: combined legacy view of all condition provenance.
+   * TODO(blueprint-condition-simplification Phase 10): remove new callers'
+   * dependency on this flattened field.
+   */
   conditions?: EdgeConditionDefinition;
   /** The dimension indices for this edge instance (for resolving condition paths) */
   indices?: Record<string, number>;
@@ -58,6 +70,9 @@ export interface CanonicalEdgeInstance {
 export interface CanonicalOutputBinding {
   outputId: string;
   sourceId: string;
+  activationConditions?: EdgeConditionDefinition;
+  endpointConditions?: EdgeConditionDefinition;
+  authoredEdgeConditions?: EdgeConditionDefinition;
   conditions?: EdgeConditionDefinition;
   indices?: Record<string, number>;
 }
@@ -470,6 +485,14 @@ function expandNodeInstances(
     artifact: node.artifact,
     input: node.input,
     producer: node.producer,
+    ...(node.activation
+      ? {
+          activation: {
+            ...node.activation,
+            indices,
+          },
+        }
+      : {}),
   }));
 }
 
@@ -521,7 +544,7 @@ function expandEdges(
           continue;
         }
         // Merge indices from both nodes for condition resolution
-        const mergedIndices = edge.conditions
+        const mergedIndices = hasGraphEdgeCondition(edge)
           ? { ...fromNode.indices, ...toNode.indices }
           : undefined;
         results.push({
@@ -531,13 +554,31 @@ function expandEdges(
           groupBy: edge.groupBy,
           orderBy: edge.orderBy,
           bindingAlias: resolveBindingAlias(edge, fromNode, toNode),
-          conditions: edge.conditions,
-          indices: mergedIndices,
+          ...(edge.activationConditions
+            ? { activationConditions: edge.activationConditions }
+            : {}),
+          ...(edge.endpointConditions
+            ? { endpointConditions: edge.endpointConditions }
+            : {}),
+          ...(edge.authoredEdgeConditions
+            ? { authoredEdgeConditions: edge.authoredEdgeConditions }
+            : {}),
+          ...(edge.conditions ? { conditions: edge.conditions } : {}),
+          ...(mergedIndices ? { indices: mergedIndices } : {}),
         });
       }
     }
   }
   return results;
+}
+
+function hasGraphEdgeCondition(edge: BlueprintGraphEdge): boolean {
+  return Boolean(
+    edge.activationConditions ||
+      edge.endpointConditions ||
+      edge.authoredEdgeConditions ||
+      edge.conditions
+  );
 }
 
 function buildFanInCollections(
@@ -1084,6 +1125,71 @@ interface CollapseResult {
   conditionalInputBindings: Record<string, Record<string, ConditionalInputBindingCandidate[]>>;
 }
 
+interface CanonicalEdgeConditionFields {
+  activationConditions?: EdgeConditionDefinition;
+  endpointConditions?: EdgeConditionDefinition;
+  authoredEdgeConditions?: EdgeConditionDefinition;
+  conditions?: EdgeConditionDefinition;
+  indices?: Record<string, number>;
+}
+
+function canonicalEdgeConditionFields(
+  edge: CanonicalEdgeInstance
+): CanonicalEdgeConditionFields {
+  return {
+    ...(edge.activationConditions
+      ? { activationConditions: edge.activationConditions }
+      : {}),
+    ...(edge.endpointConditions
+      ? { endpointConditions: edge.endpointConditions }
+      : {}),
+    ...(edge.authoredEdgeConditions
+      ? { authoredEdgeConditions: edge.authoredEdgeConditions }
+      : {}),
+    ...(edge.conditions ? { conditions: edge.conditions } : {}),
+    ...(edge.indices ? { indices: edge.indices } : {}),
+  };
+}
+
+function hasCanonicalEdgeCondition(
+  fields: CanonicalEdgeConditionFields
+): boolean {
+  return Boolean(
+    fields.activationConditions ||
+      fields.endpointConditions ||
+      fields.authoredEdgeConditions ||
+      fields.conditions
+  );
+}
+
+function combineCanonicalEdgeConditionFields(
+  left: CanonicalEdgeConditionFields,
+  right: CanonicalEdgeConditionFields
+): CanonicalEdgeConditionFields {
+  const activationConditions = combineEdgeConditions(
+    left.activationConditions,
+    right.activationConditions
+  );
+  const endpointConditions = combineEdgeConditions(
+    left.endpointConditions,
+    right.endpointConditions
+  );
+  const authoredEdgeConditions = combineEdgeConditions(
+    left.authoredEdgeConditions,
+    right.authoredEdgeConditions
+  );
+  const conditions = combineEdgeConditions(left.conditions, right.conditions);
+  const indices = mergeConditionIndices(left.indices, right.indices);
+
+  return {
+    ...(activationConditions ? { activationConditions } : {}),
+    ...(endpointConditions ? { endpointConditions } : {}),
+    ...(authoredEdgeConditions ? { authoredEdgeConditions } : {}),
+    ...(conditions ? { conditions } : {}),
+    ...(indices ? { indices } : {}),
+  };
+}
+
 function collapseInputNodes(
   edges: CanonicalEdgeInstance[],
   nodes: CanonicalNodeInstance[]
@@ -1210,6 +1316,35 @@ function collapseInputNodes(
     return normalizeConditionItem(condition, indices);
   };
 
+  const normalizeConditionFields = (
+    fields: CanonicalEdgeConditionFields
+  ): CanonicalEdgeConditionFields => {
+    const activationConditions = normalizeConditionDefinition(
+      fields.activationConditions,
+      fields.indices
+    );
+    const endpointConditions = normalizeConditionDefinition(
+      fields.endpointConditions,
+      fields.indices
+    );
+    const authoredEdgeConditions = normalizeConditionDefinition(
+      fields.authoredEdgeConditions,
+      fields.indices
+    );
+    const conditions = normalizeConditionDefinition(
+      fields.conditions,
+      fields.indices
+    );
+
+    return {
+      ...(activationConditions ? { activationConditions } : {}),
+      ...(endpointConditions ? { endpointConditions } : {}),
+      ...(authoredEdgeConditions ? { authoredEdgeConditions } : {}),
+      ...(conditions ? { conditions } : {}),
+      ...(fields.indices ? { indices: fields.indices } : {}),
+    };
+  };
+
   const normalizeConditionItem = (
     item: EdgeConditionClause | EdgeConditionGroup,
     indices: Record<string, number> | undefined
@@ -1314,15 +1449,16 @@ function collapseInputNodes(
     sourceId: string,
     alias: string,
     canonicalId: string,
-    conditions: CanonicalEdgeInstance['conditions'] | undefined,
-    indices: CanonicalEdgeInstance['indices'] | undefined,
+    conditionFields: CanonicalEdgeConditionFields,
     conditionalCandidate: boolean,
     visited: Set<string>
   ): void => {
     const outgoing = outbound.get(sourceId) ?? [];
     for (const edge of outgoing) {
-      const combinedConditions = combineEdgeConditions(conditions, edge.conditions);
-      const combinedIndices = mergeConditionIndices(indices, edge.indices);
+      const combinedFields = combineCanonicalEdgeConditionFields(
+        conditionFields,
+        canonicalEdgeConditionFields(edge)
+      );
       const targetNode = nodeById.get(edge.to);
       if (!targetNode) {
         continue;
@@ -1332,8 +1468,8 @@ function collapseInputNodes(
           targetNode.id,
           edge.bindingAlias ?? alias,
           canonicalId,
-          combinedConditions,
-          combinedIndices,
+          combinedFields.conditions,
+          combinedFields.indices,
           conditionalCandidate
         );
         continue;
@@ -1348,8 +1484,7 @@ function collapseInputNodes(
           targetNode.id,
           alias,
           canonicalId,
-          combinedConditions,
-          combinedIndices,
+          combinedFields,
           conditionalCandidate,
           visited
         );
@@ -1361,20 +1496,15 @@ function collapseInputNodes(
   // when Input nodes are collapsed. Key = input node ID, Value = conditions from inbound edge
   const conditionsFromInbound = new Map<
     string,
-    Array<{
-      conditions: CanonicalEdgeInstance['conditions'];
-      indices: CanonicalEdgeInstance['indices'];
-    }>
+    CanonicalEdgeConditionFields[]
   >();
   for (const edge of edges) {
-    if (edge.conditions) {
+    const conditionFields = canonicalEdgeConditionFields(edge);
+    if (hasCanonicalEdgeCondition(conditionFields)) {
       const targetNode = nodeById.get(edge.to);
       if (targetNode?.type === 'Input') {
         const inherited = conditionsFromInbound.get(edge.to) ?? [];
-        inherited.push({
-          conditions: edge.conditions,
-          indices: edge.indices,
-        });
+        inherited.push(conditionFields);
         conditionsFromInbound.set(edge.to, inherited);
       }
     }
@@ -1395,22 +1525,23 @@ function collapseInputNodes(
     // Propagate conditions from collapsed Input nodes
     // When an edge goes FROM an Input node that was collapsed, check if that
     // Input had inbound edges with conditions and propagate them
-    let edgeConditions = edge.conditions;
-    let edgeIndices = edge.indices;
-    if (!edgeConditions) {
+    let edgeConditionFields = canonicalEdgeConditionFields(edge);
+    if (!hasCanonicalEdgeCondition(edgeConditionFields)) {
       const sourceNode = nodeById.get(edge.from);
       if (sourceNode?.type === 'Input' && normalizedFrom !== edge.from) {
         // The source Input node was collapsed (aliased to something else)
         // Check if it had inbound conditions that should propagate
         const inherited = conditionsFromInbound.get(edge.from);
         if (inherited && inherited.length === 1) {
-          edgeConditions = inherited[0]?.conditions;
-          edgeIndices = inherited[0]?.indices ?? edgeIndices;
+          edgeConditionFields = combineCanonicalEdgeConditionFields(
+            edgeConditionFields,
+            inherited[0]!
+          );
         }
       }
     }
 
-    edgeConditions = normalizeConditionDefinition(edgeConditions, edgeIndices);
+    edgeConditionFields = normalizeConditionFields(edgeConditionFields);
 
     resolvedEdges.push({
       from: normalizedFrom,
@@ -1419,8 +1550,7 @@ function collapseInputNodes(
       groupBy: edge.groupBy,
       orderBy: edge.orderBy,
       bindingAlias: edge.bindingAlias,
-      conditions: edgeConditions,
-      indices: edgeIndices,
+      ...edgeConditionFields,
     });
   }
 
@@ -1447,8 +1577,7 @@ function collapseInputNodes(
     Array<{
       alias: string;
       canonicalId: string;
-      conditions?: CanonicalEdgeInstance['conditions'];
-      indices?: CanonicalEdgeInstance['indices'];
+      conditionFields: CanonicalEdgeConditionFields;
     }>
   >();
   for (const edge of edges) {
@@ -1464,8 +1593,7 @@ function collapseInputNodes(
     list.push({
       alias: edge.bindingAlias,
       canonicalId,
-      conditions: edge.conditions,
-      indices: edge.indices,
+      conditionFields: canonicalEdgeConditionFields(edge),
     });
     dynamicBindingsByInput.set(edge.to, list);
   }
@@ -1484,8 +1612,7 @@ function collapseInputNodes(
       node.id,
       aliasName,
       canonicalId,
-      undefined,
-      undefined,
+      {},
       false,
       visited
     );
@@ -1500,8 +1627,7 @@ function collapseInputNodes(
         node.id,
         aliasName,
         normalizeId(inboundEdge.from),
-        inboundEdge.conditions,
-        inboundEdge.indices,
+        canonicalEdgeConditionFields(inboundEdge),
         true,
         new Set<string>()
       );
@@ -1526,18 +1652,14 @@ function collapseInputNodes(
             node.id,
             elementAlias,
             elementCanonicalId,
-            undefined,
-            undefined,
+            {},
             false,
             elementVisited
           );
 
           const inherited = conditionsFromInbound.get(elementNode.id);
           if (inherited && inherited.length === 1) {
-            const normalizedConditions = normalizeConditionDefinition(
-              inherited[0]?.conditions,
-              inherited[0]?.indices
-            );
+            const inheritedFields = normalizeConditionFields(inherited[0]!);
             const outgoing = outbound.get(node.id) ?? [];
             for (const outboundEdge of outgoing) {
               const normalizedTo = normalizeId(outboundEdge.to);
@@ -1552,8 +1674,7 @@ function collapseInputNodes(
                 groupBy: outboundEdge.groupBy,
                 orderBy: outboundEdge.orderBy,
                 bindingAlias: elementAlias,
-                conditions: normalizedConditions,
-                indices: inherited[0]?.indices,
+                ...inheritedFields,
               });
             }
           }
@@ -1568,19 +1689,17 @@ function collapseInputNodes(
           node.id,
           dynamicBinding.alias,
           dynamicBinding.canonicalId,
-          dynamicBinding.conditions,
-          dynamicBinding.indices,
+          dynamicBinding.conditionFields,
           false,
           new Set<string>()
         );
 
-        if (!dynamicBinding.conditions) {
+        if (!hasCanonicalEdgeCondition(dynamicBinding.conditionFields)) {
           continue;
         }
 
-        const normalizedConditions = normalizeConditionDefinition(
-          dynamicBinding.conditions,
-          dynamicBinding.indices
+        const dynamicConditionFields = normalizeConditionFields(
+          dynamicBinding.conditionFields
         );
         const outgoing = outbound.get(node.id) ?? [];
         for (const outboundEdge of outgoing) {
@@ -1596,8 +1715,7 @@ function collapseInputNodes(
             groupBy: outboundEdge.groupBy,
             orderBy: outboundEdge.orderBy,
             bindingAlias: dynamicBinding.alias,
-            conditions: normalizedConditions,
-            indices: dynamicBinding.indices,
+            ...dynamicConditionFields,
           });
         }
       }
@@ -1629,6 +1747,9 @@ interface OutputCollapseResult {
 
 interface ResolvedOutputBinding {
   sourceId: string;
+  activationConditions?: EdgeConditionDefinition;
+  endpointConditions?: EdgeConditionDefinition;
+  authoredEdgeConditions?: EdgeConditionDefinition;
   conditions?: EdgeConditionDefinition;
   indices?: Record<string, number>;
 }
@@ -1697,8 +1818,7 @@ function collapseOutputNodes(
       if (sourceNode.type === 'Artifact' || sourceNode.type === 'Input') {
         return [{
           sourceId: sourceNode.id,
-          conditions: inboundEdge.conditions,
-          indices: inboundEdge.indices,
+          ...canonicalEdgeConditionFields(inboundEdge),
         }];
       }
 
@@ -1720,14 +1840,36 @@ function collapseOutputNodes(
       const upstreamBindings = resolveOutputBindings(sourceNode.id, stack);
       stack.delete(sourceNode.id);
 
-      return upstreamBindings.map((upstream) => ({
-        sourceId: upstream.sourceId,
-        conditions: combineEdgeConditions(
+      return upstreamBindings.map((upstream) => {
+        const activationConditions = combineEdgeConditions(
+          upstream.activationConditions,
+          inboundEdge.activationConditions
+        );
+        const endpointConditions = combineEdgeConditions(
+          upstream.endpointConditions,
+          inboundEdge.endpointConditions
+        );
+        const authoredEdgeConditions = combineEdgeConditions(
+          upstream.authoredEdgeConditions,
+          inboundEdge.authoredEdgeConditions
+        );
+        const conditions = combineEdgeConditions(
           upstream.conditions,
           inboundEdge.conditions
-        ),
-        indices: mergeConditionIndices(upstream.indices, inboundEdge.indices),
-      }));
+        );
+        const indices = mergeConditionIndices(
+          upstream.indices,
+          inboundEdge.indices
+        );
+        return {
+          sourceId: upstream.sourceId,
+          ...(activationConditions ? { activationConditions } : {}),
+          ...(endpointConditions ? { endpointConditions } : {}),
+          ...(authoredEdgeConditions ? { authoredEdgeConditions } : {}),
+          ...(conditions ? { conditions } : {}),
+          ...(indices ? { indices } : {}),
+        };
+      });
     });
 
     if (
@@ -1817,13 +1959,40 @@ function collapseOutputNodes(
         continue;
       }
 
+      const activationConditions = normalizeOutputConditionDefinition(
+        combineEdgeConditions(
+          resolvedBinding.activationConditions,
+          edge.activationConditions
+        )
+      );
+      const endpointConditions = normalizeOutputConditionDefinition(
+        combineEdgeConditions(
+          resolvedBinding.endpointConditions,
+          edge.endpointConditions
+        )
+      );
+      const authoredEdgeConditions = normalizeOutputConditionDefinition(
+        combineEdgeConditions(
+          resolvedBinding.authoredEdgeConditions,
+          edge.authoredEdgeConditions
+        )
+      );
+      const conditions = normalizeOutputConditionDefinition(
+        combineEdgeConditions(resolvedBinding.conditions, edge.conditions)
+      );
+      const indices = mergeConditionIndices(resolvedBinding.indices, edge.indices);
       resolvedEdges.push({
-        ...edge,
+        to: edge.to,
+        note: edge.note,
+        groupBy: edge.groupBy,
+        orderBy: edge.orderBy,
+        bindingAlias: edge.bindingAlias,
         from: resolvedBinding.sourceId,
-        conditions: normalizeOutputConditionDefinition(
-          combineEdgeConditions(resolvedBinding.conditions, edge.conditions)
-        ),
-        indices: mergeConditionIndices(resolvedBinding.indices, edge.indices),
+        ...(activationConditions ? { activationConditions } : {}),
+        ...(endpointConditions ? { endpointConditions } : {}),
+        ...(authoredEdgeConditions ? { authoredEdgeConditions } : {}),
+        ...(conditions ? { conditions } : {}),
+        ...(indices ? { indices } : {}),
       });
     }
   }
@@ -1839,11 +2008,26 @@ function collapseOutputNodes(
       outputSources[node.id] = resolvedBindings[0]!.sourceId;
     }
     for (const resolvedBinding of resolvedBindings) {
+      const activationConditions = normalizeOutputConditionDefinition(
+        resolvedBinding.activationConditions
+      );
+      const endpointConditions = normalizeOutputConditionDefinition(
+        resolvedBinding.endpointConditions
+      );
+      const authoredEdgeConditions = normalizeOutputConditionDefinition(
+        resolvedBinding.authoredEdgeConditions
+      );
+      const conditions = normalizeOutputConditionDefinition(
+        resolvedBinding.conditions
+      );
       outputSourceBindings.push({
         outputId: node.id,
         sourceId: resolvedBinding.sourceId,
-        conditions: normalizeOutputConditionDefinition(resolvedBinding.conditions),
-        indices: resolvedBinding.indices,
+        ...(activationConditions ? { activationConditions } : {}),
+        ...(endpointConditions ? { endpointConditions } : {}),
+        ...(authoredEdgeConditions ? { authoredEdgeConditions } : {}),
+        ...(conditions ? { conditions } : {}),
+        ...(resolvedBinding.indices ? { indices: resolvedBinding.indices } : {}),
       });
     }
   }
@@ -1990,6 +2174,9 @@ function dedupeCanonicalEdges(
       groupBy: edge.groupBy,
       orderBy: edge.orderBy,
       bindingAlias: edge.bindingAlias,
+      activationConditions: edge.activationConditions,
+      endpointConditions: edge.endpointConditions,
+      authoredEdgeConditions: edge.authoredEdgeConditions,
       conditions: edge.conditions,
       indices: edge.indices,
     });

@@ -8,6 +8,7 @@ import type {
   EdgeConditionDefinition,
   EdgeConditionGroup,
   NodeKind,
+  ProducerActivation,
   ProducerConfig,
 } from '../types.js';
 import { SYSTEM_INPUTS } from '../types.js';
@@ -51,6 +52,7 @@ export interface BlueprintGraphNode {
   artifact?: BlueprintOutputDefinition;
   output?: BlueprintOutputDefinition;
   producer?: ProducerConfig;
+  activation?: ProducerActivation;
 }
 
 export interface BlueprintGraphEdgeEndpoint {
@@ -77,7 +79,17 @@ export interface BlueprintGraphEdge {
   orderBy?: string;
   /** Original named `if:` condition reference when the edge uses one. */
   conditionName?: string;
-  /** Conditions that must be satisfied for this edge to be active */
+  /** Conditions inherited from enclosing producer/import activation. */
+  activationConditions?: EdgeConditionDefinition;
+  /** Conditions inherited from the imported endpoint referenced by this edge. */
+  endpointConditions?: EdgeConditionDefinition;
+  /** Conditions authored directly on this edge. */
+  authoredEdgeConditions?: EdgeConditionDefinition;
+  /**
+   * Compatibility: combined legacy view of all condition provenance.
+   * TODO(blueprint-condition-simplification Phase 10): remove new callers'
+   * dependency on this flattened field.
+   */
   conditions?: EdgeConditionDefinition;
 }
 
@@ -136,7 +148,8 @@ export function buildBlueprintGraph(root: BlueprintTreeNode): BlueprintGraph {
     namespaceDims,
     localDimsMap,
     nodes,
-    namespaceMembership
+    namespaceMembership,
+    root
   );
 
   const edges: BlueprintGraphEdge[] = [];
@@ -533,7 +546,9 @@ function collectGraphNodes(
   namespaceDims: Map<string, DimensionSymbol[]>,
   localDims: Map<BlueprintTreeNode, LocalNodeDims>,
   nodes: BlueprintGraphNode[],
-  namespaceMembership: Map<string, string>
+  namespaceMembership: Map<string, string>,
+  root: BlueprintTreeNode,
+  inheritedActivation?: ProducerActivation
 ): void {
   const namespaceSlots = collectNamespacePrefixDims(
     tree.namespacePath,
@@ -621,16 +636,43 @@ function collectGraphNodes(
       namespaceMembership,
       name: producer.name,
       producer,
+      activation: inheritedActivation,
     });
   }
 
-  for (const child of tree.children.values()) {
+  for (const [importName, child] of tree.children.entries()) {
+    const childImportConditions = resolveConditionDefinitionReferences(
+      child.importConditions,
+      tree,
+      namespaceDims,
+      localDims,
+      root
+    );
+    const childActivation = combineProducerActivation(
+      inheritedActivation,
+      childImportConditions
+        ? {
+            condition: childImportConditions,
+            inheritedFrom: [
+              {
+                namespacePath: child.namespacePath,
+                importName,
+                parentNamespacePath: tree.namespacePath,
+                sourcePath: child.sourcePath,
+                condition: childImportConditions,
+              },
+            ],
+          }
+        : undefined
+    );
     collectGraphNodes(
       child,
       namespaceDims,
       localDims,
       nodes,
-      namespaceMembership
+      namespaceMembership,
+      root,
+      childActivation
     );
   }
 }
@@ -669,6 +711,7 @@ function pushGraphNode(args: {
   outputDefinition?: BlueprintOutputDefinition;
   artifact?: BlueprintOutputDefinition;
   producer?: ProducerConfig;
+  activation?: ProducerActivation;
 }): void {
   const nodeKey = nodeGraphId(args.kind, args.tree.namespacePath, args.name);
   const namespaceQualified = qualifyDimensionSlots(nodeKey, args.namespaceSlots);
@@ -691,6 +734,7 @@ function pushGraphNode(args: {
     ...(args.outputDefinition ? { output: args.outputDefinition } : {}),
     ...(args.artifact ? { artifact: args.artifact } : {}),
     ...(args.producer ? { producer: args.producer } : {}),
+    ...(args.activation ? { activation: args.activation } : {}),
   });
 }
 
@@ -729,6 +773,12 @@ function collectGraphEdges(
       localDims,
       root
     );
+    const activationConditions =
+      tree.document.meta.kind === 'producer' ? undefined : inheritedConditions;
+    const conditions = combineEdgeConditions(
+      combineEdgeConditions(inheritedConditions, endpointConditions),
+      edgeConditions
+    );
     output.push({
       from: resolveEdgeEndpoint(
         edge.from,
@@ -742,10 +792,10 @@ function collectGraphEdges(
       groupBy: edge.groupBy,
       orderBy: edge.orderBy,
       conditionName: edge.if,
-      conditions: combineEdgeConditions(
-        combineEdgeConditions(inheritedConditions, endpointConditions),
-        edgeConditions
-      ),
+      ...(activationConditions ? { activationConditions } : {}),
+      ...(endpointConditions ? { endpointConditions } : {}),
+      ...(edgeConditions ? { authoredEdgeConditions: edgeConditions } : {}),
+      ...(conditions ? { conditions } : {}),
     });
   }
 
@@ -974,6 +1024,22 @@ function combineEdgeConditions(
     return left;
   }
   return [...normalizeConditionList(left), ...normalizeConditionList(right)];
+}
+
+function combineProducerActivation(
+  left?: ProducerActivation,
+  right?: ProducerActivation
+): ProducerActivation | undefined {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  return {
+    condition: combineEdgeConditions(left.condition, right.condition),
+    inheritedFrom: [...left.inheritedFrom, ...right.inheritedFrom],
+  };
 }
 
 function normalizeConditionList(

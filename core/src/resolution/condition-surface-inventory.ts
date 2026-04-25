@@ -40,6 +40,12 @@ export interface PropagatedEdgeConditionInventoryItem
   extends ConditionSurfaceInventoryItem {
   from: string;
   to: string;
+  provenance: Array<
+    'activation' | 'endpoint' | 'authored-edge' | 'legacy-combined'
+  >;
+  activationConditions?: EdgeConditionDefinition;
+  endpointConditions?: EdgeConditionDefinition;
+  authoredEdgeConditions?: EdgeConditionDefinition;
 }
 
 export interface ConditionalInputBindingInventoryItem
@@ -110,13 +116,22 @@ export function collectBlueprintConditionSurfaceInventory(args: {
     args.root
   );
   const propagatedEdgeConditions = args.canonical.edges
-    .filter((edge) => edge.conditions)
-    .map((edge) => ({
-      from: edge.from,
-      to: edge.to,
-      condition: edge.conditions!,
-      category: classifyCanonicalConditionTarget(edge.to, nodesById),
-    }));
+    .filter((edge) => edgeHasConditionSurface(edge))
+    .map((edge) => {
+      const activationConditions = edge.activationConditions;
+      const endpointConditions = edge.endpointConditions;
+      const authoredEdgeConditions = edge.authoredEdgeConditions;
+      return {
+        from: edge.from,
+        to: edge.to,
+        condition: preferredEdgeCondition(edge),
+        provenance: edgeConditionProvenance(edge),
+        ...(activationConditions ? { activationConditions } : {}),
+        ...(endpointConditions ? { endpointConditions } : {}),
+        ...(authoredEdgeConditions ? { authoredEdgeConditions } : {}),
+        category: classifyCanonicalEdgeCondition(edge, nodesById),
+      };
+    });
   const conditionalInputBindings = collectConditionalInputBindings(
     args.canonical,
     nodesById,
@@ -451,6 +466,85 @@ function classifyCanonicalConditionTarget(
   }
 
   return 'other';
+}
+
+function classifyCanonicalEdgeCondition(
+  edge: CanonicalBlueprint['edges'][number],
+  nodesById: Map<string, CanonicalBlueprint['nodes'][number]>
+): ConditionSurfaceCategory {
+  if (
+    (edge.activationConditions || edge.endpointConditions) &&
+    !edge.authoredEdgeConditions
+  ) {
+    return 'activation-like';
+  }
+  return classifyCanonicalConditionTarget(edge.to, nodesById);
+}
+
+function edgeHasConditionSurface(
+  edge: CanonicalBlueprint['edges'][number]
+): boolean {
+  return Boolean(
+    edge.activationConditions ||
+      edge.endpointConditions ||
+      edge.authoredEdgeConditions ||
+      edge.conditions
+  );
+}
+
+function preferredEdgeCondition(
+  edge: CanonicalBlueprint['edges'][number]
+): EdgeConditionDefinition {
+  const provenanceCondition = combineEdgeConditions(
+    combineEdgeConditions(edge.activationConditions, edge.endpointConditions),
+    edge.authoredEdgeConditions
+  );
+  if (provenanceCondition) {
+    return provenanceCondition;
+  }
+  if (!edge.conditions) {
+    throw new Error(
+      `Canonical edge ${edge.from} -> ${edge.to} was selected as conditional without a condition definition.`
+    );
+  }
+  return edge.conditions;
+}
+
+function edgeConditionProvenance(
+  edge: CanonicalBlueprint['edges'][number]
+): Array<'activation' | 'endpoint' | 'authored-edge' | 'legacy-combined'> {
+  const provenance: Array<
+    'activation' | 'endpoint' | 'authored-edge' | 'legacy-combined'
+  > = [];
+  if (edge.activationConditions) {
+    provenance.push('activation');
+  }
+  if (edge.endpointConditions) {
+    provenance.push('endpoint');
+  }
+  if (edge.authoredEdgeConditions) {
+    provenance.push('authored-edge');
+  }
+  if (provenance.length === 0 && edge.conditions) {
+    provenance.push('legacy-combined');
+  }
+  return provenance;
+}
+
+function combineEdgeConditions(
+  left?: EdgeConditionDefinition,
+  right?: EdgeConditionDefinition
+): EdgeConditionDefinition | undefined {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  return [
+    ...(Array.isArray(left) ? left : [left]),
+    ...(Array.isArray(right) ? right : [right]),
+  ];
 }
 
 function classifyInputNode(

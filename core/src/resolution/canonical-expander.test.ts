@@ -647,6 +647,12 @@ describe('expandBlueprintGraph', () => {
     );
     expect(conditionalEdge).toBeDefined();
     expect(conditionalEdge?.conditions).toBeDefined();
+    expect(conditionalEdge?.authoredEdgeConditions).toEqual({
+      when: 'Input:UseSpecialEffect',
+      is: true,
+    });
+    expect(conditionalEdge?.activationConditions).toBeUndefined();
+    expect(conditionalEdge?.endpointConditions).toBeUndefined();
     const condition = conditionalEdge?.conditions as {
       when: string;
       is: boolean;
@@ -2167,6 +2173,39 @@ describe('expandBlueprintGraph', () => {
     };
 
     const graph = buildBlueprintGraph(tree);
+    const graphProducer = graph.nodes.find(
+      (node) =>
+        node.type === 'Producer' &&
+        node.namespacePath.length === 1 &&
+        node.namespacePath[0] === 'TextPromptCompiler' &&
+        node.name === 'PromptCompiler'
+    );
+    expect(graphProducer?.activation).toEqual({
+      condition: { when: 'Input:Workflow', is: 'Text' },
+      inheritedFrom: [
+        {
+          namespacePath: ['TextPromptCompiler'],
+          importName: 'TextPromptCompiler',
+          parentNamespacePath: [],
+          sourcePath: '/test/prompt-compiler.yaml',
+          condition: { when: 'Input:Workflow', is: 'Text' },
+        },
+      ],
+    });
+
+    const childSceneIntentEdge = graph.edges.find(
+      (edge) =>
+        edge.from.nodeId === 'InputSource:TextPromptCompiler.SceneIntent' &&
+        edge.to.nodeId === 'Producer:TextPromptCompiler'
+    );
+    expect(childSceneIntentEdge?.activationConditions).toBeUndefined();
+    expect(childSceneIntentEdge?.endpointConditions).toBeUndefined();
+    expect(childSceneIntentEdge?.authoredEdgeConditions).toBeUndefined();
+    expect(childSceneIntentEdge?.conditions).toEqual({
+      when: 'Input:Workflow',
+      is: 'Text',
+    });
+
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
@@ -2176,12 +2215,35 @@ describe('expandBlueprintGraph', () => {
       inputSources
     );
     const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+    const canonicalProducer = expanded.nodes.find(
+      (node) =>
+        node.type === 'Producer' &&
+        node.namespacePath.length === 1 &&
+        node.namespacePath[0] === 'TextPromptCompiler' &&
+        node.name === 'PromptCompiler'
+    );
+    expect(canonicalProducer?.activation).toEqual({
+      condition: { when: 'Input:Workflow', is: 'Text' },
+      indices: {},
+      inheritedFrom: [
+        {
+          namespacePath: ['TextPromptCompiler'],
+          importName: 'TextPromptCompiler',
+          parentNamespacePath: [],
+          sourcePath: '/test/prompt-compiler.yaml',
+          condition: { when: 'Input:Workflow', is: 'Text' },
+        },
+      ],
+    });
 
     const sceneIntentEdge = expanded.edges.find(
       (edge) =>
         edge.from === 'Input:SceneIntent' &&
         edge.to === 'Producer:TextPromptCompiler'
     );
+    expect(sceneIntentEdge?.activationConditions).toBeUndefined();
+    expect(sceneIntentEdge?.endpointConditions).toBeUndefined();
+    expect(sceneIntentEdge?.authoredEdgeConditions).toBeUndefined();
     expect(sceneIntentEdge?.conditions).toEqual({
       when: 'Input:Workflow',
       is: 'Text',
@@ -2192,6 +2254,10 @@ describe('expandBlueprintGraph', () => {
         binding.outputId === 'Output:Prompt' &&
         binding.sourceId === 'Artifact:TextPromptCompiler.Prompt'
     );
+    expect(rootPromptBinding?.endpointConditions).toEqual({
+      when: 'Input:Workflow',
+      is: 'Text',
+    });
     expect(rootPromptBinding?.conditions).toEqual(
       expect.arrayContaining([{ when: 'Input:Workflow', is: 'Text' }])
     );
@@ -2283,18 +2349,20 @@ describe('expandBlueprintGraph', () => {
     expect(expanded.outputSources).not.toHaveProperty('Output:GeneratedVideo');
     expect(expanded.outputSourceBindings).toEqual(
       expect.arrayContaining([
-        {
+        expect.objectContaining({
           outputId: 'Output:GeneratedVideo',
           sourceId: 'Artifact:TextRoute.GeneratedVideo',
           conditions: { when: 'Input:Workflow', is: 'Text' },
+          authoredEdgeConditions: { when: 'Input:Workflow', is: 'Text' },
           indices: {},
-        },
-        {
+        }),
+        expect.objectContaining({
           outputId: 'Output:GeneratedVideo',
           sourceId: 'Artifact:ReferenceRoute.GeneratedVideo',
           conditions: { when: 'Input:Workflow', is: 'Reference' },
+          authoredEdgeConditions: { when: 'Input:Workflow', is: 'Reference' },
           indices: {},
-        },
+        }),
       ])
     );
   });

@@ -515,6 +515,20 @@ export interface BlueprintTreeNode {
   importConditions?: EdgeConditionDefinition;
 }
 
+export interface ProducerActivationImportProvenance {
+  namespacePath: string[];
+  importName: string;
+  parentNamespacePath: string[];
+  sourcePath: string;
+  condition: EdgeConditionDefinition;
+}
+
+export interface ProducerActivation {
+  condition?: EdgeConditionDefinition;
+  indices?: Record<string, number>;
+  inheritedFrom: ProducerActivationImportProvenance[];
+}
+
 /**
  * Configuration for blueprint expansion.
  */

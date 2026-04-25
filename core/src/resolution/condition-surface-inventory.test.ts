@@ -144,6 +144,11 @@ describe('collectBlueprintConditionSurfaceInventory', () => {
     expect(inventory.inputConditions.map((item) => item.category)).toEqual(
       expect.arrayContaining(['activation-like', 'optional-input', 'fan-in'])
     );
+    expect(
+      inventory.propagatedEdgeConditions.some((item) =>
+        item.provenance.includes('authored-edge')
+      )
+    ).toBe(true);
     expect(inventory.fanInMemberConditions).toHaveLength(1);
     expect(inventory.routeSelectedOutputBindings).toHaveLength(1);
     expect(inventory.categories['output-route']).toBe(1);
