@@ -5,6 +5,8 @@ import {
 } from '../resolution/reference-parser.js';
 import type { BlueprintGraph } from '../resolution/canonical-graph.js';
 import {
+  expandBlueprintResolutionContext,
+  normalizeBlueprintResolutionInputs,
   prepareBlueprintResolutionContext,
   type BlueprintResolutionContext,
   type ResolutionSchemaSource,
@@ -20,6 +22,11 @@ import {
   buildValidationResult,
   createError,
 } from './types.js';
+import {
+  validateAuthoredConditionSemantics,
+  validatePreparedGraphConditionSemantics,
+  validateResolvedStructureConditions,
+} from './resolved-structure-validator.js';
 
 export interface BlueprintValidationPreparationArgs {
   root: BlueprintTreeNode;
@@ -36,6 +43,26 @@ export async function validatePreparedBlueprintTree(
   args: BlueprintValidationPreparationArgs
 ): Promise<PreparedBlueprintValidationResult> {
   try {
+    if (args.options?.strictResolvedConditions) {
+      const strictAuthoredPreflight = validateAuthoredConditionSemantics(
+        args.root,
+        { strict: true }
+      );
+      if (strictAuthoredPreflight.length > 0) {
+        const baseValidation = validateBlueprintTree(args.root, {
+          errorsOnly: args.options?.errorsOnly,
+        });
+        let issues = [...baseValidation.issues, ...strictAuthoredPreflight];
+        if (args.options.skipCodes) {
+          const skippedCodes = new Set(args.options.skipCodes);
+          issues = issues.filter((issue) => !skippedCodes.has(issue.code));
+        }
+        return {
+          validation: buildValidationResult(issues),
+        };
+      }
+    }
+
     const context = await prepareBlueprintResolutionContext({
       root: args.root,
       schemaSource: args.schemaSource,
@@ -48,6 +75,33 @@ export async function validatePreparedBlueprintTree(
       ...validatePreparedGraphReferences(context.root, context.graph),
       ...validateViewerProjection(context.root),
     ];
+
+    if (args.options?.strictResolvedConditions) {
+      const strictGraphIssues = validatePreparedGraphConditionSemantics(
+        context.root,
+        context.graph,
+        { strict: true }
+      );
+      issues.push(...strictGraphIssues);
+
+      if (strictGraphIssues.length === 0) {
+        const canonicalInputs = normalizeBlueprintResolutionInputs(
+          context,
+          args.options.resolvedInputValues ?? {}
+        );
+        const expanded = expandBlueprintResolutionContext(
+          context,
+          canonicalInputs
+        );
+        issues.push(
+          ...validateResolvedStructureConditions(
+            context.root,
+            expanded.canonical,
+            { strict: true }
+          )
+        );
+      }
+    }
 
     if (args.options?.skipCodes) {
       const skippedCodes = new Set(args.options.skipCodes);
@@ -137,7 +191,10 @@ function validatePreparedGraphReferences(
       }
 
       if (
-        shouldValidatePreparedProducerOutputReference(edge.from, producerNames) &&
+        shouldValidatePreparedProducerOutputReference(
+          edge.from,
+          producerNames
+        ) &&
         !validNodeIds.has(graphEdge.from.nodeId)
       ) {
         issues.push(
@@ -248,7 +305,10 @@ function shouldValidatePreparedProducerOutputReference(
   reference: string,
   producerNames: Set<string>
 ): boolean {
-  if (isLocalReference(reference) || !targetsProducer(reference, producerNames)) {
+  if (
+    isLocalReference(reference) ||
+    !targetsProducer(reference, producerNames)
+  ) {
     return false;
   }
 
@@ -265,14 +325,14 @@ function referenceResolvesToPreparedNode(
     return true;
   }
 
-  const normalizedReference = stripLoopDimensionsFromFinalSegment(
-    canonicalReference
-  );
+  const normalizedReference =
+    stripLoopDimensionsFromFinalSegment(canonicalReference);
   return (
-    normalizedReference !== canonicalReference &&
-    validNodeIds.has(normalizedReference)
-  ) || Array.from(validNodeIds).some((nodeId) =>
-    graphReferencesAreCompatible(canonicalReference, nodeId)
+    (normalizedReference !== canonicalReference &&
+      validNodeIds.has(normalizedReference)) ||
+    Array.from(validNodeIds).some((nodeId) =>
+      graphReferencesAreCompatible(canonicalReference, nodeId)
+    )
   );
 }
 
@@ -316,28 +376,32 @@ function graphReferencesAreCompatible(
     if (requestedSegment.name !== preparedSegment.name) {
       return false;
     }
-    if (requestedSegment.dimensions.length !== preparedSegment.dimensions.length) {
+    if (
+      requestedSegment.dimensions.length !== preparedSegment.dimensions.length
+    ) {
       return false;
     }
 
-    return requestedSegment.dimensions.every((requestedDimension, dimensionIndex) => {
-      const preparedDimension = preparedSegment.dimensions[dimensionIndex]!;
-      const requestedSelector = parseDimensionSelector(requestedDimension);
-      const preparedSelector = parseDimensionSelector(preparedDimension);
+    return requestedSegment.dimensions.every(
+      (requestedDimension, dimensionIndex) => {
+        const preparedDimension = preparedSegment.dimensions[dimensionIndex]!;
+        const requestedSelector = parseDimensionSelector(requestedDimension);
+        const preparedSelector = parseDimensionSelector(preparedDimension);
 
-      if (preparedSelector.kind === 'const') {
-        return (
-          requestedSelector.kind === 'const' &&
-          requestedSelector.value === preparedSelector.value
-        );
+        if (preparedSelector.kind === 'const') {
+          return (
+            requestedSelector.kind === 'const' &&
+            requestedSelector.value === preparedSelector.value
+          );
+        }
+
+        if (requestedSelector.kind === 'const') {
+          return true;
+        }
+
+        return requestedDimension === preparedDimension;
       }
-
-      if (requestedSelector.kind === 'const') {
-        return true;
-      }
-
-      return requestedDimension === preparedDimension;
-    });
+    );
   });
 }
 

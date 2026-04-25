@@ -164,6 +164,160 @@ describe('validatePreparedBlueprintTree', () => {
       )
     ).toBe(false);
   });
+
+  it('keeps resolved condition semantics compatibility-safe by default', async () => {
+    const blueprintPath = await createStrictResolvedConditionFixture({
+      promptRequired: true,
+      connections: [
+        '  - from: PromptA\n    to: TextProducer.Prompt\n    if: useA',
+        '  - from: TextProducer.Text\n    to: Result',
+      ],
+    });
+    const { root } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+      options: { errorsOnly: true },
+    });
+
+    expect(result.validation.valid).toBe(true);
+  });
+
+  it('strict resolved condition validation rejects conditional required scalar bindings without producer activation', async () => {
+    const blueprintPath = await createStrictResolvedConditionFixture({
+      promptRequired: true,
+      connections: [
+        '  - from: PromptA\n    to: TextProducer.Prompt\n    if: useA',
+        '  - from: TextProducer.Text\n    to: Result',
+      ],
+    });
+    const { root } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+      options: {
+        errorsOnly: true,
+        strictResolvedConditions: true,
+      },
+    });
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.validation.errors).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.MISSING_PRODUCER_ACTIVATION_FOR_CONDITIONAL_INPUTS,
+        message: expect.stringContaining('TextProducer.Prompt'),
+      })
+    );
+    expect(result.validation.errors).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.EDGE_CONDITION_TARGET_NOT_OPTIONAL_OR_FANIN,
+        message: expect.stringContaining('TextProducer.Prompt'),
+      })
+    );
+  });
+
+  it('strict resolved condition validation rejects duplicate conditional alternatives for a required scalar input', async () => {
+    const blueprintPath = await createStrictResolvedConditionFixture({
+      promptRequired: true,
+      connections: [
+        '  - from: PromptA\n    to: TextProducer.Prompt\n    if: useA',
+        '  - from: PromptB\n    to: TextProducer.Prompt\n    if: useB',
+        '  - from: TextProducer.Text\n    to: Result',
+      ],
+    });
+    const { root } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+      options: {
+        errorsOnly: true,
+        strictResolvedConditions: true,
+      },
+    });
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.validation.errors).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.REQUIRED_INPUT_MULTIPLE_CONDITIONAL_SOURCES,
+        message: expect.stringContaining('TextProducer.Prompt'),
+      })
+    );
+  });
+
+  it('strict resolved condition validation allows conditional optional scalar bindings', async () => {
+    const blueprintPath = await createStrictResolvedConditionFixture({
+      promptRequired: false,
+      connections: [
+        '  - from: PromptA\n    to: TextProducer.Prompt\n    if: useA',
+        '  - from: TextProducer.Text\n    to: Result',
+      ],
+    });
+    const { root } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+      options: {
+        errorsOnly: true,
+        strictResolvedConditions: true,
+      },
+    });
+
+    expect(result.validation.errors).not.toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.EDGE_CONDITION_TARGET_NOT_OPTIONAL_OR_FANIN,
+      })
+    );
+    expect(result.validation.errors).not.toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.REQUIRED_INPUT_CONDITION_UNSUPPORTED,
+      })
+    );
+  });
+
+  it('strict resolved condition validation rejects redundant required-input conditions even when activation exists', async () => {
+    const blueprintPath = await createStrictResolvedConditionFixture({
+      importIf: 'useA',
+      promptRequired: true,
+      connections: [
+        '  - from: PromptA\n    to: TextProducer.Prompt\n    if: useA',
+        '  - from: TextProducer.Text\n    to: Result',
+      ],
+    });
+    const { root } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot: CATALOG_ROOT,
+    });
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+      options: {
+        errorsOnly: true,
+        strictResolvedConditions: true,
+      },
+    });
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.validation.errors).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.REQUIRED_INPUT_CONDITION_UNSUPPORTED,
+        suggestion: expect.stringContaining(
+          'duplicates the producer activation'
+        ),
+      })
+    );
+  });
 });
 
 async function createPreparedValidationFixture(args: {
@@ -174,9 +328,13 @@ async function createPreparedValidationFixture(args: {
   tempDirs.push(tempDir);
 
   const documentaryDir = resolve(tempDir, 'documentary');
-  await cp(resolve(TEST_FIXTURES_ROOT, '_shared', 'documentary'), documentaryDir, {
-    recursive: true,
-  });
+  await cp(
+    resolve(TEST_FIXTURES_ROOT, '_shared', 'documentary'),
+    documentaryDir,
+    {
+      recursive: true,
+    }
+  );
 
   let rootBlueprint = await readFile(CONDITION_BLUEPRINT_PATH, 'utf8');
   rootBlueprint = rootBlueprint.replace(
@@ -195,7 +353,11 @@ async function createPreparedValidationFixture(args: {
     );
   }
 
-  await writeFile(resolve(tempDir, 'condition-example.yaml'), rootBlueprint, 'utf8');
+  await writeFile(
+    resolve(tempDir, 'condition-example.yaml'),
+    rootBlueprint,
+    'utf8'
+  );
   await writeFile(
     resolve(documentaryDir, 'documentary.yaml'),
     documentaryBlueprint,
@@ -307,13 +469,90 @@ outputs:
   );
 
   await writeFile(resolve(tempDir, 'root.yaml'), rootBlueprint, 'utf8');
-  await writeFile(resolve(tempDir, 'source', 'source.yaml'), sourceProducer, 'utf8');
+  await writeFile(
+    resolve(tempDir, 'source', 'source.yaml'),
+    sourceProducer,
+    'utf8'
+  );
   await writeFile(
     resolve(tempDir, 'source', 'source-output.json'),
     sourceSchema,
     'utf8'
   );
-  await writeFile(resolve(tempDir, 'target', 'target.yaml'), targetProducer, 'utf8');
+  await writeFile(
+    resolve(tempDir, 'target', 'target.yaml'),
+    targetProducer,
+    'utf8'
+  );
+
+  return resolve(tempDir, 'root.yaml');
+}
+
+async function createStrictResolvedConditionFixture(args: {
+  promptRequired: boolean;
+  connections: string[];
+  importIf?: string;
+}): Promise<string> {
+  const tempDir = await mkdtemp(join(tmpdir(), 'renku-strict-conditions-'));
+  tempDirs.push(tempDir);
+  await mkdir(resolve(tempDir, 'text'), { recursive: true });
+
+  const importCondition = args.importIf ? `\n    if: ${args.importIf}` : '';
+  const rootBlueprint = `meta:
+  name: Strict Resolved Conditions Fixture
+  id: StrictResolvedConditionsFixture
+  version: 0.1.0
+
+inputs:
+  - name: Mode
+    type: string
+    required: true
+  - name: PromptA
+    type: string
+    required: true
+  - name: PromptB
+    type: string
+    required: true
+
+outputs:
+  - name: Result
+    type: string
+    required: true
+
+conditions:
+  useA:
+    when: Mode
+    is: A
+  useB:
+    when: Mode
+    is: B
+
+imports:
+  - name: TextProducer
+    path: ./text/text.yaml${importCondition}
+
+connections:
+${args.connections.join('\n')}
+`;
+
+  const textProducer = `meta:
+  name: Text Producer
+  id: TextProducer
+  kind: producer
+  version: 0.1.0
+
+inputs:
+  - name: Prompt
+    type: string
+    required: ${args.promptRequired ? 'true' : 'false'}
+
+outputs:
+  - name: Text
+    type: string
+`;
+
+  await writeFile(resolve(tempDir, 'root.yaml'), rootBlueprint, 'utf8');
+  await writeFile(resolve(tempDir, 'text', 'text.yaml'), textProducer, 'utf8');
 
   return resolve(tempDir, 'root.yaml');
 }

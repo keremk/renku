@@ -60,6 +60,19 @@ export interface ValidatorOptions {
   errorsOnly?: boolean;
   /** Skip specific error codes */
   skipCodes?: string[];
+  /**
+   * Opt into the new resolved-structure condition semantics.
+   *
+   * This is intentionally false by default while existing catalog blueprints
+   * still carry legacy required-input edge conditions.
+   */
+  strictResolvedConditions?: boolean;
+  /**
+   * Input values used to expand the prepared graph before strict resolved
+   * condition validation. Required for strict validation of blueprints whose
+   * graph dimensions depend on inputs.
+   */
+  resolvedInputValues?: Record<string, unknown>;
 }
 
 /**
@@ -102,6 +115,10 @@ export const ValidationErrorCode = {
   PUBLISHED_OUTPUT_USED_AS_INTERNAL_SOURCE: 'V053',
   REQUIRED_INPUT_CONDITION_INCOHERENT: 'V054',
   SEMANTIC_VALIDATION_RULE_FAILED: 'V055',
+  REQUIRED_INPUT_CONDITION_UNSUPPORTED: 'V056',
+  REQUIRED_INPUT_MULTIPLE_CONDITIONAL_SOURCES: 'V057',
+  EDGE_CONDITION_TARGET_NOT_OPTIONAL_OR_FANIN: 'V058',
+  MISSING_PRODUCER_ACTIVATION_FOR_CONDITIONAL_INPUTS: 'V059',
 
   // Type validation errors (V060-V062)
   INVALID_INPUT_TYPE: 'V060',
