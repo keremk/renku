@@ -3,7 +3,11 @@ import {
   isCanonicalArtifactId,
   isCanonicalInputId,
 } from '../canonical-ids.js';
-import { evaluateInputConditions } from '../condition-evaluator.js';
+import {
+  evaluateInputConditions,
+  evaluateJobActivation,
+  isConditionEvaluationUnknown,
+} from '../condition-evaluator.js';
 import type { EventLog } from '../event-log.js';
 import { deriveArtifactHash } from '../event-log-state.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
@@ -188,6 +192,7 @@ export function createPlanner(options: PlannerOptions = {}) {
             initialDirty,
             blueprint,
             metadata,
+            conditionallyInactiveJobs,
             collectExplanation,
             args.resolvedConditionArtifacts,
             resolvedConditionInputs,
@@ -240,6 +245,7 @@ export function createPlanner(options: PlannerOptions = {}) {
           initialDirty,
           blueprint,
           metadata,
+          conditionallyInactiveJobs,
           collectExplanation,
           args.resolvedConditionArtifacts,
           resolvedConditionInputs,
@@ -276,6 +282,10 @@ export function createPlanner(options: PlannerOptions = {}) {
         forceTargetJobIds,
         blockedProducerJobIds: args.blockedProducerJobIds,
       });
+
+      for (const jobId of conditionallyInactiveJobs) {
+        jobsToInclude.delete(jobId);
+      }
 
       let prunedUnrunnableJobs: PrunedUnrunnableJob[] = [];
       if ((args.blockedProducerJobIds?.length ?? 0) > 0) {
@@ -498,6 +508,18 @@ function deriveConditionallyInactiveJobs(
   };
 
   for (const [jobId, info] of metadata) {
+    const activation = info.node.context?.activation;
+    if (activation?.condition) {
+      const activationResult = evaluateJobActivation(
+        activation,
+        conditionContext
+      );
+      if (activationResult.state === 'inactive') {
+        inactive.add(jobId);
+      }
+      continue;
+    }
+
     const inputConditions = info.node.context?.inputConditions;
     if (!inputConditions || Object.keys(inputConditions).length === 0) {
       continue;
@@ -754,6 +776,16 @@ export function collectRequiredConditionArtifactIds(
 ): Set<string> {
   const ids = new Set<string>();
   for (const node of blueprint.nodes) {
+    const activation = node.context?.activation;
+    if (activation?.condition) {
+      for (const id of extractConditionArtifactIds(
+        activation.condition,
+        activation.indices
+      )) {
+        ids.add(id);
+      }
+    }
+
     const inputConditions = node.context?.inputConditions;
     if (!inputConditions) {
       continue;
@@ -777,6 +809,16 @@ function collectRequiredConditionArtifactIdsFromLayers(
   const ids = new Set<string>();
   for (const layer of layers) {
     for (const job of layer) {
+      const activation = job.context?.activation;
+      if (activation?.condition) {
+        for (const id of extractConditionArtifactIds(
+          activation.condition,
+          activation.indices
+        )) {
+          ids.add(id);
+        }
+      }
+
       const inputConditions = job.context?.inputConditions;
       if (!inputConditions) {
         continue;
@@ -881,6 +923,7 @@ function propagateDirtyJobs(
   initialDirty: Set<string>,
   blueprint: ProducerGraph,
   metadata: Map<string, GraphMetadata>,
+  conditionallyInactiveJobs: Set<string>,
   collectReasons: boolean,
   resolvedConditionArtifacts: Record<string, unknown> | undefined,
   resolvedConditionInputs: Record<string, unknown> | undefined,
@@ -908,6 +951,9 @@ function propagateDirtyJobs(
       continue;
     }
     for (const next of neighbours) {
+      if (conditionallyInactiveJobs.has(next)) {
+        continue;
+      }
       if (
         !hasActiveArtifactDependency(
           jobId,
@@ -1640,13 +1686,6 @@ function deepEqualValue(a: unknown, b: unknown): boolean {
     return false;
   }
   return keysA.every((key) => deepEqualValue(recordA[key], recordB[key]));
-}
-
-function isConditionEvaluationUnknown(reason: string | undefined): boolean {
-  if (!reason) {
-    return false;
-  }
-  return reason.includes('Artifact not found') || reason.includes('Input not found');
 }
 
 async function readLatestInputs(

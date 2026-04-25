@@ -168,6 +168,66 @@ function buildConditionArtifactGraph(): ProducerGraph {
   return { nodes, edges };
 }
 
+function buildActivationConditionGraph(): ProducerGraph {
+  const nodes: ProducerGraphNode[] = [
+    {
+      jobId: 'Producer:DirectorProducer',
+      producer: 'DirectorProducer',
+      inputs: ['Input:Prompt'],
+      produces: [
+        'Artifact:DirectorProducer.Flags',
+        'Artifact:DirectorProducer.Flags.HasTransition',
+      ],
+      provider: 'openai',
+      providerModel: 'openai/GPT-5',
+      rateKey: 'llm:director',
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'DirectorProducer',
+        inputs: ['Input:Prompt'],
+        produces: [
+          'Artifact:DirectorProducer.Flags',
+          'Artifact:DirectorProducer.Flags.HasTransition',
+        ],
+      },
+    },
+    {
+      jobId: 'Producer:TransitionVideoProducer',
+      producer: 'TransitionVideoProducer',
+      inputs: ['Artifact:DirectorProducer.Flags'],
+      produces: ['Artifact:TransitionVideoProducer.GeneratedVideo'],
+      provider: 'fal-ai',
+      providerModel: 'kling-video/v2.5',
+      rateKey: 'video:kling',
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'TransitionVideoProducer',
+        inputs: ['Artifact:DirectorProducer.Flags'],
+        produces: ['Artifact:TransitionVideoProducer.GeneratedVideo'],
+        activation: {
+          condition: {
+            when: 'Artifact:DirectorProducer.Flags.HasTransition',
+            is: true,
+          },
+          indices: {},
+          inheritedFrom: [],
+        },
+      },
+    },
+  ];
+
+  const edges: ProducerGraphEdge[] = [
+    {
+      from: 'Producer:DirectorProducer',
+      to: 'Producer:TransitionVideoProducer',
+    },
+  ];
+
+  return { nodes, edges };
+}
+
 async function loadBuildState(
   ctx: ReturnType<typeof memoryContext>
 ): Promise<BuildState> {
@@ -316,6 +376,80 @@ describe('planner', () => {
 
     expect(plan.layers.length).toBeGreaterThan(0);
     assertTopological(plan, graph);
+  });
+
+  it('pre-prunes jobs whose activation is known false at planning time', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo-activation-known-false');
+    const eventLog = createEventLog(ctx);
+    const graph = buildActivationConditionGraph();
+    const planner = createPlanner();
+    const buildState = await loadBuildState(ctx);
+
+    const { plan } = await planner.computePlan({
+      movieId: 'demo-activation-known-false',
+      buildState,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0001',
+      pendingEdits: [],
+      resolvedConditionArtifacts: {
+        'Artifact:DirectorProducer.Flags': {
+          HasTransition: false,
+        },
+      },
+    });
+
+    const scheduledJobIds = plan.layers.flat().map((job) => job.jobId);
+    expect(scheduledJobIds).toContain('Producer:DirectorProducer');
+    expect(scheduledJobIds).not.toContain(
+      'Producer:TransitionVideoProducer'
+    );
+  });
+
+  it('keeps jobs activation-gated when activation depends on an artifact produced in the same run', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo-activation-generated');
+    const eventLog = createEventLog(ctx);
+    const graph = buildActivationConditionGraph();
+    const planner = createPlanner();
+    const buildState = await loadBuildState(ctx);
+
+    const { plan } = await planner.computePlan({
+      movieId: 'demo-activation-generated',
+      buildState,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0001',
+      pendingEdits: [],
+    });
+
+    const scheduledJobIds = plan.layers.flat().map((job) => job.jobId);
+    expect(scheduledJobIds).toContain('Producer:DirectorProducer');
+    expect(scheduledJobIds).toContain('Producer:TransitionVideoProducer');
+    assertTopological(plan, graph);
+  });
+
+  it('does not require later unscheduled activation artifacts for up-to-layer planning', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo-activation-up-to-layer');
+    const eventLog = createEventLog(ctx);
+    const graph = buildActivationConditionGraph();
+    const planner = createPlanner();
+    const buildState = await loadBuildState(ctx);
+
+    const { plan } = await planner.computePlan({
+      movieId: 'demo-activation-up-to-layer',
+      buildState,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0001',
+      pendingEdits: [],
+      upToLayer: 0,
+    });
+
+    const scheduledJobIds = plan.layers.flat().map((job) => job.jobId);
+    expect(scheduledJobIds).toEqual(['Producer:DirectorProducer']);
   });
 
   it('returns empty plan when inputs unchanged', async () => {

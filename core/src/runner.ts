@@ -26,6 +26,7 @@ import {
   type EdgeConditionGroup,
 } from './types.js';
 import {
+  evaluateJobActivation,
   evaluateInputConditions,
   type ConditionEvaluationContext,
 } from './condition-evaluator.js';
@@ -296,6 +297,69 @@ async function executeJob(
   let conditionFilteringDiagnostics: Record<string, unknown> | undefined;
 
   try {
+    const resolvedInputsForConditions =
+      (job.context?.extras?.resolvedInputs as Record<string, unknown> | undefined) ??
+      {};
+    const activationArtifactIds = collectActivationConditionArtifactIds(job);
+    const activationArtifacts =
+      activationArtifactIds.length > 0
+        ? await resolveArtifactsFromEventLog({
+            artifactIds: activationArtifactIds,
+            eventLog,
+            storage,
+            movieId,
+          })
+        : {};
+    const activationResult = evaluateJobActivation(job.context?.activation, {
+      resolvedArtifacts: activationArtifacts,
+      resolvedInputs: resolvedInputsForConditions,
+    });
+
+    if (activationResult.state === 'unknown') {
+      throw createRuntimeError(
+        RuntimeErrorCode.CONDITION_EVALUATION_ERROR,
+        `Activation condition for job ${job.jobId} could not be evaluated: ${activationResult.result.reason ?? 'condition value is unknown'}.`,
+        {
+          context: `jobId=${job.jobId}`,
+          suggestion:
+            'Ensure activation condition inputs are present before this scheduled job executes.',
+        }
+      );
+    }
+
+    if (activationResult.state === 'inactive') {
+      const completedAt = clock.now();
+      logger.info?.('runner.job.skipped', {
+        movieId,
+        revision,
+        jobId: job.jobId,
+        producer: job.producer,
+        layerIndex,
+        reason: 'activation_condition_not_met',
+        conditionResult: activationResult.result,
+      });
+      notifications?.publish({
+        type: 'warning',
+        message: `Job ${job.jobId} [${job.producer}] skipped (activation condition not met).`,
+        timestamp: completedAt,
+      });
+
+      return {
+        jobId: job.jobId,
+        producer: job.producer,
+        status: 'skipped',
+        artifacts: [],
+        diagnostics: {
+          reason: 'activation_condition_not_met',
+          activation: activationResult.result,
+        },
+        layerIndex,
+        attempt,
+        startedAt,
+        completedAt,
+      };
+    }
+
     // Collect all required artifact IDs for this job
     const requiredArtifactIds = collectResolvedArtifactIds(job);
 
@@ -381,12 +445,9 @@ async function executeJob(
       job.context?.conditionalInputBindings &&
       Object.keys(job.context.conditionalInputBindings).length > 0;
     if (hasInputConditions || hasConditionalInputBindings) {
-      const resolvedInputs =
-        (job.context?.extras?.resolvedInputs as Record<string, unknown> | undefined) ??
-        {};
       const conditionContext: ConditionEvaluationContext = {
         resolvedArtifacts,
-        resolvedInputs,
+        resolvedInputs: resolvedInputsForConditions,
       };
       const conditionalBindingConditions = collectConditionalBindingConditions(job);
       const conditionResults = evaluateInputConditions(
@@ -396,19 +457,14 @@ async function executeJob(
         },
         conditionContext
       );
-      conditionFilteringDiagnostics = {
-        plannedInputs: [...job.inputs],
-        conditionalInputs: Object.keys(inputConditions ?? {}),
-        conditionResults: Object.fromEntries(
-          Array.from(conditionResults.entries()).map(([inputId, result]) => [
-            inputId,
-            result,
-          ])
-        ),
-      };
 
       // Determine which inputs are conditional
-      const conditionalInputIds = new Set(Object.keys(inputConditions ?? {}));
+      const protectedScalarInputIds = collectProtectedScalarInputIds(job);
+      const conditionalInputIds = new Set(
+        Object.keys(inputConditions ?? {}).filter(
+          (inputId) => !protectedScalarInputIds.has(inputId)
+        )
+      );
       const filteringConditionalInputIds = new Set([
         ...conditionalInputIds,
         ...Object.keys(conditionalBindingConditions),
@@ -422,6 +478,17 @@ async function executeJob(
         Object.keys(conditionalBindingConditions).some(
           (inputId) => conditionResults.get(inputId)?.satisfied === true
         );
+
+      conditionFilteringDiagnostics = {
+        plannedInputs: [...job.inputs],
+        conditionalInputs: Array.from(conditionalInputIds),
+        conditionResults: Object.fromEntries(
+          Array.from(conditionResults.entries()).map(([inputId, result]) => [
+            inputId,
+            result,
+          ])
+        ),
+      };
 
       // Check if there are unconditional artifact inputs that would provide data
       // This includes direct artifact inputs and fanIn members without conditions
@@ -443,6 +510,7 @@ async function executeJob(
       // If there are conditional inputs but none are satisfied, skip the job
       // UNLESS there are unconditional artifact inputs or fanIn members that provide data
       if (
+        !job.context?.activation?.condition &&
         !anySatisfied &&
         !anyCandidateSatisfied &&
         !hasUnconditionalArtifactInputs &&
@@ -495,7 +563,7 @@ async function executeJob(
       conditionFilteringDiagnostics = {
         ...conditionFilteringDiagnostics,
         executedInputs: [...job.inputs],
-        filteredInputs: Object.keys(inputConditions ?? {}).filter(
+        filteredInputs: Array.from(conditionalInputIds).filter(
           (inputId) => !satisfiedConditionalIds.has(inputId)
         ),
       };
@@ -769,9 +837,12 @@ export function accumulateArtifacts(
 
 function serializeError(error: unknown): SerializedError {
   if (error instanceof Error) {
+    const record = _isRecord(error) ? error : undefined;
+    const code = readStringValue(record, 'code');
     return {
       name: error.name,
       message: error.message,
+      ...(code ? { code } : {}),
       stack: error.stack,
     };
   }
@@ -1018,6 +1089,14 @@ function collectConditionalBindingConditions(
   return conditions;
 }
 
+function collectProtectedScalarInputIds(job: JobDescriptor): Set<string> {
+  if (!job.context?.activation?.condition) {
+    return new Set();
+  }
+
+  return new Set(Object.values(job.context.inputBindings ?? {}));
+}
+
 /**
  * Merges resolved artifact data into the job context.
  * Preserves existing resolvedInputs and adds newly resolved artifacts.
@@ -1162,7 +1241,18 @@ function collectResolvedArtifactIds(job: JobDescriptor): string[] {
       }
     }
   }
+  for (const id of collectActivationConditionArtifactIds(job)) {
+    ids.add(id);
+  }
   return Array.from(ids);
+}
+
+function collectActivationConditionArtifactIds(job: JobDescriptor): string[] {
+  const activation = job.context?.activation;
+  if (!activation?.condition) {
+    return [];
+  }
+  return extractConditionArtifactIds(activation.condition, activation.indices);
 }
 
 /**

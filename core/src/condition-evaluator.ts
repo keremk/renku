@@ -11,6 +11,7 @@ import type {
   EdgeConditionGroup,
   ConditionOperator,
   InputConditionInfo,
+  ProducerJobActivation,
 } from './types.js';
 import {
   formatCanonicalArtifactId,
@@ -26,6 +27,20 @@ export interface ConditionEvaluationResult {
   satisfied: boolean;
   reason?: string;
 }
+
+export type JobActivationEvaluation =
+  | {
+      state: 'active';
+      result?: ConditionEvaluationResult;
+    }
+  | {
+      state: 'inactive';
+      result: ConditionEvaluationResult;
+    }
+  | {
+      state: 'unknown';
+      result: ConditionEvaluationResult;
+    };
 
 /**
  * Context for condition evaluation.
@@ -61,6 +76,40 @@ export function evaluateInputConditions(
   }
 
   return results;
+}
+
+export function evaluateJobActivation(
+  activation: ProducerJobActivation | undefined,
+  context: ConditionEvaluationContext,
+): JobActivationEvaluation {
+  if (!activation?.condition) {
+    return { state: 'active' };
+  }
+
+  const result = evaluateCondition(
+    activation.condition,
+    activation.indices,
+    context,
+  );
+
+  if (result.satisfied) {
+    return { state: 'active', result };
+  }
+
+  if (isConditionEvaluationUnknown(result.reason)) {
+    return { state: 'unknown', result };
+  }
+
+  return { state: 'inactive', result };
+}
+
+export function isConditionEvaluationUnknown(
+  reason: string | undefined,
+): boolean {
+  if (!reason) {
+    return false;
+  }
+  return reason.includes('Artifact not found') || reason.includes('Input not found');
 }
 
 /**

@@ -5,6 +5,7 @@ import { createRunner } from './runner.js';
 import { createEventLog } from './event-log.js';
 import { createStorageContext, initializeMovieStorage } from './storage.js';
 import { formatBlobFileName } from './blob-utils.js';
+import { RuntimeErrorCode } from './errors/index.js';
 import type {
   ArtifactEvent,
   BuildState,
@@ -704,6 +705,200 @@ describe('createRunner', () => {
     // Job SHOULD be skipped because all fanIn members are conditional and unsatisfied
     expect(jobWasExecuted).toBe(false);
     expect(result.status).toBe('skipped');
+  });
+
+  it('skips a whole job when its activation condition is false', async () => {
+    const storage = createStorageContext({ kind: 'memory' });
+    await initializeMovieStorage(storage, 'movie-activation-false');
+    const eventLog = createEventLog(storage);
+
+    let jobWasExecuted = false;
+    const runner = createRunner({
+      produce: async (request) => {
+        jobWasExecuted = true;
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artifacts: [],
+        };
+      },
+    });
+
+    const job: JobDescriptor = {
+      jobId: 'job-activation-false',
+      producer: 'ActivationGatedProducer',
+      inputs: ['Input:ActivationGatedProducer.Prompt'],
+      produces: ['Artifact:ActivationGatedProducer.Output'],
+      provider: 'test',
+      providerModel: 'test/model',
+      rateKey: 'test:model',
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'ActivationGatedProducer',
+        producerId: 'Producer:ActivationGatedProducer',
+        inputs: ['Input:ActivationGatedProducer.Prompt'],
+        produces: ['Artifact:ActivationGatedProducer.Output'],
+        inputBindings: {
+          Prompt: 'Input:ActivationGatedProducer.Prompt',
+        },
+        activation: {
+          condition: { when: 'Input:RunActivationJob', is: true },
+          indices: {},
+          inheritedFrom: [],
+        },
+        extras: {
+          resolvedInputs: {
+            'Input:RunActivationJob': false,
+          },
+        },
+      },
+    };
+
+    const result = await runner.executeJob(job, {
+      movieId: 'movie-activation-false',
+      storage,
+      eventLog,
+      buildState: baseBuildState,
+      layerIndex: 0,
+      attempt: 1,
+      revision: 'rev-0002',
+    });
+
+    expect(jobWasExecuted).toBe(false);
+    expect(result.status).toBe('skipped');
+    expect(result.diagnostics?.reason).toBe('activation_condition_not_met');
+  });
+
+  it('fails fast when scheduled job activation is still unknown at execution time', async () => {
+    const storage = createStorageContext({ kind: 'memory' });
+    await initializeMovieStorage(storage, 'movie-activation-unknown');
+    const eventLog = createEventLog(storage);
+    let jobWasExecuted = false;
+    const runner = createRunner({
+      produce: async (request) => {
+        jobWasExecuted = true;
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artifacts: [],
+        };
+      },
+    });
+
+    const job: JobDescriptor = {
+      jobId: 'job-activation-unknown',
+      producer: 'ActivationGatedProducer',
+      inputs: [],
+      produces: ['Artifact:ActivationGatedProducer.Output'],
+      provider: 'test',
+      providerModel: 'test/model',
+      rateKey: 'test:model',
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'ActivationGatedProducer',
+        producerId: 'Producer:ActivationGatedProducer',
+        inputs: [],
+        produces: ['Artifact:ActivationGatedProducer.Output'],
+        activation: {
+          condition: {
+            when: 'Artifact:DirectorProducer.Flags.HasTransition',
+            is: true,
+          },
+          indices: {},
+          inheritedFrom: [],
+        },
+      },
+    };
+
+    const result = await runner.executeJob(job, {
+      movieId: 'movie-activation-unknown',
+      storage,
+      eventLog,
+      buildState: baseBuildState,
+      layerIndex: 0,
+      attempt: 1,
+      revision: 'rev-0002',
+    });
+
+    expect(jobWasExecuted).toBe(false);
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe(RuntimeErrorCode.CONDITION_EVALUATION_ERROR);
+  });
+
+  it('does not remove bound scalar inputs when activation metadata exists', async () => {
+    const storage = createStorageContext({ kind: 'memory' });
+    await initializeMovieStorage(storage, 'movie-activation-keeps-scalar');
+    const eventLog = createEventLog(storage);
+
+    let observedInputs: string[] = [];
+    let observedInputBindings: Record<string, string> | undefined;
+    const runner = createRunner({
+      produce: async (request) => {
+        observedInputs = request.job.inputs;
+        observedInputBindings = request.job.context?.inputBindings;
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artifacts: [],
+        };
+      },
+    });
+
+    const job: JobDescriptor = {
+      jobId: 'job-activation-keeps-scalar',
+      producer: 'ActivationGatedProducer',
+      inputs: ['Input:ActivationGatedProducer.Prompt'],
+      produces: ['Artifact:ActivationGatedProducer.Output'],
+      provider: 'test',
+      providerModel: 'test/model',
+      rateKey: 'test:model',
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'ActivationGatedProducer',
+        producerId: 'Producer:ActivationGatedProducer',
+        inputs: ['Input:ActivationGatedProducer.Prompt'],
+        produces: ['Artifact:ActivationGatedProducer.Output'],
+        inputBindings: {
+          Prompt: 'Input:ActivationGatedProducer.Prompt',
+        },
+        activation: {
+          condition: { when: 'Input:RunActivationJob', is: true },
+          indices: {},
+          inheritedFrom: [],
+        },
+        inputConditions: {
+          'Input:ActivationGatedProducer.Prompt': {
+            condition: { when: 'Input:LegacyPromptGate', is: true },
+            indices: {},
+          },
+        },
+        extras: {
+          resolvedInputs: {
+            'Input:RunActivationJob': true,
+            'Input:LegacyPromptGate': false,
+          },
+        },
+      },
+    };
+
+    const result = await runner.executeJob(job, {
+      movieId: 'movie-activation-keeps-scalar',
+      storage,
+      eventLog,
+      buildState: baseBuildState,
+      layerIndex: 0,
+      attempt: 1,
+      revision: 'rev-0002',
+    });
+
+    expect(result.status).toBe('succeeded');
+    expect(observedInputs).toEqual(['Input:ActivationGatedProducer.Prompt']);
+    expect(observedInputBindings?.Prompt).toBe(
+      'Input:ActivationGatedProducer.Prompt'
+    );
   });
 
   it('filters unsatisfied conditional array bindings before producer invocation', async () => {
