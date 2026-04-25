@@ -150,7 +150,12 @@ export async function parseYamlBlueprintFile(
   validateStoryboardInputMetadata(inputs, absolute, isProducerBlueprint);
   const loops = Array.isArray(raw.loops) ? parseLoops(raw.loops) : [];
   const loopSymbols = new Set(loops.map((loop) => loop.name));
-  const conditionDefs = parseConditionDefinitions(raw.conditions, loopSymbols);
+  const inputNames = new Set(inputs.map((input) => input.name));
+  const conditionDefs = parseConditionDefinitions(
+    raw.conditions,
+    loopSymbols,
+    inputNames
+  );
   const outputSource = Array.isArray(raw.outputs) ? raw.outputs : [];
   if (outputSource.length === 0) {
     throw createParserError(
@@ -161,7 +166,7 @@ export async function parseYamlBlueprintFile(
   }
   const outputs = outputSource.map((entry) => parseOutput(entry, filePath));
   const imports = rawImports.map((entry) =>
-    parseBlueprintImport(entry, conditionDefs, loopSymbols)
+    parseBlueprintImport(entry, conditionDefs, loopSymbols, inputNames)
   );
   if (!isProducerBlueprint && imports.length === 0) {
     throw createParserError(
@@ -179,7 +184,7 @@ export async function parseYamlBlueprintFile(
   }
   const edges = Array.isArray(raw.connections)
     ? raw.connections.map((entry) =>
-        parseEdge(entry, loopSymbols, conditionDefs)
+        parseEdge(entry, loopSymbols, conditionDefs, inputNames)
       )
     : [];
   const producers: ProducerConfig[] = [];
@@ -813,7 +818,8 @@ function parseArraysMetadata(
 function parseBlueprintImport(
   raw: unknown,
   conditionDefs: BlueprintConditionDefinitions,
-  allowedDimensions: Set<string>
+  allowedDimensions: Set<string>,
+  inputNames: Set<string>
 ): BlueprintImportDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
@@ -869,7 +875,11 @@ function parseBlueprintImport(
         `Blueprint import "${name}" cannot have both 'if' and 'conditions'. Use one or the other.`
       );
     }
-    conditions = parseEdgeConditions(entry.conditions, allowedDimensions);
+    conditions = parseEdgeConditions(
+      entry.conditions,
+      allowedDimensions,
+      inputNames
+    );
   }
 
   return {
@@ -887,7 +897,8 @@ function parseBlueprintImport(
 function parseEdge(
   raw: unknown,
   allowedDimensions: Set<string>,
-  conditionDefs: BlueprintConditionDefinitions
+  conditionDefs: BlueprintConditionDefinitions,
+  inputNames: Set<string>
 ): BlueprintEdgeDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
@@ -939,7 +950,11 @@ function parseEdge(
         `Connection cannot have both 'if' and 'conditions'. Use one or the other.`
       );
     }
-    conditions = parseEdgeConditions(edge.conditions, allowedDimensions);
+    conditions = parseEdgeConditions(
+      edge.conditions,
+      allowedDimensions,
+      inputNames
+    );
   }
 
   return {
@@ -986,14 +1001,17 @@ function readOptionalLoopSymbol(
  */
 function parseEdgeConditions(
   raw: unknown,
-  allowedDimensions: Set<string>
+  allowedDimensions: Set<string>,
+  inputNames: Set<string>
 ): EdgeConditionDefinition {
   if (Array.isArray(raw)) {
     // Array of clauses or groups (implicit AND)
-    return raw.map((item) => parseConditionItem(item, allowedDimensions));
+    return raw.map((item) =>
+      parseConditionItem(item, allowedDimensions, inputNames)
+    );
   }
   // Single clause or group
-  return parseConditionItem(raw, allowedDimensions);
+  return parseConditionItem(raw, allowedDimensions, inputNames);
 }
 
 /**
@@ -1001,7 +1019,8 @@ function parseEdgeConditions(
  */
 function parseConditionItem(
   raw: unknown,
-  allowedDimensions: Set<string>
+  allowedDimensions: Set<string>,
+  inputNames: Set<string>
 ): EdgeConditionClause | EdgeConditionGroup {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
@@ -1013,11 +1032,11 @@ function parseConditionItem(
 
   // Check if it's a group (has 'all' or 'any')
   if ('all' in obj || 'any' in obj) {
-    return parseConditionGroup(obj, allowedDimensions);
+    return parseConditionGroup(obj, allowedDimensions, inputNames);
   }
 
   // It's a clause
-  return parseConditionClause(obj, allowedDimensions);
+  return parseConditionClause(obj, allowedDimensions, inputNames);
 }
 
 /**
@@ -1025,7 +1044,8 @@ function parseConditionItem(
  */
 function parseConditionGroup(
   obj: Record<string, unknown>,
-  allowedDimensions: Set<string>
+  allowedDimensions: Set<string>,
+  inputNames: Set<string>
 ): EdgeConditionGroup {
   const group: EdgeConditionGroup = {};
 
@@ -1037,7 +1057,11 @@ function parseConditionGroup(
       );
     }
     group.all = obj.all.map((item) =>
-      parseConditionClause(item as Record<string, unknown>, allowedDimensions)
+      parseConditionClause(
+        item as Record<string, unknown>,
+        allowedDimensions,
+        inputNames
+      )
     );
   }
 
@@ -1049,7 +1073,11 @@ function parseConditionGroup(
       );
     }
     group.any = obj.any.map((item) =>
-      parseConditionClause(item as Record<string, unknown>, allowedDimensions)
+      parseConditionClause(
+        item as Record<string, unknown>,
+        allowedDimensions,
+        inputNames
+      )
     );
   }
 
@@ -1068,7 +1096,8 @@ function parseConditionGroup(
  */
 function parseConditionClause(
   obj: Record<string, unknown>,
-  allowedDimensions: Set<string>
+  allowedDimensions: Set<string>,
+  inputNames: Set<string>
 ): EdgeConditionClause {
   if (!obj || typeof obj !== 'object') {
     throw createParserError(
@@ -1090,7 +1119,10 @@ function parseConditionClause(
   // Validate dimensions in the 'when' path
   validateDimensions(trimmedWhenPath, allowedDimensions, 'when' as 'from');
 
-  const normalizedWhenPath = canonicalizeConditionWhenPath(trimmedWhenPath);
+  const normalizedWhenPath = canonicalizeConditionWhenPath(
+    trimmedWhenPath,
+    inputNames
+  );
 
   const clause: EdgeConditionClause = { when: normalizedWhenPath };
 
@@ -1181,7 +1213,10 @@ function parseConditionClause(
   return clause;
 }
 
-function canonicalizeConditionWhenPath(whenPath: string): string {
+function canonicalizeConditionWhenPath(
+  whenPath: string,
+  inputNames: Set<string>
+): string {
   const trimmed = whenPath.trim();
   if (
     isCanonicalArtifactId(trimmed) ||
@@ -1190,10 +1225,24 @@ function canonicalizeConditionWhenPath(whenPath: string): string {
   ) {
     return trimmed;
   }
+  const baseName = getConditionReferenceBaseName(trimmed);
+  if (inputNames.has(baseName)) {
+    return `Input:${trimmed}`;
+  }
   if (!trimmed.includes('.') && !trimmed.includes('[')) {
     return trimmed;
   }
   return `Artifact:${trimmed}`;
+}
+
+function getConditionReferenceBaseName(reference: string): string {
+  const dotIndex = reference.indexOf('.');
+  const bracketIndex = reference.indexOf('[');
+  const splitIndexes = [dotIndex, bracketIndex].filter((index) => index !== -1);
+  const endIndex =
+    splitIndexes.length === 0 ? -1 : Math.min(...splitIndexes);
+
+  return endIndex === -1 ? reference : reference.slice(0, endIndex);
 }
 
 /**
@@ -1201,7 +1250,8 @@ function canonicalizeConditionWhenPath(whenPath: string): string {
  */
 function parseConditionDefinitions(
   raw: Record<string, unknown> | undefined,
-  allowedDimensions: Set<string>
+  allowedDimensions: Set<string>,
+  inputNames: Set<string>
 ): BlueprintConditionDefinitions {
   if (!raw) {
     return {};
@@ -1219,6 +1269,7 @@ function parseConditionDefinitions(
     definitions[name] = parseNamedConditionDefinition(
       value as Record<string, unknown>,
       allowedDimensions,
+      inputNames,
       name
     );
   }
@@ -1232,11 +1283,12 @@ function parseConditionDefinitions(
 function parseNamedConditionDefinition(
   obj: Record<string, unknown>,
   allowedDimensions: Set<string>,
+  inputNames: Set<string>,
   name: string
 ): NamedConditionDefinition {
   // Check if it's a group (has 'all' or 'any')
   if ('all' in obj || 'any' in obj) {
-    return parseConditionGroup(obj, allowedDimensions);
+    return parseConditionGroup(obj, allowedDimensions, inputNames);
   }
 
   // It's a clause - must have 'when'
@@ -1247,7 +1299,7 @@ function parseNamedConditionDefinition(
     );
   }
 
-  return parseConditionClause(obj, allowedDimensions);
+  return parseConditionClause(obj, allowedDimensions, inputNames);
 }
 
 /**

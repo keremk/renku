@@ -828,6 +828,54 @@ connections:
         exists: true,
       });
     });
+
+    it('canonicalizes indexed root input references in named conditions', async () => {
+      const reader = {
+        readFile: async () => `
+meta:
+  id: indexed-input-condition-blueprint
+  name: Indexed Input Condition Blueprint
+  kind: producer
+inputs:
+  - name: NumSegments
+    type: int
+  - name: NumCharacters
+    type: int
+  - name: UseReference
+    type: multiDimArray
+    itemType: boolean
+outputs:
+  - name: ReferenceImage
+    type: image
+  - name: FinalVideo
+    type: video
+loops:
+  - name: segment
+    countInput: NumSegments
+  - name: character
+    countInput: NumCharacters
+conditions:
+  useCharacterReference:
+    when: UseReference[segment][character]
+    is: true
+connections:
+  - from: ReferenceImage
+    to: FinalVideo
+    if: useCharacterReference
+`,
+      };
+
+      const document = await parseYamlBlueprintFile(
+        '/virtual/indexed-input-condition-blueprint.yaml',
+        { reader }
+      );
+      const condition = document.conditions
+        ?.useCharacterReference as EdgeConditionClause;
+      const edgeCondition = document.edges[0]?.conditions as EdgeConditionClause;
+
+      expect(condition.when).toBe('Input:UseReference[segment][character]');
+      expect(edgeCondition.when).toBe('Input:UseReference[segment][character]');
+    });
   });
 
   describe('condition operators', () => {
@@ -919,6 +967,105 @@ conditions:
         {
           when: 'Output:PreviewVideo',
           exists: true,
+        },
+        {
+          when: 'Input:Publish',
+          is: true,
+        },
+      ]);
+    });
+
+    it('canonicalizes indexed root input references in inline edge conditions', async () => {
+      const reader = {
+        readFile: async () => `
+meta:
+  id: inline-indexed-input-condition-blueprint
+  name: Inline Indexed Input Condition Blueprint
+  kind: producer
+inputs:
+  - name: NumSegments
+    type: int
+  - name: NumCharacters
+    type: int
+  - name: UseReference
+    type: multiDimArray
+    itemType: boolean
+outputs:
+  - name: ReferenceImage
+    type: image
+  - name: FinalVideo
+    type: video
+loops:
+  - name: segment
+    countInput: NumSegments
+  - name: character
+    countInput: NumCharacters
+connections:
+  - from: ReferenceImage
+    to: FinalVideo
+    conditions:
+      when: UseReference[segment][character]
+      is: true
+`,
+      };
+
+      const document = await parseYamlBlueprintFile(
+        '/virtual/inline-indexed-input-condition-blueprint.yaml',
+        { reader }
+      );
+      const condition = document.edges[0]?.conditions as EdgeConditionClause;
+
+      expect(condition).toEqual({
+        when: 'Input:UseReference[segment][character]',
+        is: true,
+      });
+    });
+
+    it('canonicalizes indexed root input references inside condition groups', async () => {
+      const reader = {
+        readFile: async () => `
+meta:
+  id: grouped-indexed-input-condition-blueprint
+  name: Grouped Indexed Input Condition Blueprint
+  kind: producer
+inputs:
+  - name: NumSegments
+    type: int
+  - name: NumCharacters
+    type: int
+  - name: UseReference
+    type: multiDimArray
+    itemType: boolean
+  - name: Publish
+    type: boolean
+outputs:
+  - name: ReferenceImage
+    type: image
+loops:
+  - name: segment
+    countInput: NumSegments
+  - name: character
+    countInput: NumCharacters
+conditions:
+  publishReference:
+    all:
+      - when: UseReference[segment][character]
+        is: true
+      - when: Publish
+        is: true
+`,
+      };
+
+      const document = await parseYamlBlueprintFile(
+        '/virtual/grouped-indexed-input-condition-blueprint.yaml',
+        { reader }
+      );
+      const condition = document.conditions?.publishReference as EdgeConditionGroup;
+
+      expect(condition.all).toEqual([
+        {
+          when: 'Input:UseReference[segment][character]',
+          is: true,
         },
         {
           when: 'Input:Publish',
