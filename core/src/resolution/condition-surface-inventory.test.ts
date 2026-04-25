@@ -41,20 +41,20 @@ describe('collectBlueprintConditionSurfaceInventory', () => {
 
     expect(inventory.totals).toMatchObject({
       importConditions: 8,
-      authoredConnectionConditions: 52,
-      propagatedEdgeConditions: 48,
+      authoredConnectionConditions: 4,
+      propagatedEdgeConditions: 71,
       conditionalInputBindings: 0,
-      inputConditions: 48,
+      inputConditions: 0,
       fanInMembersWithConditions: 0,
       routeSelectedOutputBindings: 24,
       routeSelectedOutputBindingsWithConditions: 4,
     });
     expect(inventory.categories).toMatchObject({
-      'activation-like': 150,
-      'optional-input': 4,
+      'activation-like': 83,
+      'optional-input': 0,
       'fan-in': 0,
       'output-route': 4,
-      other: 2,
+      other: 0,
     });
   });
 
@@ -77,20 +77,20 @@ describe('collectBlueprintConditionSurfaceInventory', () => {
 
     expect(inventory.totals).toMatchObject({
       importConditions: 8,
-      authoredConnectionConditions: 80,
-      propagatedEdgeConditions: 150,
+      authoredConnectionConditions: 32,
+      propagatedEdgeConditions: 196,
       conditionalInputBindings: 0,
-      inputConditions: 150,
+      inputConditions: 54,
       fanInMembersWithConditions: 0,
       routeSelectedOutputBindings: 180,
       routeSelectedOutputBindingsWithConditions: 30,
     });
     expect(inventory.categories).toMatchObject({
-      'activation-like': 356,
-      'optional-input': 20,
+      'activation-like': 270,
+      'optional-input': 12,
       'fan-in': 0,
       'output-route': 30,
-      other: 12,
+      other: 8,
     });
   });
 

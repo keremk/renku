@@ -106,9 +106,21 @@ export function collapseOutputNodes(
       }
 
       if (sourceNode.type === 'Artifact' || sourceNode.type === 'Input') {
+        const fields = canonicalEdgeConditionFields(inboundEdge);
+        const conditions = outputRouteCondition(fields);
         return [{
           sourceId: sourceNode.id,
-          ...canonicalEdgeConditionFields(inboundEdge),
+          ...(fields.activationConditions
+            ? { activationConditions: fields.activationConditions }
+            : {}),
+          ...(fields.endpointConditions
+            ? { endpointConditions: fields.endpointConditions }
+            : {}),
+          ...(fields.authoredEdgeConditions
+            ? { authoredEdgeConditions: fields.authoredEdgeConditions }
+            : {}),
+          ...(conditions ? { conditions } : {}),
+          ...(fields.indices ? { indices: fields.indices } : {}),
         }];
       }
 
@@ -143,9 +155,12 @@ export function collapseOutputNodes(
           upstream.authoredEdgeConditions,
           inboundEdge.authoredEdgeConditions
         );
+        const inboundRouteConditions = outputRouteCondition(
+          canonicalEdgeConditionFields(inboundEdge)
+        );
         const conditions = combineEdgeConditions(
           upstream.conditions,
-          inboundEdge.conditions
+          inboundRouteConditions
         );
         const indices = mergeConditionIndices(
           upstream.indices,
@@ -267,8 +282,11 @@ export function collapseOutputNodes(
           edge.authoredEdgeConditions
         )
       );
+      const edgeRouteConditions = outputRouteCondition(
+        canonicalEdgeConditionFields(edge)
+      );
       const conditions = normalizeOutputConditionDefinition(
-        combineEdgeConditions(resolvedBinding.conditions, edge.conditions)
+        combineEdgeConditions(resolvedBinding.conditions, edgeRouteConditions)
       );
       const indices = mergeConditionIndices(resolvedBinding.indices, edge.indices);
       resolvedEdges.push({
@@ -328,6 +346,18 @@ export function collapseOutputNodes(
     outputSources,
     outputSourceBindings,
   };
+}
+
+function outputRouteCondition(
+  fields: ReturnType<typeof canonicalEdgeConditionFields>
+): EdgeConditionDefinition | undefined {
+  if (fields.authoredEdgeConditions) {
+    return fields.authoredEdgeConditions;
+  }
+  if (fields.activationConditions || fields.endpointConditions) {
+    return undefined;
+  }
+  return fields.conditions;
 }
 
 function dedupeCanonicalEdges(

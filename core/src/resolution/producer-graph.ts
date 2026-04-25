@@ -467,10 +467,11 @@ function collectLegacyInputConditions(args: {
   const inputConditions: Record<string, InputConditionInfo> = {};
   const incomingEdges = edgesByTargetProducer.get(node.id) ?? [];
   for (const edge of incomingEdges) {
-    if (edge.conditions && edge.indices) {
+    const condition = scalarInputEdgeCondition(edge);
+    if (condition && edge.indices) {
       inputConditions[edge.from] = {
         condition: resolveConditionOutputSources(
-          edge.conditions,
+          condition,
           outputSources
         ),
         indices: edge.indices,
@@ -484,7 +485,11 @@ function collectLegacyInputConditions(args: {
       }
 
       const bindingEdge = incomingEdges.find((edge) => {
-        if (edge.from !== sourceId || !edge.conditions || !edge.indices) {
+        if (
+          edge.from !== sourceId ||
+          !scalarInputEdgeCondition(edge) ||
+          !edge.indices
+        ) {
           return false;
         }
 
@@ -492,10 +497,13 @@ function collectLegacyInputConditions(args: {
         return matchesProducerInputSourceTarget(targetNode, node, alias);
       });
 
-      if (bindingEdge?.conditions && bindingEdge.indices) {
+      const condition = bindingEdge
+        ? scalarInputEdgeCondition(bindingEdge)
+        : undefined;
+      if (condition && bindingEdge?.indices) {
         inputConditions[sourceId] = {
           condition: resolveConditionOutputSources(
-            bindingEdge.conditions,
+            condition,
             outputSources
           ),
           indices: bindingEdge.indices,
@@ -504,6 +512,18 @@ function collectLegacyInputConditions(args: {
     }
   }
   return inputConditions;
+}
+
+function scalarInputEdgeCondition(
+  edge: CanonicalEdgeInstance
+): CanonicalEdgeInstance['conditions'] {
+  if (edge.authoredEdgeConditions) {
+    return edge.authoredEdgeConditions;
+  }
+  if (edge.activationConditions || edge.endpointConditions) {
+    return undefined;
+  }
+  return edge.conditions;
 }
 
 function resolveConditionalInputBindingConditions(

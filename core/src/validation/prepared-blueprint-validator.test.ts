@@ -18,6 +18,13 @@ const DOCUMENTARY_BLUEPRINT_PATH = resolve(
   'documentary',
   'documentary.yaml'
 );
+const SEEDANCE_VIDEO_GENERATOR_PATH = resolve(
+  CATALOG_ROOT,
+  'producers',
+  'video',
+  'seedance-video-generator',
+  'seedance-video-generator.yaml'
+);
 const tempDirs: string[] = [];
 
 describe('validatePreparedBlueprintTree', () => {
@@ -315,6 +322,54 @@ describe('validatePreparedBlueprintTree', () => {
         suggestion: expect.stringContaining(
           'duplicates the producer activation'
         ),
+      })
+    );
+  });
+
+  it('strict resolved condition validation accepts migrated Seedance wrapper activation', async () => {
+    const { root } = await loadYamlBlueprintTree(SEEDANCE_VIDEO_GENERATOR_PATH, {
+      catalogRoot: CATALOG_ROOT,
+    });
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+      options: {
+        errorsOnly: true,
+        strictResolvedConditions: true,
+      },
+    });
+
+    expect(result.validation.valid).toBe(true);
+    expect(result.validation.errors).toHaveLength(0);
+  });
+
+  it('strict resolved condition validation rejects reintroduced Seedance required scalar edge conditions', async () => {
+    const { root } = await loadYamlBlueprintTree(SEEDANCE_VIDEO_GENERATOR_PATH, {
+      catalogRoot: CATALOG_ROOT,
+    });
+    const durationEdge = root.document.edges.find(
+      (edge) =>
+        edge.from === 'Duration' && edge.to === 'TextClipProducer.Duration'
+    );
+    expect(durationEdge).toBeDefined();
+    durationEdge!.conditions = { when: 'Workflow', is: 'Text' };
+    durationEdge!.if = 'useText';
+
+    const result = await validatePreparedBlueprintTree({
+      root,
+      schemaSource: { kind: 'producer-metadata' },
+      options: {
+        errorsOnly: true,
+        strictResolvedConditions: true,
+      },
+    });
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.validation.errors).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.REQUIRED_INPUT_CONDITION_UNSUPPORTED,
+        message: expect.stringContaining('TextClipProducer.Duration'),
       })
     );
   });

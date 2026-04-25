@@ -462,13 +462,14 @@ export function collapseInputNodes(
         continue;
       }
       if (targetNode.type === 'Producer') {
+        const bindingConditions = scalarBindingConditions(combinedFields);
         recordBinding(
           targetNode.id,
           edge.bindingAlias ?? alias,
           canonicalId,
-          combinedFields.conditions,
-          combinedFields.indices,
-          conditionalCandidate
+          bindingConditions,
+          bindingConditions ? combinedFields.indices : undefined,
+          conditionalCandidate && Boolean(bindingConditions)
         );
         continue;
       }
@@ -489,6 +490,18 @@ export function collapseInputNodes(
       }
     }
   };
+
+  function scalarBindingConditions(
+    fields: CanonicalEdgeConditionFields
+  ): EdgeConditionDefinition | undefined {
+    if (fields.authoredEdgeConditions) {
+      return fields.authoredEdgeConditions;
+    }
+    if (fields.activationConditions || fields.endpointConditions) {
+      return undefined;
+    }
+    return fields.conditions;
+  }
 
   // Build a map to propagate conditions from inbound edges to outbound edges
   // when Input nodes are collapsed. Key = input node ID, Value = conditions from inbound edge

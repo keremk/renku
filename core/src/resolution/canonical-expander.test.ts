@@ -2111,7 +2111,7 @@ describe('expandBlueprintGraph', () => {
     expect(fanIn?.members.map((member) => member.group)).toEqual([0, 1, 0, 1]);
   });
 
-  it('propagates import-level conditions onto unguarded child producer bindings', () => {
+  it('keeps import-level conditions on activation instead of route conditions', () => {
     const promptCompilerDoc: BlueprintDocument = {
       meta: { id: 'PromptCompiler', name: 'PromptCompiler', kind: 'producer' },
       inputs: [
@@ -2258,9 +2258,7 @@ describe('expandBlueprintGraph', () => {
       when: 'Input:Workflow',
       is: 'Text',
     });
-    expect(rootPromptBinding?.conditions).toEqual(
-      expect.arrayContaining([{ when: 'Input:Workflow', is: 'Text' }])
-    );
+    expect(rootPromptBinding?.conditions).toBeUndefined();
   });
 
   it('collapses one public output to multiple explicit conditional route sources', () => {
@@ -2561,7 +2559,6 @@ describe('expandBlueprintGraph', () => {
         }),
       ],
     });
-    expect(JSON.stringify(clipsFanIn)).toContain('Input:UsePreview');
     expect(JSON.stringify(clipsFanIn)).toContain(
       'Artifact:GateProducer.ShouldPublish'
     );
@@ -2574,7 +2571,6 @@ describe('expandBlueprintGraph', () => {
       sourceId: 'Artifact:PreviewProducer.GeneratedVideo',
       indices: {},
     });
-    expect(JSON.stringify(previewRoute)).toContain('Input:UsePreview');
     expect(JSON.stringify(previewRoute)).toContain(
       'Artifact:GateProducer.ShouldPublish'
     );

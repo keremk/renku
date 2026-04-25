@@ -824,7 +824,7 @@ function collectGraphEdges(
           namespaceDims,
           localDims
         ),
-        conditions: inheritedConditions,
+        activationConditions: inheritedConditions,
       });
     }
 
@@ -845,7 +845,7 @@ function collectGraphEdges(
             namespaceDims,
             localDims
           ),
-          conditions: inheritedConditions,
+          activationConditions: inheritedConditions,
         });
         output.push({
           from: buildLocalEdgeEndpoint(
@@ -862,7 +862,7 @@ function collectGraphEdges(
             namespaceDims,
             localDims
           ),
-          conditions: inheritedConditions,
+          activationConditions: inheritedConditions,
         });
       }
     }

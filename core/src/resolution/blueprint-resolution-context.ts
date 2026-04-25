@@ -201,6 +201,7 @@ export function cloneBlueprintTreeNode(
       ])
     ),
     sourcePath: node.sourcePath,
+    importConditions: clonePlainValue(node.importConditions),
   };
 }
 
