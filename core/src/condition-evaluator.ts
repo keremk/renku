@@ -52,6 +52,14 @@ export interface ConditionEvaluationContext {
   resolvedInputs?: Record<string, unknown>;
 }
 
+export interface ResolvedInputConditionValue {
+  found: boolean;
+  value?: unknown;
+  inputId: string;
+  exactInputId: string;
+  triedIds: string;
+}
+
 /**
  * Evaluates input conditions for a producer job.
  * Returns a map of input IDs to whether they should be included.
@@ -110,6 +118,40 @@ export function isConditionEvaluationUnknown(
     return false;
   }
   return reason.includes('Artifact not found') || reason.includes('Input not found');
+}
+
+export function resolveInputConditionValue(
+  whenPath: string,
+  indices: Record<string, number>,
+  resolvedInputs: Record<string, unknown> | undefined,
+): ResolvedInputConditionValue {
+  const { inputId, fieldPath, exactInputId } = resolveInputConditionPath(
+    whenPath,
+    indices,
+    resolvedInputs,
+  );
+  const inputValue =
+    resolvedInputs?.[exactInputId] ??
+    resolvedInputs?.[inputId];
+  const triedIds =
+    exactInputId === inputId ? inputId : `${exactInputId} or ${inputId}`;
+
+  if (inputValue === undefined) {
+    return {
+      found: false,
+      inputId,
+      exactInputId,
+      triedIds,
+    };
+  }
+
+  return {
+    found: true,
+    value: fieldPath.length > 0 ? getValueAtPath(inputValue, fieldPath) : inputValue,
+    inputId,
+    exactInputId,
+    triedIds,
+  };
 }
 
 /**
@@ -199,20 +241,15 @@ function evaluateConditionClause(
 ): ConditionEvaluationResult {
   let value: unknown;
   if (isCanonicalInputId(clause.when)) {
-    const { inputId, fieldPath, exactInputId } = resolveInputConditionPath(
+    const resolvedInput = resolveInputConditionValue(
       clause.when,
       indices,
       context.resolvedInputs,
     );
-    const inputValue =
-      context.resolvedInputs?.[exactInputId] ??
-      context.resolvedInputs?.[inputId];
-    if (inputValue === undefined) {
-      const triedIds =
-        exactInputId === inputId ? inputId : `${exactInputId} or ${inputId}`;
-      return { satisfied: false, reason: `Input not found (tried: ${triedIds})` };
+    if (!resolvedInput.found) {
+      return { satisfied: false, reason: `Input not found (tried: ${resolvedInput.triedIds})` };
     }
-    value = fieldPath.length > 0 ? getValueAtPath(inputValue, fieldPath) : inputValue;
+    value = resolvedInput.value;
   } else {
     // Resolve the artifact path - try both decomposed and nested formats
     const { artifactId, fieldPath, decomposedArtifactId } = resolveConditionPath(

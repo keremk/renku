@@ -43,7 +43,10 @@ export async function validatePreparedBlueprintTree(
   args: BlueprintValidationPreparationArgs
 ): Promise<PreparedBlueprintValidationResult> {
   try {
-    if (args.options?.strictResolvedConditions) {
+    const strictResolvedConditions =
+      args.options?.strictResolvedConditions ?? true;
+
+    if (strictResolvedConditions) {
       const strictAuthoredPreflight = validateAuthoredConditionSemantics(
         args.root,
         { strict: true }
@@ -53,7 +56,7 @@ export async function validatePreparedBlueprintTree(
           errorsOnly: args.options?.errorsOnly,
         });
         let issues = [...baseValidation.issues, ...strictAuthoredPreflight];
-        if (args.options.skipCodes) {
+        if (args.options?.skipCodes) {
           const skippedCodes = new Set(args.options.skipCodes);
           issues = issues.filter((issue) => !skippedCodes.has(issue.code));
         }
@@ -76,7 +79,7 @@ export async function validatePreparedBlueprintTree(
       ...validateViewerProjection(context.root),
     ];
 
-    if (args.options?.strictResolvedConditions) {
+    if (strictResolvedConditions) {
       const strictGraphIssues = validatePreparedGraphConditionSemantics(
         context.root,
         context.graph,
@@ -84,10 +87,13 @@ export async function validatePreparedBlueprintTree(
       );
       issues.push(...strictGraphIssues);
 
-      if (strictGraphIssues.length === 0) {
+      if (
+        strictGraphIssues.length === 0 &&
+        args.options?.resolvedInputValues !== undefined
+      ) {
         const canonicalInputs = normalizeBlueprintResolutionInputs(
           context,
-          args.options.resolvedInputValues ?? {}
+          args.options.resolvedInputValues
         );
         const expanded = expandBlueprintResolutionContext(
           context,

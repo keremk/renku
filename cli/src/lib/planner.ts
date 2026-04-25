@@ -20,6 +20,7 @@ import {
 	persistArtifactOverrideBlobs,
 	prepareBlueprintResolutionContext,
 	expandBlueprintResolutionContext,
+	selectBlueprintResolutionInputs,
 	createProducerGraph,
 	deriveSurgicalInfoArray,
 	createValidationError,
@@ -300,7 +301,13 @@ export async function generatePlan(
 			kind: 'provider-options',
 			providerOptions: providerMetadata,
 		},
-		options: { errorsOnly: true },
+		options: {
+			errorsOnly: true,
+			resolvedInputValues: selectBlueprintResolutionInputs(
+				resolutionContext,
+				inputValues
+			),
+		},
 	});
 	throwIfBlueprintValidationFailed(preparedValidation.validation);
 	if (!preparedValidation.context) {

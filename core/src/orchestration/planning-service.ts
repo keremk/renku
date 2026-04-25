@@ -15,7 +15,10 @@ import {
   type PrunedUnrunnableJob,
 } from '../planning/planner.js';
 import type { PlanExplanation } from '../planning/explanation.js';
-import { evaluateInputConditions } from '../condition-evaluator.js';
+import {
+  evaluateInputConditions,
+  resolveInputConditionValue,
+} from '../condition-evaluator.js';
 import {
   formatCanonicalProducerPath,
   formatProducerScopedInputIdForCanonicalProducerId,
@@ -437,9 +440,9 @@ function collectJobResolvedInputs(
 
   const relevantInputs: Record<string, unknown> = {};
   for (const inputId of relevantInputIds) {
-    const value = resolvedInputs[inputId];
-    if (value !== undefined) {
-      relevantInputs[inputId] = value;
+    const resolvedInput = resolveInputConditionValue(inputId, {}, resolvedInputs);
+    if (resolvedInput.found) {
+      relevantInputs[inputId] = resolvedInput.value;
     }
   }
 

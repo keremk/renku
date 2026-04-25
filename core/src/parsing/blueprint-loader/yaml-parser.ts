@@ -1227,7 +1227,7 @@ function canonicalizeConditionWhenPath(
   }
   const baseName = getConditionReferenceBaseName(trimmed);
   if (inputNames.has(baseName)) {
-    return `Input:${trimmed}`;
+    return trimmed;
   }
   if (!trimmed.includes('.') && !trimmed.includes('[')) {
     return trimmed;

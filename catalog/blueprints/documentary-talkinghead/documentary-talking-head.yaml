@@ -99,18 +99,23 @@ imports:
   - name: ImageProducer
     producer: image/text-to-image
     loop: segment.image
+    if: isImageNarration
   - name: AudioProducer
     producer: audio/text-to-speech
     loop: segment
+    if: isAudioNeeded
   - name: VideoProducer
     producer: video/text-to-video
     loop: segment
+    if: isVideoNarration
   - name: TalkingHeadImageProducer
     producer: image/text-to-image
     loop: segment
+    if: isTalkingHead
   - name: TalkingHeadVideoProducer
     producer: video/text-to-talking-head
     loop: segment
+    if: isTalkingHead
   - name: TimelineComposer
     producer: composition/timeline-composer
 
@@ -130,10 +135,8 @@ connections:
   # Conditional: ImageProducer only when NarrationType is ImageNarration
   - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
     to: ImageProducer[segment][image].Prompt
-    if: isImageNarration
   - from: Resolution
     to: ImageProducer[segment][image].Resolution
-    if: isImageNarration
   - from: ImageProducer[segment][image].GeneratedImage
     to: SegmentImage[segment][image]
     if: isImageNarration
@@ -141,13 +144,10 @@ connections:
   # Conditional: AudioProducer only when audio is needed.
   - from: DocProducer.VideoScript.Segments[segment].Script
     to: AudioProducer[segment].Text
-    if: isAudioNeeded
   - from: SegmentDuration
     to: AudioProducer[segment].Duration
-    if: isAudioNeeded
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
-    if: isAudioNeeded
   - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
     if: isAudioNeeded
@@ -155,10 +155,8 @@ connections:
   # Conditional: Create Talking Head Image only when NarrationType is TalkingHead
   - from: DocProducer.VideoScript.Segments[segment].TalkingHeadCharacterPrompt
     to: TalkingHeadImageProducer[segment].Prompt
-    if: isTalkingHead
   - from: Resolution
     to: TalkingHeadImageProducer[segment].Resolution
-    if: isTalkingHead
   - from: TalkingHeadImageProducer[segment].GeneratedImage
     to: TalkingHeadCharacterImage[segment]
     if: isTalkingHead
@@ -166,22 +164,16 @@ connections:
   # Conditional: TalkingHeadVideoProducer only when NarrationType is TalkingHead
   - from: SegmentDuration
     to: TalkingHeadVideoProducer[segment].Duration
-    if: isTalkingHead
   - from: Resolution
     to: TalkingHeadVideoProducer[segment].Resolution
-    if: isTalkingHead
   - from: DocProducer.VideoScript.Segments[segment].TalkingHeadText
     to: TalkingHeadVideoProducer[segment].NarrativeText
-    if: isTalkingHead
   - from: DocProducer.VideoScript.Segments[segment].TalkingHeadPrompt
     to: TalkingHeadVideoProducer[segment].Prompt
-    if: isTalkingHead
   - from: TalkingHeadImageProducer[segment].GeneratedImage
     to: TalkingHeadVideoProducer[segment].CharacterImage
-    if: isTalkingHead
   - from: TalkingHeadVoiceId
     to: TalkingHeadVideoProducer[segment].VoiceId
-    if: isTalkingHead
   - from: TalkingHeadVideoProducer[segment].GeneratedVideo
     to: SegmentTalkingHeadVideo[segment]
     if: isTalkingHead
@@ -189,13 +181,10 @@ connections:
   # Conditional: VideoProducer only when NarrationType is VideoNarration
   - from: DocProducer.VideoScript.Segments[segment].VideoPrompt
     to: VideoProducer[segment].Prompt
-    if: isVideoNarration
   - from: SegmentDuration
     to: VideoProducer[segment].Duration
-    if: isVideoNarration
   - from: Resolution
     to: VideoProducer[segment].Resolution
-    if: isVideoNarration
   - from: VideoProducer[segment].GeneratedVideo
     to: SegmentVideo[segment]
     if: isVideoNarration

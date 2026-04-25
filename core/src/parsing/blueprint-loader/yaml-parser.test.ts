@@ -829,7 +829,7 @@ connections:
       });
     });
 
-    it('canonicalizes indexed root input references in named conditions', async () => {
+    it('keeps indexed input references local until graph resolution', async () => {
       const reader = {
         readFile: async () => `
 meta:
@@ -873,8 +873,8 @@ connections:
         ?.useCharacterReference as EdgeConditionClause;
       const edgeCondition = document.edges[0]?.conditions as EdgeConditionClause;
 
-      expect(condition.when).toBe('Input:UseReference[segment][character]');
-      expect(edgeCondition.when).toBe('Input:UseReference[segment][character]');
+      expect(condition.when).toBe('UseReference[segment][character]');
+      expect(edgeCondition.when).toBe('UseReference[segment][character]');
     });
   });
 
@@ -975,7 +975,7 @@ conditions:
       ]);
     });
 
-    it('canonicalizes indexed root input references in inline edge conditions', async () => {
+    it('keeps indexed inline input references local until graph resolution', async () => {
       const reader = {
         readFile: async () => `
 meta:
@@ -1016,12 +1016,12 @@ connections:
       const condition = document.edges[0]?.conditions as EdgeConditionClause;
 
       expect(condition).toEqual({
-        when: 'Input:UseReference[segment][character]',
+        when: 'UseReference[segment][character]',
         is: true,
       });
     });
 
-    it('canonicalizes indexed root input references inside condition groups', async () => {
+    it('keeps grouped input references local until graph resolution', async () => {
       const reader = {
         readFile: async () => `
 meta:
@@ -1064,11 +1064,11 @@ conditions:
 
       expect(condition.all).toEqual([
         {
-          when: 'Input:UseReference[segment][character]',
+          when: 'UseReference[segment][character]',
           is: true,
         },
         {
-          when: 'Input:Publish',
+          when: 'Publish',
           is: true,
         },
       ]);

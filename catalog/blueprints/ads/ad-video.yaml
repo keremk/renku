@@ -90,6 +90,7 @@ imports:
   - name: AudioProducer
     producer: audio/text-to-speech
     loop: clip
+    if: hasNarration
   - name: MusicProducer
     producer: audio/text-to-music
   - name: TimelineComposer
@@ -160,10 +161,8 @@ connections:
   # === AudioProducer inputs (looped, conditional) ===
   - from: AdScriptProducer.AdScript.Scenes[clip].NarrationScript
     to: AudioProducer[clip].Text
-    if: hasNarration
   - from: SegmentDuration
     to: AudioProducer[clip].Duration
-    if: hasNarration
 
   # === AudioProducer outputs ===
   - from: AudioProducer[clip].GeneratedAudio

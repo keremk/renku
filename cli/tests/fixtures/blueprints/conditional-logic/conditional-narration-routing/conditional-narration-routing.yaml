@@ -80,12 +80,15 @@ imports:
   - name: ImageProducer
     producer: image/text-to-image
     loop: segment.image
+    if: isImageNarration
   - name: AudioProducer
     producer: audio/text-to-speech
     loop: segment
+    if: isAudioNeeded
   - name: VideoProducer
     producer: video/text-to-video
     loop: segment
+    if: isTalkingHead
   - name: TimelineComposer
     producer: composition/timeline-composer
 
@@ -105,10 +108,8 @@ connections:
   # Conditional: ImageProducer only when NarrationType is ImageNarration
   - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
     to: ImageProducer[segment][image].Prompt
-    if: isImageNarration
   - from: Resolution
     to: ImageProducer[segment][image].Resolution
-    if: isImageNarration
   - from: ImageProducer[segment][image].GeneratedImage
     to: SegmentImage[segment][image]
     if: isImageNarration
@@ -116,13 +117,10 @@ connections:
   # Conditional: AudioProducer only when NarrationType is TalkingHead
   - from: DocProducer.VideoScript.Segments[segment].Script
     to: AudioProducer[segment].Text
-    if: isAudioNeeded
   - from: SegmentDuration
     to: AudioProducer[segment].Duration
-    if: isAudioNeeded
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
-    if: isAudioNeeded
   - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
     if: isAudioNeeded
@@ -130,13 +128,10 @@ connections:
   # Conditional: VideoProducer only when NarrationType is TalkingHead
   - from: DocProducer.VideoScript.Segments[segment].VideoPrompt
     to: VideoProducer[segment].Prompt
-    if: isTalkingHead
   - from: SegmentDuration
     to: VideoProducer[segment].Duration
-    if: isTalkingHead
   - from: Resolution
     to: VideoProducer[segment].Resolution
-    if: isTalkingHead
   - from: VideoProducer[segment].GeneratedVideo
     to: SegmentVideo[segment]
     if: isTalkingHead

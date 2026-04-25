@@ -1,6 +1,7 @@
 import type { CanonicalBlueprint } from './canonical-expander.js';
 import {
   formatCanonicalArtifactId,
+  formatCanonicalInputId,
   formatCanonicalProducerId,
   formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalArtifactId,
@@ -9,6 +10,7 @@ import {
 } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { deriveProducerFamilyId } from '../orchestration/producer-overrides.js';
+import { extractDimensionLabel } from './dimension-plan.js';
 import type {
   BlueprintOutputDefinition,
   BlueprintProducerOutputDefinition,
@@ -49,6 +51,7 @@ export function createProducerGraph(
   // Build set of artifacts that are actually connected downstream
   // (used as input to another node or chained to another artifact)
   const connectedArtifacts = computeConnectedArtifacts(canonical);
+  const inputSources = buildInputSourceMap(canonical, canonical.outputSources);
 
   const nodes: ProducerGraphNode[] = [];
   const edges: ProducerGraphEdge[] = [];
@@ -187,7 +190,8 @@ export function createProducerGraph(
     const activation = readProducerActivationForJob(
       canonical,
       node,
-      canonical.outputSources
+      canonical.outputSources,
+      inputSources
     );
 
     const nodeContext = {
@@ -277,11 +281,16 @@ function readResolvedScalarBindingsForProducer(
 function readProducerActivationForJob(
   canonical: CanonicalBlueprint,
   node: CanonicalBlueprint['nodes'][number],
-  outputSources: Record<string, string>
+  outputSources: Record<string, string>,
+  inputSources: Map<string, string>
 ): ProducerJobActivation | undefined {
   const resolvedActivation = canonical.resolvedProducerActivations?.[node.id];
   if (resolvedActivation) {
-    return toProducerJobActivation(resolvedActivation, outputSources);
+    return toProducerJobActivation(
+      resolvedActivation,
+      outputSources,
+      inputSources
+    );
   }
 
   if (node.activation) {
@@ -293,7 +302,8 @@ function readProducerActivationForJob(
         indices: node.activation.indices ?? node.indices,
         inheritedFrom: node.activation.inheritedFrom,
       },
-      outputSources
+      outputSources,
+      inputSources
     );
   }
 
@@ -302,20 +312,82 @@ function readProducerActivationForJob(
 
 function toProducerJobActivation(
   activation: ResolvedProducerActivation,
-  outputSources: Record<string, string>
+  outputSources: Record<string, string>,
+  inputSources: Map<string, string>
 ): ProducerJobActivation {
   return {
     ...(activation.condition
       ? {
-          condition: resolveConditionOutputSources(
+          condition: resolveConditionSources(
             activation.condition,
-            outputSources
+            outputSources,
+            inputSources,
+            activation.indices
           ),
         }
       : {}),
     indices: activation.indices,
     inheritedFrom: activation.inheritedFrom,
   };
+}
+
+function buildInputSourceMap(
+  canonical: CanonicalBlueprint,
+  outputSources: Record<string, string>
+): Map<string, string> {
+  const sources = new Map<string, string>();
+
+  for (const edge of canonical.edges) {
+    if (!isCanonicalInputId(edge.to)) {
+      continue;
+    }
+
+    sources.set(edge.to, outputSources[edge.from] ?? edge.from);
+  }
+
+  for (const node of canonical.nodes) {
+    if (node.type !== 'Producer') {
+      continue;
+    }
+
+    const bindings = canonical.inputBindings[node.id];
+    if (!bindings) {
+      continue;
+    }
+
+    for (const [inputName, sourceId] of Object.entries(bindings)) {
+      const source = outputSources[sourceId] ?? sourceId;
+      sources.set(formatInputIdForNode(node.namespacePath, inputName, node), source);
+
+      const parentNamespacePath = node.namespacePath.slice(0, -1);
+      if (parentNamespacePath.length > 0) {
+        sources.set(
+          formatInputIdForNode(parentNamespacePath, inputName, node),
+          source
+        );
+      }
+    }
+  }
+
+  return sources;
+}
+
+function formatInputIdForNode(
+  namespacePath: string[],
+  inputName: string,
+  node: CanonicalBlueprint['nodes'][number]
+): string {
+  const suffix = node.dimensions
+    .map((symbol) => {
+      const value = node.indices[symbol];
+      if (value === undefined) {
+        return `[${extractDimensionLabel(symbol)}]`;
+      }
+      return `[${value}]`;
+    })
+    .join('');
+
+  return `${formatCanonicalInputId(namespacePath, inputName)}${suffix}`;
 }
 
 function buildResolvedInputConditions(args: {
@@ -664,6 +736,131 @@ function extractWhenPaths(condition: EdgeConditionDefinition): string[] {
   }
 
   return paths;
+}
+
+function resolveConditionSources(
+  condition: EdgeConditionDefinition,
+  outputSources: Record<string, string>,
+  inputSources: Map<string, string>,
+  indices: Record<string, number>
+): EdgeConditionDefinition {
+  if (Array.isArray(condition)) {
+    return condition.map((item) =>
+      resolveConditionSources(item, outputSources, inputSources, indices)
+    ) as EdgeConditionDefinition;
+  }
+
+  if ('when' in condition) {
+    return {
+      ...condition,
+      when: resolveConditionSourceId(
+        condition.when,
+        outputSources,
+        inputSources,
+        indices
+      ),
+    };
+  }
+
+  return {
+    ...condition,
+    ...(condition.all
+      ? {
+          all: condition.all.map((clause) => ({
+            ...clause,
+            when: resolveConditionSourceId(
+              clause.when,
+              outputSources,
+              inputSources,
+              indices
+            ),
+          })),
+        }
+      : {}),
+    ...(condition.any
+      ? {
+          any: condition.any.map((clause) => ({
+            ...clause,
+            when: resolveConditionSourceId(
+              clause.when,
+              outputSources,
+              inputSources,
+              indices
+            ),
+          })),
+        }
+      : {}),
+  };
+}
+
+function resolveConditionSourceId(
+  when: string,
+  outputSources: Record<string, string>,
+  inputSources: Map<string, string>,
+  indices: Record<string, number>
+): string {
+  const outputSource = outputSources[when] ?? when;
+  if (!isCanonicalInputId(outputSource)) {
+    return outputSource;
+  }
+
+  const exactInputId = resolveIndexedConditionReference(outputSource, indices);
+  const source =
+    resolveInputSource(exactInputId, inputSources, outputSources) ??
+    resolveInputSource(outputSource, inputSources, outputSources);
+  if (!source) {
+    return outputSource;
+  }
+
+  return isCanonicalInputId(source)
+    ? resolveIndexedConditionReference(source, indices)
+    : source;
+}
+
+function resolveInputSource(
+  inputId: string,
+  inputSources: Map<string, string>,
+  outputSources: Record<string, string>
+): string | undefined {
+  const visited = new Set<string>();
+  let current = inputId;
+
+  while (!visited.has(current)) {
+    visited.add(current);
+    const source = inputSources.get(current);
+    if (!source) {
+      return current === inputId ? undefined : current;
+    }
+
+    const outputSource = outputSources[source] ?? source;
+    if (!isCanonicalInputId(outputSource)) {
+      return outputSource;
+    }
+
+    current = outputSource;
+  }
+
+  throw createRuntimeError(
+    RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+    `Detected circular input source mapping while resolving activation condition input "${inputId}".`
+  );
+}
+
+function resolveIndexedConditionReference(
+  reference: string,
+  indices: Record<string, number>
+): string {
+  let resolved = reference;
+
+  for (const [symbol, value] of Object.entries(indices).reverse()) {
+    const label = extractDimensionLabel(symbol);
+    resolved = resolved.replace(
+      new RegExp(`\\[${escapeRegexLiteral(label)}\\]`, 'g'),
+      `[${value}]`
+    );
+  }
+
+  return resolved;
 }
 
 function resolveConditionOutputSources(

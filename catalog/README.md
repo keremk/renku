@@ -74,6 +74,8 @@ Blueprints that use catalog entries should author:
 
 - `outputs:` for their public output connectors
 - `imports:` for child blueprint references, including leaf producer blueprints
+- branch activation conditions on `imports:` rather than required input edges;
+  see [`docs/blueprint-condition-semantics.md`](../docs/blueprint-condition-semantics.md)
 
 ### Asset Producers
 

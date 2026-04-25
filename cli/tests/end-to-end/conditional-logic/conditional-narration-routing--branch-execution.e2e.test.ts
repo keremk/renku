@@ -142,12 +142,9 @@ describe('end-to-end: conditional edge execution', () => {
 		expect(videoJobs).toHaveLength(3);
 		expect(timelineJobs).toHaveLength(1);
 
-		// Verify inputConditions are attached to ImageProducer jobs
+		// Verify branch activation is attached to ImageProducer jobs.
 		const imageJob = imageJobs[0];
-		expect(imageJob.context?.inputConditions).toBeDefined();
-		expect(
-			Object.keys(imageJob.context?.inputConditions ?? {}).length
-		).toBeGreaterThan(0);
+		expect(imageJob.context?.activation?.condition).toBeDefined();
 
 		// ============================================================
 		// PHASE 2: Execute with mocked DocProducer returning controlled VideoScript

@@ -46,6 +46,7 @@ describe('validatePreparedBlueprintTree', () => {
     const result = await validatePreparedBlueprintTree({
       root,
       schemaSource: { kind: 'producer-metadata' },
+      options: { strictResolvedConditions: false },
     });
 
     expect(result.validation.valid).toBe(false);
@@ -71,6 +72,7 @@ describe('validatePreparedBlueprintTree', () => {
     const result = await validatePreparedBlueprintTree({
       root,
       schemaSource: { kind: 'producer-metadata' },
+      options: { strictResolvedConditions: false },
     });
 
     expect(result.validation.valid).toBe(false);
@@ -93,6 +95,7 @@ describe('validatePreparedBlueprintTree', () => {
     const result = await validatePreparedBlueprintTree({
       root,
       schemaSource: { kind: 'producer-metadata' },
+      options: { strictResolvedConditions: false },
     });
 
     expect(result.validation.valid).toBe(false);
@@ -115,6 +118,7 @@ describe('validatePreparedBlueprintTree', () => {
     const result = await validatePreparedBlueprintTree({
       root,
       schemaSource: { kind: 'producer-metadata' },
+      options: { strictResolvedConditions: false },
     });
 
     expect(result.validation.valid).toBe(true);
@@ -137,6 +141,7 @@ describe('validatePreparedBlueprintTree', () => {
     const result = await validatePreparedBlueprintTree({
       root,
       schemaSource: { kind: 'producer-metadata' },
+      options: { strictResolvedConditions: false },
     });
 
     expect(result.validation.errors).not.toContainEqual(
@@ -155,6 +160,7 @@ describe('validatePreparedBlueprintTree', () => {
     const result = await validatePreparedBlueprintTree({
       root,
       schemaSource: { kind: 'producer-metadata' },
+      options: { strictResolvedConditions: false },
     });
 
     expect(result.context).toBeDefined();
@@ -172,7 +178,7 @@ describe('validatePreparedBlueprintTree', () => {
     ).toBe(false);
   });
 
-  it('keeps resolved condition semantics compatibility-safe by default', async () => {
+  it('keeps legacy required-input edge condition fixtures behind an explicit compatibility opt-out', async () => {
     const blueprintPath = await createStrictResolvedConditionFixture({
       promptRequired: true,
       connections: [
@@ -187,7 +193,10 @@ describe('validatePreparedBlueprintTree', () => {
     const result = await validatePreparedBlueprintTree({
       root,
       schemaSource: { kind: 'producer-metadata' },
-      options: { errorsOnly: true },
+      options: {
+        errorsOnly: true,
+        strictResolvedConditions: false,
+      },
     });
 
     expect(result.validation.valid).toBe(true);
@@ -210,7 +219,6 @@ describe('validatePreparedBlueprintTree', () => {
       schemaSource: { kind: 'producer-metadata' },
       options: {
         errorsOnly: true,
-        strictResolvedConditions: true,
       },
     });
 
@@ -247,7 +255,6 @@ describe('validatePreparedBlueprintTree', () => {
       schemaSource: { kind: 'producer-metadata' },
       options: {
         errorsOnly: true,
-        strictResolvedConditions: true,
       },
     });
 
@@ -277,7 +284,6 @@ describe('validatePreparedBlueprintTree', () => {
       schemaSource: { kind: 'producer-metadata' },
       options: {
         errorsOnly: true,
-        strictResolvedConditions: true,
       },
     });
 
@@ -311,7 +317,6 @@ describe('validatePreparedBlueprintTree', () => {
       schemaSource: { kind: 'producer-metadata' },
       options: {
         errorsOnly: true,
-        strictResolvedConditions: true,
       },
     });
 
@@ -336,7 +341,6 @@ describe('validatePreparedBlueprintTree', () => {
       schemaSource: { kind: 'producer-metadata' },
       options: {
         errorsOnly: true,
-        strictResolvedConditions: true,
       },
     });
 
@@ -361,7 +365,6 @@ describe('validatePreparedBlueprintTree', () => {
       schemaSource: { kind: 'producer-metadata' },
       options: {
         errorsOnly: true,
-        strictResolvedConditions: true,
       },
     });
 

@@ -61,10 +61,11 @@ export interface ValidatorOptions {
   /** Skip specific error codes */
   skipCodes?: string[];
   /**
-   * Opt into the new resolved-structure condition semantics.
+   * Controls resolved-structure condition semantics.
    *
-   * This is intentionally false by default while existing catalog blueprints
-   * still carry legacy required-input edge conditions.
+   * Strict semantics are the default. Set this to false only for explicitly
+   * named legacy compatibility tests that exercise old required-input edge
+   * condition fixtures.
    */
   strictResolvedConditions?: boolean;
   /**

@@ -41,6 +41,7 @@ imports:
   - name: TransitionVideoProducer
     producer: video/text-to-video
     loop: character
+    if: hasTransition
   - name: MusicProducer
     producer: audio/text-to-music
   - name: TimelineComposer
@@ -72,13 +73,10 @@ connections:
 
   - from: DirectorProducer.Script.Characters[character].TransitionVideoPrompt
     to: TransitionVideoProducer[character].Prompt
-    if: hasTransition
   - from: TransitionDuration
     to: TransitionVideoProducer[character].Duration
-    if: hasTransition
   - from: Resolution
     to: TransitionVideoProducer[character].Resolution
-    if: hasTransition
 
   - from: MeetingVideoProducer[character].GeneratedVideo
     to: TimelineComposer.VideoSegments

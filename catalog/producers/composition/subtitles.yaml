@@ -50,23 +50,22 @@ imports:
   - name: STTTimestamps
     producer: json/stt-timestamps
     loop: segment
+    if: hasTranscriptionAudio
   - name: STTNormalizer
     producer: composition/stt-normalizer
     loop: segment
+    if: hasTranscriptionAudio
   - name: SubtitlesComposer
     producer: composition/subtitles-composer
 
 connections:
   - from: TranscriptionAudio[segment]
     to: STTTimestamps[segment].TranscriptionAudio
-    if: hasTranscriptionAudio
   - from: LanguageCode
     to: STTTimestamps[segment].LanguageCode
-    if: hasTranscriptionAudio
 
   - from: STTTimestamps[segment].RawTranscription
     to: STTNormalizer[segment].RawTranscription
-    if: hasTranscriptionAudio
 
   - from: Timeline
     to: SubtitlesComposer.Timeline
