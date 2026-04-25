@@ -197,7 +197,7 @@ function expectScheduledJobsDoNotUseConditionalInputBindings(
   result: GeneratePlanResult
 ): void {
   for (const job of result.plan.layers.flat()) {
-    expect(job.context?.conditionalInputBindings).toBeUndefined();
+    expect('conditionalInputBindings' in (job.context ?? {})).toBe(false);
   }
 }
 

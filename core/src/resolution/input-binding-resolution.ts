@@ -1,5 +1,4 @@
 import type {
-  ConditionalInputBindingCandidate,
   EdgeConditionClause,
   EdgeConditionDefinition,
   EdgeConditionGroup,
@@ -52,42 +51,6 @@ export function normalizeResolvedScalarBindings(
   return normalized;
 }
 
-export function normalizeCollapsedConditionalInputBindings(
-  inputBindings: Record<string, Record<string, ConditionalInputBindingCandidate[]>>,
-  outputSources: Record<string, string>
-): Record<string, Record<string, ConditionalInputBindingCandidate[]>> {
-  const normalized: Record<string, Record<string, ConditionalInputBindingCandidate[]>> = {};
-
-  for (const [targetId, bindings] of Object.entries(inputBindings)) {
-    const normalizedBindings: Record<string, ConditionalInputBindingCandidate[]> = {};
-
-    for (const [alias, candidates] of Object.entries(bindings)) {
-      normalizedBindings[alias] = candidates.map((candidate) => {
-        if (!isCanonicalOutputId(candidate.sourceId)) {
-          return candidate;
-        }
-
-        const sourceId = outputSources[candidate.sourceId];
-        if (!sourceId) {
-          throw createRuntimeError(
-            RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-            `Input binding for ${targetId}.${alias} references route-selected output ${candidate.sourceId}. Bind to a concrete canonical input or artifact, or add explicit route handling before producer graph creation.`
-          );
-        }
-
-        return {
-          ...candidate,
-          sourceId,
-        };
-      });
-    }
-
-    normalized[targetId] = normalizedBindings;
-  }
-
-  return normalized;
-}
-
 export function normalizeCollapsedInputBindings(
   inputBindings: Record<string, Record<string, string>>,
   outputSources: Record<string, string>
@@ -120,18 +83,10 @@ export function normalizeCollapsedInputBindings(
   return normalized;
 }
 
-function isScalarInputNode(node: CanonicalNodeInstance): boolean {
-  if (node.type !== 'Input' || node.input?.fanIn) {
-    return false;
-  }
-  return node.input?.type !== 'array' && node.input?.type !== 'multiDimArray';
-}
-
 interface CollapseResult {
   edges: CanonicalEdgeInstance[];
   nodes: CanonicalNodeInstance[];
   inputBindings: Record<string, Record<string, string>>;
-  conditionalInputBindings: Record<string, Record<string, ConditionalInputBindingCandidate[]>>;
   resolvedScalarBindings: Record<string, ResolvedScalarBinding[]>;
 }
 
@@ -178,13 +133,6 @@ export function collapseInputNodes(
         (edge) => !!edge.bindingAlias
       );
       if (hasDynamicCollectionBindings) {
-        aliasCache.set(id, id);
-        return id;
-      }
-      const hasOnlyConditionalAlternatives = inboundEdges.every(
-        (edge) => edge.conditions && edge.indices
-      );
-      if (hasOnlyConditionalAlternatives) {
         aliasCache.set(id, id);
         return id;
       }
@@ -325,10 +273,6 @@ export function collapseInputNodes(
   };
 
   const bindingMap = new Map<string, Map<string, string>>();
-  const conditionalBindingMap = new Map<
-    string,
-    Map<string, ConditionalInputBindingCandidate[]>
-  >();
   const resolvedScalarBindingMap = new Map<string, ResolvedScalarBinding[]>();
 
   for (const node of nodes) {
@@ -341,6 +285,7 @@ export function collapseInputNodes(
     targetId: string,
     alias: string,
     canonicalId: string,
+    inputRequired: boolean,
     conditions: CanonicalEdgeInstance['conditions'],
     indices: CanonicalEdgeInstance['indices']
   ): void {
@@ -358,6 +303,7 @@ export function collapseInputNodes(
     const binding: ResolvedScalarBinding = {
       inputId: alias,
       sourceId: canonicalId,
+      inputRequired,
       ...(conditions && indices
         ? {
             optionalCondition: {
@@ -382,55 +328,25 @@ export function collapseInputNodes(
     resolvedScalarBindingMap.set(targetId, bindings);
   }
 
-  function recordConditionalBinding(
-    targetId: string,
-    alias: string,
-    canonicalId: string,
-    conditions: CanonicalEdgeInstance['conditions'],
-    indices: CanonicalEdgeInstance['indices']
-  ): void {
-    if (!alias || !conditions || !indices) {
-      return;
-    }
-
-    const byAlias =
-      conditionalBindingMap.get(targetId) ??
-      new Map<string, ConditionalInputBindingCandidate[]>();
-    const candidates = byAlias.get(alias) ?? [];
-    const duplicate = candidates.some(
-      (candidate) =>
-        candidate.sourceId === canonicalId &&
-        JSON.stringify(candidate.condition) === JSON.stringify(conditions) &&
-        JSON.stringify(candidate.indices) === JSON.stringify(indices)
-    );
-    if (duplicate) {
-      return;
-    }
-    candidates.push({
-      sourceId: canonicalId,
-      condition: conditions,
-      indices,
-    });
-    byAlias.set(alias, candidates);
-    conditionalBindingMap.set(targetId, byAlias);
-  }
-
   function recordBinding(
     targetId: string,
     alias: string,
     canonicalId: string,
+    inputRequired: boolean,
     conditions?: CanonicalEdgeInstance['conditions'],
-    indices?: CanonicalEdgeInstance['indices'],
-    conditionalCandidate = false
+    indices?: CanonicalEdgeInstance['indices']
   ): void {
     if (!alias) {
       return;
     }
-    recordResolvedScalarBinding(targetId, alias, canonicalId, conditions, indices);
-    if (conditions && conditionalCandidate) {
-      recordConditionalBinding(targetId, alias, canonicalId, conditions, indices);
-      return;
-    }
+    recordResolvedScalarBinding(
+      targetId,
+      alias,
+      canonicalId,
+      inputRequired,
+      conditions,
+      indices
+    );
     const existing = bindingMap.get(targetId) ?? new Map<string, string>();
     const previous = existing.get(alias);
     if (previous !== undefined && previous !== canonicalId) {
@@ -447,8 +363,8 @@ export function collapseInputNodes(
     sourceId: string,
     alias: string,
     canonicalId: string,
+    inputRequired: boolean,
     conditionFields: CanonicalEdgeConditionFields,
-    conditionalCandidate: boolean,
     visited: Set<string>
   ): void => {
     const outgoing = outbound.get(sourceId) ?? [];
@@ -467,9 +383,9 @@ export function collapseInputNodes(
           targetNode.id,
           edge.bindingAlias ?? alias,
           canonicalId,
+          inputRequired,
           bindingConditions,
-          bindingConditions ? combinedFields.indices : undefined,
-          conditionalCandidate && Boolean(bindingConditions)
+          bindingConditions ? combinedFields.indices : undefined
         );
         continue;
       }
@@ -483,8 +399,8 @@ export function collapseInputNodes(
           targetNode.id,
           alias,
           canonicalId,
+          inputRequired,
           combinedFields,
-          conditionalCandidate,
           visited
         );
       }
@@ -623,26 +539,10 @@ export function collapseInputNodes(
       node.id,
       aliasName,
       canonicalId,
+      requireInputDefinition(node).required,
       {},
-      false,
       visited
     );
-
-    const inboundEdgesForNode = inbound.get(node.id) ?? [];
-    const conditionalInboundEdges =
-      isScalarInputNode(node) && inboundEdgesForNode.length > 1
-        ? inboundEdgesForNode.filter((edge) => edge.conditions && edge.indices)
-        : [];
-    for (const inboundEdge of conditionalInboundEdges) {
-      propagateAlias(
-        node.id,
-        aliasName,
-        normalizeId(inboundEdge.from),
-        canonicalEdgeConditionFields(inboundEdge),
-        true,
-        new Set<string>()
-      );
-    }
 
     // If this is a base input with element-level inputs, also propagate those bindings
     // through this node's outbound edges
@@ -663,8 +563,8 @@ export function collapseInputNodes(
             node.id,
             elementAlias,
             elementCanonicalId,
+            requireInputDefinition(elementNode).required,
             {},
-            false,
             elementVisited
           );
 
@@ -700,8 +600,8 @@ export function collapseInputNodes(
           node.id,
           dynamicBinding.alias,
           dynamicBinding.canonicalId,
+          requireInputDefinition(node).required,
           dynamicBinding.conditionFields,
-          false,
           new Set<string>()
         );
 
@@ -745,7 +645,6 @@ export function collapseInputNodes(
     edges: resolvedEdges,
     nodes: filteredNodes,
     inputBindings: mapOfMapsToRecord(bindingMap),
-    conditionalInputBindings: mapOfMapsToRecord(conditionalBindingMap),
     resolvedScalarBindings: mapOfArraysToRecord(resolvedScalarBindingMap),
   };
 }
@@ -792,4 +691,16 @@ function getIndicesByLabel(node: CanonicalNodeInstance): Map<string, number> {
     indices.set(extractDimensionLabel(symbol), value);
   }
   return indices;
+}
+
+function requireInputDefinition(
+  node: CanonicalNodeInstance
+): NonNullable<CanonicalNodeInstance['input']> {
+  if (!node.input) {
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+      `Input node ${node.id} is missing its input definition.`
+    );
+  }
+  return node.input;
 }

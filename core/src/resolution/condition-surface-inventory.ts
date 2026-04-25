@@ -48,13 +48,6 @@ export interface PropagatedEdgeConditionInventoryItem
   authoredEdgeConditions?: EdgeConditionDefinition;
 }
 
-export interface ConditionalInputBindingInventoryItem
-  extends ConditionSurfaceInventoryItem {
-  producerId: string;
-  inputName: string;
-  sourceId: string;
-}
-
 export interface InputConditionInventoryItem
   extends ConditionSurfaceInventoryItem {
   producerId: string;
@@ -80,7 +73,6 @@ export interface BlueprintConditionSurfaceInventory {
   importConditions: ImportConditionInventoryItem[];
   authoredConnectionConditions: AuthoredConnectionConditionInventoryItem[];
   propagatedEdgeConditions: PropagatedEdgeConditionInventoryItem[];
-  conditionalInputBindings: ConditionalInputBindingInventoryItem[];
   inputConditions: InputConditionInventoryItem[];
   fanInMemberConditions: FanInMemberConditionInventoryItem[];
   routeSelectedOutputBindings: OutputRouteConditionInventoryItem[];
@@ -88,7 +80,6 @@ export interface BlueprintConditionSurfaceInventory {
     importConditions: number;
     authoredConnectionConditions: number;
     propagatedEdgeConditions: number;
-    conditionalInputBindings: number;
     inputConditions: number;
     fanInMembersWithConditions: number;
     routeSelectedOutputBindings: number;
@@ -132,11 +123,6 @@ export function collectBlueprintConditionSurfaceInventory(args: {
         category: classifyCanonicalEdgeCondition(edge, nodesById),
       };
     });
-  const conditionalInputBindings = collectConditionalInputBindings(
-    args.canonical,
-    nodesById,
-    inputDefinitions
-  );
   const inputConditions = collectInputConditions(
     args.producerGraph,
     inputConditionCategories
@@ -157,7 +143,6 @@ export function collectBlueprintConditionSurfaceInventory(args: {
     ...importConditions,
     ...authoredConnectionConditions,
     ...propagatedEdgeConditions,
-    ...conditionalInputBindings,
     ...inputConditions,
     ...fanInMemberConditions,
     ...routeSelectedOutputBindings,
@@ -169,7 +154,6 @@ export function collectBlueprintConditionSurfaceInventory(args: {
     importConditions,
     authoredConnectionConditions,
     propagatedEdgeConditions,
-    conditionalInputBindings,
     inputConditions,
     fanInMemberConditions,
     routeSelectedOutputBindings,
@@ -177,7 +161,6 @@ export function collectBlueprintConditionSurfaceInventory(args: {
       importConditions: importConditions.length,
       authoredConnectionConditions: authoredConnectionConditions.length,
       propagatedEdgeConditions: propagatedEdgeConditions.length,
-      conditionalInputBindings: conditionalInputBindings.length,
       inputConditions: inputConditions.length,
       fanInMembersWithConditions: fanInMemberConditions.length,
       routeSelectedOutputBindings: args.canonical.outputSourceBindings.length,
@@ -240,44 +223,6 @@ function collectAuthoredConnectionConditions(
   }
 
   visit(root);
-  return items;
-}
-
-function collectConditionalInputBindings(
-  canonical: CanonicalBlueprint,
-  nodesById: Map<string, CanonicalBlueprint['nodes'][number]>,
-  inputDefinitions: Map<string, BlueprintInputDefinition>
-): ConditionalInputBindingInventoryItem[] {
-  const items: ConditionalInputBindingInventoryItem[] = [];
-
-  for (const [producerId, bindings] of Object.entries(
-    canonical.conditionalInputBindings
-  )) {
-    const producerNode = nodesById.get(producerId);
-    if (!producerNode || producerNode.type !== 'Producer') {
-      throw new Error(
-        `Conditional input binding references unknown producer "${producerId}".`
-      );
-    }
-
-    for (const [inputName, candidates] of Object.entries(bindings)) {
-      const inputDefinition = findProducerInputDefinition(
-        inputDefinitions,
-        producerNode,
-        inputName
-      );
-      for (const candidate of candidates) {
-        items.push({
-          producerId,
-          inputName,
-          sourceId: candidate.sourceId,
-          condition: candidate.condition,
-          category: classifyInputDefinition(inputDefinition),
-        });
-      }
-    }
-  }
-
   return items;
 }
 
@@ -379,29 +324,6 @@ function collectInputConditionCategories(
         inputConditionKey(producerId, sourceId),
         classifyInputDefinition(inputDefinition)
       );
-    }
-  }
-
-  for (const [producerId, bindings] of Object.entries(
-    canonical.conditionalInputBindings
-  )) {
-    const producerNode = nodesById.get(producerId);
-    if (!producerNode || producerNode.type !== 'Producer') {
-      continue;
-    }
-
-    for (const [inputName, candidates] of Object.entries(bindings)) {
-      const inputDefinition = findProducerInputDefinition(
-        inputDefinitions,
-        producerNode,
-        inputName
-      );
-      for (const candidate of candidates) {
-        categories.set(
-          inputConditionKey(producerId, candidate.sourceId),
-          classifyInputDefinition(inputDefinition)
-        );
-      }
     }
   }
 

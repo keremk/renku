@@ -145,14 +145,13 @@ function buildConditionArtifactGraph(): ProducerGraph {
         producerAlias: 'TransitionVideoProducer',
         inputs: [],
         produces: [],
-        inputConditions: {
-          'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
-            condition: {
-              when: 'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
-              is: true,
-            },
-            indices: {},
+        activation: {
+          condition: {
+            when: 'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
+            is: true,
           },
+          indices: {},
+          inheritedFrom: [],
         },
       },
     },

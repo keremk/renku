@@ -519,49 +519,6 @@ function deriveConditionallyInactiveJobs(
       }
       continue;
     }
-
-    const inputConditions = info.node.context?.inputConditions;
-    if (!inputConditions || Object.keys(inputConditions).length === 0) {
-      continue;
-    }
-
-    const conditionResults = evaluateInputConditions(
-      inputConditions,
-      conditionContext
-    );
-    const conditionalInputIds = new Set(Object.keys(inputConditions));
-
-    let anySatisfied = false;
-    let anyUnknown = false;
-    for (const [, result] of conditionResults) {
-      if (result.satisfied) {
-        anySatisfied = true;
-        break;
-      }
-      if (isConditionEvaluationUnknown(result.reason)) {
-        anyUnknown = true;
-      }
-    }
-
-    const hasUnconditionalArtifactInputs = info.node.inputs.some(
-      (inputId) =>
-        !conditionalInputIds.has(inputId) && isCanonicalArtifactId(inputId)
-    );
-    const fanIn = info.node.context?.fanIn;
-    const hasUnconditionalFanInMembers =
-      fanIn !== undefined &&
-      Object.values(fanIn).some((spec) =>
-        spec.members.some((member) => !conditionalInputIds.has(member.id))
-      );
-
-    if (
-      !anySatisfied &&
-      !anyUnknown &&
-      !hasUnconditionalArtifactInputs &&
-      !hasUnconditionalFanInMembers
-    ) {
-      inactive.add(jobId);
-    }
   }
 
   return inactive;

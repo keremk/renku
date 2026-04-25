@@ -622,16 +622,18 @@ describe('createRunner', () => {
     expect(result.status).toBe('succeeded');
   });
 
-  it('skips job when all conditional inputs unsatisfied and no unconditional artifact inputs', async () => {
+  it('executes job with empty fan-in when all optional members are unsatisfied', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-all-conditional');
     const eventLog = createEventLog(storage);
 
     let jobWasExecuted = false;
+    let observedFanIn: NonNullable<JobDescriptor['context']>['fanIn'] | undefined;
 
     const runner = createRunner({
       produce: async (request) => {
         jobWasExecuted = true;
+        observedFanIn = request.job.context?.fanIn;
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
@@ -640,7 +642,7 @@ describe('createRunner', () => {
       },
     });
 
-    // Job where ALL fanIn members are conditional and none are satisfied
+    // Job where all fan-in members are optional and none are satisfied.
     const job: JobDescriptor = {
       jobId: 'job-all-conditional',
       producer: 'AudioConsumer',
@@ -664,7 +666,6 @@ describe('createRunner', () => {
             ],
           },
         },
-        // ALL members have conditions that evaluate to false
         inputConditions: {
           'Artifact:AudioProducer.GeneratedAudio[0]': {
             condition: {
@@ -702,9 +703,11 @@ describe('createRunner', () => {
       revision: 'rev-0002',
     });
 
-    // Job SHOULD be skipped because all fanIn members are conditional and unsatisfied
-    expect(jobWasExecuted).toBe(false);
-    expect(result.status).toBe('skipped');
+    expect(jobWasExecuted).toBe(true);
+    expect(result.status).toBe('succeeded');
+    expect(
+      observedFanIn?.['Input:AudioConsumer.AudioSegments']?.members
+    ).toEqual([]);
   });
 
   it('skips a whole job when its activation condition is false', async () => {
@@ -869,16 +872,9 @@ describe('createRunner', () => {
           indices: {},
           inheritedFrom: [],
         },
-        inputConditions: {
-          'Input:ActivationGatedProducer.Prompt': {
-            condition: { when: 'Input:LegacyPromptGate', is: true },
-            indices: {},
-          },
-        },
         extras: {
           resolvedInputs: {
             'Input:RunActivationJob': true,
-            'Input:LegacyPromptGate': false,
           },
         },
       },
@@ -1068,7 +1064,7 @@ describe('createRunner', () => {
     expect(observedInputBindings?.['ReferenceImages[1]']).toBeUndefined();
   });
 
-  it('selects one satisfied conditional scalar input binding before producer invocation', async () => {
+  it('keeps a satisfied optional scalar input binding before producer invocation', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-conditional-scalar-binding');
     const eventLog = createEventLog(storage);
@@ -1112,10 +1108,12 @@ describe('createRunner', () => {
     await appendArtifact('Artifact:CharacterAssets.Portrait[2]', 'portrait-2');
 
     let observedInputBindings: Record<string, string> | undefined;
+    let observedInputs: string[] | undefined;
 
     const runner = createRunner({
       produce: async (request) => {
         observedInputBindings = request.job.context?.inputBindings;
+        observedInputs = request.job.inputs;
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
@@ -1129,8 +1127,6 @@ describe('createRunner', () => {
       producer: 'ReferenceVideoProducer',
       inputs: [
         'Input:ReferenceVideoProducer.ReferenceImage',
-        'Artifact:CharacterAssets.Portrait[0]',
-        'Artifact:CharacterAssets.Portrait[1]',
         'Artifact:CharacterAssets.Portrait[2]',
       ],
       produces: ['Artifact:ReferenceVideoProducer.Video[0]'],
@@ -1150,36 +1146,9 @@ describe('createRunner', () => {
         ],
         produces: ['Artifact:ReferenceVideoProducer.Video[0]'],
         inputBindings: {
-          ReferenceImage: 'Input:ReferenceVideoProducer.ReferenceImage',
-        },
-        conditionalInputBindings: {
-          ReferenceImage: [
-            {
-              sourceId: 'Artifact:CharacterAssets.Portrait[0]',
-              condition: { when: 'Input:UseReference[segment][character]', is: true },
-              indices: { segment: 0, character: 0 },
-            },
-            {
-              sourceId: 'Artifact:CharacterAssets.Portrait[1]',
-              condition: { when: 'Input:UseReference[segment][character]', is: true },
-              indices: { segment: 0, character: 1 },
-            },
-            {
-              sourceId: 'Artifact:CharacterAssets.Portrait[2]',
-              condition: { when: 'Input:UseReference[segment][character]', is: true },
-              indices: { segment: 0, character: 2 },
-            },
-          ],
+          ReferenceImage: 'Artifact:CharacterAssets.Portrait[2]',
         },
         inputConditions: {
-          'Artifact:CharacterAssets.Portrait[0]': {
-            condition: { when: 'Input:UseReference[segment][character]', is: true },
-            indices: { segment: 0, character: 0 },
-          },
-          'Artifact:CharacterAssets.Portrait[1]': {
-            condition: { when: 'Input:UseReference[segment][character]', is: true },
-            indices: { segment: 0, character: 1 },
-          },
           'Artifact:CharacterAssets.Portrait[2]': {
             condition: { when: 'Input:UseReference[segment][character]', is: true },
             indices: { segment: 0, character: 2 },
@@ -1213,6 +1182,7 @@ describe('createRunner', () => {
     expect(observedInputBindings?.ReferenceImage).toBe(
       'Artifact:CharacterAssets.Portrait[2]'
     );
+    expect(observedInputs).toContain('Artifact:CharacterAssets.Portrait[2]');
   });
 
   it('provides fan-in artifact blobs to downstream jobs', async () => {

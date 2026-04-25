@@ -808,7 +808,7 @@ describe('expandBlueprintGraph', () => {
     expect(mismatchedVoiceEdge).toBeUndefined();
   });
 
-  it('preserves conditional cross-dimension input candidates without positional alignment', () => {
+  it('rejects multiple conditional scalar sources instead of preserving runtime candidates', () => {
     const characterDoc: BlueprintDocument = {
       meta: { id: 'CharacterAssets', name: 'CharacterAssets', kind: 'producer' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
@@ -931,33 +931,9 @@ describe('expandBlueprintGraph', () => {
       inputSources
     );
 
-    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
-
-    const segmentZeroBindings = Object.entries(
-      expanded.conditionalInputBindings
-    ).find(([producerId]) => producerId.includes('VideoProducer[0]'))?.[1];
-    const segmentOneBindings = Object.entries(
-      expanded.conditionalInputBindings
-    ).find(([producerId]) => producerId.includes('VideoProducer[1]'))?.[1];
-
-    expect(segmentZeroBindings?.ReferenceImage).toEqual(
-      expect.arrayContaining([
-        {
-          sourceId: 'Artifact:CharacterAssets.Portrait[2]',
-          condition: { when: 'Input:UseReference[segment][character]', is: true },
-          indices: expect.any(Object),
-        },
-      ])
-    );
-    expect(segmentOneBindings?.ReferenceImage).toEqual(
-      expect.arrayContaining([
-        {
-          sourceId: 'Artifact:CharacterAssets.Portrait[0]',
-          condition: { when: 'Input:UseReference[segment][character]', is: true },
-          indices: expect.any(Object),
-        },
-      ])
-    );
+    expect(() =>
+      expandBlueprintGraph(graph, canonicalInputs, inputSources)
+    ).toThrow(/multiple upstream dependencies/);
   });
 
   it('handles input aliases correctly', () => {

@@ -7,6 +7,7 @@ import type {
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
   BlueprintTreeNode,
+  EdgeConditionDefinition,
   ProducerCatalog,
   ProducerConfig,
 } from '../types.js';
@@ -428,13 +429,15 @@ function makeBlueprintDocument(
 function makeTreeNode(
   document: BlueprintDocument,
   namespacePath: string[],
-  children: Map<string, BlueprintTreeNode> = new Map()
+  children: Map<string, BlueprintTreeNode> = new Map(),
+  importConditions?: EdgeConditionDefinition
 ): BlueprintTreeNode {
   return {
     id: document.meta.id,
     namespacePath,
     document,
     children,
+    ...(importConditions ? { importConditions } : {}),
     sourcePath: '/test/mock-blueprint.yaml',
   };
 }
@@ -597,7 +600,10 @@ describe('createPlanningService', () => {
       [],
       new Map([
         ['UpstreamProducer', makeTreeNode(upstreamDoc, ['UpstreamProducer'])],
-        ['DownstreamProducer', makeTreeNode(downstreamDoc, ['DownstreamProducer'])],
+        [
+          'DownstreamProducer',
+          makeTreeNode(downstreamDoc, ['DownstreamProducer']),
+        ],
       ])
     );
   }
@@ -642,7 +648,6 @@ describe('createPlanningService', () => {
         {
           from: 'Intermediate',
           to: 'DownstreamProducer.Intermediate',
-          conditions: { when: 'Artifact:UpstreamProducer.GateFlag', is: 'enabled' },
         },
         { from: 'DownstreamProducer.FinalOutput', to: 'FinalOutput' },
       ],
@@ -650,7 +655,14 @@ describe('createPlanningService', () => {
       {
         imports: [
           { name: 'UpstreamProducer', producer: 'test/upstream-producer' },
-          { name: 'DownstreamProducer', producer: 'test/downstream-producer' },
+          {
+            name: 'DownstreamProducer',
+            producer: 'test/downstream-producer',
+            conditions: {
+              when: 'Artifact:UpstreamProducer.GateFlag',
+              is: 'enabled',
+            },
+          },
         ],
       }
     );
@@ -660,7 +672,18 @@ describe('createPlanningService', () => {
       [],
       new Map([
         ['UpstreamProducer', makeTreeNode(upstreamDoc, ['UpstreamProducer'])],
-        ['DownstreamProducer', makeTreeNode(downstreamDoc, ['DownstreamProducer'])],
+        [
+          'DownstreamProducer',
+          makeTreeNode(
+            downstreamDoc,
+            ['DownstreamProducer'],
+            new Map(),
+            {
+              when: 'Artifact:UpstreamProducer.GateFlag',
+              is: 'enabled',
+            }
+          ),
+        ],
       ])
     );
   }
@@ -705,7 +728,6 @@ describe('createPlanningService', () => {
         {
           from: 'Intermediate',
           to: 'DownstreamProducer.Intermediate',
-          conditions: { when: 'Artifact:UpstreamProducer.GateFlag', is: false },
         },
         { from: 'DownstreamProducer.FinalOutput', to: 'FinalOutput' },
       ],
@@ -713,7 +735,14 @@ describe('createPlanningService', () => {
       {
         imports: [
           { name: 'UpstreamProducer', producer: 'test/upstream-producer' },
-          { name: 'DownstreamProducer', producer: 'test/downstream-producer' },
+          {
+            name: 'DownstreamProducer',
+            producer: 'test/downstream-producer',
+            conditions: {
+              when: 'Artifact:UpstreamProducer.GateFlag',
+              is: false,
+            },
+          },
         ],
       }
     );
@@ -723,7 +752,18 @@ describe('createPlanningService', () => {
       [],
       new Map([
         ['UpstreamProducer', makeTreeNode(upstreamDoc, ['UpstreamProducer'])],
-        ['DownstreamProducer', makeTreeNode(downstreamDoc, ['DownstreamProducer'])],
+        [
+          'DownstreamProducer',
+          makeTreeNode(
+            downstreamDoc,
+            ['DownstreamProducer'],
+            new Map(),
+            {
+              when: 'Artifact:UpstreamProducer.GateFlag',
+              is: false,
+            }
+          ),
+        ],
       ])
     );
   }

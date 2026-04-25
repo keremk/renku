@@ -790,7 +790,7 @@ describe('createProducerGraph', () => {
   });
 
   describe('input conditions', () => {
-    it('collects input conditions from edges targeting the producer', () => {
+    it('does not collect legacy input conditions from edges targeting the producer', () => {
       const canonical: CanonicalBlueprint = {
         nodes: [
           {
@@ -833,17 +833,10 @@ describe('createProducerGraph', () => {
       const result = createProducerGraph(canonical, defaultCatalog, options);
 
       const node = result.nodes[0]!;
-      expect(node.context!.inputConditions).toBeDefined();
-      expect(node.context!.inputConditions?.['Input:TestProducer.Prompt[0]']).toEqual({
-        condition: {
-          when: 'Artifact:SomeArtifact[0]',
-          is: true,
-        },
-        indices: { segment_sym: 0 },
-      });
+      expect(node.context!.inputConditions).toBeUndefined();
     });
 
-    it('collects input conditions from edges targeting indexed InputSource members', () => {
+    it('does not collect legacy input conditions from edges targeting indexed InputSource members', () => {
       const canonical: CanonicalBlueprint = {
         nodes: [
           {
@@ -890,18 +883,7 @@ describe('createProducerGraph', () => {
       const result = createProducerGraph(canonical, defaultCatalog, options);
 
       const node = result.nodes[0]!;
-      expect(node.context!.inputConditions).toBeDefined();
-      expect(
-        node.context!.inputConditions?.[
-          'Artifact:CharacterImage.GeneratedImage[0]'
-        ]
-      ).toEqual({
-        condition: {
-          when: 'Artifact:StoryPlan.Segments[0].UseReference',
-          is: true,
-        },
-        indices: { segment_sym: 0 },
-      });
+      expect(node.context!.inputConditions).toBeUndefined();
     });
   });
 
@@ -988,15 +970,7 @@ describe('createProducerGraph', () => {
           },
         ],
       });
-      expect(result.nodes[0]?.context?.inputConditions).toEqual({
-        'Input:Prompt': {
-          condition: {
-            when: 'Input:LegacyGate',
-            is: true,
-          },
-          indices: {},
-        },
-      });
+      expect(result.nodes[0]?.context?.inputConditions).toBeUndefined();
     });
 
     it('projects generated-artifact activation metadata through output source resolution', () => {
@@ -1173,6 +1147,20 @@ describe('createProducerGraph', () => {
             indices: {},
             dimensions: [],
           },
+          {
+            id: 'Input:TestProducer.Prompt',
+            type: 'Input',
+            producerAlias: 'TestProducer',
+            namespacePath: [],
+            name: 'Prompt',
+            indices: {},
+            dimensions: [],
+            input: {
+              name: 'Prompt',
+              type: 'string',
+              required: false,
+            },
+          },
         ],
         edges: [
           {
@@ -1213,6 +1201,7 @@ describe('createProducerGraph', () => {
             {
               inputId: 'Prompt',
               sourceId: 'Input:Prompt',
+              inputRequired: false,
               optionalCondition: {
                 condition: {
                   when: 'Artifact:ResolvedScalarGate',

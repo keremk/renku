@@ -434,10 +434,6 @@ function collectJobResolvedInputs(
       relevantInputIds
     );
   }
-  collectConditionalBindingInputIds(
-    job.context?.conditionalInputBindings,
-    relevantInputIds
-  );
 
   const relevantInputs: Record<string, unknown> = {};
   for (const inputId of relevantInputIds) {
@@ -448,23 +444,6 @@ function collectJobResolvedInputs(
   }
 
   return relevantInputs;
-}
-
-function collectConditionalBindingInputIds(
-  conditionalInputBindings:
-    | NonNullable<ExecutionPlan['layers'][number][number]['context']>['conditionalInputBindings']
-    | undefined,
-  target: Set<string>
-): void {
-  if (!conditionalInputBindings) {
-    return;
-  }
-
-  for (const candidates of Object.values(conditionalInputBindings)) {
-    for (const candidate of candidates) {
-      collectConditionDefinitionInputIds(candidate.condition, target);
-    }
-  }
 }
 
 function collectConditionInputIds(

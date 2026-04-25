@@ -43,7 +43,6 @@ describe('collectBlueprintConditionSurfaceInventory', () => {
       importConditions: 8,
       authoredConnectionConditions: 4,
       propagatedEdgeConditions: 71,
-      conditionalInputBindings: 0,
       inputConditions: 0,
       fanInMembersWithConditions: 0,
       routeSelectedOutputBindings: 24,
@@ -79,7 +78,6 @@ describe('collectBlueprintConditionSurfaceInventory', () => {
       importConditions: 15,
       authoredConnectionConditions: 14,
       propagatedEdgeConditions: 234,
-      conditionalInputBindings: 0,
       inputConditions: 0,
       fanInMembersWithConditions: 0,
       routeSelectedOutputBindings: 180,
@@ -135,14 +133,13 @@ describe('collectBlueprintConditionSurfaceInventory', () => {
       producerGraph,
     });
 
-    expect(inventory.totals.authoredConnectionConditions).toBe(4);
-    expect(inventory.totals.conditionalInputBindings).toBe(0);
-    expect(inventory.totals.inputConditions).toBe(3);
+    expect(inventory.totals.authoredConnectionConditions).toBe(3);
+    expect(inventory.totals.inputConditions).toBe(2);
     expect(inventory.totals.fanInMembersWithConditions).toBe(1);
     expect(inventory.totals.routeSelectedOutputBindingsWithConditions).toBe(1);
 
     expect(inventory.inputConditions.map((item) => item.category)).toEqual(
-      expect.arrayContaining(['activation-like', 'optional-input', 'fan-in'])
+      expect.arrayContaining(['optional-input', 'fan-in'])
     );
     expect(
       inventory.propagatedEdgeConditions.some((item) =>
@@ -288,7 +285,6 @@ function createConditionalRoutingFixture(): BlueprintTreeNode {
       {
         from: 'Duration',
         to: 'PreviewProducer.Duration',
-        conditions: publishPreview,
       },
       {
         from: 'OptionalNote',

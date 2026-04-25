@@ -5,7 +5,6 @@ import type {
   EdgeConditionDefinition,
   ProducerConfig,
   FanInDescriptor,
-  ConditionalInputBindingCandidate,
   ProducerActivation,
   ResolvedFanInDescriptor,
   ResolvedOutputRoute,
@@ -17,7 +16,6 @@ import { expandNodeInstances } from './node-instantiation.js';
 import { expandEdges } from './edge-instantiation.js';
 import {
   collapseInputNodes,
-  normalizeCollapsedConditionalInputBindings,
   normalizeCollapsedInputBindings,
   normalizeResolvedScalarBindings,
 } from './input-binding-resolution.js';
@@ -81,7 +79,6 @@ export interface CanonicalBlueprint {
   nodes: CanonicalNodeInstance[];
   edges: CanonicalEdgeInstance[];
   inputBindings: Record<string, Record<string, string>>;
-  conditionalInputBindings: Record<string, Record<string, ConditionalInputBindingCandidate[]>>;
   outputSources: Record<string, string>;
   outputSourceBindings: CanonicalOutputBinding[];
   fanIn: Record<string, FanInDescriptor>;
@@ -130,10 +127,6 @@ export function expandBlueprintGraph(
     collapsedInputs.inputBindings,
     outputSources
   );
-  const conditionalInputBindings = normalizeCollapsedConditionalInputBindings(
-    collapsedInputs.conditionalInputBindings,
-    outputSources
-  );
   const resolvedScalarBindings = normalizeResolvedScalarBindings(
     collapsedInputs.resolvedScalarBindings,
     outputSources
@@ -146,7 +139,6 @@ export function expandBlueprintGraph(
     nodes,
     edges,
     inputBindings,
-    conditionalInputBindings,
     outputSources,
     outputSourceBindings,
     fanIn,

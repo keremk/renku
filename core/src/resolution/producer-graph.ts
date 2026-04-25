@@ -17,7 +17,6 @@ import type {
   EdgeConditionDefinition,
   EdgeConditionGroup,
   FanInDescriptor,
-  ConditionalInputBindingCandidate,
   InputArtifactSource,
   InputConditionInfo,
   ProducerCatalog,
@@ -50,19 +49,6 @@ export function createProducerGraph(
   // Build set of artifacts that are actually connected downstream
   // (used as input to another node or chained to another artifact)
   const connectedArtifacts = computeConnectedArtifacts(canonical);
-
-  // Build a map of edges by target producer for input-level conditions
-  // Edges may target Input nodes (e.g., Input:ImageProducer.Prompt[0][0])
-  // but we need to look up by Producer node ID (e.g., Producer:ImageProducer[0][0])
-  const edgesByTargetProducer = new Map<string, CanonicalEdgeInstance[]>();
-  for (const edge of canonical.edges) {
-    const producerId = extractProducerIdFromTarget(edge.to);
-    if (producerId) {
-      const list = edgesByTargetProducer.get(producerId) ?? [];
-      list.push(edge);
-      edgesByTargetProducer.set(producerId, list);
-    }
-  }
 
   const nodes: ProducerGraphNode[] = [];
   const edges: ProducerGraphEdge[] = [];
@@ -115,14 +101,6 @@ export function createProducerGraph(
     );
 
     const inputBindings = canonical.inputBindings[node.id];
-    const conditionalInputBindings =
-      canonical.conditionalInputBindings?.[node.id];
-    const resolvedConditionalInputBindings = conditionalInputBindings
-      ? resolveConditionalInputBindingConditions(
-          conditionalInputBindings,
-          canonical.outputSources
-        )
-      : undefined;
 
     // Add artifact IDs from inputBindings to the inputs list
     // This ensures element-level bindings (e.g., ReferenceImages[0] -> Artifact:...) are included
@@ -131,19 +109,6 @@ export function createProducerGraph(
         if (typeof sourceId === 'string' && isCanonicalArtifactId(sourceId)) {
           if (!allInputs.includes(sourceId)) {
             allInputs.push(sourceId);
-          }
-        }
-      }
-    }
-    if (conditionalInputBindings) {
-      for (const candidates of Object.values(conditionalInputBindings)) {
-        for (const candidate of candidates) {
-          if (
-            typeof candidate.sourceId === 'string' &&
-            isCanonicalArtifactId(candidate.sourceId) &&
-            !allInputs.includes(candidate.sourceId)
-          ) {
-            allInputs.push(candidate.sourceId);
           }
         }
       }
@@ -185,16 +150,6 @@ export function createProducerGraph(
         }
       }
     }
-    if (conditionalInputBindings) {
-      for (const candidates of Object.values(conditionalInputBindings)) {
-        for (const candidate of candidates) {
-          if (isCanonicalArtifactId(candidate.sourceId)) {
-            dependencyKeys.add(candidate.sourceId);
-          }
-        }
-      }
-    }
-
     for (const dependencyKey of dependencyKeys) {
       const upstream = artifactProducers.get(dependencyKey);
       if (upstream && upstream !== node.id) {
@@ -210,28 +165,16 @@ export function createProducerGraph(
       option.sdkMapping ?? node.producer?.sdkMapping,
     );
 
-    const legacyInputConditions = collectLegacyInputConditions({
-      node,
-      nodeMap,
-      edgesByTargetProducer,
-      inputBindings,
+    const inputConditions = buildResolvedInputConditions({
+      producerNode: node,
+      resolvedScalarBindings: resolvedScalarBindings ?? [],
+      fanInForJob,
       outputSources: canonical.outputSources,
     });
-    const inputConditions = resolvedScalarBindings
-      ? mergeLegacyInputConditionsForUnresolvedEdges(
-          buildResolvedInputConditions(
-            resolvedScalarBindings,
-            fanInForJob,
-            canonical.outputSources
-          ),
-          legacyInputConditions
-        )
-      : legacyInputConditions;
     const inputArtifactSources = buildInputArtifactSources({
       allInputs,
       fanInForJob,
       inputBindings,
-      conditionalInputBindings,
       artifactProducers,
       nodeMap,
       catalog,
@@ -255,11 +198,6 @@ export function createProducerGraph(
       inputs: allInputs,
       produces: producedArtifacts,
       inputBindings: inputBindings && Object.keys(inputBindings).length > 0 ? inputBindings : undefined,
-      conditionalInputBindings:
-        resolvedConditionalInputBindings &&
-        Object.keys(resolvedConditionalInputBindings).length > 0
-          ? resolvedConditionalInputBindings
-          : undefined,
       sdkMapping: canonicalSdkMapping,
       outputs: option.outputs ?? node.producer?.outputs,
       fanIn: Object.keys(fanInForJob).length > 0 ? fanInForJob : undefined,
@@ -380,16 +318,29 @@ function toProducerJobActivation(
   };
 }
 
-function buildResolvedInputConditions(
-  resolvedScalarBindings: ResolvedScalarBinding[],
-  fanInForJob: Record<string, FanInDescriptor>,
-  outputSources: Record<string, string>
-): Record<string, InputConditionInfo> {
+function buildResolvedInputConditions(args: {
+  producerNode: CanonicalBlueprint['nodes'][number];
+  resolvedScalarBindings: ResolvedScalarBinding[];
+  fanInForJob: Record<string, FanInDescriptor>;
+  outputSources: Record<string, string>;
+}): Record<string, InputConditionInfo> {
+  const {
+    producerNode,
+    resolvedScalarBindings,
+    fanInForJob,
+    outputSources,
+  } = args;
   const inputConditions: Record<string, InputConditionInfo> = {};
 
   for (const binding of resolvedScalarBindings) {
     if (!binding.optionalCondition) {
       continue;
+    }
+    if (binding.inputRequired) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_INPUT_BINDING,
+        `Required scalar input "${binding.inputId}" for producer "${producerNode.id}" has a condition. Move the condition to producer activation or make the input optional.`
+      );
     }
     setInputCondition(inputConditions, binding.sourceId, {
       condition: resolveConditionOutputSources(
@@ -436,137 +387,6 @@ function setInputCondition(
   inputConditions[inputId] = conditionInfo;
 }
 
-function mergeLegacyInputConditionsForUnresolvedEdges(
-  resolved: Record<string, InputConditionInfo>,
-  legacy: Record<string, InputConditionInfo>
-): Record<string, InputConditionInfo> {
-  const merged = { ...resolved };
-  for (const [inputId, conditionInfo] of Object.entries(legacy)) {
-    if (merged[inputId]) {
-      continue;
-    }
-    merged[inputId] = conditionInfo;
-  }
-  return merged;
-}
-
-function collectLegacyInputConditions(args: {
-  node: CanonicalBlueprint['nodes'][number];
-  nodeMap: Map<string, CanonicalBlueprint['nodes'][number]>;
-  edgesByTargetProducer: Map<string, CanonicalEdgeInstance[]>;
-  inputBindings: Record<string, string> | undefined;
-  outputSources: Record<string, string>;
-}): Record<string, InputConditionInfo> {
-  const {
-    node,
-    nodeMap,
-    edgesByTargetProducer,
-    inputBindings,
-    outputSources,
-  } = args;
-  const inputConditions: Record<string, InputConditionInfo> = {};
-  const incomingEdges = edgesByTargetProducer.get(node.id) ?? [];
-  for (const edge of incomingEdges) {
-    const condition = scalarInputEdgeCondition(edge);
-    if (condition && edge.indices) {
-      inputConditions[edge.from] = {
-        condition: resolveConditionOutputSources(
-          condition,
-          outputSources
-        ),
-        indices: edge.indices,
-      };
-    }
-  }
-  if (inputBindings) {
-    for (const [alias, sourceId] of Object.entries(inputBindings)) {
-      if (inputConditions[sourceId]) {
-        continue;
-      }
-
-      const bindingEdge = incomingEdges.find((edge) => {
-        if (
-          edge.from !== sourceId ||
-          !scalarInputEdgeCondition(edge) ||
-          !edge.indices
-        ) {
-          return false;
-        }
-
-        const targetNode = nodeMap.get(edge.to);
-        return matchesProducerInputSourceTarget(targetNode, node, alias);
-      });
-
-      const condition = bindingEdge
-        ? scalarInputEdgeCondition(bindingEdge)
-        : undefined;
-      if (condition && bindingEdge?.indices) {
-        inputConditions[sourceId] = {
-          condition: resolveConditionOutputSources(
-            condition,
-            outputSources
-          ),
-          indices: bindingEdge.indices,
-        };
-      }
-    }
-  }
-  return inputConditions;
-}
-
-function scalarInputEdgeCondition(
-  edge: CanonicalEdgeInstance
-): CanonicalEdgeInstance['conditions'] {
-  if (edge.authoredEdgeConditions) {
-    return edge.authoredEdgeConditions;
-  }
-  if (edge.activationConditions || edge.endpointConditions) {
-    return undefined;
-  }
-  return edge.conditions;
-}
-
-function resolveConditionalInputBindingConditions(
-  bindings: Record<string, ConditionalInputBindingCandidate[]>,
-  outputSources: Record<string, string>
-): Record<string, ConditionalInputBindingCandidate[]> {
-  return Object.fromEntries(
-    Object.entries(bindings).map(([alias, candidates]) => [
-      alias,
-      candidates.map((candidate) => ({
-        ...candidate,
-        condition: resolveConditionOutputSources(
-          candidate.condition,
-          outputSources
-        ),
-      })),
-    ])
-  );
-}
-
-function matchesProducerInputSourceTarget(
-  targetNode: CanonicalBlueprint['nodes'][number] | undefined,
-  producerNode: CanonicalBlueprint['nodes'][number],
-  alias: string
-): boolean {
-  if (!targetNode || targetNode.type !== 'Input') {
-    return false;
-  }
-
-  if (targetNode.name !== alias) {
-    return false;
-  }
-
-  const expectedNamespacePath = [...producerNode.namespacePath, producerNode.name];
-  if (targetNode.namespacePath.length !== expectedNamespacePath.length) {
-    return false;
-  }
-
-  return targetNode.namespacePath.every(
-    (segment, index) => segment === expectedNamespacePath[index]
-  );
-}
-
 function resolveCatalogEntry(id: string, catalog: ProducerCatalog) {
   if (catalog[id as keyof ProducerCatalog]) {
     return catalog[id as keyof ProducerCatalog];
@@ -578,9 +398,6 @@ function buildInputArtifactSources(args: {
   allInputs: string[];
   fanInForJob: Record<string, FanInDescriptor>;
   inputBindings: Record<string, string> | undefined;
-  conditionalInputBindings:
-    | CanonicalBlueprint['conditionalInputBindings'][string]
-    | undefined;
   artifactProducers: Map<string, string>;
   nodeMap: Map<string, CanonicalBlueprint['nodes'][number]>;
   catalog: ProducerCatalog;
@@ -589,7 +406,6 @@ function buildInputArtifactSources(args: {
     allInputs,
     fanInForJob,
     inputBindings,
-    conditionalInputBindings,
     artifactProducers,
     nodeMap,
     catalog,
@@ -611,16 +427,6 @@ function buildInputArtifactSources(args: {
       }
     }
   }
-  if (conditionalInputBindings) {
-    for (const candidates of Object.values(conditionalInputBindings)) {
-      for (const candidate of candidates) {
-        if (isCanonicalArtifactId(candidate.sourceId)) {
-          artifactIds.add(candidate.sourceId);
-        }
-      }
-    }
-  }
-
   for (const descriptor of Object.values(fanInForJob)) {
     for (const member of descriptor.members) {
       if (isCanonicalArtifactId(member.id)) {
@@ -962,62 +768,4 @@ function matchesConditionPattern(artifactId: string, patterns: RegExp[]): boolea
 
 function escapeRegexLiteral(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function extractProducerIdFromTarget(target: string): string | undefined {
-  // If it's already a Producer ID, return as-is
-  if (target.startsWith('Producer:')) {
-    return target;
-  }
-
-  // If it's an Input or InputSource ID, extract the producer portion
-  const inputPrefix = isCanonicalInputId(target)
-    ? 'Input:'
-    : target.startsWith('InputSource:')
-      ? 'InputSource:'
-      : undefined;
-  if (inputPrefix) {
-    const body = target.slice(inputPrefix.length);
-    // Body format: "<namespace>.<producerName>.<inputName>[indices]"
-    // The indices are at the END, after the input name
-    // Example: "ImageProducer.Prompt[0][0]"
-    //   - Producer name: "ImageProducer"
-    //   - Input name: "Prompt"
-    //   - Indices: "[0][0]"
-
-    // Extract indices from the end
-    let indicesStart = body.length;
-    let depth = 0;
-    for (let i = body.length - 1; i >= 0; i--) {
-      const char = body[i];
-      if (char === ']') {
-        depth++;
-        if (depth === 1) {
-          // Starting a new bracket group from the end
-          indicesStart = i + 1;
-        }
-      } else if (char === '[') {
-        depth--;
-        if (depth === 0) {
-          // Found the start of this bracket group
-          indicesStart = i;
-        }
-      } else if (depth === 0) {
-        // We've moved past all trailing brackets
-        break;
-      }
-    }
-
-    const indices = body.slice(indicesStart);
-    const bodyWithoutIndices = body.slice(0, indicesStart);
-
-    // Now find the last dot to separate producer from input name
-    const lastDotIndex = bodyWithoutIndices.lastIndexOf('.');
-    if (lastDotIndex > 0) {
-      const producerPart = bodyWithoutIndices.slice(0, lastDotIndex);
-      return `Producer:${producerPart}${indices}`;
-    }
-  }
-
-  return undefined;
 }

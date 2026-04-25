@@ -441,43 +441,17 @@ async function executeJob(
     const inputConditions = job.context?.inputConditions;
     const hasInputConditions =
       inputConditions && Object.keys(inputConditions).length > 0;
-    const hasConditionalInputBindings =
-      job.context?.conditionalInputBindings &&
-      Object.keys(job.context.conditionalInputBindings).length > 0;
-    if (hasInputConditions || hasConditionalInputBindings) {
+    if (hasInputConditions) {
       const conditionContext: ConditionEvaluationContext = {
         resolvedArtifacts,
         resolvedInputs: resolvedInputsForConditions,
       };
-      const conditionalBindingConditions = collectConditionalBindingConditions(job);
       const conditionResults = evaluateInputConditions(
-        {
-          ...conditionalBindingConditions,
-          ...inputConditions,
-        },
+        inputConditions,
         conditionContext
       );
 
-      // Determine which inputs are conditional
-      const protectedScalarInputIds = collectProtectedScalarInputIds(job);
-      const conditionalInputIds = new Set(
-        Object.keys(inputConditions ?? {}).filter(
-          (inputId) => !protectedScalarInputIds.has(inputId)
-        )
-      );
-      const filteringConditionalInputIds = new Set([
-        ...conditionalInputIds,
-        ...Object.keys(conditionalBindingConditions),
-      ]);
-
-      const anySatisfied = Array.from(conditionalInputIds).some(
-        (inputId) => conditionResults.get(inputId)?.satisfied === true
-      );
-      const anyCandidateSatisfied =
-        conditionalInputIds.size === 0 &&
-        Object.keys(conditionalBindingConditions).some(
-          (inputId) => conditionResults.get(inputId)?.satisfied === true
-        );
+      const conditionalInputIds = new Set(Object.keys(inputConditions ?? {}));
 
       conditionFilteringDiagnostics = {
         plannedInputs: [...job.inputs],
@@ -490,64 +464,6 @@ async function executeJob(
         ),
       };
 
-      // Check if there are unconditional artifact inputs that would provide data
-      // This includes direct artifact inputs and fanIn members without conditions
-      const hasUnconditionalArtifactInputs = job.inputs.some((inputId) => {
-        if (filteringConditionalInputIds.has(inputId)) {
-          return false; // This input is conditional
-        }
-        return isCanonicalArtifactId(inputId);
-      });
-
-      // Check if any fanIn has unconditional members
-      const fanIn = job.context?.fanIn;
-      const hasUnconditionalFanInMembers =
-        fanIn &&
-        Object.values(fanIn).some((spec) =>
-          spec.members.some((member) => !filteringConditionalInputIds.has(member.id))
-        );
-
-      // If there are conditional inputs but none are satisfied, skip the job
-      // UNLESS there are unconditional artifact inputs or fanIn members that provide data
-      if (
-        !job.context?.activation?.condition &&
-        !anySatisfied &&
-        !anyCandidateSatisfied &&
-        !hasUnconditionalArtifactInputs &&
-        !hasUnconditionalFanInMembers
-      ) {
-        const completedAt = clock.now();
-        logger.info?.('runner.job.skipped', {
-          movieId,
-          revision,
-          jobId: job.jobId,
-          producer: job.producer,
-          layerIndex,
-          reason: 'all conditional inputs unsatisfied',
-        });
-        notifications?.publish({
-          type: 'warning',
-          message: `Job ${job.jobId} [${job.producer}] skipped (conditions not met).`,
-          timestamp: completedAt,
-        });
-
-        // Return skipped result without producing artifacts
-        return {
-          jobId: job.jobId,
-          producer: job.producer,
-          status: 'skipped',
-          artifacts: [],
-          diagnostics: {
-            reason: 'conditions_not_met',
-            conditionFiltering: conditionFilteringDiagnostics,
-          },
-          layerIndex,
-          attempt,
-          startedAt,
-          completedAt,
-        };
-      }
-
       const satisfiedConditionalIds = new Set<string>();
       for (const [inputId, result] of conditionResults.entries()) {
         if (result.satisfied) {
@@ -557,7 +473,7 @@ async function executeJob(
 
       job = applyConditionalInputFiltering(
         job,
-        filteringConditionalInputIds,
+        conditionalInputIds,
         satisfiedConditionalIds
       );
       conditionFilteringDiagnostics = {
@@ -997,30 +913,6 @@ function applyConditionalInputFiltering(
         })
       )
     : undefined;
-  const selectedConditionalBindings: Record<string, string> = {};
-  if (job.context.conditionalInputBindings) {
-    for (const [alias, candidates] of Object.entries(
-      job.context.conditionalInputBindings
-    )) {
-      const satisfied = candidates.filter((candidate) =>
-        satisfiedConditionalIds.has(candidate.sourceId)
-      );
-      if (satisfied.length > 1) {
-        throw createRuntimeError(
-          RuntimeErrorCode.INVALID_INPUT_BINDING,
-          `Conditional input binding "${alias}" for job ${job.jobId} matched ${satisfied.length} sources. Scalar producer inputs must resolve to exactly one source.`
-        );
-      }
-      const selected = satisfied[0];
-      if (selected) {
-        selectedConditionalBindings[alias] = selected.sourceId;
-      }
-    }
-  }
-  const nextInputBindings = {
-    ...(filteredBindings ?? {}),
-    ...selectedConditionalBindings,
-  };
 
   const filteredFanIn = job.context.fanIn
     ? Object.fromEntries(
@@ -1056,10 +948,9 @@ function applyConditionalInputFiltering(
       ...job.context,
       inputs: filteredInputs,
       inputBindings:
-        Object.keys(nextInputBindings).length > 0
-          ? nextInputBindings
+        filteredBindings && Object.keys(filteredBindings).length > 0
+          ? filteredBindings
           : undefined,
-      conditionalInputBindings: undefined,
       fanIn:
         filteredFanIn && Object.keys(filteredFanIn).length > 0
           ? filteredFanIn
@@ -1070,31 +961,6 @@ function applyConditionalInputFiltering(
           : undefined,
     },
   };
-}
-
-function collectConditionalBindingConditions(
-  job: JobDescriptor
-): NonNullable<ProducerJobContext['inputConditions']> {
-  const conditions: NonNullable<ProducerJobContext['inputConditions']> = {};
-  for (const candidates of Object.values(
-    job.context?.conditionalInputBindings ?? {}
-  )) {
-    for (const candidate of candidates) {
-      conditions[candidate.sourceId] = {
-        condition: candidate.condition,
-        indices: candidate.indices,
-      };
-    }
-  }
-  return conditions;
-}
-
-function collectProtectedScalarInputIds(job: JobDescriptor): Set<string> {
-  if (!job.context?.activation?.condition) {
-    return new Set();
-  }
-
-  return new Set(Object.values(job.context.inputBindings ?? {}));
 }
 
 /**

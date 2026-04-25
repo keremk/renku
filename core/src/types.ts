@@ -543,6 +543,7 @@ export interface ResolvedProducerActivation {
 export interface ResolvedScalarBinding {
   inputId: Id;
   sourceId: Id;
+  inputRequired: boolean;
   optionalCondition?: ResolvedConditionInfo;
 }
 
@@ -622,12 +623,6 @@ export interface InputConditionInfo {
   indices: Record<string, number>;
 }
 
-export interface ConditionalInputBindingCandidate {
-  sourceId: Id;
-  condition: EdgeConditionDefinition;
-  indices: Record<string, number>;
-}
-
 export interface ProducerJobActivation {
   condition?: EdgeConditionDefinition;
   indices: Record<string, number>;
@@ -645,14 +640,13 @@ export interface ProducerJobContext {
   /** Canonical Artifact:... IDs only. Output connectors must never appear here. */
   produces: Id[];
   inputBindings?: Record<string, Id>;
-  conditionalInputBindings?: Record<string, ConditionalInputBindingCandidate[]>;
   sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   extras?: ProducerJobContextExtras;
   fanIn?: Record<string, FanInDescriptor>;
   /** Producer/import activation metadata for diagnostics. Not used for pruning in Phase 3. */
   activation?: ProducerJobActivation;
-  /** Conditions for each input (keyed by input ID) */
+  /** Conditions for optional scalar inputs and fan-in members only, keyed by canonical input/artifact ID. */
   inputConditions?: Record<Id, InputConditionInfo>;
 }
 
