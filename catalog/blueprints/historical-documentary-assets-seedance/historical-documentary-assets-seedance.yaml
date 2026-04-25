@@ -203,18 +203,23 @@ imports:
   - name: SegmentPlainImageProducer
     producer: image/text-to-image
     loop: segment.image
+    if: imageUsesPlainGenerationOrStartEndAnchor
   - name: SegmentReferenceImageProducer
     producer: image/image-compose
     loop: segment.image.historicalcharacter
+    if: imageReferencesHistoricalCharacter
   - name: HistoricalReferenceStillPromptProducer
     path: ./stills/historical-reference-still-prompt-producer/producer.yaml
     loop: segment.image.historicalcharacter
+    if: imageReferencesHistoricalCharacter
   - name: MapImageProducer
     producer: image/text-to-image
     loop: segment
+    if: hasMap
   - name: SeedanceVideoGenerator
     producer: video/seedance-video-generator
     loop: segment
+    if: motionEnabled
   - name: ExpertPortraitProducer
     producer: image/text-to-image
     loop: expert
@@ -224,9 +229,11 @@ imports:
   - name: ExpertTalkingHeadAudioProducer
     producer: audio/text-to-speech
     loop: segment.expert
+    if: hasExpertTalkingHead
   - name: ExpertTalkingHeadVideoProducer
     producer: video/talking-head
     loop: segment.expert
+    if: hasExpertTalkingHead
 
 connections:
   - from: InquiryPrompt
@@ -320,42 +327,32 @@ connections:
 
   - from: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].Prompt
     to: SegmentPlainImageProducer[segment][image].Prompt
-    if: imageUsesPlainGenerationOrStartEndAnchor
   - from: Resolution
     to: SegmentPlainImageProducer[segment][image].Resolution
-    if: imageUsesPlainGenerationOrStartEndAnchor
   - from: SegmentPlainImageProducer[segment][image].GeneratedImage
     to: SegmentStillImages[segment][image]
     if: imageUsesPlainGenerationOrStartEndAnchor
 
   - from: PlanDirector.AssetPlan.Segments[segment].ImagePlans[image].Prompt
     to: HistoricalReferenceStillPromptProducer[segment][image][historicalcharacter].BasePrompt
-    if: imageReferencesHistoricalCharacter
   - from: HistoricalCharacterDirector.HistoricalCharacterSet.HistoricalCharacters[historicalcharacter].DisplayName
     to: HistoricalReferenceStillPromptProducer[segment][image][historicalcharacter].ReferenceCharacterName
-    if: imageReferencesHistoricalCharacter
   - from: HistoricalReferenceStillPromptProducer[segment][image][historicalcharacter].Prompt
     to: SegmentReferenceImageProducer[segment][image][historicalcharacter].Prompt
-    if: imageReferencesHistoricalCharacter
   - from: HistoricalCharacterAssetsProducer[historicalcharacter].Portrait
     to: SegmentReferenceImageProducer[segment][image][historicalcharacter].SourceImages[0]
-    if: imageReferencesHistoricalCharacter
   - from: HistoricalCharacterAssetsProducer[historicalcharacter].CharacterSheet
     to: SegmentReferenceImageProducer[segment][image][historicalcharacter].SourceImages[1]
-    if: imageReferencesHistoricalCharacter
   - from: Resolution
     to: SegmentReferenceImageProducer[segment][image][historicalcharacter].Resolution
-    if: imageReferencesHistoricalCharacter
   - from: SegmentReferenceImageProducer[segment][image][historicalcharacter].ComposedImage
     to: SegmentReferenceStillImages[segment][image][historicalcharacter]
     if: imageReferencesHistoricalCharacter
 
   - from: PlanDirector.AssetPlan.Segments[segment].MapPrompt
     to: MapImageProducer[segment].Prompt
-    if: hasMap
   - from: Resolution
     to: MapImageProducer[segment].Resolution
-    if: hasMap
   - from: MapImageProducer[segment].GeneratedImage
     to: SegmentMapImages[segment]
     if: hasMap
@@ -386,10 +383,10 @@ connections:
     to: SeedanceVideoGenerator[segment].Resolution
   - from: SegmentPlainImageProducer[segment][0].GeneratedImage
     to: SeedanceVideoGenerator[segment].StartImage
-    if: motionIsStartEnd
+    if: motionIsStartEndWithPlainAnchors
   - from: SegmentPlainImageProducer[segment][1].GeneratedImage
     to: SeedanceVideoGenerator[segment].EndImage
-    if: motionIsStartEnd
+    if: motionIsStartEndWithPlainAnchors
   - from: HistoricalCharacterAssetsProducer[historicalcharacter].Portrait
     to: SeedanceVideoGenerator[segment].ReferenceImage1
     if: motionReferencesHistoricalCharacter
@@ -398,40 +395,32 @@ connections:
     if: motionReferencesHistoricalCharacter
   - from: SeedanceVideoGenerator[segment].GeneratedVideo
     to: SegmentMotionVideos[segment]
+    if: motionEnabled
   - from: PlanDirector.AssetPlan.Segments[segment].MotionPlan.HistoricalCharacterReferences[historicalcharacter].UseReference
     to: SegmentMotionHistoricalCharacterReferences[segment][historicalcharacter]
 
   - from: PlanDirector.AssetPlan.Segments[segment].ExpertTalkingHeads[expert].TalkingHeadText
     to: ExpertTalkingHeadAudioProducer[segment][expert].Text
-    if: hasExpertTalkingHead
   - from: ExpertCastingDirector.ExpertSet.Experts[expert].VoiceId
     to: ExpertTalkingHeadAudioProducer[segment][expert].VoiceId
-    if: hasExpertTalkingHead
   - from: LanguageCode
     to: ExpertTalkingHeadAudioProducer[segment][expert].LanguageCode
-    if: hasExpertTalkingHead
   - from: SegmentDuration
     to: ExpertTalkingHeadAudioProducer[segment][expert].Duration
-    if: hasExpertTalkingHead
   - from: ExpertTalkingHeadAudioProducer[segment][expert].GeneratedAudio
     to: SegmentExpertTalkingHeadAudio[segment][expert]
     if: hasExpertTalkingHead
 
   - from: PlanDirector.AssetPlan.Segments[segment].ExpertTalkingHeads[expert].TalkingHeadPrompt
     to: ExpertTalkingHeadVideoProducer[segment][expert].Prompt
-    if: hasExpertTalkingHead
   - from: ExpertPortraitProducer[expert].GeneratedImage
     to: ExpertTalkingHeadVideoProducer[segment][expert].CharacterImage
-    if: hasExpertTalkingHead
   - from: ExpertTalkingHeadAudioProducer[segment][expert].GeneratedAudio
     to: ExpertTalkingHeadVideoProducer[segment][expert].AudioUrl
-    if: hasExpertTalkingHead
   - from: SegmentDuration
     to: ExpertTalkingHeadVideoProducer[segment][expert].Duration
-    if: hasExpertTalkingHead
   - from: Resolution
     to: ExpertTalkingHeadVideoProducer[segment][expert].Resolution
-    if: hasExpertTalkingHead
   - from: ExpertTalkingHeadVideoProducer[segment][expert].GeneratedVideo
     to: SegmentExpertTalkingHeadVideos[segment][expert]
     if: hasExpertTalkingHead

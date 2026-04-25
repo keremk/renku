@@ -76,21 +76,21 @@ describe('collectBlueprintConditionSurfaceInventory', () => {
     );
 
     expect(inventory.totals).toMatchObject({
-      importConditions: 8,
-      authoredConnectionConditions: 32,
-      propagatedEdgeConditions: 196,
+      importConditions: 15,
+      authoredConnectionConditions: 14,
+      propagatedEdgeConditions: 234,
       conditionalInputBindings: 0,
-      inputConditions: 54,
+      inputConditions: 0,
       fanInMembersWithConditions: 0,
       routeSelectedOutputBindings: 180,
       routeSelectedOutputBindingsWithConditions: 30,
     });
     expect(inventory.categories).toMatchObject({
-      'activation-like': 270,
-      'optional-input': 12,
+      'activation-like': 263,
+      'optional-input': 0,
       'fan-in': 0,
       'output-route': 30,
-      other: 8,
+      other: 0,
     });
   });
 
