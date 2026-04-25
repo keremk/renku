@@ -122,6 +122,7 @@ interface DraftPreviewState {
   draftPlanInfo: PlanDisplayInfo | null;
   draftError: string | null;
   draftErrorSignature: string | null;
+  lastSuccessfulPreviewSignature: string | null;
   isPreviewPlanning: boolean;
 }
 
@@ -130,6 +131,7 @@ type DraftPreviewAction =
       type: "seed-session";
       planInfo: PlanDisplayInfo;
       overrides: ProducerOverrides;
+      signature: string;
     }
   | {
       type: "preview-start";
@@ -137,6 +139,7 @@ type DraftPreviewAction =
   | {
       type: "preview-success";
       planInfo: PlanDisplayInfo;
+      signature: string;
     }
   | {
       type: "preview-error";
@@ -156,6 +159,7 @@ const INITIAL_DRAFT_PREVIEW_STATE: DraftPreviewState = {
   draftPlanInfo: null,
   draftError: null,
   draftErrorSignature: null,
+  lastSuccessfulPreviewSignature: null,
   isPreviewPlanning: false,
 };
 
@@ -170,6 +174,7 @@ function draftPreviewReducer(
         draftPlanInfo: action.planInfo,
         draftError: null,
         draftErrorSignature: null,
+        lastSuccessfulPreviewSignature: action.signature,
         isPreviewPlanning: false,
       };
     case "preview-start":
@@ -183,6 +188,7 @@ function draftPreviewReducer(
         draftPlanInfo: action.planInfo,
         draftError: null,
         draftErrorSignature: null,
+        lastSuccessfulPreviewSignature: action.signature,
         isPreviewPlanning: false,
       };
     case "preview-error":
@@ -239,14 +245,23 @@ function buildProducerRows(
     baselineCountByProducerId?: Map<string, number>;
     baselineOverrideSignatureByProducerId?: Map<string, string>;
     blockedReasonByProducerId?: Map<string, string>;
+    stableOrderByProducerId?: Map<string, number>;
+    stableRowsByProducerId?: Map<string, ProducerPlanRow>;
   }
 ): ProducerPlanRow[] {
   const producerLayerMap = new Map<string, number>();
+  const producerExecutionOrderMap = new Map<string, number>();
   for (const layer of planInfo.layerBreakdown) {
     for (const job of layer.jobs) {
       const producerKey = stripProducerPrefix(job.producer);
       if (!producerLayerMap.has(producerKey)) {
         producerLayerMap.set(producerKey, layer.index);
+      }
+      if (!producerExecutionOrderMap.has(producerKey)) {
+        producerExecutionOrderMap.set(
+          producerKey,
+          producerExecutionOrderMap.size
+        );
       }
     }
   }
@@ -272,12 +287,23 @@ function buildProducerRows(
     visibleProducerKeys.add(key);
   }
   for (const [key, scheduling] of schedulingByProducer) {
+    if (!producerExecutionOrderMap.has(key)) {
+      producerExecutionOrderMap.set(key, producerExecutionOrderMap.size);
+    }
     if (scheduling.scheduledJobCount > 0 || scheduling.scheduledCount > 0) {
       visibleProducerKeys.add(key);
     }
   }
+  for (const key of costByProducer.keys()) {
+    if (!producerExecutionOrderMap.has(key)) {
+      producerExecutionOrderMap.set(key, producerExecutionOrderMap.size);
+    }
+  }
   for (const key of overridesByProducer.keys()) {
     visibleProducerKeys.add(key);
+  }
+  for (const row of args?.stableRowsByProducerId?.values() ?? []) {
+    visibleProducerKeys.add(row.displayKey);
   }
 
   return Array.from(visibleProducerKeys)
@@ -285,6 +311,9 @@ function buildProducerRows(
       const scheduling = schedulingByProducer.get(displayKey);
       const costEntry = costByProducer.get(displayKey);
       const override = overridesByProducer.get(displayKey);
+      const producerId =
+        scheduling?.producerId ?? toCanonicalProducerId(displayKey);
+      const stableRow = args?.stableRowsByProducerId?.get(producerId);
       const displayParts = getProducerDisplayParts(displayKey);
 
       const inheritedCount =
@@ -296,59 +325,85 @@ function buildProducerRows(
           ? 0
           : override?.count !== undefined
             ? override.count
-            : inheritedCount ?? scheduling?.scheduledCount ?? costEntry?.count ?? 0;
+            : inheritedCount ?? scheduling?.scheduledCount ?? costEntry?.count ?? stableRow?.effectiveCount ?? 0;
       const maxSelectableCount =
-        scheduling?.maxSelectableCount ?? costEntry?.count ?? null;
+        scheduling?.maxSelectableCount ?? costEntry?.count ?? stableRow?.maxSelectableCount ?? null;
       const baselineCount =
         args?.baselineCountByProducerId?.get(
-          scheduling?.producerId ?? toCanonicalProducerId(displayKey)
+          producerId
         ) ?? effectiveCount;
       const currentOverrideSignature = `${override?.enabled ?? 'inherit'}:${override?.count ?? 'inherit'}`;
       const baselineOverrideSignature =
         args?.baselineOverrideSignatureByProducerId?.get(
-          scheduling?.producerId ?? toCanonicalProducerId(displayKey)
+          producerId
         ) ?? currentOverrideSignature;
 
       return {
-        producerId: scheduling?.producerId ?? toCanonicalProducerId(displayKey),
+        producerId,
         displayKey,
         groupKey: displayParts.groupKey,
         groupLabel: displayParts.groupLabel,
         leafLabel: displayParts.leafLabel,
-        sortLayer: producerLayerMap.get(displayKey) ?? Number.MAX_SAFE_INTEGER,
+        sortLayer:
+          producerLayerMap.get(displayKey) ??
+          stableRow?.sortLayer ??
+          Number.MAX_SAFE_INTEGER,
         inheritedCount: baselineCount,
         effectiveCount,
         maxSelectableCount,
         scheduledJobCount:
           effectiveCount === 0
             ? 0
-            : scheduling?.scheduledJobCount ?? costEntry?.count ?? 0,
+            : scheduling?.scheduledJobCount ?? costEntry?.count ?? stableRow?.scheduledJobCount ?? 0,
         cost:
-          effectiveCount === 0 && costEntry === undefined ? 0 : (costEntry?.cost ?? 0),
-        hasPlaceholders: costEntry?.hasPlaceholders ?? false,
+          effectiveCount === 0 && costEntry === undefined ? 0 : (costEntry?.cost ?? stableRow?.cost ?? 0),
+        hasPlaceholders: costEntry?.hasPlaceholders ?? stableRow?.hasPlaceholders ?? false,
         hasCostData:
-          effectiveCount === 0 ? true : (costEntry?.hasCostData ?? false),
+          effectiveCount === 0 ? true : (costEntry?.hasCostData ?? stableRow?.hasCostData ?? false),
         isDirty: currentOverrideSignature !== baselineOverrideSignature,
         isDisabled: effectiveCount === 0,
         blockedReason: args?.blockedReasonByProducerId?.get(
-          scheduling?.producerId ?? toCanonicalProducerId(displayKey)
+          producerId
         ),
       } satisfies ProducerPlanRow;
     })
     .sort((left, right) => {
+      const leftStableIndex = args?.stableOrderByProducerId?.get(left.producerId);
+      const rightStableIndex = args?.stableOrderByProducerId?.get(right.producerId);
+      if (leftStableIndex !== undefined && rightStableIndex !== undefined) {
+        return leftStableIndex - rightStableIndex;
+      }
+      if (leftStableIndex !== undefined) {
+        return -1;
+      }
+      if (rightStableIndex !== undefined) {
+        return 1;
+      }
+
       if (left.sortLayer !== right.sortLayer) {
         return left.sortLayer - right.sortLayer;
       }
 
-      const leftGroup = left.groupKey ?? left.displayKey;
-      const rightGroup = right.groupKey ?? right.displayKey;
-      const groupCompare = leftGroup.localeCompare(rightGroup);
-      if (groupCompare !== 0) {
-        return groupCompare;
+      const leftExecutionOrder = producerExecutionOrderMap.get(left.displayKey);
+      const rightExecutionOrder = producerExecutionOrderMap.get(right.displayKey);
+      if (
+        leftExecutionOrder !== undefined &&
+        rightExecutionOrder !== undefined &&
+        leftExecutionOrder !== rightExecutionOrder
+      ) {
+        return leftExecutionOrder - rightExecutionOrder;
       }
 
       return left.leafLabel.localeCompare(right.leafLabel);
     });
+}
+
+function buildStableProducerOrder(rows: ProducerPlanRow[]): Map<string, number> {
+  return new Map(rows.map((row, index) => [row.producerId, index]));
+}
+
+function buildStableProducerRows(rows: ProducerPlanRow[]): Map<string, ProducerPlanRow> {
+  return new Map(rows.map((row) => [row.producerId, row]));
 }
 
 function buildProducerListItems(rows: ProducerPlanRow[]) {
@@ -664,7 +719,7 @@ function ProducerPlanRowView({
 
   return (
     <div
-      className={`grid grid-cols-[minmax(0,1fr)_88px_74px] items-center gap-3 px-3 py-2.5 transition-colors ${
+      className={`grid min-h-[68px] grid-cols-[minmax(0,1fr)_88px_74px] items-center gap-3 px-3 py-2.5 transition-colors ${
         row.blockedReason
           ? 'bg-amber-500/6'
           : row.isDirty
@@ -676,10 +731,10 @@ function ProducerPlanRowView({
         <div className="truncate text-sm font-medium text-foreground/90">
           {row.leafLabel}
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-          <span>{row.scheduledJobCount} job{row.scheduledJobCount === 1 ? '' : 's'}</span>
+        <div className="mt-0.5 flex h-5 items-center gap-2 overflow-hidden text-[11px] text-muted-foreground">
+          <span className="shrink-0">{row.scheduledJobCount} job{row.scheduledJobCount === 1 ? '' : 's'}</span>
           {row.maxSelectableCount !== null && (
-            <span>Range 0-{row.maxSelectableCount}</span>
+            <span className="shrink-0">Range 0-{row.maxSelectableCount}</span>
           )}
           {metaBadges.map((badge) => (
             <span
@@ -694,11 +749,13 @@ function ProducerPlanRowView({
             </span>
           ))}
         </div>
-        {row.blockedReason && (
-          <div className="mt-1 text-[11px] text-amber-300/90">
-            {row.blockedReason}
-          </div>
-        )}
+        <div
+          className={`mt-1 h-4 truncate text-[11px] text-amber-300/90 ${
+            row.blockedReason ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          {row.blockedReason ?? 'No blocked dependencies.'}
+        </div>
       </div>
 
       <div className="flex justify-end">
@@ -766,7 +823,8 @@ function PreviewStatusRail({
   return (
     <div
       aria-live="polite"
-      className={`mx-6 mb-3 min-h-19 rounded-xl border px-4 py-3 ${toneClasses}`}
+      data-testid="plan-preview-status"
+      className={`mx-6 mb-3 h-[84px] overflow-hidden rounded-xl border px-4 py-3 ${toneClasses}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -780,11 +838,11 @@ function PreviewStatusRail({
             )}
             <p className="text-xs font-medium text-foreground/90">{title}</p>
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-1 h-8 overflow-hidden text-xs leading-4 text-muted-foreground">
             {message}
           </p>
           {invalidPlanExplanation && showDetails && invalidPlanExplanation.issues.length > 0 && (
-            <div className="mt-2 space-y-1">
+            <div className="mt-2 max-h-8 space-y-1 overflow-y-auto">
               {invalidPlanExplanation.issues.slice(0, 3).map((issue) => (
                 <p key={issue.producerId} className="text-[11px] text-amber-200/90">
                   {issue.summary}
@@ -895,6 +953,7 @@ function PlanContent({
   cliCommand,
   pinnedCount,
   isNoop,
+  canExecute,
   onCountChange,
   onResetDraft,
   onCancel,
@@ -911,6 +970,7 @@ function PlanContent({
   cliCommand?: string;
   pinnedCount: number;
   isNoop: boolean;
+  canExecute: boolean;
   onCountChange: (producerId: string, count: number) => void;
   onResetDraft: () => void;
   onCancel: () => void;
@@ -1040,7 +1100,7 @@ function PlanContent({
           </button>
           <button
             onClick={onExecute}
-            disabled={isPreviewPlanning || invalidPlanExplanation !== null || isNoop}
+            disabled={!canExecute}
             className="py-2 px-5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
           >
             {isPreviewPlanning ? 'Updating...' : 'Run'}
@@ -1112,6 +1172,7 @@ export function PlanDialog() {
     draftPlanInfo,
     draftError,
     draftErrorSignature,
+    lastSuccessfulPreviewSignature,
     isPreviewPlanning,
   } = draftPreviewState;
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1119,6 +1180,10 @@ export function PlanDialog() {
   const previewRequestIdRef = useRef(0);
   const draftSessionKeyRef = useRef<string | null>(null);
   const lastDraftOverrideSignatureRef = useRef<string | null>(null);
+  const stableOrderByProducerIdRef = useRef<Map<string, number>>(new Map());
+  const stableRowsByProducerIdRef = useRef<Map<string, ProducerPlanRow>>(
+    new Map()
+  );
 
   const committedOverrideSignature = useMemo(
     () => serializeProducerOverrides(state.producerOverrides),
@@ -1145,10 +1210,14 @@ export function PlanDialog() {
       );
       clearPreviewAsyncState();
       previewRequestIdRef.current += 1;
+      const stableRows = buildProducerRows(nextPlanInfo, nextOverrides);
+      stableOrderByProducerIdRef.current = buildStableProducerOrder(stableRows);
+      stableRowsByProducerIdRef.current = buildStableProducerRows(stableRows);
       dispatchDraftPreview({
         type: "seed-session",
         planInfo: nextPlanInfo,
         overrides: nextOverrides,
+        signature: serializeProducerOverrides(nextOverrides),
       });
     },
     [clearPreviewAsyncState]
@@ -1206,6 +1275,8 @@ export function PlanDialog() {
       baselineCountByProducerId,
       baselineOverrideSignatureByProducerId,
       blockedReasonByProducerId,
+      stableOrderByProducerId: stableOrderByProducerIdRef.current,
+      stableRowsByProducerId: stableRowsByProducerIdRef.current,
     });
   }, [
     baselineCountByProducerId,
@@ -1333,6 +1404,7 @@ export function PlanDialog() {
           dispatchDraftPreview({
             type: "preview-success",
             planInfo: nextPlanInfo,
+            signature: requestSignature,
           });
         })
         .catch((previewError) => {
@@ -1357,7 +1429,7 @@ export function PlanDialog() {
             signature: requestSignature,
           });
         });
-    }, 200);
+    }, 600);
   }, [
     state.blueprintName,
     state.movieId,
@@ -1423,6 +1495,7 @@ export function PlanDialog() {
         type: "seed-session",
         planInfo: committedPlanInfo,
         overrides: state.producerOverrides,
+        signature: committedOverrideSignature,
       });
     }
   }, [committedOverrideSignature, committedPlanInfo, state.producerOverrides]);
@@ -1444,7 +1517,11 @@ export function PlanDialog() {
     const executionPlanInfo = draftPlanInfo ?? committedPlanInfo;
     const executionOverrides =
       draftSessionKeyRef.current !== null ? draftOverrides : state.producerOverrides;
-    if (!executionPlanInfo || currentErrorMessage) {
+    if (
+      !executionPlanInfo ||
+      currentErrorMessage ||
+      draftOverrideSignature !== lastSuccessfulPreviewSignature
+    ) {
       return;
     }
     clearLogs();
@@ -1456,6 +1533,12 @@ export function PlanDialog() {
   };
 
   if (!isOpen) return null;
+
+  const canExecute =
+    !isPreviewPlanning &&
+    invalidPlanExplanation === null &&
+    !(isNoop ?? false) &&
+    draftOverrideSignature === lastSuccessfulPreviewSignature;
 
   const dialogTitle =
     status === 'failed' && error && !committedPlanInfo
@@ -1513,6 +1596,7 @@ export function PlanDialog() {
             cliCommand={cliCommand}
             pinnedCount={pinnedCount}
             isNoop={isNoop ?? false}
+            canExecute={canExecute}
             onCountChange={handleCountChange}
             onResetDraft={handleResetDraft}
             onCancel={handleDismiss}

@@ -8,7 +8,14 @@ import { DetailPanel } from './detail-panel';
 import type { BlueprintGraphData } from '@/types/blueprint-graph';
 
 vi.mock('./inputs-panel', () => ({
-  InputsPanel: () => <div>inputs panel</div>,
+  InputsPanel: ({ onSaved }: { onSaved?: () => void }) => (
+    <div>
+      inputs panel
+      <button type='button' onClick={onSaved}>
+        simulate-save
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('./models-panel', () => ({
@@ -142,5 +149,63 @@ describe('DetailPanel', () => {
     expect(screen.getByTestId('models-active-producer').textContent).toBe(
       'Producer:OutputSelectedProducer'
     );
+  });
+
+  it('shows a lightweight saved notice in the tab bar after inputs auto-save', () => {
+    render(
+      <DetailPanel
+        graphData={graphData}
+        inputData={null}
+        selectedNodeId={null}
+        movieId='movie-1'
+        blueprintFolder='test-blueprint'
+        blueprintPath='/tmp/detail-test.yaml'
+        artifacts={[]}
+        actionButton={<button type='button'>scope and run</button>}
+      />
+    );
+
+    const savedNotice = screen.getByText('Saved').closest('div');
+    expect(savedNotice?.className).toContain('opacity-0');
+
+    fireEvent.click(screen.getByRole('button', { name: 'simulate-save' }));
+
+    expect(savedNotice?.className).toContain('opacity-100');
+    expect(screen.getByText('Saved').compareDocumentPosition(
+      screen.getByRole('button', { name: 'scope and run' })
+    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('shows the saved notice when an external model save completes', () => {
+    const { rerender } = render(
+      <DetailPanel
+        graphData={graphData}
+        inputData={null}
+        selectedNodeId={null}
+        movieId='movie-1'
+        blueprintFolder='test-blueprint'
+        blueprintPath='/tmp/detail-test.yaml'
+        artifacts={[]}
+        savedNoticeRevision={0}
+      />
+    );
+
+    const savedNotice = screen.getByText('Saved').closest('div');
+    expect(savedNotice?.className).toContain('opacity-0');
+
+    rerender(
+      <DetailPanel
+        graphData={graphData}
+        inputData={null}
+        selectedNodeId={null}
+        movieId='movie-1'
+        blueprintFolder='test-blueprint'
+        blueprintPath='/tmp/detail-test.yaml'
+        artifacts={[]}
+        savedNoticeRevision={1}
+      />
+    );
+
+    expect(savedNotice?.className).toContain('opacity-100');
   });
 });

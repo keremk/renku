@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchBuildInputs, saveBuildInputs } from '@/data/blueprint-client';
 import type { ModelSelectionValue } from '@/types/blueprint-graph';
 
@@ -38,6 +38,8 @@ export function useBuildInputs(
   const [models, setModels] = useState<ModelSelectionValue[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedInputs, setHasLoadedInputs] = useState(false);
+  const latestInputsSaveIdRef = useRef(0);
+  const latestModelsSaveIdRef = useRef(0);
 
   // Fetch build inputs when conditions are met
   useEffect(() => {
@@ -113,6 +115,9 @@ export function useBuildInputs(
         );
       }
 
+      const saveId = latestInputsSaveIdRef.current + 1;
+      latestInputsSaveIdRef.current = saveId;
+
       // Merge updated values with existing inputs
       const newInputs = { ...(inputs ?? {}), ...values };
 
@@ -126,8 +131,11 @@ export function useBuildInputs(
         catalogRoot
       );
 
-      // Update local state
-      setInputs(newInputs);
+      // Update local state only for the newest completed save. Older saves may
+      // resolve after a newer draft has already been written.
+      if (saveId === latestInputsSaveIdRef.current) {
+        setInputs(newInputs);
+      }
     },
     [
       blueprintFolder,
@@ -154,6 +162,9 @@ export function useBuildInputs(
         );
       }
 
+      const saveId = latestModelsSaveIdRef.current + 1;
+      latestModelsSaveIdRef.current = saveId;
+
       // Server serializes to YAML
       await saveBuildInputs(
         blueprintFolder,
@@ -164,8 +175,9 @@ export function useBuildInputs(
         catalogRoot
       );
 
-      // Update local state
-      setModels(newModels);
+      if (saveId === latestModelsSaveIdRef.current) {
+        setModels(newModels);
+      }
     },
     [
       blueprintFolder,

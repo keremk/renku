@@ -17,6 +17,10 @@ export interface UseAutoSaveOptions<T> {
   resetKey?: string;
   /** Save pending data during unmount (default: true). */
   saveOnUnmount?: boolean;
+  /** Track and expose isSaving state (default: true). Disable for quiet UI saves. */
+  reportSavingState?: boolean;
+  /** Called after a save completes successfully. */
+  onSaveSuccess?: () => void;
 }
 
 export interface UseAutoSaveResult {
@@ -43,6 +47,8 @@ export function useAutoSave<T>({
   initialData,
   resetKey,
   saveOnUnmount = true,
+  reportSavingState = true,
+  onSaveSuccess,
 }: UseAutoSaveOptions<T>): UseAutoSaveResult {
   const [isSaving, setIsSaving] = useState(false);
   const [lastError, setLastError] = useState<Error | null>(null);
@@ -52,6 +58,7 @@ export function useAutoSave<T>({
   const pendingDataRef = useRef<T>(data);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onSaveRef = useRef(onSave);
+  const onSaveSuccessRef = useRef(onSaveSuccess);
   const isMountedRef = useRef(true);
   const enabledRef = useRef(enabled);
   const saveOnUnmountRef = useRef(saveOnUnmount);
@@ -62,6 +69,7 @@ export function useAutoSave<T>({
 
   // Update refs on each render
   onSaveRef.current = onSave;
+  onSaveSuccessRef.current = onSaveSuccess;
   pendingDataRef.current = data;
   enabledRef.current = enabled;
   saveOnUnmountRef.current = saveOnUnmount;
@@ -103,13 +111,16 @@ export function useAutoSave<T>({
   const doSave = useCallback(async (dataToSave: T) => {
     if (!isMountedRef.current) return;
 
-    setIsSaving(true);
+    if (reportSavingState) {
+      setIsSaving(true);
+    }
     setLastError(null);
 
     try {
       await onSaveRef.current(dataToSave);
       if (isMountedRef.current) {
         lastSavedDataRef.current = dataToSave;
+        onSaveSuccessRef.current?.();
       }
     } catch (error) {
       if (isMountedRef.current) {
@@ -117,10 +128,12 @@ export function useAutoSave<T>({
       }
     } finally {
       if (isMountedRef.current) {
-        setIsSaving(false);
+        if (reportSavingState) {
+          setIsSaving(false);
+        }
       }
     }
-  }, []);
+  }, [reportSavingState]);
 
   // Force immediate save
   const forceSave = useCallback(async () => {

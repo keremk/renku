@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 
-import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PlanDialog } from './plan-dialog';
 import type { PlanDisplayInfo } from '@/types/generation';
 
@@ -175,9 +175,19 @@ function renderDialog(
   };
 }
 
+function getCounterLabels(): string[] {
+  return screen
+    .getAllByRole('spinbutton')
+    .map((input) => input.getAttribute('aria-label') ?? '');
+}
+
 describe('PlanDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('groups composite producers and shows only leaf labels inside the group', () => {
@@ -189,6 +199,75 @@ describe('PlanDialog', () => {
     expect(
       screen.queryByText('CelebrityVideoProducer.MeetingVideoProducer')
     ).toBeNull();
+  });
+
+  it('orders producer counters by execution order and keeps that order stable after preview replans', async () => {
+    vi.useFakeTimers();
+    const { previewPlan } = renderDialog();
+    previewPlan.mockResolvedValue(
+      createPlanInfo({
+        layerBreakdown: [
+          {
+            index: 0,
+            jobCount: 2,
+            jobs: [
+              {
+                jobId: 'job-together-0',
+                producer: 'CelebrityVideoProducer.TogetherImageProducer',
+                estimatedCost: 0.7,
+              },
+              {
+                jobId: 'job-meeting-0',
+                producer: 'CelebrityVideoProducer.MeetingVideoProducer',
+                estimatedCost: 1.5,
+              },
+            ],
+            layerCost: 2.2,
+            layerMinCost: 2.2,
+            layerMaxCost: 2.2,
+            hasPlaceholders: false,
+          },
+          {
+            index: 1,
+            jobCount: 1,
+            jobs: [
+              {
+                jobId: 'job-now-0',
+                producer: 'NowImageProducer',
+                estimatedCost: 0.3,
+              },
+            ],
+            layerCost: 0.3,
+            layerMinCost: 0.3,
+            layerMaxCost: 0.3,
+            hasPlaceholders: false,
+          },
+        ],
+      })
+    );
+
+    expect(getCounterLabels()).toEqual([
+      'Count for Now Image Producer',
+      'Count for Together Image Producer',
+      'Count for Meeting Video Producer',
+    ]);
+
+    fireEvent.change(
+      screen.getByRole('spinbutton', {
+        name: 'Count for Now Image Producer',
+      }),
+      { target: { value: '1' } }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+
+    expect(getCounterLabels()).toEqual([
+      'Count for Now Image Producer',
+      'Count for Together Image Producer',
+      'Count for Meeting Video Producer',
+    ]);
   });
 
   it('keeps the run dialog open with an inline invalid-plan error when replanning fails', async () => {
@@ -266,5 +345,39 @@ describe('PlanDialog', () => {
     fireEvent.change(input, { target: { value: '1' } });
 
     expect(input.value).toBe('1');
+  });
+
+  it('debounces preview planning while producer counts change rapidly', async () => {
+    vi.useFakeTimers();
+    const { previewPlan } = renderDialog();
+    const input = screen.getByRole('spinbutton', {
+      name: 'Count for Now Image Producer',
+    }) as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: '1' } });
+    fireEvent.change(input, { target: { value: '0' } });
+
+    expect(input.value).toBe('0');
+    expect(screen.getByRole('button', { name: 'Run' }).hasAttribute('disabled')).toBe(
+      true
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(599);
+    });
+    expect(previewPlan).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(previewPlan).toHaveBeenCalledTimes(1);
+    expect(previewPlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        producerOverrides: {
+          'Producer:NowImageProducer': { enabled: false, count: 0 },
+        },
+      })
+    );
   });
 });

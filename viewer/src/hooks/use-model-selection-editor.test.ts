@@ -490,6 +490,28 @@ describe('useModelSelectionEditor', () => {
       expect(result.current.isDirty).toBe(false);
     });
 
+    it('calls onSaveSuccess after a successful manual save', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const onSaveSuccess = vi.fn();
+
+      const { result } = renderHook(() =>
+        useModelSelectionEditor({ savedSelections: saved, onSave, onSaveSuccess })
+      );
+
+      act(() => {
+        result.current.updateSelection(
+          makeSelection('producer1', 'anthropic', 'claude-3')
+        );
+      });
+
+      await act(async () => {
+        await result.current.save();
+      });
+
+      expect(onSaveSuccess).toHaveBeenCalledTimes(1);
+    });
+
     it('sets lastError on save failure', async () => {
       const saveError = new Error('Save failed');
       const onSave = vi.fn().mockRejectedValue(saveError);
@@ -1042,6 +1064,33 @@ describe('useModelSelectionEditor', () => {
       });
 
       expect(result.current.isDirty).toBe(false);
+    });
+
+    it('calls onSaveSuccess after successful auto-save', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const onSaveSuccess = vi.fn();
+
+      const { result } = renderHook(() =>
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          onSaveSuccess,
+          debounceMs: 500,
+        })
+      );
+
+      act(() => {
+        result.current.updateSelection(
+          makeSelection('producer1', 'anthropic', 'claude-3')
+        );
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+
+      expect(onSaveSuccess).toHaveBeenCalledTimes(1);
     });
 
     it('sets lastError on auto-save failure', async () => {

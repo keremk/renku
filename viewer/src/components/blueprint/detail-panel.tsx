@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Check } from 'lucide-react';
 import { InputsPanel } from './inputs-panel';
 import { ModelsPanel } from './models-panel';
 import { OutputsPanel } from './outputs-panel';
@@ -36,6 +37,8 @@ interface DetailPanelProps {
   artifacts: ArtifactInfo[];
   /** Optional action button to render in the tab bar (e.g., Run button) */
   actionButton?: ReactNode;
+  /** Incrementing signal that shows the saved notice for saves outside InputsPanel. */
+  savedNoticeRevision?: number;
   /** Whether inputs are editable (requires a selected build with inputs file) */
   isInputsEditable?: boolean;
   /** Callback when inputs are saved */
@@ -101,6 +104,7 @@ export function DetailPanel({
   catalogRoot = null,
   artifacts,
   actionButton,
+  savedNoticeRevision = 0,
   isInputsEditable = false,
   onSaveInputs,
   canEnableEditing = false,
@@ -138,6 +142,8 @@ export function DetailPanel({
   const activeTab = controlledActiveTab ?? internalActiveTab;
   const setActiveTab = onTabChange ?? setInternalActiveTab;
   const [activeProducerId, setActiveProducerId] = useState<string | null>(null);
+  const [showSavedNotice, setShowSavedNotice] = useState(false);
+  const savedNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Handle enable editing state
   const [isEnabling, setIsEnabling] = useState(false);
@@ -151,6 +157,32 @@ export function DetailPanel({
       setIsEnabling(false);
     }
   }, [onEnableEditing]);
+
+  useEffect(() => {
+    return () => {
+      if (savedNoticeTimerRef.current) {
+        clearTimeout(savedNoticeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleInputsSaved = useCallback(() => {
+    setShowSavedNotice(true);
+    if (savedNoticeTimerRef.current) {
+      clearTimeout(savedNoticeTimerRef.current);
+    }
+    savedNoticeTimerRef.current = setTimeout(() => {
+      setShowSavedNotice(false);
+      savedNoticeTimerRef.current = null;
+    }, 1800);
+  }, []);
+
+  useEffect(() => {
+    if (savedNoticeRevision === 0) {
+      return;
+    }
+    handleInputsSaved();
+  }, [savedNoticeRevision, handleInputsSaved]);
 
   // Show read-only indicator when not editable but can enable editing
   const showReadOnlyIndicator = !isInputsEditable && canEnableEditing;
@@ -206,6 +238,7 @@ export function DetailPanel({
 
         {/* Right side: read-only indicator and action button */}
         <div className='ml-auto flex items-center gap-2 pr-3'>
+          <SavedNotice visible={showSavedNotice} />
           {showReadOnlyIndicator && (
             <ReadOnlyIndicator
               onEnableEditing={handleEnableEditing}
@@ -228,6 +261,7 @@ export function DetailPanel({
             selectedNodeId={selectedNodeId}
             isEditable={isInputsEditable}
             onSave={onSaveInputs}
+            onSaved={handleInputsSaved}
             blueprintFolder={blueprintFolder}
             movieId={movieId}
           />
@@ -308,6 +342,24 @@ export function DetailPanel({
           />
         )}
       </div>
+    </div>
+  );
+}
+
+function SavedNotice({ visible }: { visible: boolean }) {
+  return (
+    <div
+      aria-live='polite'
+      className={`
+        inline-flex h-7 w-[74px] items-center justify-center gap-1.5
+        rounded-md border border-emerald-500/20 bg-emerald-500/8
+        text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-600
+        transition-all duration-500 ease-out dark:text-emerald-300
+        ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-0.5 pointer-events-none'}
+      `}
+    >
+      <Check className='size-3.5' />
+      <span>Saved</span>
     </div>
   );
 }

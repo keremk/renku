@@ -36,11 +36,69 @@ function makeLoopGroup(
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe('InputsPanel array input rendering', () => {
+  it('keeps a newer local input draft focused when an older save snapshot arrives', async () => {
+    vi.useFakeTimers();
+    const save = createDeferred<void>();
+    const onSave = vi.fn().mockReturnValue(save.promise);
+
+    const { rerender } = render(
+      <InputsPanel
+        inputs={[makeInput('Theme', 'string')]}
+        inputValues={[{ name: 'Theme', value: 'original' }]}
+        selectedNodeId={null}
+        isEditable={true}
+        onSave={onSave}
+        blueprintFolder='/tmp/blueprint'
+        movieId='movie-test'
+      />
+    );
+
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    input.focus();
+    fireEvent.change(input, { target: { value: 'first draft' } });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1200);
+    });
+    expect(onSave).toHaveBeenCalledWith({ Theme: 'first draft' });
+
+    fireEvent.change(input, { target: { value: 'second draft' } });
+    rerender(
+      <InputsPanel
+        inputs={[makeInput('Theme', 'string')]}
+        inputValues={[{ name: 'Theme', value: 'first draft' }]}
+        selectedNodeId={null}
+        isEditable={true}
+        onSave={onSave}
+        blueprintFolder='/tmp/blueprint'
+        movieId='movie-test'
+      />
+    );
+
+    expect(screen.getByRole('textbox')).toBe(input);
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe('second draft');
+
+    await act(async () => {
+      save.resolve();
+    });
+  });
+
   it('renders itemType=text arrays as card sections with add text card when ungrouped', () => {
     render(
       <InputsPanel

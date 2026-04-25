@@ -28,6 +28,7 @@ import type {
   BlueprintGraphData,
   InputTemplateData,
   ModelSelectionValue,
+  PromptData,
 } from '@/types/blueprint-graph';
 import type { BuildInfo, BuildStateResponse } from '@/types/builds';
 
@@ -93,6 +94,7 @@ function WorkspaceLayoutInner({
     useState<DetailPanelTab>('inputs');
   const [isHeaderPinned, setIsHeaderPinned] = useState(true);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [savedNoticeRevision, setSavedNoticeRevision] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -266,10 +268,15 @@ function WorkspaceLayoutInner({
     return selectedBuildState?.models ?? [];
   }, [buildModels, selectedBuildState?.models]);
 
+  const showSavedNotice = useCallback(() => {
+    setSavedNoticeRevision((revision) => revision + 1);
+  }, []);
+
   // Use the model selection editor hook for single source of truth
   const modelEditor = useModelSelectionEditor({
     savedSelections: parsedModelSelections,
     onSave: handleSaveModels,
+    onSaveSuccess: showSavedNotice,
   });
 
   // Merge input data from editable build inputs or read-only build state
@@ -341,6 +348,13 @@ function WorkspaceLayoutInner({
       catalogRoot,
       enabled: isInputsEditable,
     });
+  const handleSavePromptWithNotice = useCallback(
+    async (producerId: string, prompts: PromptData) => {
+      await handleSavePrompt(producerId, prompts);
+      showSavedNotice();
+    },
+    [handleSavePrompt, showSavedNotice]
+  );
 
   // Compute config properties and values using the dedicated hook
   const { configFieldsByProducer, configValuesByProducer } =
@@ -547,6 +561,7 @@ function WorkspaceLayoutInner({
                   catalogRoot={catalogRoot}
                   artifacts={selectedBuildState?.artifacts ?? []}
                   actionButton={runButton}
+                  savedNoticeRevision={savedNoticeRevision}
                   isInputsEditable={isInputsEditable}
                   onSaveInputs={handleSaveInputs}
                   canEnableEditing={canEnableEditing}
@@ -555,7 +570,7 @@ function WorkspaceLayoutInner({
                   producerModels={producerModels}
                   modelSelections={modelEditor.currentSelections}
                   promptDataByProducer={promptDataByProducer}
-                  onPromptChange={handleSavePrompt}
+                  onPromptChange={handleSavePromptWithNotice}
                   configFieldsByProducer={configFieldsByProducer}
                   configValuesByProducer={configValuesByProducer}
                   configSchemasByProducer={configSchemas}

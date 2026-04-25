@@ -21,6 +21,8 @@ export interface UseModelSelectionEditorOptions {
   isEqual?: (a: ModelSelectionValue[], b: ModelSelectionValue[]) => boolean;
   /** Debounce delay in milliseconds for auto-save (default: 1000) */
   debounceMs?: number;
+  /** Called after model/config selections are saved successfully. */
+  onSaveSuccess?: () => void;
 }
 
 export interface UseModelSelectionEditorResult {
@@ -58,6 +60,7 @@ export function useModelSelectionEditor({
   onSave,
   isEqual = defaultIsEqual,
   debounceMs = 1000,
+  onSaveSuccess,
 }: UseModelSelectionEditorOptions): UseModelSelectionEditorResult {
   // Edit state - Map for O(1) lookups
   const [edits, setEdits] = useState<Map<string, ModelSelectionValue>>(
@@ -69,11 +72,13 @@ export function useModelSelectionEditor({
   // Track saved selections for dirty comparison
   const lastSavedRef = useRef<ModelSelectionValue[]>(savedSelections);
   const onSaveRef = useRef(onSave);
+  const onSaveSuccessRef = useRef(onSaveSuccess);
   const isMountedRef = useRef(true);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Update refs on render
   onSaveRef.current = onSave;
+  onSaveSuccessRef.current = onSaveSuccess;
 
   // Reset edits when savedSelections changes (build change, reload)
   // Use JSON comparison to avoid false positives from array reference changes
@@ -190,6 +195,7 @@ export function useModelSelectionEditor({
         // When savedSelections prop eventually updates with the saved values,
         // the effect will reset lastSavedRef appropriately
         setEdits(new Map());
+        onSaveSuccessRef.current?.();
       }
     } catch (error) {
       if (isMountedRef.current) {

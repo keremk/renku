@@ -4,7 +4,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Loader2,
   Maximize2,
   Plus,
   Trash2,
@@ -64,6 +63,8 @@ interface InputsPanelProps {
   isEditable?: boolean;
   /** Callback when inputs are saved (auto-save enabled when provided) */
   onSave?: (values: Record<string, unknown>) => Promise<void>;
+  /** Callback after auto-save succeeds. */
+  onSaved?: () => void;
   /** Blueprint folder path for file uploads */
   blueprintFolder?: string | null;
   /** Movie ID for the current build */
@@ -82,6 +83,7 @@ export function InputsPanel({
   selectedNodeId,
   isEditable = false,
   onSave,
+  onSaved,
   blueprintFolder = null,
   movieId = null,
 }: InputsPanelProps) {
@@ -94,34 +96,38 @@ export function InputsPanel({
     return map;
   }, [inputValues]);
 
-  // Track all input values locally
-  // Generate a stable key when the input values change to trigger state reset
   const initialValueKey = useMemo(
     () => JSON.stringify(initialValueMap),
     [initialValueMap]
   );
   const [internalValues, setInternalValues] =
     useState<Record<string, unknown>>(initialValueMap);
-  const [hydratedInputValueKey, setHydratedInputValueKey] =
-    useState(initialValueKey);
   const [hasUserChanges, setHasUserChanges] = useState(false);
-  const isInputValueSnapshotHydrated =
-    hydratedInputValueKey === initialValueKey;
+  const internalValueKey = useMemo(
+    () => JSON.stringify(internalValues),
+    [internalValues]
+  );
   const isInputsPanelLoading =
-    isInputValuesLoading || !isInputValueSnapshotHydrated;
+    isInputValuesLoading ||
+    (!hasUserChanges && initialValueKey !== internalValueKey);
 
   const saveScopeKey = useMemo(() => {
     return `${blueprintFolder ?? 'no-folder'}:${movieId ?? 'no-movie'}`;
   }, [blueprintFolder, movieId]);
 
-  // Reset internal state when initialValueMap changes
-  // Using the serialized key as dependency ensures we only reset on actual data changes
+  // A build/movie switch is the only hard reset. Same-build save acknowledgements
+  // should not rebuild editors while the user is still typing.
   useLayoutEffect(() => {
     setInternalValues(initialValueMap);
-    setHydratedInputValueKey(initialValueKey);
     setHasUserChanges(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialValueKey]);
+  }, [saveScopeKey]);
+
+  useLayoutEffect(() => {
+    if (!hasUserChanges) {
+      setInternalValues(initialValueMap);
+    }
+  }, [hasUserChanges, initialValueMap]);
 
   // Handle save with auto-save
   const handleSave = useCallback(
@@ -134,7 +140,7 @@ export function InputsPanel({
   );
 
   // Auto-save hook - enabled when editable and onSave is provided
-  const { isSaving } = useAutoSave({
+  useAutoSave({
     data: internalValues,
     onSave: handleSave,
     debounceMs: 1000,
@@ -142,6 +148,8 @@ export function InputsPanel({
     initialData: initialValueMap,
     resetKey: saveScopeKey,
     saveOnUnmount: false,
+    reportSavingState: false,
+    onSaveSuccess: onSaved,
   });
 
   // Get the current value for an input
@@ -447,14 +455,6 @@ export function InputsPanel({
 
   return (
     <div className='space-y-8'>
-      {/* Saving indicator */}
-      {isSaving && (
-        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-          <Loader2 className='size-3 animate-spin' />
-          <span>Saving...</span>
-        </div>
-      )}
-
       {/* Loop-grouped indexed inputs */}
       {loopGroupModels.length > 0 && (
         <div className='space-y-6'>
