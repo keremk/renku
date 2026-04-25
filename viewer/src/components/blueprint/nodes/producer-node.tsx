@@ -1,7 +1,6 @@
 import { Handle, Position } from "@xyflow/react";
 import type { ProducerStatus } from "@/types/generation";
 import type { ProducerBinding } from "@/types/blueprint-graph";
-import { formatProducerDisplayName } from "@/lib/panel-utils";
 
 interface ProducerNodeData {
   label: string;
@@ -84,15 +83,28 @@ function getStatusStyles(status: ProducerStatus | undefined, selected: boolean):
   }
 }
 
+function formatProducerLabel(label: string): string {
+  return label
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function ProducerNode({ data, selected }: ProducerNodeProps) {
   const nodeData = data;
   const styles = getStatusStyles(nodeData.status, selected ?? false);
   const showStatusDot = nodeData.status && nodeData.status !== 'not-run-yet';
+  const displayLabel = formatProducerLabel(nodeData.label);
+  const title = nodeData.description
+    ? `${nodeData.label}\n${nodeData.description}`
+    : nodeData.label;
 
   return (
     <div
       className={`
-        relative flex w-[220px] flex-col items-center justify-center
+        relative flex min-h-[96px] w-full flex-col items-center justify-center overflow-hidden
         px-4 py-4 rounded-xl
         bg-card border-2
         ${styles.border}
@@ -100,7 +112,7 @@ export function ProducerNode({ data, selected }: ProducerNodeProps) {
         ${styles.ring}
         transition-all duration-200
       `}
-      title={nodeData.description}
+      title={title}
     >
       {/* Status indicator dot */}
       {showStatusDot && (
@@ -118,21 +130,21 @@ export function ProducerNode({ data, selected }: ProducerNodeProps) {
         position={Position.Left}
         className="bg-gray-400! w-2! h-2!"
       />
-      <span className="text-center text-sm font-semibold text-foreground wrap-break-word">
-        {nodeData.label}
+      <span className="line-clamp-2 max-w-full text-center text-sm font-semibold leading-tight text-foreground break-words [overflow-wrap:anywhere]">
+        {displayLabel}
       </span>
       {nodeData.compositeName && (
-        <span className="mt-1 text-center text-[11px] uppercase tracking-[0.08em] text-muted-foreground/80 wrap-break-word">
-          {formatProducerDisplayName(nodeData.compositeName)}
+        <span className="mt-1 line-clamp-1 max-w-full text-center text-[11px] uppercase tracking-[0.08em] text-muted-foreground/80 break-words [overflow-wrap:anywhere]">
+          {formatProducerLabel(nodeData.compositeName)}
         </span>
       )}
       {nodeData.loop && (
-        <span className="text-xs text-muted-foreground mt-1">
+        <span className="mt-1 max-w-full truncate text-xs text-muted-foreground">
           [{nodeData.loop}]
         </span>
       )}
       {nodeData.producerType && (
-        <span className="mt-1 text-center text-[10px] text-muted-foreground/70 wrap-break-word">
+        <span className="mt-1 line-clamp-1 max-w-full text-center text-[10px] text-muted-foreground/70 break-words [overflow-wrap:anywhere]">
           {nodeData.producerType}
         </span>
       )}

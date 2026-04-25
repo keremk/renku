@@ -698,6 +698,8 @@ export function BlueprintViewer({
         onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        nodesDraggable={false}
+        nodesConnectable={false}
         fitView
         fitViewOptions={{
           padding: 0.2,

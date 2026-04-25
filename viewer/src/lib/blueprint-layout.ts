@@ -12,10 +12,10 @@ export interface LayoutConfig {
 }
 
 export const defaultBlueprintLayoutConfig: LayoutConfig = {
-  nodeWidth: 220,
-  nodeMinHeight: 88,
-  horizontalSpacing: 310,
-  verticalSpacing: 132,
+  nodeWidth: 280,
+  nodeMinHeight: 96,
+  horizontalSpacing: 380,
+  verticalSpacing: 148,
   compositePadding: 12,
   minimumSiblingClearance: 16,
 };

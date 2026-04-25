@@ -34,35 +34,53 @@ const layoutMockState = vi.hoisted(() => ({
   ],
 }));
 
+const reactFlowMockState = vi.hoisted(() => ({
+  latestProps: null as null | {
+    nodesDraggable?: boolean;
+    nodesConnectable?: boolean;
+  },
+}));
+
 vi.mock('@xyflow/react', () => ({
   ReactFlow: ({
     nodes,
     onNodeClick,
     onPaneClick,
+    nodesDraggable,
+    nodesConnectable,
     children,
   }: {
     nodes: Array<{ id: string }>;
     onNodeClick?: (event: unknown, node: unknown) => void;
     onPaneClick?: (event: unknown) => void;
+    nodesDraggable?: boolean;
+    nodesConnectable?: boolean;
     children: React.ReactNode;
-  }) => (
-    <div>
-      {nodes.map((node) => (
-        <button
-          key={node.id}
-          type='button'
-          data-testid={`node-${node.id}`}
-          onClick={() => onNodeClick?.({}, node)}
-        >
-          {node.id}
+  }) => {
+    reactFlowMockState.latestProps = {
+      nodesDraggable,
+      nodesConnectable,
+    };
+
+    return (
+      <div>
+        {nodes.map((node) => (
+          <button
+            key={node.id}
+            type='button'
+            data-testid={`node-${node.id}`}
+            onClick={() => onNodeClick?.({}, node)}
+          >
+            {node.id}
+          </button>
+        ))}
+        <button type='button' data-testid='pane' onClick={() => onPaneClick?.({})}>
+          pane
         </button>
-      ))}
-      <button type='button' data-testid='pane' onClick={() => onPaneClick?.({})}>
-        pane
-      </button>
-      {children}
-    </div>
-  ),
+        {children}
+      </div>
+    );
+  },
   Background: () => null,
   Controls: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   ControlButton: ({
@@ -149,6 +167,7 @@ const graphData: BlueprintGraphData = {
 describe('BlueprintViewer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    reactFlowMockState.latestProps = null;
     layoutMockState.nodes = [
       {
         id: 'Producer:AudioProducer',
@@ -181,6 +200,22 @@ describe('BlueprintViewer', () => {
       compatibility: {
         ok: true,
       },
+    });
+  });
+
+  it('renders the blueprint graph as a non-editable viewer surface', () => {
+    render(
+      <BlueprintViewer
+        graphData={graphData}
+        blueprintName='test-blueprint'
+        movieId='movie-123'
+        selectedUpToLayer={null}
+      />
+    );
+
+    expect(reactFlowMockState.latestProps).toEqual({
+      nodesDraggable: false,
+      nodesConnectable: false,
     });
   });
 
