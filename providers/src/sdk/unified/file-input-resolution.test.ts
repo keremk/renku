@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { resolveProviderFileInputs } from './file-input-resolution.js';
 import type { ProviderAdapter } from './provider-adapter.js';
 import { SdkErrorCode } from '../errors.js';
+import { applyMapping } from '../transforms.js';
 import {
   buildSimulatedUploadUrl,
   createSimulatedProviderClient,
@@ -222,6 +223,112 @@ describe('resolveProviderFileInputs', () => {
       'https://provider.example.com/a',
       'https://existing.example.com/image.png',
       'https://provider.example.com/b',
+    ]);
+  });
+
+  it('uploads flattened Seedance reference fan-in media through URI array fields', async () => {
+    const seedanceReferenceSchema = JSON.stringify({
+      type: 'object',
+      properties: {
+        image_urls: {
+          type: 'array',
+          items: { type: 'string', format: 'uri' },
+        },
+        video_urls: {
+          type: 'array',
+          items: { type: 'string', format: 'uri' },
+        },
+        audio_urls: {
+          type: 'array',
+          items: { type: 'string', format: 'uri' },
+        },
+      },
+    });
+
+    const uploadInputFile = vi
+      .fn()
+      .mockResolvedValueOnce('https://provider.example.com/image.png')
+      .mockResolvedValueOnce('https://provider.example.com/video.mp4')
+      .mockResolvedValueOnce('https://provider.example.com/audio.wav');
+
+    const adapter: ProviderAdapter = {
+      name: 'fal-ai',
+      secretKey: 'FAL_KEY',
+      async createClient() {
+        return {};
+      },
+      formatModelIdentifier(model) {
+        return model;
+      },
+      async invoke() {
+        return { result: {} };
+      },
+      uploadInputFile,
+      normalizeOutput() {
+        return [];
+      },
+    };
+
+    const transformInputs = {
+      'Input:ReferenceClipProducer.ReferenceImages': {
+        groupBy: 'singleton',
+        groups: [['Artifact:Portrait']],
+      },
+      'Input:ReferenceClipProducer.ReferenceVideos': {
+        groupBy: 'singleton',
+        groups: [['Artifact:Motion']],
+      },
+      'Input:ReferenceClipProducer.ReferenceAudios': {
+        groupBy: 'singleton',
+        groups: [['Artifact:Voice']],
+      },
+      'Artifact:Portrait': {
+        data: Buffer.from('image'),
+        mimeType: 'image/png',
+      },
+      'Artifact:Motion': {
+        data: Buffer.from('video'),
+        mimeType: 'video/mp4',
+      },
+      'Artifact:Voice': {
+        data: Buffer.from('audio'),
+        mimeType: 'audio/wav',
+      },
+    };
+
+    const context = {
+      inputs: transformInputs,
+      inputBindings: {},
+      producerId: 'Producer:ReferenceClipProducer',
+    };
+    const payload: Record<string, unknown> = {};
+    for (const [alias, mapping] of Object.entries({
+      ReferenceImages: { field: 'image_urls', flattenFanIn: true },
+      ReferenceVideos: { field: 'video_urls', flattenFanIn: true },
+      ReferenceAudios: { field: 'audio_urls', flattenFanIn: true },
+    })) {
+      const result = applyMapping(alias, mapping, context);
+      expect(result).toBeDefined();
+      payload[result!.field] = result!.value;
+    }
+
+    const resolved = await resolveProviderFileInputs({
+      payload,
+      inputSchema: seedanceReferenceSchema,
+      adapter,
+      client: { configured: true },
+    });
+
+    expect(resolved).toEqual({
+      image_urls: ['https://provider.example.com/image.png'],
+      video_urls: ['https://provider.example.com/video.mp4'],
+      audio_urls: ['https://provider.example.com/audio.wav'],
+    });
+    expect(uploadInputFile).toHaveBeenCalledTimes(3);
+    expect(uploadInputFile.mock.calls.map(([, file]) => file.mimeType)).toEqual([
+      'image/png',
+      'video/mp4',
+      'audio/wav',
     ]);
   });
 

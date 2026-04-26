@@ -1,87 +1,191 @@
 ---
 title: Blueprint Authoring Guide
-description: Advanced guide for creating custom Renku blueprints and producers
+description: Friendly guide for creating custom Renku blueprints and producers
 ---
 
-This comprehensive guide explains how to author Renku blueprints: the YAML schema, how producers compose into workflows, and the rules the planner and runner enforce.
+This guide explains how to write Renku blueprints: the YAML recipes that describe how a video should be planned, generated, assembled, and exported.
+
+The goal is not to memorize every field. The goal is to build a useful mental model:
+
+1. A blueprint declares the values a user can provide.
+2. It imports producers that know how to create assets.
+3. It connects outputs from one step into inputs of another.
+4. It uses loops when the same step should run many times.
+5. It uses conditions when only one branch should run.
+6. It uses fan-in when many generated assets should become one ordered list.
 
 ## Overview
 
-Blueprints are YAML files that define complete video generation workflows. This guide is for advanced users who want to:
+Blueprints are YAML files that define complete media workflows. They can be small, such as “turn one prompt into one image,” or large, such as “write a documentary, generate segment videos, create narration, compose a timeline, and export a final movie.”
+
+This guide is for people who want to:
 
 - Create custom blueprints for specific use cases
 - Build reusable producers for new AI models
-- Understand the internal workings of the planner and runner
+- Understand how Renku decides what to run and what can be reused
 
-If you're new to Renku, start with the [Quick Start](/docs/quick-start) guide first.
+If you are new to Renku as an app user, start with the [App Quick Start](/docs/app-quick-start). If you are creating or editing YAML, this page is the right place.
 
 ## Core Concepts
 
+### Blueprint
+
+A **blueprint** is the recipe. It says:
+
+- what inputs the user can edit,
+- which producers are part of the workflow,
+- how those producers are connected,
+- which outputs should be visible at the end.
+
+Most authoring work happens in a top-level blueprint. For example, a documentary blueprint might import a script director, an image prompt writer, an image generator, a text-to-speech producer, a timeline composer, and a video exporter.
+
+### Producer
+
+A **producer** is one step in the workflow. It accepts inputs and produces artifacts.
+
+Examples:
+
+- A prompt producer turns `InquiryPrompt` into a structured scene plan.
+- An image producer turns `Prompt` and `Resolution` into a generated image.
+- A video producer turns `Prompt`, `Duration`, and optional reference media into a video clip.
+- A timeline producer combines videos and audio into an edit decision list.
+
+Some producers are wrappers around other producers. For example, `SeedanceVideoGenerator` chooses between text, image, start/end-frame, reference, and multi-shot workflows, then routes inputs into the matching child producer.
+
+### Input
+
+An **input** is a value a producer needs.
+
+Inputs can come from:
+
+- the user, such as `InquiryPrompt`, `Duration`, or `Style`,
+- Renku, such as `SegmentDuration`,
+- another producer's output, such as `ScriptProducer.ScenePrompt[segment]`.
+
+Inputs should be explicit. If a producer needs `Duration`, declare it and connect it. Do not rely on a default or a similarly named value elsewhere.
+
+### Artifact
+
+An **artifact** is a value a producer creates. It can be a file, such as an image or audio clip, or structured data, such as JSON from a planning producer.
+
+Artifacts are what make Renku a build system. If an input changes, Renku can identify which artifacts are stale and regenerate only the affected parts.
+
+### Connection
+
+A **connection** moves a value from one place to another.
+
+```yaml
+connections:
+  - from: InquiryPrompt
+    to: ScriptProducer.InquiryPrompt
+
+  - from: ScriptProducer.Segments[segment].Narration
+    to: NarrationProducer[segment].Text
+```
+
+Read those as:
+
+- send the user's `InquiryPrompt` into `ScriptProducer`,
+- for each `segment`, send that segment's narration into the matching narration producer.
+
+### Loop
+
+A **loop** runs a producer more than once.
+
+```yaml
+loops:
+  - name: segment
+    countInput: NumOfSegments
+
+imports:
+  - name: VideoProducer
+    producer: video/seedance-video-generator
+    loop: segment
+```
+
+If `NumOfSegments` is `3`, Renku plans three video producer jobs: one for segment 0, one for segment 1, and one for segment 2.
+
+### Fan-In
+
+**Fan-in** means “collect many values into one list input.”
+
+This comes up whenever a later producer needs everything created by a loop. A timeline producer is the easiest example:
+
+```yaml
+connections:
+  - from: VideoProducer[segment].GeneratedVideo
+    to: TimelineComposer.VideoClips
+    groupBy: singleton
+    orderBy: segment
+```
+
+Read this as: “collect every generated segment video into one `VideoClips` list, ordered by segment.”
+
+Fan-in is not magic and it is not a separate top-level section. It is created by normal connections into an input declared with `fanIn: true`.
+
+```yaml
+inputs:
+  - name: VideoClips
+    type: array
+    itemType: video
+    fanIn: true
+```
+
+### Condition
+
+A **condition** turns part of the workflow on or off.
+
+For example, a planning producer might decide that segment 2 should use the Reference workflow. The blueprint can then run the reference-video branch only for that segment.
+
+```yaml
+conditions:
+  motionIsReference:
+    when: MotionPlan[segment].Workflow
+    is: Reference
+
+connections:
+  - from: MotionPlan[segment].ReferencePrompt
+    to: SeedanceVideoGenerator[segment].ReferenceMediaInstructions
+    if: motionIsReference
+```
+
+Use conditions to express real workflow choices. Do not use fallback values to keep inactive branches alive.
+
 ### System Inputs
 
-System inputs are special inputs that Renku automatically recognizes by name. Renku still expects you to model them intentionally when authoring blueprints:
+Some input names have special meaning to Renku:
 
-- Top-level orchestration blueprints should explicitly declare user-facing system inputs such as `Duration` and `NumOfSegments` in `inputs:` when the workflow depends on them.
-- Derived or runtime system inputs such as `SegmentDuration`, `MovieId`, `StorageRoot`, and `StorageBasePath` should not be exposed as top-level user inputs.
-- Prompt producers may declare timing context inputs such as `Duration` and `SegmentDuration` if they consume them.
-- Media producers that output audio or video must declare a required `Duration` input.
+| System Input | Meaning |
+| ------------ | ------- |
+| `Duration` | Total movie or clip duration in seconds. Audio and video producers must declare and receive it explicitly. |
+| `NumOfSegments` | Number of story segments to create. Commonly used as a loop count. |
+| `SegmentDuration` | Computed as `Duration / NumOfSegments`. Useful for per-segment prompt, audio, and video producers. |
+| `MovieId` | Current build identifier. Injected by Renku when needed. |
+| `StorageRoot` / `StorageBasePath` | Storage locations injected by Renku for producers that need them. |
 
-| System Input      | Type     | Description                                                                |
-| ----------------- | -------- | -------------------------------------------------------------------------- |
-| `Duration`        | `int`    | Total duration of the movie in seconds. Provided in input YAML.            |
-| `NumOfSegments`   | `int`    | Number of segments to generate. Provided in input YAML.                    |
-| `SegmentDuration` | `int`    | Duration of each segment. **Auto-computed** as `Duration / NumOfSegments`. |
-| `MovieId`         | `string` | Unique identifier for the movie. Auto-injected by the system.              |
-| `StorageRoot`     | `string` | Root directory for storage. Auto-injected from CLI config.                 |
-| `StorageBasePath` | `string` | Base path within storage root. Auto-injected from CLI config.              |
-
-**How it works:**
-
-- The runtime recognizes system inputs by name and makes them available when referenced in blueprint connections.
-- In top-level blueprints, declare `Duration` and `NumOfSegments` in `inputs:` if users are expected to provide them.
-- `SegmentDuration` is derived internally as `Duration / NumOfSegments` and should not be exposed as a top-level blueprint input or ordinary input-template field.
-- Parent blueprints must still wire timing values explicitly to child producers.
-- Timeline composers and video exporters automatically receive `MovieId`, `StorageRoot`, `StorageBasePath`
-
-### Blueprint vs Producer
-
-**Blueprints** are workflow definitions that:
-
-- Define user-facing inputs and public output connectors
-- Import and connect multiple child blueprints
-- Define loops for parallel execution
-- Use connection-driven fan-in for array inputs
-
-**Leaf producer blueprints** are execution units that:
-
-- Accept inputs and produce runtime artifacts
-- Map inputs to specific AI model parameters
-- Support multiple model variants
-- Can be reused across multiple blueprints
+Top-level blueprints should declare user-facing values such as `Duration` and `NumOfSegments` when the user should edit them. Runtime values such as `MovieId` should usually stay internal.
 
 ### Data Flow
 
-Data flows through the system via connections:
+Data moves through a blueprint like this:
 
-```
-Blueprint Input → Producer Input → Producer → Artifact → Next Producer Input
-                                                   │
-                                                   └→ Blueprint Output
+```text
+User input -> producer input -> producer -> artifact -> next producer input -> final output
 ```
 
-For looped producers:
+For a looped workflow, the same shape repeats per item:
 
-```
-ScriptProducer.NarrationScript[0] → AudioProducer[0].TextInput
-ScriptProducer.NarrationScript[1] → AudioProducer[1].TextInput
-ScriptProducer.NarrationScript[2] → AudioProducer[2].TextInput
+```text
+ScriptProducer.Segments[0].Narration -> AudioProducer[0].Text
+ScriptProducer.Segments[1].Narration -> AudioProducer[1].Text
+ScriptProducer.Segments[2].Narration -> AudioProducer[2].Text
 ```
 
 ---
 
 ## Blueprint YAML Reference
 
-### Complete Schema
+### Common Shape
 
 ```yaml
 meta:
@@ -99,6 +203,7 @@ inputs:
     required: <boolean> # Whether mandatory (default: true)
     itemType: <string> # Element type for array inputs
     countInput: <string> # Required for grouped array inputs in Viewer Input Panel
+    fanIn: <boolean> # True when this array is filled by multiple upstream connections
 
 outputs:
   - name: <string> # Output identifier in PascalCase (required)
@@ -141,6 +246,8 @@ conditions:
     any: <array> # OR: at least one sub-condition must pass
 ```
 
+Most blueprints use only a subset of these fields. Start with `meta`, `inputs`, `outputs`, `imports`, and `connections`. Add `loops`, `conditions`, and `fanIn` when the workflow needs them.
+
 ### Input Types
 
 | Type         | Description                              |
@@ -179,13 +286,13 @@ inputs:
 | `array`         | Array of items (requires `itemType`)                                                    |
 | `multiDimArray` | Multi-dimensional array                                                                 |
 
-### Example Blueprint
+### Small Example Blueprint
 
 ```yaml
 meta:
-  name: Video Only Narration
-  description: Generate video segments from a textual inquiry.
-  id: Video
+  name: Simple Segmented Video
+  description: Generate one video clip per segment.
+  id: SimpleSegmentedVideo
   version: 0.1.0
   author: Renku
   license: MIT
@@ -256,6 +363,12 @@ connections:
   - from: VideoProducer[segment].SegmentVideo
     to: SegmentVideo[segment]
 ```
+
+The important parts:
+
+- `loop: segment` means `VideoProducer` runs once per segment.
+- `[segment]` on both sides of a connection means “use the matching segment item.”
+- `SegmentDuration` is a Renku-computed value, but it is still wired explicitly.
 
 ---
 
@@ -1004,36 +1117,83 @@ imports:
 
 ---
 
-## Fan-In Inference and Edge Metadata
+## Fan-In: Collect Many Outputs Into One Input
 
-Fan-in is connection-driven. The top-level `collectors:` section is no longer supported.
+Fan-in is Renku's name for a common workflow shape: many upstream jobs create related assets, and one downstream job needs those assets as a list.
 
-:::caution[Critical: Use Connections Only]
-To feed a fan-in input, connect upstream runtime artifacts directly to the target input and ensure the target input is declared with `fanIn: true`.
+Use fan-in when the target producer should receive a collection, such as:
+
+- all generated segment videos for a timeline,
+- all narration audio clips for a transcription step,
+- several reference images for a video model,
+- several images, videos, or audio clips for a multimodal reference model.
+
+The target input must be an array and must declare `fanIn: true`:
 
 ```yaml
-# ✅ Connection-driven fan-in (inferred)
-connections:
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments
-
-  # Optional explicit metadata when inference is ambiguous
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments
-    groupBy: segment
-    orderBy: image
+inputs:
+  - name: VideoClips
+    type: array
+    itemType: video
+    fanIn: true
 ```
 
-:::
+Then connect the repeated upstream output into that input:
 
-### Inference Rules
+```yaml
+connections:
+  - from: VideoProducer[segment].GeneratedVideo
+    to: TimelineComposer.VideoClips
+    groupBy: singleton
+    orderBy: segment
+```
 
-- Single scalar source -> singleton fan-in group
-- One source dimension -> `groupBy` inferred from that dimension
-- Two source dimensions -> `groupBy` and `orderBy` inferred by position
-- Ambiguous scalar multi-source fan-in -> planner fails fast unless edge metadata disambiguates
+Read this as: “put every generated segment video into one list, ordered by segment.”
 
-Use `groupBy: singleton` when several upstream values should become one ordered collection for a single downstream input. Add `orderBy: <dimension>` when values come from a loop and the provider-facing order matters.
+### `groupBy`
+
+`groupBy` answers: **how many lists should Renku create?**
+
+Use `groupBy: singleton` when the downstream producer wants one list:
+
+```yaml
+connections:
+  - from: VideoProducer[segment].GeneratedVideo
+    to: TimelineComposer.VideoClips
+    groupBy: singleton
+    orderBy: segment
+```
+
+This produces one logical list:
+
+```text
+[clip0, clip1, clip2]
+```
+
+Use `groupBy: <dimension>` when the downstream producer wants one list per item in that dimension. For example, if each character needs a list of its own reference images:
+
+```yaml
+connections:
+  - from: CostumeImageProducer[character][style].GeneratedImage
+    to: CharacterVideoProducer[character].ReferenceImages
+    groupBy: character
+    orderBy: style
+```
+
+That produces one list per character:
+
+```text
+character 0 -> [style0Image, style1Image]
+character 1 -> [style0Image, style1Image]
+```
+
+### `orderBy`
+
+`orderBy` answers: **what order should items appear in each list?**
+
+Order matters for many providers. Seedance reference prompts, for example, use labels like `@Image1`, `@Image2`, `@Video1`, and `@Audio1`. Those labels are assigned from the final provider array order.
+
+If a list is built from looped outputs, use `orderBy` whenever the order has meaning:
 
 ```yaml
 connections:
@@ -1048,11 +1208,22 @@ connections:
     orderBy: historicalcharacter
 ```
 
-This shape keeps the selected character references in one media list while ordering them by the declared `historicalcharacter` dimension. For Seedance prompts, that means `@Image1` and `@Image2` can refer to the first selected character's portrait and sheet, while `@Image3` and `@Image4` refer to the next selected character.
+This means the reference image list is built from selected historical characters in historical-character order. The prompt can then refer to the resulting images deterministically, such as `@Image1` for the first selected portrait and `@Image2` for the first selected character sheet.
 
-Use `groupBy: <dimension>` instead when each loop item should become its own fan-in group. For example, a timeline composer usually groups by `segment` and orders by `clip`.
+### When Renku Can Infer Grouping
 
-Wrapper producers can also forward a fan-in collection into a nested producer:
+Renku can infer simple fan-in grouping from loop dimensions, but explicit `groupBy` and `orderBy` are usually clearer for human readers. Prefer writing them when:
+
+- more than one upstream connection feeds the same fan-in input,
+- provider prompt labels depend on order,
+- the source has more than one loop dimension,
+- future maintainers need to understand why the list is shaped a certain way.
+
+If Renku cannot determine a safe grouping, validation fails instead of guessing.
+
+### Forwarding Fan-In Through Wrapper Producers
+
+Wrapper producers often receive a fan-in list and pass it to a nested producer.
 
 ```yaml
 connections:
@@ -1061,22 +1232,33 @@ connections:
     groupBy: singleton
 ```
 
-The leaf producer can then use `flattenFanIn: true` in its SDK mapping to send the grouped values as a flat provider array.
+The nested producer then receives the same collection. In the leaf producer's provider mapping, `flattenFanIn: true` converts Renku's grouped fan-in value into the plain array expected by the provider API:
 
-### Fan-In Inputs
+```yaml
+mappings:
+  fal-ai:
+    bytedance/seedance-2.0/reference-to-video:
+      ReferenceImages:
+        field: image_urls
+        flattenFanIn: true
+```
 
-The target input must have `fanIn: true`:
+In plain English: Renku tracks fan-in as grouped graph data; the provider API wants `image_urls: [...]`; `flattenFanIn` is the last-mile conversion between those two shapes.
+
+### Optional Fan-In
+
+Fan-in inputs can be optional:
 
 ```yaml
 inputs:
-  - name: VideoSegments
+  - name: ReferenceImages
     type: array
-    itemType: video
-    dimensions: segment
+    itemType: image
+    required: false
     fanIn: true
 ```
 
-Fan-in inputs can be optional. If an optional fan-in input has no inbound binding, the planner and viewer treat it as absent rather than inventing an empty or default value.
+If an optional fan-in input has no resolved values, Renku omits that provider field. It does not invent an empty image, choose a default, or call the provider with a made-up value.
 
 ---
 

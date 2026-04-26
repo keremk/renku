@@ -211,7 +211,9 @@ ReferenceImages:
 
 ### 4b. flattenFanIn - Grouped Fan-In to Array
 
-Flattens a fan-in value into the provider array field. Use this when a producer input is declared with `fanIn: true` and the provider expects a plain list such as `image_urls`, `video_urls`, or `audio_urls`.
+Renku stores fan-in values with graph metadata: groups, order, and canonical member IDs. Provider APIs do not want that graph shape. They usually want a plain array field.
+
+`flattenFanIn: true` is the producer mapping step that turns Renku's internal fan-in value into the provider's array field.
 
 ```yaml
 ReferenceImages:
@@ -219,7 +221,26 @@ ReferenceImages:
   flattenFanIn: true
 ```
 
-Fan-in values preserve the graph's group and order metadata before flattening. If no value is connected to an optional fan-in input, the field is not sent to the provider.
+Example:
+
+```text
+Renku fan-in value:
+  groups:
+    - [portraitBlob, sheetBlob]
+
+Provider payload after flattenFanIn:
+  image_urls: [portraitBlob, sheetBlob]
+```
+
+The provider file resolver then sees that `image_urls` is an array of URI fields in the model schema. Any local blob values in that array are uploaded through the provider adapter and replaced with uploaded URLs before the SDK call.
+
+Use `flattenFanIn` when all of these are true:
+
+- the producer input is declared with `fanIn: true`,
+- the mapping target is a provider array field,
+- the provider model schema expects URLs or scalar values, not Renku fan-in metadata.
+
+If no value is connected to an optional fan-in input, the field is not sent to the provider.
 
 Seedance reference prompts must refer to supplied media with one-based labels by media type: `@Image1`, `@Image2`, `@Video1`, `@Audio1`, and so on. Only mention labels for media that the graph actually supplies.
 
