@@ -8,8 +8,12 @@ import type {
   CanonicalEdgeInstance,
   CanonicalNodeInstance,
 } from './canonical-blueprint.js';
+import {
+  combineEdgeConditions,
+  getDimensionIndex,
+  mergeConditionIndices,
+} from './edge-instantiation.js';
 import { extractDimensionLabel } from './dimension-plan.js';
-import { getDimensionIndex } from './edge-instantiation.js';
 
 export function buildFanInCollections(
   nodes: CanonicalNodeInstance[],
@@ -98,7 +102,86 @@ export function buildFanInCollections(
     };
   }
 
-  return fanIn;
+  return resolveNestedFanInCollections(fanIn);
+}
+
+function resolveNestedFanInCollections(
+  fanIn: Record<string, ResolvedFanInDescriptor>
+): Record<string, ResolvedFanInDescriptor> {
+  const resolved = new Map<string, ResolvedFanInDescriptor>();
+
+  const resolveDescriptor = (
+    inputId: string,
+    stack: Set<string>
+  ): ResolvedFanInDescriptor => {
+    const cached = resolved.get(inputId);
+    if (cached) {
+      return cached;
+    }
+    if (stack.has(inputId)) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Fan-in input ${inputId} depends on itself through a fan-in forwarding cycle.`
+      );
+    }
+
+    const descriptor = fanIn[inputId];
+    if (!descriptor) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Cannot resolve missing fan-in descriptor for ${inputId}.`
+      );
+    }
+
+    stack.add(inputId);
+    const members = descriptor.members.flatMap((member) => {
+      const nested = fanIn[member.id];
+      if (!nested) {
+        return [member];
+      }
+      const resolvedNested = resolveDescriptor(member.id, stack);
+      return resolvedNested.members.map((nestedMember) => ({
+        ...nestedMember,
+        group: member.group,
+        order: nestedMember.order,
+        condition: combineResolvedConditions(
+          member.condition,
+          nestedMember.condition
+        ),
+      }));
+    });
+    stack.delete(inputId);
+
+    const normalized = {
+      ...descriptor,
+      members,
+    };
+    resolved.set(inputId, normalized);
+    return normalized;
+  };
+
+  return Object.fromEntries(
+    Object.keys(fanIn).map((inputId) => [
+      inputId,
+      resolveDescriptor(inputId, new Set<string>()),
+    ])
+  );
+}
+
+function combineResolvedConditions(
+  left: ResolvedFanInDescriptor['members'][number]['condition'] | undefined,
+  right: ResolvedFanInDescriptor['members'][number]['condition'] | undefined
+): ResolvedFanInDescriptor['members'][number]['condition'] | undefined {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  return {
+    condition: combineEdgeConditions(left.condition, right.condition) ?? [],
+    indices: mergeConditionIndices(left.indices, right.indices) ?? {},
+  };
 }
 
 function resolveExplicitFanInMeta(

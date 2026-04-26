@@ -123,6 +123,43 @@ describe('Historical documentary Seedance condition migration', () => {
     expect(startImageEdge?.if).toBe('motionIsStartEndWithPlainAnchors');
     expect(endImageEdge?.if).toBe('motionIsStartEndWithPlainAnchors');
   });
+
+  it('routes reference motion images from the selected historical character dimension', async () => {
+    const { root } = await loadYamlBlueprintTree(
+      HISTORICAL_SEEDANCE_BLUEPRINT_PATH,
+      { catalogRoot: CATALOG_ROOT }
+    );
+    const referenceImageEdges = root.document.edges.filter(
+      (edge) => edge.to === 'SeedanceVideoGenerator[segment].ReferenceImages'
+    );
+
+    expect(referenceImageEdges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'HistoricalCharacterAssetsProducer[historicalcharacter].Portrait',
+          if: 'motionReferencesHistoricalCharacter',
+          groupBy: 'singleton',
+        }),
+        expect.objectContaining({
+          from: 'HistoricalCharacterAssetsProducer[historicalcharacter].CharacterSheet',
+          if: 'motionReferencesHistoricalCharacter',
+          groupBy: 'singleton',
+        }),
+      ])
+    );
+    expect(root.document.edges).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'HistoricalCharacterAssetsProducer[0].Portrait',
+          to: 'SeedanceVideoGenerator[segment].ReferenceImage1',
+        }),
+        expect.objectContaining({
+          from: 'HistoricalCharacterAssetsProducer[0].CharacterSheet',
+          to: 'SeedanceVideoGenerator[segment].ReferenceImage2',
+        }),
+      ])
+    );
+  });
 });
 
 async function createHistoricalSeedancePlan(args: { upToLayer?: number } = {}) {
@@ -180,7 +217,7 @@ function historicalSeedanceInputs(): Record<string, unknown> {
     'Input:NumOfSegments': 2,
     'Input:NumOfImagesPerSegment': 2,
     'Input:NumOfExperts': 1,
-    'Input:NumOfHistoricalCharacters': 1,
+    'Input:NumOfHistoricalCharacters': 2,
     'Input:Style':
       'Measured historical documentary with cinematic but realistic visuals.',
     'Input:Audience': 'Curious adults who enjoy context-rich history.',

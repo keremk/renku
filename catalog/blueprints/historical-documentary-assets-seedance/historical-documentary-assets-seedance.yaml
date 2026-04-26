@@ -387,12 +387,14 @@ connections:
   - from: SegmentPlainImageProducer[segment][1].GeneratedImage
     to: SeedanceVideoGenerator[segment].EndImage
     if: motionIsStartEndWithPlainAnchors
-  - from: HistoricalCharacterAssetsProducer[0].Portrait
-    to: SeedanceVideoGenerator[segment].ReferenceImage1
-    if: motionIsReference
-  - from: HistoricalCharacterAssetsProducer[0].CharacterSheet
-    to: SeedanceVideoGenerator[segment].ReferenceImage2
-    if: motionIsReference
+  - from: HistoricalCharacterAssetsProducer[historicalcharacter].Portrait
+    to: SeedanceVideoGenerator[segment].ReferenceImages
+    groupBy: singleton
+    if: motionReferencesHistoricalCharacter
+  - from: HistoricalCharacterAssetsProducer[historicalcharacter].CharacterSheet
+    to: SeedanceVideoGenerator[segment].ReferenceImages
+    groupBy: singleton
+    if: motionReferencesHistoricalCharacter
   - from: SeedanceVideoGenerator[segment].GeneratedVideo
     to: SegmentMotionVideos[segment]
     if: motionEnabled

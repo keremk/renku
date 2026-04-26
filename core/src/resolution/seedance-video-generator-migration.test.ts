@@ -177,8 +177,10 @@ function seedanceInputs(args: {
       'Use the supplied stills for palette and material detail.',
     'Input:StartEndAnchorsArePlain': args.startEndAnchorsArePlain ?? false,
     'Input:UseNativeAudio': false,
-    'Input:ReferenceImage1': 'blob://reference-image-1',
-    'Input:ReferenceImage2': 'blob://reference-image-2',
+    'Input:ReferenceImages': [
+      'blob://reference-image-1',
+      'blob://reference-image-2',
+    ],
     'Input:StartImage': 'blob://start-image',
     'Input:EndImage': 'blob://end-image',
     'Input:Duration': 5,

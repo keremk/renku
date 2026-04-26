@@ -17,6 +17,7 @@ inputs:
     type: array
     itemType: image
     required: false
+    fanIn: true
   - name: ReferenceVideos
     description: Reference videos for motion, timing, or visual continuity.
     type: array
@@ -57,7 +58,9 @@ mappings:
   fal-ai:
     bytedance/seedance-2.0/reference-to-video:
       Prompt: prompt
-      ReferenceImages: image_urls
+      ReferenceImages:
+        field: image_urls
+        flattenFanIn: true
       ReferenceVideos: video_urls
       ReferenceAudios: audio_urls
       Duration:
@@ -77,7 +80,9 @@ mappings:
 
     bytedance/seedance-2.0/fast/reference-to-video:
       Prompt: prompt
-      ReferenceImages: image_urls
+      ReferenceImages:
+        field: image_urls
+        flattenFanIn: true
       ReferenceVideos: video_urls
       ReferenceAudios: audio_urls
       Duration:

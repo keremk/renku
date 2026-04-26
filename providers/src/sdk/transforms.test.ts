@@ -1155,6 +1155,41 @@ describe('transforms', () => {
       });
     });
 
+    it('flattens fan-in groups through resolved member values', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Input:ReferenceClipProducer.ReferenceImages': {
+            groupBy: 'singleton',
+            groups: [
+              [
+                'Artifact:Portrait',
+                'Artifact:CharacterSheet',
+                'Input:DirectReferenceImages',
+              ],
+            ],
+          },
+          'Artifact:Portrait': 'portrait.jpg',
+          'Artifact:CharacterSheet': 'character-sheet.jpg',
+          'Input:DirectReferenceImages': ['direct-1.jpg', 'direct-2.jpg'],
+        },
+        inputBindings: {},
+        producerId: 'Producer:ReferenceClipProducer',
+      };
+
+      const mapping = { field: 'image_urls', flattenFanIn: true };
+      const result = applyMapping('ReferenceImages', mapping, context);
+
+      expect(result).toEqual({
+        field: 'image_urls',
+        value: [
+          'portrait.jpg',
+          'character-sheet.jpg',
+          'direct-1.jpg',
+          'direct-2.jpg',
+        ],
+      });
+    });
+
     it('prefers whole array binding over element bindings when value exists', () => {
       const context: TransformContext = {
         inputs: {

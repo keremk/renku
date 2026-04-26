@@ -390,6 +390,12 @@ export function collapseInputNodes(
         continue;
       }
       if (targetNode.type === 'Input') {
+        if (
+          isFanInInputNode(nodeById.get(sourceId)) &&
+          isFanInInputNode(targetNode)
+        ) {
+          continue;
+        }
         const key = `${targetNode.id}:${alias}`;
         if (visited.has(key)) {
           continue;
@@ -703,4 +709,10 @@ function requireInputDefinition(
     );
   }
   return node.input;
+}
+
+function isFanInInputNode(
+  node: CanonicalNodeInstance | undefined
+): boolean {
+  return node?.type === 'Input' && node.input?.fanIn === true;
 }

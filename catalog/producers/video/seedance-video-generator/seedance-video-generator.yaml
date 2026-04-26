@@ -48,14 +48,12 @@ inputs:
     description: Whether the clip should request native Seedance audio.
     type: boolean
     required: true
-  - name: ReferenceImage1
-    description: First reference image for Reference workflow.
-    type: image
+  - name: ReferenceImages
+    description: Reference image collection for Reference workflow.
+    type: array
+    itemType: image
     required: false
-  - name: ReferenceImage2
-    description: Second reference image for Reference workflow.
-    type: image
-    required: false
+    fanIn: true
   - name: StartImage
     description: Starting frame for StartEnd workflow.
     type: image
@@ -159,10 +157,9 @@ connections:
     to: ReferencePromptCompiler.UseNativeAudio
   - from: ReferencePromptCompiler.Prompt
     to: ReferenceClipProducer.Prompt
-  - from: ReferenceImage1
-    to: ReferenceClipProducer.ReferenceImages[0]
-  - from: ReferenceImage2
-    to: ReferenceClipProducer.ReferenceImages[1]
+  - from: ReferenceImages
+    to: ReferenceClipProducer.ReferenceImages
+    groupBy: singleton
   - from: Duration
     to: ReferenceClipProducer.Duration
   - from: Resolution

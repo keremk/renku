@@ -299,6 +299,8 @@ export interface BlueprintProducerSdkMappingField {
   firstOf?: boolean;
   /** Wrap scalar value as single-element array (arrays pass through unchanged) */
   asArray?: boolean;
+  /** Flatten fan-in groups into one array for SDK fields that accept a simple list. */
+  flattenFanIn?: boolean;
   /** Apply typed projection for Resolution inputs */
   resolution?: ResolutionTransformConfig;
 }
@@ -1187,6 +1189,8 @@ export interface MappingFieldDefinition {
   firstOf?: boolean;
   /** Wrap scalar value as single-element array (arrays pass through unchanged) */
   asArray?: boolean;
+  /** Flatten fan-in groups into one array for SDK fields that accept a simple list. */
+  flattenFanIn?: boolean;
   /** Invert boolean value */
   invert?: boolean;
   /** Convert integer to string */
