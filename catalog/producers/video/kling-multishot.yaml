@@ -39,6 +39,24 @@ inputs:
     description: Structured character/subject elements with frontal and reference images.
     type: array
     required: false
+  - name: ElementFrontalImages
+    description: Grouped frontal images for Kling elements. Group order defines @Element1, @Element2, and so on.
+    type: array
+    itemType: image
+    fanIn: true
+    required: false
+  - name: ElementReferenceImages
+    description: Grouped additional reference images for Kling elements. Each group becomes one element reference_image_urls array.
+    type: array
+    itemType: image
+    fanIn: true
+    required: false
+  - name: ElementVideos
+    description: Optional grouped video references for Kling elements. Each populated group must contain exactly one video.
+    type: array
+    itemType: video
+    fanIn: true
+    required: false
 
   # References
   - name: ReferenceImages
@@ -255,6 +273,12 @@ mappings:
       EndImage: end_image_url
       ReferenceImages: image_urls
       Elements: elements
+      ElementFrontalImages:
+        field: elements[].frontal_image_url
+      ElementReferenceImages:
+        field: elements[].reference_image_urls
+      ElementVideos:
+        field: elements[].video_url
       ShotType: shot_type
       Duration:
         field: duration
@@ -273,6 +297,12 @@ mappings:
       EndImage: end_image_url
       ReferenceImages: image_urls
       Elements: elements
+      ElementFrontalImages:
+        field: elements[].frontal_image_url
+      ElementReferenceImages:
+        field: elements[].reference_image_urls
+      ElementVideos:
+        field: elements[].video_url
       ShotType: shot_type
       Duration:
         field: duration

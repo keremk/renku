@@ -51,6 +51,16 @@ export interface ResolvedInputsAccessor {
   all(): Record<string, unknown>;
   get<T = unknown>(key: string): T | undefined;
   getByNodeId<T = unknown>(canonicalId: string): T | undefined;
+  value<T = unknown>(inputName: string): T;
+  fanIn(inputName: string): {
+    groupBy: string;
+    orderBy?: string;
+    groups: string[][];
+  };
+  buildModelInput(
+    sdkMapping?: Record<string, BlueprintProducerSdkMappingField>,
+    inputSchema?: string
+  ): Promise<Record<string, unknown>>;
 }
 
 export interface RuntimeSdkHelpers {

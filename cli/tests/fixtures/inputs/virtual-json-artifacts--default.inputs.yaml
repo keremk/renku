@@ -24,4 +24,4 @@ models:
         masterTracks: ['Image']
         numTracks: 1
         imageClip:
-          artifact: ImageSegments[Image]
+          artifact: ImageSegments

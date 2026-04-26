@@ -55,9 +55,25 @@ outputs:
 mappings:
   renku:
     timeline/ordered:
-      ImageSegments: imageSegments
-      VideoSegments: videoSegments
-      AudioSegments: audioSegments
-      TranscriptionAudio: transcriptionAudio
-      TextSegments: textSegments
-      Music: music
+      ImageSegments:
+        field: imageSegments
+      VideoSegments:
+        field: videoSegments
+      AudioSegments:
+        field: audioSegments
+      TranscriptionAudio:
+        field: transcriptionAudio
+      TextSegments:
+        field: textSegments
+      Music:
+        field: music
+      Duration:
+        field: duration
+      MovieId:
+        field: movieId
+      MovieTitle:
+        field: movieTitle
+      StorageRoot:
+        field: storageRoot
+      StorageBasePath:
+        field: storageBasePath

@@ -1,7 +1,5 @@
 import {
-  formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalId,
-  isCanonicalInputId,
   type MappingFieldDefinition,
   type MappingCondition,
   type CombineTransform,
@@ -63,11 +61,10 @@ export type MappingResult =
  * 2. Apply combine -> merge multiple inputs
  * 3. Apply firstOf -> extract first from array
  * 4. Apply asArray -> wrap scalar as single-element array
- * 5. Apply flattenFanIn -> flatten grouped fan-in values into one array
- * 6. Apply invert -> flip boolean
- * 7. Apply intToString -> convert to string
- * 8. Apply durationToFrames -> multiply by fps
- * 9. Apply transform -> value lookup
+ * 5. Apply invert -> flip boolean
+ * 6. Apply intToString -> convert to string
+ * 7. Apply durationToFrames -> multiply by fps
+ * 8. Apply transform -> value lookup
  *
  * @param inputAlias - The producer input name (e.g., "AspectRatio")
  * @param mapping - The mapping field definition
@@ -163,40 +160,32 @@ export function applyMapping(
     value = applyAsArray(value);
   }
 
-  // 5. Apply flattenFanIn - flatten grouped fan-in values into one array
-  if (mapping.flattenFanIn) {
-    value = applyFlattenFanIn(value, context.inputs);
-    if (value === undefined) {
-      return undefined;
-    }
-  }
-
-  // 6. Apply invert - flip boolean value
+  // 5. Apply invert - flip boolean value
   if (mapping.invert) {
     value = applyInvert(value);
   }
 
-  // 7. Apply intToString - convert integer to string
+  // 6. Apply intToString - convert integer to string
   if (mapping.intToString) {
     value = applyIntToString(value);
   }
 
-  // 7b. Apply intToSecondsString - convert integer to string with "s" suffix
+  // 6b. Apply intToSecondsString - convert integer to string with "s" suffix
   if (mapping.intToSecondsString) {
     value = applyIntToSecondsString(value);
   }
 
-  // 8. Apply durationToFrames - convert seconds to frame count
+  // 7. Apply durationToFrames - convert seconds to frame count
   if (mapping.durationToFrames) {
     value = applyDurationToFrames(value, mapping.durationToFrames.fps);
   }
 
-  // 8b. Apply resolution projection
+  // 7b. Apply resolution projection
   if (mapping.resolution) {
     value = applyResolutionTransform(value, mapping.resolution, sourceAlias);
   }
 
-  // 9. Apply transform - value lookup table
+  // 8. Apply transform - value lookup table
   if (mapping.transform) {
     value = applyValueTransform(value, mapping.transform);
   }
@@ -361,50 +350,6 @@ function applyAsArray(value: unknown): unknown[] {
     return value;
   }
   return [value];
-}
-
-function applyFlattenFanIn(
-  value: unknown,
-  resolvedInputs: Record<string, unknown>
-): unknown {
-  if (!isFanInResolvedValue(value)) {
-    return value;
-  }
-  if (value.groups.every((group) => group.length === 0)) {
-    return undefined;
-  }
-  const resolvedValues = value.groups.flat().flatMap((memberId) => {
-    if (typeof memberId !== 'string') {
-      throw createProviderError(
-        SdkErrorCode.INVALID_CONFIG,
-        `Fan-in member IDs must be strings before flattenFanIn mapping.`,
-        { kind: 'user_input', causedByUser: true }
-      );
-    }
-    if (!(memberId in resolvedInputs)) {
-      if (isCanonicalInputId(memberId)) {
-        return [];
-      }
-      throw createProviderError(
-        SdkErrorCode.INVALID_CONFIG,
-        `Fan-in member "${memberId}" was not resolved before SDK payload mapping.`,
-        { kind: 'user_input', causedByUser: true }
-      );
-    }
-    const resolved = resolvedInputs[memberId];
-    return Array.isArray(resolved) ? resolved : [resolved];
-  });
-  return resolvedValues.length > 0 ? resolvedValues : undefined;
-}
-
-function isFanInResolvedValue(
-  value: unknown
-): value is { groups: unknown[][] } {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return false;
-  }
-  const groups = (value as { groups?: unknown }).groups;
-  return Array.isArray(groups) && groups.every((group) => Array.isArray(group));
 }
 
 /**
@@ -888,7 +833,7 @@ interface IndexedInputAccess {
   indices: number[];
 }
 
-function resolveInputValue(
+export function resolveInputValue(
   canonicalId: string,
   inputs: Record<string, unknown>
 ): unknown {
@@ -943,19 +888,13 @@ function resolveInputValue(
 
 function resolveCanonicalBindingId(
   inputAlias: string,
-  context: TransformContext,
+  context: TransformContext
 ): string | undefined {
   const directBinding = context.inputBindings[inputAlias];
   if (directBinding) {
     return directBinding;
   }
-  if (!context.producerId) {
-    return undefined;
-  }
-  return formatProducerScopedInputIdForCanonicalProducerId(
-    context.producerId,
-    inputAlias,
-  );
+  return undefined;
 }
 
 function parseIndexedInputAccess(

@@ -21,6 +21,7 @@ import {
   type NotificationBus,
 } from '@gorenku/core';
 import { buildSdkPayload } from './payload-builder.js';
+import { resolveInputValue } from './transforms.js';
 import { createProviderError, SdkErrorCode } from './errors.js';
 import { parseInputSchema, readSchemaProperties } from './compatibility.js';
 
@@ -56,7 +57,12 @@ export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
   );
   const resolvedInputs = resolveInputs(request.context.extras);
   const jobContext = extractJobContext(request.context.extras);
-  const inputs = createInputsAccessor(resolvedInputs);
+  const inputs = createInputsAccessor(
+    resolvedInputs,
+    jobContext?.inputBindings ?? {},
+    jobContext?.sdkMapping,
+    logger
+  );
   const sdk = createSdkHelper(
     inputs,
     request.context.providerConfig,
@@ -142,7 +148,12 @@ function extractJobContext(
 }
 
 function createInputsAccessor(
-  source: Record<string, unknown>
+  source: Record<string, unknown>,
+  inputBindings: Record<string, string>,
+  sdkMapping:
+    | Record<string, BlueprintProducerSdkMappingField | MappingFieldDefinition>
+    | undefined,
+  logger?: ProviderLogger
 ): ResolvedInputsAccessor {
   return {
     all() {
@@ -152,9 +163,67 @@ function createInputsAccessor(
       return source[key] as T | undefined;
     },
     getByNodeId<T = unknown>(canonicalId: string) {
-      return source[canonicalId] as T | undefined;
+      return resolveInputValue(canonicalId, source) as T | undefined;
+    },
+    value<T = unknown>(inputName: string): T {
+      const canonicalId = requireInputBinding(inputName, inputBindings);
+      const value = resolveInputValue(canonicalId, source);
+      if (value === undefined) {
+        throw createProviderError(
+          SdkErrorCode.MISSING_REQUIRED_INPUT,
+          `Missing resolved input "${canonicalId}" for producer input "${inputName}".`,
+          { kind: 'user_input', causedByUser: true }
+        );
+      }
+      return value as T;
+    },
+    fanIn(inputName: string) {
+      const canonicalId = requireInputBinding(inputName, inputBindings);
+      const value = resolveInputValue(canonicalId, source);
+      if (!isFanInValue(value)) {
+        throw createProviderError(
+          SdkErrorCode.MISSING_FANIN_DATA,
+          `Producer input "${inputName}" is bound to "${canonicalId}", but the resolved value is not fan-in data.`,
+          { kind: 'user_input', causedByUser: true }
+        );
+      }
+      return value;
+    },
+    async buildModelInput(mapping, inputSchema) {
+      return buildSdkPayload({
+        mapping: mapping ?? sdkMapping,
+        resolvedInputs: source,
+        inputBindings,
+        inputSchema,
+        logger,
+      }).payload;
     },
   };
+}
+
+function requireInputBinding(
+  inputName: string,
+  inputBindings: Record<string, string>
+): string {
+  const canonicalId = inputBindings[inputName];
+  if (!canonicalId) {
+    throw createProviderError(
+      SdkErrorCode.MISSING_REQUIRED_INPUT,
+      `Missing input binding metadata for producer input "${inputName}".`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+  return canonicalId;
+}
+
+function isFanInValue(
+  value: unknown
+): value is { groupBy: string; orderBy?: string; groups: string[][] } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as { groupBy?: unknown; groups?: unknown };
+  return typeof record.groupBy === 'string' && Array.isArray(record.groups);
 }
 
 function createSdkHelper(

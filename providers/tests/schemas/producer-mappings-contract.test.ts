@@ -54,6 +54,7 @@ const SYSTEM_INPUT_NAMES = new Set([
 interface ProducerInputDeclaration {
   name: string;
   type: string;
+  itemType?: string;
   required?: boolean;
 }
 
@@ -1442,7 +1443,7 @@ function pickDefaultAliasValue(args: {
   }
 
   if (inputDecl) {
-    return generateValueForProducerInputType(inputDecl.type, alias);
+    return generateValueForProducerInputType(inputDecl, alias);
   }
 
   return generateValueForAliasHeuristic(alias);
@@ -1463,8 +1464,10 @@ function applyScenarioOverrides(
       continue;
     }
     if (value === 'present-value') {
-      const type = inputsByAlias.get(alias)!.type;
-      aliasValues[alias] = generateValueForProducerInputType(type, alias);
+      aliasValues[alias] = generateValueForProducerInputType(
+        inputsByAlias.get(alias)!,
+        alias
+      );
       continue;
     }
     aliasValues[alias] = value;
@@ -2050,6 +2053,10 @@ function validateMappingTargetsAgainstSchema(
   const errors: string[] = [];
 
   for (const targetPath of targetPaths) {
+    const topLevelProperties = getSchemaProperties(inputSchema);
+    if (targetPath in topLevelProperties) {
+      continue;
+    }
     const node = getSchemaNodeAtPath(inputSchema, targetPath);
     if (!node) {
       errors.push(`target field "${targetPath}" is missing from input schema`);
@@ -2159,6 +2166,19 @@ function getSchemaNodeAtPath(
 
     if (!current) {
       return undefined;
+    }
+
+    if (segment.endsWith('[]')) {
+      const arrayField = segment.slice(0, -2);
+      const properties = getSchemaProperties(current);
+      const arraySchema = properties[arrayField];
+      if (!arraySchema) {
+        return undefined;
+      }
+      const resolvedArray = resolveSchemaNode(arraySchema, schema);
+      const itemSchema = toSchemaObject(resolvedArray.items);
+      current = itemSchema ? resolveSchemaNode(itemSchema, schema) : undefined;
+      continue;
     }
 
     const branch = chooseSchemaBranchForProperty(current, segment, schema);
@@ -2547,10 +2567,10 @@ function generateNumberFromSchema(schema: JSONSchema7): number {
 }
 
 function generateValueForProducerInputType(
-  type: string,
+  input: Pick<ProducerInputDeclaration, 'type' | 'itemType'>,
   alias: string
 ): unknown {
-  switch (type) {
+  switch (input.type) {
     case 'string':
       return generateValueForAliasHeuristic(alias);
     case 'integer':
@@ -2561,6 +2581,13 @@ function generateValueForProducerInputType(
     case 'boolean':
       return true;
     case 'array':
+      if (
+        input.itemType === 'image' ||
+        input.itemType === 'video' ||
+        input.itemType === 'audio'
+      ) {
+        return ['https://example.com/resource'];
+      }
       return ['sample-item'];
     case 'json':
       return { value: 'sample' };

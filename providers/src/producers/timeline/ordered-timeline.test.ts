@@ -148,6 +148,20 @@ function makeRequest(
         resolvedInputs,
         jobContext: {
           producerAlias: 'TimelineComposer',
+          inputBindings: {
+            ImageSegments: 'Input:TimelineComposer.ImageSegments',
+            AudioSegments: 'Input:TimelineComposer.AudioSegments',
+            VideoSegments: 'Input:TimelineComposer.VideoSegments',
+            TranscriptionAudio: 'Input:TimelineComposer.TranscriptionAudio',
+            TextSegments: 'Input:TimelineComposer.TextSegments',
+            Music: 'Input:TimelineComposer.Music',
+            MusicSegments: 'Input:TimelineComposer.MusicSegments',
+            Duration: 'Input:TimelineComposer.Duration',
+            StorageRoot: 'Input:StorageRoot',
+            StorageBasePath: 'Input:StorageBasePath',
+            MovieId: 'Input:MovieId',
+            MovieTitle: 'Input:MovieTitle',
+          },
         },
       },
       providerConfig: {
@@ -159,7 +173,7 @@ function makeRequest(
             clips: [
               {
                 kind: 'Image',
-                inputs: 'ImageSegments[segment]',
+                inputs: 'ImageSegments',
                 effect: 'KenBurns',
               },
               { kind: 'Audio', inputs: 'AudioSegments' },

@@ -1232,7 +1232,7 @@ connections:
     groupBy: singleton
 ```
 
-The nested producer then receives the same collection. In the leaf producer's provider mapping, `flattenFanIn: true` converts Renku's grouped fan-in value into the plain array expected by the provider API:
+The nested producer then receives the same collection. In the leaf producer's provider mapping, the target field plus the model schema decide the provider payload shape:
 
 ```yaml
 mappings:
@@ -1240,10 +1240,23 @@ mappings:
     bytedance/seedance-2.0/reference-to-video:
       ReferenceImages:
         field: image_urls
-        flattenFanIn: true
 ```
 
-In plain English: Renku tracks fan-in as grouped graph data; the provider API wants `image_urls: [...]`; `flattenFanIn` is the last-mile conversion between those two shapes.
+In plain English: Renku tracks fan-in as grouped graph data; the Seedance schema says `image_urls` is a plain URI array; the payload builder projects the grouped value into `image_urls: [...]`.
+
+For nested provider arrays, map into the array item path:
+
+```yaml
+mappings:
+  fal-ai:
+    kling-video/o3/standard/reference-to-video:
+      ElementFrontalImages:
+        field: elements[].frontal_image_url
+      ElementReferenceImages:
+        field: elements[].reference_image_urls
+```
+
+Kling O3 assigns prompt labels from the final projected payload: `image_urls[0]` is `@Image1`, and `elements[0]` is `@Element1`.
 
 ### Optional Fan-In
 

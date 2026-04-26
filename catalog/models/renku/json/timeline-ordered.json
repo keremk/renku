@@ -2,6 +2,56 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
+    "imageSegments": {
+      "x-renku-shape": "fanIn",
+      "x-renku-itemType": "image",
+      "description": "Grouped image assets for timeline image tracks."
+    },
+    "videoSegments": {
+      "x-renku-shape": "fanIn",
+      "x-renku-itemType": "video",
+      "description": "Grouped video assets for timeline video tracks."
+    },
+    "audioSegments": {
+      "x-renku-shape": "fanIn",
+      "x-renku-itemType": "audio",
+      "description": "Grouped narration audio assets for timeline audio tracks."
+    },
+    "transcriptionAudio": {
+      "x-renku-shape": "fanIn",
+      "x-renku-itemType": "audio",
+      "description": "Grouped audio assets used for transcription tracks."
+    },
+    "textSegments": {
+      "x-renku-shape": "fanIn",
+      "x-renku-itemType": "text",
+      "description": "Grouped text snippets for timeline text tracks."
+    },
+    "music": {
+      "x-renku-shape": "fanIn",
+      "x-renku-itemType": "audio",
+      "description": "Grouped music assets for timeline music tracks."
+    },
+    "duration": {
+      "type": "number",
+      "description": "Total requested movie duration in seconds."
+    },
+    "movieId": {
+      "type": "string",
+      "description": "Movie identifier used for output organization."
+    },
+    "movieTitle": {
+      "type": "string",
+      "description": "Movie title used in the timeline document."
+    },
+    "storageRoot": {
+      "type": "string",
+      "description": "Storage root for timeline asset resolution."
+    },
+    "storageBasePath": {
+      "type": "string",
+      "description": "Storage base path for timeline asset resolution."
+    },
     "timeline": {
       "type": "object",
       "description": "Timeline composition configuration",

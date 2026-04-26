@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { resolveProviderFileInputs } from './file-input-resolution.js';
 import type { ProviderAdapter } from './provider-adapter.js';
 import { SdkErrorCode } from '../errors.js';
-import { applyMapping } from '../transforms.js';
+import { buildSdkPayload } from '../payload-builder.js';
 import {
   buildSimulatedUploadUrl,
   createSimulatedProviderClient,
@@ -296,21 +296,20 @@ describe('resolveProviderFileInputs', () => {
       },
     };
 
-    const context = {
-      inputs: transformInputs,
-      inputBindings: {},
-      producerId: 'Producer:ReferenceClipProducer',
-    };
-    const payload: Record<string, unknown> = {};
-    for (const [alias, mapping] of Object.entries({
-      ReferenceImages: { field: 'image_urls', flattenFanIn: true },
-      ReferenceVideos: { field: 'video_urls', flattenFanIn: true },
-      ReferenceAudios: { field: 'audio_urls', flattenFanIn: true },
-    })) {
-      const result = applyMapping(alias, mapping, context);
-      expect(result).toBeDefined();
-      payload[result!.field] = result!.value;
-    }
+    const payload = buildSdkPayload({
+      mapping: {
+        ReferenceImages: { field: 'image_urls' },
+        ReferenceVideos: { field: 'video_urls' },
+        ReferenceAudios: { field: 'audio_urls' },
+      },
+      resolvedInputs: transformInputs,
+      inputBindings: {
+        ReferenceImages: 'Input:ReferenceClipProducer.ReferenceImages',
+        ReferenceVideos: 'Input:ReferenceClipProducer.ReferenceVideos',
+        ReferenceAudios: 'Input:ReferenceClipProducer.ReferenceAudios',
+      },
+      inputSchema: seedanceReferenceSchema,
+    }).payload;
 
     const resolved = await resolveProviderFileInputs({
       payload,
@@ -388,6 +387,86 @@ describe('resolveProviderFileInputs', () => {
       config: {
         image_url: 'https://provider.example.com/nested-file',
       },
+    });
+  });
+
+  it('resolves URI uploads inside nested element arrays', async () => {
+    const klingSchema = JSON.stringify({
+      type: 'object',
+      properties: {
+        image_urls: {
+          type: 'array',
+          items: { type: 'string', format: 'uri' },
+        },
+        elements: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              frontal_image_url: { type: 'string', format: 'uri' },
+              reference_image_urls: {
+                type: 'array',
+                items: { type: 'string', format: 'uri' },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const uploadInputFile = vi
+      .fn()
+      .mockResolvedValueOnce('https://provider.example.com/style.png')
+      .mockResolvedValueOnce('https://provider.example.com/front.png')
+      .mockResolvedValueOnce('https://provider.example.com/ref.png');
+
+    const adapter: ProviderAdapter = {
+      name: 'fal-ai',
+      secretKey: 'FAL_KEY',
+      async createClient() {
+        return {};
+      },
+      formatModelIdentifier(model) {
+        return model;
+      },
+      async invoke() {
+        return { result: {} };
+      },
+      uploadInputFile,
+      normalizeOutput() {
+        return [];
+      },
+    };
+
+    const resolved = await resolveProviderFileInputs({
+      payload: {
+        image_urls: [{ data: Buffer.from('style'), mimeType: 'image/png' }],
+        elements: [
+          {
+            frontal_image_url: {
+              data: Buffer.from('front'),
+              mimeType: 'image/png',
+            },
+            reference_image_urls: [
+              { data: Buffer.from('ref'), mimeType: 'image/png' },
+            ],
+          },
+        ],
+      },
+      inputSchema: klingSchema,
+      adapter,
+      client: { configured: true },
+    });
+
+    expect(uploadInputFile).toHaveBeenCalledTimes(3);
+    expect(resolved).toEqual({
+      image_urls: ['https://provider.example.com/style.png'],
+      elements: [
+        {
+          frontal_image_url: 'https://provider.example.com/front.png',
+          reference_image_urls: ['https://provider.example.com/ref.png'],
+        },
+      ],
     });
   });
 

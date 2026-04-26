@@ -209,16 +209,15 @@ ReferenceImages:
   firstOf: true
 ```
 
-### 4b. flattenFanIn - Grouped Fan-In to Array
+### 4b. Schema-Driven Fan-In Projection
 
 Renku stores fan-in values with graph metadata: groups, order, and canonical member IDs. Provider APIs do not want that graph shape. They usually want a plain array field.
 
-`flattenFanIn: true` is the producer mapping step that turns Renku's internal fan-in value into the provider's array field.
+Producer mappings name the target field, and the model input schema decides the payload shape.
 
 ```yaml
 ReferenceImages:
   field: image_urls
-  flattenFanIn: true
 ```
 
 Example:
@@ -228,21 +227,37 @@ Renku fan-in value:
   groups:
     - [portraitBlob, sheetBlob]
 
-Provider payload after flattenFanIn:
+Provider payload after schema projection:
   image_urls: [portraitBlob, sheetBlob]
 ```
 
-The provider file resolver then sees that `image_urls` is an array of URI fields in the model schema. Any local blob values in that array are uploaded through the provider adapter and replaced with uploaded URLs before the SDK call.
+Because the model schema says `image_urls` is an array of URI strings, Renku projects the grouped fan-in value into a plain array. The provider file resolver then uploads any local blob values in that array and replaces them with provider URLs before the SDK call.
 
-Use `flattenFanIn` when all of these are true:
+Nested provider shapes use field paths:
 
-- the producer input is declared with `fanIn: true`,
-- the mapping target is a provider array field,
-- the provider model schema expects URLs or scalar values, not Renku fan-in metadata.
+```yaml
+ElementFrontalImages:
+  field: elements[].frontal_image_url
+
+ElementReferenceImages:
+  field: elements[].reference_image_urls
+```
+
+For a schema like Kling O3, this creates:
+
+```yaml
+elements:
+  - frontal_image_url: hero-front.png
+    reference_image_urls:
+      - hero-side.png
+      - hero-costume.png
+```
+
+If a fan-in collection is mapped to a scalar field, Renku fails validation unless the mapping explicitly uses a scalar transform such as `firstOf`. It never silently picks the first item.
 
 If no value is connected to an optional fan-in input, the field is not sent to the provider.
 
-Seedance reference prompts must refer to supplied media with one-based labels by media type: `@Image1`, `@Image2`, `@Video1`, `@Audio1`, and so on. Only mention labels for media that the graph actually supplies.
+Prompt labels follow final payload order. Seedance reference prompts use `@Image1`, `@Image2`, `@Video1`, `@Audio1`, and so on. Kling O3 uses both top-level image labels such as `@Image1` and element labels such as `@Element1`.
 
 ### 4c. asArray - Scalar to Array
 
@@ -370,13 +385,12 @@ When multiple transforms are specified, they apply in this order:
 2. **combine** - Merge multiple inputs
 3. **firstOf** - Extract first from array
 4. **asArray** - Wrap scalar as array
-5. **flattenFanIn** - Flatten grouped fan-in values
-6. **invert** - Flip boolean
-7. **intToString** - Convert to string
-8. **intToSecondsString** - Convert to string with "s"
-9. **durationToFrames** - Multiply by fps
-10. **transform** - Value lookup
-11. **expand** - Spread object into payload
+5. **invert** - Flip boolean
+6. **intToString** - Convert to string
+7. **intToSecondsString** - Convert to string with "s"
+8. **durationToFrames** - Multiply by fps
+9. **transform** - Value lookup
+10. **expand** - Spread object into payload
 
 ## Creating Custom Producers
 

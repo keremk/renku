@@ -1653,9 +1653,6 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
   if (obj.asArray === true) {
     result.asArray = true;
   }
-  if (obj.flattenFanIn === true) {
-    result.flattenFanIn = true;
-  }
   if (obj.invert === true) {
     result.invert = true;
   }

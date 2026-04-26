@@ -1,4 +1,3 @@
-import { isCanonicalInputId } from '@gorenku/core';
 import {
   Input,
   ALL_FORMATS,
@@ -6,7 +5,6 @@ import {
 } from 'mediabunny';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
-import { canonicalizeAuthoredInputId } from '../../sdk/config-utils.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import type { ResolvedInputsAccessor } from '../../sdk/types.js';
 
@@ -194,22 +192,13 @@ const TRACK_KINDS_WITH_NATIVE_DURATION = new Set<ClipKind>([
 ]);
 function canonicalizeClips(
   config: TimelineProducerConfig,
-  availableInputs: string[],
-  allowedKinds: Set<ClipKind>,
-  producerAlias: string
+  allowedKinds: Set<ClipKind>
 ): TimelineClipConfig[] {
   const filtered = config.clips.filter((clip) => allowedKinds.has(clip.kind));
   if (filtered.length === 0) {
     return [];
   }
-  return filtered.map((clip) => ({
-    ...clip,
-    inputs: canonicalizeAuthoredInputId(
-      parseInputReference(clip.inputs),
-      availableInputs,
-      producerAlias
-    ),
-  }));
+  return filtered.map((clip) => ({ ...clip }));
 }
 
 function resolveAllowedTracks(config: TimelineProducerConfig): Set<ClipKind> {
@@ -488,9 +477,6 @@ export function createTimelineProducerHandler(): HandlerFactory {
           );
         }
       }
-      const canonicalInputs = request.inputs.filter((input) =>
-        isCanonicalInputId(input)
-      );
       const activeClipCount = config.clips.filter((clip) =>
         allowedKinds.has(clip.kind)
       ).length;
@@ -501,20 +487,7 @@ export function createTimelineProducerHandler(): HandlerFactory {
           { kind: 'user_input', causedByUser: true }
         );
       }
-      const producerAlias = readProducerAlias(request);
-      if (!producerAlias) {
-        throw createProviderError(
-          SdkErrorCode.INVALID_CONFIG,
-          'TimelineProducer missing producerAlias in job context. Canonical clip input resolution requires producer alias metadata.',
-          { kind: 'user_input', causedByUser: true }
-        );
-      }
-      const clips = canonicalizeClips(
-        config,
-        canonicalInputs,
-        allowedKinds,
-        producerAlias
-      );
+      const clips = canonicalizeClips(config, allowedKinds);
 
       const resolvedInputs = runtime.inputs.all();
       const assetDurationCache = new Map<string, number>();
@@ -1101,7 +1074,7 @@ async function buildMusicTrack(args: {
   const { clip, fanIn, trackIndex, masterContext, inputs, durationCache } =
     args;
   const { totalDuration } = masterContext;
-  const allAssets = flattenFanInAssets(fanIn);
+  const allAssets = collectFanInAssets(fanIn);
   // Filter out assets that don't exist (were skipped due to conditional execution)
   const assets = allAssets.filter(
     (assetId) => tryResolveAssetBinary(inputs, assetId) !== undefined
@@ -1642,27 +1615,23 @@ function pickKenBurnsPreset(
 
 function readFanInForInput(
   inputs: ResolvedInputsAccessor,
-  canonicalId: string
+  inputName: string
 ): FanInValue {
-  const fanIn = resolveFanIn(inputs, canonicalId);
-  if (fanIn) {
-    return fanIn;
+  try {
+    return normalizeFanIn(inputs.fanIn(inputName));
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      (error as { code?: string }).code === SdkErrorCode.MISSING_FANIN_DATA
+    ) {
+      return {
+        groupBy: 'segment',
+        groups: [],
+      };
+    }
+    throw error;
   }
-  return {
-    groupBy: 'segment',
-    groups: [],
-  };
-}
-
-function resolveFanIn(
-  inputs: ResolvedInputsAccessor,
-  canonicalId: string
-): FanInValue | undefined {
-  const direct = inputs.getByNodeId<FanInValue>(canonicalId);
-  if (isFanInValue(direct)) {
-    return normalizeFanIn(direct);
-  }
-  return undefined;
 }
 
 function normalizeFanIn(value: FanInValue): FanInValue {
@@ -1875,7 +1844,7 @@ function filterExistingTextAssets(
   );
 }
 
-function flattenFanInAssets(fanIn: FanInValue): string[] {
+function collectFanInAssets(fanIn: FanInValue): string[] {
   const flattened: string[] = [];
   for (const group of fanIn.groups) {
     if (!Array.isArray(group)) {
@@ -1888,12 +1857,6 @@ function flattenFanInAssets(fanIn: FanInValue): string[] {
     }
   }
   return flattened;
-}
-
-function parseInputReference(reference: string): string {
-  const bracketIndex = reference.indexOf('[');
-  const base = bracketIndex >= 0 ? reference.slice(0, bracketIndex) : reference;
-  return base.trim();
 }
 
 function resolveVideoFitStrategy(): string {

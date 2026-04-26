@@ -62,13 +62,10 @@ mappings:
       Prompt: prompt
       ReferenceImages:
         field: image_urls
-        flattenFanIn: true
       ReferenceVideos:
         field: video_urls
-        flattenFanIn: true
       ReferenceAudios:
         field: audio_urls
-        flattenFanIn: true
       Duration:
         field: duration
         intToString: true
@@ -88,13 +85,10 @@ mappings:
       Prompt: prompt
       ReferenceImages:
         field: image_urls
-        flattenFanIn: true
       ReferenceVideos:
         field: video_urls
-        flattenFanIn: true
       ReferenceAudios:
         field: audio_urls
-        flattenFanIn: true
       Duration:
         field: duration
         intToString: true

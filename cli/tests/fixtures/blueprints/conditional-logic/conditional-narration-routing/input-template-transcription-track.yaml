@@ -32,7 +32,7 @@ models:
         masterTracks: ['Audio', 'Video']
         numTracks: 4
         imageClip:
-          artifact: ImageSegments[Image]
+          artifact: ImageSegments
         audioClip:
           artifact: AudioSegments
           volume: 0.9
