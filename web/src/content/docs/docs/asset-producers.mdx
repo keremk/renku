@@ -33,7 +33,7 @@ Located in `catalog/producers/asset/`:
 | **text-to-video**        | Generate video from text              | Prompt, Duration, Resolution       | video  |
 | **image-to-video**       | Animate images into video             | Prompt, StartImage, Duration       | video  |
 | **audio-to-video**       | Generate lip-synced video             | CharacterImage, AudioUrl, Duration | video  |
-| **reference-to-video**   | Video using reference images          | Prompt, ReferenceImages, Duration  | video  |
+| **reference-to-video**   | Video using optional reference media  | Prompt, ReferenceImages?, ReferenceVideos?, ReferenceAudios?, Duration | video |
 | **text-to-talking-head** | Generate talking head videos          | Prompt, CharacterImage, Duration   | video  |
 | **text-to-speech**       | Convert text to speech                | Text, VoiceId, Speed               | audio  |
 | **text-to-music**        | Generate music from prompts           | Prompt, Duration                   | audio  |
@@ -209,6 +209,30 @@ ReferenceImages:
   firstOf: true
 ```
 
+### 4b. flattenFanIn - Grouped Fan-In to Array
+
+Flattens a fan-in value into the provider array field. Use this when a producer input is declared with `fanIn: true` and the provider expects a plain list such as `image_urls`, `video_urls`, or `audio_urls`.
+
+```yaml
+ReferenceImages:
+  field: image_urls
+  flattenFanIn: true
+```
+
+Fan-in values preserve the graph's group and order metadata before flattening. If no value is connected to an optional fan-in input, the field is not sent to the provider.
+
+Seedance reference prompts must refer to supplied media with one-based labels by media type: `@Image1`, `@Image2`, `@Video1`, `@Audio1`, and so on. Only mention labels for media that the graph actually supplies.
+
+### 4c. asArray - Scalar to Array
+
+Wraps a scalar value as a single-item array when the provider expects a list.
+
+```yaml
+SourceImage:
+  field: image_urls
+  asArray: true
+```
+
 ### 5. invert - Boolean Inversion
 
 Flips boolean value for providers using inverted logic.
@@ -324,12 +348,14 @@ When multiple transforms are specified, they apply in this order:
 1. **conditional** - Skip if condition not met
 2. **combine** - Merge multiple inputs
 3. **firstOf** - Extract first from array
-4. **invert** - Flip boolean
-5. **intToString** - Convert to string
-6. **intToSecondsString** - Convert to string with "s"
-7. **durationToFrames** - Multiply by fps
-8. **transform** - Value lookup
-9. **expand** - Spread object into payload
+4. **asArray** - Wrap scalar as array
+5. **flattenFanIn** - Flatten grouped fan-in values
+6. **invert** - Flip boolean
+7. **intToString** - Convert to string
+8. **intToSecondsString** - Convert to string with "s"
+9. **durationToFrames** - Multiply by fps
+10. **transform** - Value lookup
+11. **expand** - Spread object into payload
 
 ## Creating Custom Producers
 

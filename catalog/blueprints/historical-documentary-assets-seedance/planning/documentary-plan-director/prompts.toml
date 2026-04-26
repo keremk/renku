@@ -151,8 +151,9 @@ Use `Text` when:
 - no historical character continuity is required
 
 Use `Reference` when:
-- one recurring historical figure must stay recognizable
-- the downstream motion branch should use that figure's portrait and character sheet
+- one or more recurring historical figures must stay recognizable
+- the downstream motion branch should use selected figures' portraits and character sheets
+- select at most four historical figures, because each selected figure contributes two Seedance image references
 
 Use `StartEnd` when:
 - the clip should evolve from one visual state to another
@@ -199,11 +200,15 @@ Use `MultiShot` when:
 
 `ReferenceSubjectLabel`:
 - a reference-media instruction for Reference workflow, written for the downstream Seedance reference-to-video prompt compiler
-- when using the generated historical character bundle, mention that @Image1 is the selected character portrait and @Image2 is the selected character sheet
+- when using generated historical character bundles, mention the deterministic image labels for every selected character
+- selected historical characters are grouped by historicalcharacter order, with each selected character contributing portrait first and character sheet second
+- for one selected character, mention @Image1 as the selected character portrait and @Image2 as the selected character sheet
+- for two selected characters, mention @Image1/@Image2 for the first selected character and @Image3/@Image4 for the second selected character
 - empty string for other workflows
 
 `HistoricalCharacterReferences`:
-- exactly one true entry when Workflow is Reference
+- one or more true entries when Workflow is Reference
+- at most four true entries when Workflow is Reference
 - all false entries otherwise
 
 ### StartEnd compatibility rule

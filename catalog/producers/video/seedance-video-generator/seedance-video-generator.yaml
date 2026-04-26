@@ -49,9 +49,21 @@ inputs:
     type: boolean
     required: true
   - name: ReferenceImages
-    description: Reference image collection for Reference workflow.
+    description: Optional reference images for Reference workflow. Prompts may refer to them as @Image1, @Image2, and so on in flattened order.
     type: array
     itemType: image
+    required: false
+    fanIn: true
+  - name: ReferenceVideos
+    description: Optional reference videos for Reference workflow. Prompts may refer to them as @Video1, @Video2, and so on in flattened order.
+    type: array
+    itemType: video
+    required: false
+    fanIn: true
+  - name: ReferenceAudios
+    description: Optional reference audio clips for Reference workflow. Prompts may refer to them as @Audio1, @Audio2, and so on in flattened order.
+    type: array
+    itemType: audio
     required: false
     fanIn: true
   - name: StartImage
@@ -159,6 +171,12 @@ connections:
     to: ReferenceClipProducer.Prompt
   - from: ReferenceImages
     to: ReferenceClipProducer.ReferenceImages
+    groupBy: singleton
+  - from: ReferenceVideos
+    to: ReferenceClipProducer.ReferenceVideos
+    groupBy: singleton
+  - from: ReferenceAudios
+    to: ReferenceClipProducer.ReferenceAudios
     groupBy: singleton
   - from: Duration
     to: ReferenceClipProducer.Duration

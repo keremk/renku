@@ -390,10 +390,12 @@ connections:
   - from: HistoricalCharacterAssetsProducer[historicalcharacter].Portrait
     to: SeedanceVideoGenerator[segment].ReferenceImages
     groupBy: singleton
+    orderBy: historicalcharacter
     if: motionReferencesHistoricalCharacter
   - from: HistoricalCharacterAssetsProducer[historicalcharacter].CharacterSheet
     to: SeedanceVideoGenerator[segment].ReferenceImages
     groupBy: singleton
+    orderBy: historicalcharacter
     if: motionReferencesHistoricalCharacter
   - from: SeedanceVideoGenerator[segment].GeneratedVideo
     to: SegmentMotionVideos[segment]

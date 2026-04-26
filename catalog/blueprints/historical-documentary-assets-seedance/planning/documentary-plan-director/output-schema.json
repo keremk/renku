@@ -130,11 +130,11 @@
                 },
                 "ReferenceSubjectLabel": {
                   "type": "string",
-                  "description": "Reference-media instruction for the Reference workflow. Mention @Image1 as the selected character portrait and @Image2 as the selected character sheet when those references should guide identity and costume. Empty string when no historical reference is used."
+                  "description": "Reference-media instruction for the Reference workflow. For each selected historical character, describe the labels in deterministic pairs by historical character order: @Image1 is the first selected character portrait, @Image2 is that character sheet, @Image3/@Image4 are the second selected character pair, and so on. Empty string when no historical reference is used."
                 },
                 "HistoricalCharacterReferences": {
                   "type": "array",
-                  "description": "Per-historical-character selector array. Exactly one entry should be true when Workflow is Reference, otherwise all entries must be false.",
+                  "description": "Per-historical-character selector array. One or more entries may be true when Workflow is Reference, with at most four selected characters because each selected character contributes two Seedance image references. Otherwise all entries must be false.",
                   "items": {
                     "type": "object",
                     "properties": {

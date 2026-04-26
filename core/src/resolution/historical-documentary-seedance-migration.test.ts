@@ -139,11 +139,13 @@ describe('Historical documentary Seedance condition migration', () => {
           from: 'HistoricalCharacterAssetsProducer[historicalcharacter].Portrait',
           if: 'motionReferencesHistoricalCharacter',
           groupBy: 'singleton',
+          orderBy: 'historicalcharacter',
         }),
         expect.objectContaining({
           from: 'HistoricalCharacterAssetsProducer[historicalcharacter].CharacterSheet',
           if: 'motionReferencesHistoricalCharacter',
           groupBy: 'singleton',
+          orderBy: 'historicalcharacter',
         }),
       ])
     );
@@ -159,6 +161,47 @@ describe('Historical documentary Seedance condition migration', () => {
         }),
       ])
     );
+  });
+
+  it('preserves selected historical character reference image order for Seedance labels', async () => {
+    const { canonical } = await createHistoricalSeedancePlan();
+    const referenceImageInputs = canonical.nodes.filter(
+      (node) =>
+        node.type === 'Input' &&
+        node.name === 'ReferenceImages' &&
+        node.namespacePath.includes('ReferenceClipProducer')
+    );
+
+    expect(referenceImageInputs.length).toBeGreaterThan(0);
+    for (const inputNode of referenceImageInputs) {
+      const descriptor = canonical.resolvedFanInDescriptors[inputNode.id];
+      if (!descriptor || descriptor.members.length === 0) {
+        continue;
+      }
+
+      expect(descriptor.groupBy).toBe('singleton');
+      expect(descriptor.orderBy).toBeUndefined();
+      expect(descriptor.members).toHaveLength(4);
+      expect(descriptor.members.map((member) => member.group)).toEqual([
+        0, 0, 0, 0,
+      ]);
+      expect(descriptor.members.map((member) => member.order)).toEqual([
+        0, 1, 0, 1,
+      ]);
+
+      const flattenedRoles = [...descriptor.members]
+        .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+        .map((member) => {
+          const sourceNode = canonical.nodes.find((node) => node.id === member.id);
+          return sourceNode?.namespacePath.at(-1);
+        });
+      expect(flattenedRoles).toEqual([
+        'PortraitProducer',
+        'CharacterSheetProducer',
+        'PortraitProducer',
+        'CharacterSheetProducer',
+      ]);
+    }
   });
 });
 

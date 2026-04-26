@@ -13,21 +13,23 @@ inputs:
     type: string
     storyboard: main
   - name: ReferenceImages
-    description: Reference images for subject, style, composition, or visual continuity.
+    description: Optional reference images for subject, style, composition, or visual continuity. Prompts may refer to them as @Image1, @Image2, and so on in flattened order.
     type: array
     itemType: image
     required: false
     fanIn: true
   - name: ReferenceVideos
-    description: Reference videos for motion, timing, or visual continuity.
+    description: Optional reference videos for motion, timing, or visual continuity. Prompts may refer to them as @Video1, @Video2, and so on in flattened order.
     type: array
     itemType: video
     required: false
+    fanIn: true
   - name: ReferenceAudios
-    description: Reference audio files for sound, rhythm, or voice texture.
+    description: Optional reference audio files for sound, rhythm, or voice texture. Prompts may refer to them as @Audio1, @Audio2, and so on in flattened order.
     type: array
     itemType: audio
     required: false
+    fanIn: true
   - name: Duration
     description: Motion clip duration in seconds.
     type: integer
@@ -61,8 +63,12 @@ mappings:
       ReferenceImages:
         field: image_urls
         flattenFanIn: true
-      ReferenceVideos: video_urls
-      ReferenceAudios: audio_urls
+      ReferenceVideos:
+        field: video_urls
+        flattenFanIn: true
+      ReferenceAudios:
+        field: audio_urls
+        flattenFanIn: true
       Duration:
         field: duration
         intToString: true
@@ -83,8 +89,12 @@ mappings:
       ReferenceImages:
         field: image_urls
         flattenFanIn: true
-      ReferenceVideos: video_urls
-      ReferenceAudios: audio_urls
+      ReferenceVideos:
+        field: video_urls
+        flattenFanIn: true
+      ReferenceAudios:
+        field: audio_urls
+        flattenFanIn: true
       Duration:
         field: duration
         intToString: true

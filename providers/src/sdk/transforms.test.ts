@@ -1158,19 +1158,38 @@ describe('transforms', () => {
     it('flattens fan-in groups through resolved member values', () => {
       const context: TransformContext = {
         inputs: {
-          'Input:ReferenceClipProducer.ReferenceImages': {
+          'Input:ReferenceClipProducer.ReferenceAudios': {
             groupBy: 'singleton',
             groups: [
               [
-                'Artifact:Portrait',
-                'Artifact:CharacterSheet',
-                'Input:DirectReferenceImages',
+                'Artifact:VoiceReference',
+                'Input:DirectReferenceAudios',
               ],
             ],
           },
-          'Artifact:Portrait': 'portrait.jpg',
-          'Artifact:CharacterSheet': 'character-sheet.jpg',
-          'Input:DirectReferenceImages': ['direct-1.jpg', 'direct-2.jpg'],
+          'Artifact:VoiceReference': 'voice.wav',
+          'Input:DirectReferenceAudios': ['direct-1.wav', 'direct-2.wav'],
+        },
+        inputBindings: {},
+        producerId: 'Producer:ReferenceClipProducer',
+      };
+
+      const mapping = { field: 'audio_urls', flattenFanIn: true };
+      const result = applyMapping('ReferenceAudios', mapping, context);
+
+      expect(result).toEqual({
+        field: 'audio_urls',
+        value: ['voice.wav', 'direct-1.wav', 'direct-2.wav'],
+      });
+    });
+
+    it('skips empty optional fan-in groups when flattening', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Input:ReferenceClipProducer.ReferenceImages': {
+            groupBy: 'singleton',
+            groups: [],
+          },
         },
         inputBindings: {},
         producerId: 'Producer:ReferenceClipProducer',
@@ -1179,15 +1198,25 @@ describe('transforms', () => {
       const mapping = { field: 'image_urls', flattenFanIn: true };
       const result = applyMapping('ReferenceImages', mapping, context);
 
-      expect(result).toEqual({
-        field: 'image_urls',
-        value: [
-          'portrait.jpg',
-          'character-sheet.jpg',
-          'direct-1.jpg',
-          'direct-2.jpg',
-        ],
-      });
+      expect(result).toBeUndefined();
+    });
+
+    it('skips unresolved input members when flattening optional fan-in groups', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Input:ReferenceClipProducer.ReferenceImages': {
+            groupBy: 'singleton',
+            groups: [['Input:ReferenceImages']],
+          },
+        },
+        inputBindings: {},
+        producerId: 'Producer:ReferenceClipProducer',
+      };
+
+      const mapping = { field: 'image_urls', flattenFanIn: true };
+      const result = applyMapping('ReferenceImages', mapping, context);
+
+      expect(result).toBeUndefined();
     });
 
     it('prefers whole array binding over element bindings when value exists', () => {

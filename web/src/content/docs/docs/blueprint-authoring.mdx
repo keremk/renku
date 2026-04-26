@@ -1033,6 +1033,36 @@ connections:
 - Two source dimensions -> `groupBy` and `orderBy` inferred by position
 - Ambiguous scalar multi-source fan-in -> planner fails fast unless edge metadata disambiguates
 
+Use `groupBy: singleton` when several upstream values should become one ordered collection for a single downstream input. Add `orderBy: <dimension>` when values come from a loop and the provider-facing order matters.
+
+```yaml
+connections:
+  - from: CharacterAssets[historicalcharacter].Portrait
+    to: SeedanceVideoGenerator[segment].ReferenceImages
+    groupBy: singleton
+    orderBy: historicalcharacter
+
+  - from: CharacterAssets[historicalcharacter].CharacterSheet
+    to: SeedanceVideoGenerator[segment].ReferenceImages
+    groupBy: singleton
+    orderBy: historicalcharacter
+```
+
+This shape keeps the selected character references in one media list while ordering them by the declared `historicalcharacter` dimension. For Seedance prompts, that means `@Image1` and `@Image2` can refer to the first selected character's portrait and sheet, while `@Image3` and `@Image4` refer to the next selected character.
+
+Use `groupBy: <dimension>` instead when each loop item should become its own fan-in group. For example, a timeline composer usually groups by `segment` and orders by `clip`.
+
+Wrapper producers can also forward a fan-in collection into a nested producer:
+
+```yaml
+connections:
+  - from: ReferenceImages
+    to: ReferenceClipProducer.ReferenceImages
+    groupBy: singleton
+```
+
+The leaf producer can then use `flattenFanIn: true` in its SDK mapping to send the grouped values as a flat provider array.
+
 ### Fan-In Inputs
 
 The target input must have `fanIn: true`:
@@ -1046,19 +1076,17 @@ inputs:
     fanIn: true
 ```
 
+Fan-in inputs can be optional. If an optional fan-in input has no inbound binding, the planner and viewer treat it as absent rather than inventing an empty or default value.
+
 ---
 
 ## Canonical IDs
 
-Canonical IDs are fully qualified node identifiers.
-
-### Format
-
-```
-Type:path.to.name[index0][index1]...
-```
+Canonical IDs are fully qualified node identifiers emitted by Renku. They are intentionally opaque: do not parse them, split them, infer aliases from them, or use their current human-readable shape as a contract. Pass the exact ID through the planner, runner, and provider boundary.
 
 ### Examples
+
+These examples are for recognition and debugging only, not for parsing:
 
 | ID                                          | Description                  |
 | ------------------------------------------- | ---------------------------- |

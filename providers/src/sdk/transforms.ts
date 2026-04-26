@@ -1,6 +1,7 @@
 import {
   formatProducerScopedInputIdForCanonicalProducerId,
   isCanonicalId,
+  isCanonicalInputId,
   type MappingFieldDefinition,
   type MappingCondition,
   type CombineTransform,
@@ -165,6 +166,9 @@ export function applyMapping(
   // 5. Apply flattenFanIn - flatten grouped fan-in values into one array
   if (mapping.flattenFanIn) {
     value = applyFlattenFanIn(value, context.inputs);
+    if (value === undefined) {
+      return undefined;
+    }
   }
 
   // 6. Apply invert - flip boolean value
@@ -366,7 +370,10 @@ function applyFlattenFanIn(
   if (!isFanInResolvedValue(value)) {
     return value;
   }
-  return value.groups.flat().flatMap((memberId) => {
+  if (value.groups.every((group) => group.length === 0)) {
+    return undefined;
+  }
+  const resolvedValues = value.groups.flat().flatMap((memberId) => {
     if (typeof memberId !== 'string') {
       throw createProviderError(
         SdkErrorCode.INVALID_CONFIG,
@@ -375,6 +382,9 @@ function applyFlattenFanIn(
       );
     }
     if (!(memberId in resolvedInputs)) {
+      if (isCanonicalInputId(memberId)) {
+        return [];
+      }
       throw createProviderError(
         SdkErrorCode.INVALID_CONFIG,
         `Fan-in member "${memberId}" was not resolved before SDK payload mapping.`,
@@ -384,6 +394,7 @@ function applyFlattenFanIn(
     const resolved = resolvedInputs[memberId];
     return Array.isArray(resolved) ? resolved : [resolved];
   });
+  return resolvedValues.length > 0 ? resolvedValues : undefined;
 }
 
 function isFanInResolvedValue(

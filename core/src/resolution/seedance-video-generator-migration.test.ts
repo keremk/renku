@@ -54,6 +54,46 @@ describe('SeedanceVideoGenerator condition migration', () => {
     expectScheduledJobsDoNotUseConditionalInputBindings(result);
   });
 
+  it('passes optional reference images, videos, and audios through the reference branch', async () => {
+    const { result } = await createSeedancePlan(
+      seedanceInputs({ workflow: 'Reference' })
+    );
+    const referenceClipJob = result.plan.layers
+      .flat()
+      .find((job) => job.producer === 'ReferenceClipProducer');
+
+    expect(Object.keys(referenceClipJob?.context?.fanIn ?? {}).sort()).toEqual([
+      'Input:ReferenceClipProducer.ReferenceAudios',
+      'Input:ReferenceClipProducer.ReferenceImages',
+      'Input:ReferenceClipProducer.ReferenceVideos',
+    ]);
+  });
+
+  it('does not require reference images when other reference media are supplied', async () => {
+    const inputs = seedanceInputs({ workflow: 'Reference' });
+    delete inputs['Input:ReferenceImages'];
+
+    const { result } = await createSeedancePlan(inputs);
+    const referenceClipJob = result.plan.layers
+      .flat()
+      .find((job) => job.producer === 'ReferenceClipProducer');
+
+    expect(Object.keys(referenceClipJob?.context?.fanIn ?? {}).sort()).toEqual([
+      'Input:ReferenceClipProducer.ReferenceAudios',
+      'Input:ReferenceClipProducer.ReferenceImages',
+      'Input:ReferenceClipProducer.ReferenceVideos',
+    ]);
+    expect(
+      referenceClipJob?.context?.fanIn?.[
+        'Input:ReferenceClipProducer.ReferenceImages'
+      ]?.members
+    ).toEqual([
+      expect.objectContaining({
+        id: 'Input:ReferenceImages',
+      }),
+    ]);
+  });
+
   it('activates the StartEnd branch only when plain anchors are confirmed', async () => {
     const inactive = await createSeedancePlan(
       seedanceInputs({
@@ -181,6 +221,8 @@ function seedanceInputs(args: {
       'blob://reference-image-1',
       'blob://reference-image-2',
     ],
+    'Input:ReferenceVideos': ['blob://reference-video-1'],
+    'Input:ReferenceAudios': ['blob://reference-audio-1'],
     'Input:StartImage': 'blob://start-image',
     'Input:EndImage': 'blob://end-image',
     'Input:Duration': 5,

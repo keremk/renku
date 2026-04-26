@@ -665,6 +665,9 @@ function resolveBindingSources(args: {
 
     const inboundEdges = args.context.inboundEdgesByNodeId.get(args.node.id) ?? [];
     if (inboundEdges.length === 0) {
+      if (args.node.input?.required === false) {
+        return [];
+      }
       throw createRuntimeError(
         RuntimeErrorCode.GRAPH_BUILD_ERROR,
         `Nested input "${args.node.id}" is missing its upstream binding.`
