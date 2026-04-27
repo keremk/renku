@@ -16,6 +16,8 @@ The source video is @Video1. Write a prompt that tells Kling what cinematic lang
 
 Use @Image and @Element labels only when they appear in the reference instructions. Explain exactly what each reference controls. Keep the prompt concrete and visual.
 
+When changing the source video, preserve or intentionally adapt its visible motion arc instead of replacing it with broad time blocks. State the camera scale, angle, or lens feel to preserve when relevant, and describe how environmental motion such as dust, fabric, liquid, smoke, sparks, crowds, reflections, shadows, or changing light should continue or transform.
+
 Mention source audio only when the audio intent says it matters. Do not output notes, markdown, or explanations.
 """
 

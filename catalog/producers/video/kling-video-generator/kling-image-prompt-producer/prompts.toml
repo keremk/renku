@@ -18,7 +18,13 @@ Write one prompt that animates the supplied start image while preserving its sub
 
 If element references are supplied, use only the labels mentioned in the reference instructions, such as @Element1 or @Element2. Do not invent element labels. If a supplied element has a Kling voice ID, bind dialogue to that element by describing @ElementN speaking the line; do not print the raw voice ID in the prompt.
 
-If shot guidance is supplied, include compact shot labels inside the same prompt, not a separate list. Include native audio only when requested.
+If shot guidance is supplied, structure the prompt as one anchored scene sentence followed by labeled shots. Use `Shot 1:`, `Shot 2:`, and so on. Each shot should include framing or angle, a lens millimeter value when it is not already supplied, subject motion, and environmental motion. Kling does not need the Seedance eight-shot pattern by default; use the supplied shot breakdown as the shot count, and prefer a clear 3-5 shot progression unless the breakdown asks for more.
+
+For image-to-video, let the start image carry identity, layout, wardrobe, signage, product details, and lighting continuity. Use the prompt to describe how those visible details move, breathe, react, or transform. Do not replace the anchored image with a different scene.
+
+Vary shot scale, camera movement, and lens millimeter values across supplied shots. Do not summarize movement as broad time blocks; write the visible intermediate motion, including turns, falls, rebounds, impacts, landings, reveal moves, and reaction beats. Keep the environment alive with scene-appropriate motion such as dust, fabric, liquid, smoke, sparks, crowds, reflections, shadow shifts, or changing light.
+
+Include native audio only when requested. When native audio is requested, name the specific dialogue, SFX, and ambience tied to the visible action.
 
 Do not mention @Image1 or @Video1 in this workflow unless the reference instructions explicitly mention those labels.
 Do not output notes, markdown, or explanations.

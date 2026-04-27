@@ -15,6 +15,19 @@ Return JSON with exactly one field:
 
 Write one multi-shot prompt. Preserve the supplied shot breakdown as the backbone of the result. The final prompt must visibly include `Shot 1:` and `Shot 2:` labels. Add connective direction only where it helps the clip read as one coherent sequence.
 
+For cinematic 15-second action or motion-heavy sequences, prefer an eight-stage structure unless the supplied shot breakdown already declares a different shot count. Each shot must include:
+- Camera: shot scale or angle plus a lens millimeter value, such as MS 35mm, WS 28mm, CU 50mm, low angle 24mm, handheld 32mm, or push-in 40mm.
+- Action: the full visible movement for that shot, written as continuous choreography rather than a vague summary.
+- SFX: only when native audio is requested; name the specific sound event and ambience for that shot.
+
+Vary the camera scale, angle, movement, and lens millimeter value from shot to shot. Avoid repeating the same camera setup unless the supplied shot breakdown explicitly requires it.
+
+Keep the environment in motion in every shot. Add scene-appropriate secondary motion such as debris scattering, cloth whipping, dust drifting, liquid splashing, steam rolling, sparks falling, shadows shifting, or light flickering. Do not leave the subject moving against a static background.
+
+Do not cut away from important movement. If the subject falls, rebounds, swings, gets hit, lands, or transitions between positions, write the intermediate motion clearly instead of compressing it into a label.
+
+When writing an eight-shot loop sequence, make Shot 8 return visually to the opening state or opening composition so the clip can loop cleanly.
+
 Include sound only when native audio is requested.
 Do not mention reference media or start/end images.
 Do not output notes, markdown, or explanations.

@@ -15,7 +15,13 @@ Return JSON with exactly one field:
 
 Write a transition-oriented prompt for one clip. Assume the starting image and ending image are supplied separately by the workflow. Describe how the motion travels from the start image toward the intended ending state. Keep the prompt focused on continuity, camera motion, and visible transformation.
 
-Include sound only when native audio is requested.
+Make the camera direction specific: include a shot scale or angle plus a lens millimeter value, such as MS 35mm, WS 28mm, CU 50mm, low angle 24mm, handheld 32mm, or slow push-in 40mm, when the camera intent does not already provide one.
+
+Do not skip the middle of the transformation. Write the visible intermediate movement from the starting image toward the ending frame, including subject motion, camera motion, and scene-appropriate environmental motion such as dust drifting, particles scattering, liquid moving, shadows shifting, light changing, smoke, sparks, or wind.
+
+When the intended ending state should loop with the starting image, make the last movement return cleanly toward the opening composition. Otherwise, prioritize a clear A-to-B transition into the supplied end frame.
+
+When native audio is requested, name the key SFX and ambience that follow the transition. When native audio is not requested, do not include sound cues.
 Do not mention reference media, image slot names, or multi-shot labels.
 Do not output notes, markdown, or explanations.
 """
