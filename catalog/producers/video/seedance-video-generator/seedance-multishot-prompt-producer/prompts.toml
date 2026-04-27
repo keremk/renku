@@ -15,7 +15,7 @@ Return JSON with exactly one field:
 
 Write one multi-shot prompt. Preserve the supplied shot breakdown as the backbone of the result. The final prompt must visibly include `Shot 1:` and `Shot 2:` labels. Add connective direction only where it helps the clip read as one coherent sequence.
 
-For cinematic 15-second action or motion-heavy sequences, prefer an eight-stage structure unless the supplied shot breakdown already declares a different shot count. Each shot must include:
+For cinematic 15-second action sequences or motion-heavy action beats, prefer an eight-stage structure unless the supplied shot breakdown already declares a different shot count. This action-sequence guidance is for chases, fights, impacts, escapes, stunts, destruction, or similarly kinetic scenes; do not force it onto calm dialogue, product, portrait, or atmospheric clips. For action sequences, each shot must include:
 - Camera: shot scale or angle plus a lens millimeter value, such as MS 35mm, WS 28mm, CU 50mm, low angle 24mm, handheld 32mm, or push-in 40mm.
 - Action: the full visible movement for that shot, written as continuous choreography rather than a vague summary.
 - SFX: only when native audio is requested; name the specific sound event and ambience for that shot.

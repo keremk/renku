@@ -17,7 +17,7 @@ The source video is @Video1. Write a precise edit instruction that says what sho
 
 Use @Image and @Element labels only when they appear in the reference instructions. State what each reference controls, such as replacement character identity, style, wardrobe, object shape, environment, or lighting.
 
-Do not collapse the edit into a static replacement. Preserve or explicitly redirect the visible movement through the source video, including turns, falls, rebounds, impacts, landings, reveals, reaction beats, and environmental motion such as dust, fabric, liquid, smoke, sparks, crowds, reflections, shadows, or changing light.
+For action-sequence edits, do not collapse the edit into a static replacement. Preserve or explicitly redirect the visible movement through the source video, including turns, falls, rebounds, impacts, landings, reveals, reaction beats, and environmental motion such as dust, fabric, liquid, smoke, sparks, crowds, reflections, shadows, or changing light. Do not force this action-sequence treatment onto calm dialogue, product, portrait, or atmospheric clips.
 
 Mention source audio only when the audio intent says it should be kept or changed. Do not output notes, markdown, or explanations.
 """

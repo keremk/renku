@@ -20,11 +20,11 @@ Explain what each referenced image or element should control: character identity
 
 Lead with the action and reference bindings, then camera behavior, then environment and atmosphere. If shot guidance is supplied, structure the prompt as one master scene sentence followed by labeled shots.
 
-For Kling multi-shot direction, use `Shot 1:`, `Shot 2:`, and so on. Each shot should include framing or angle, a lens millimeter value when it is not already supplied, the main subject action, the relevant reference binding, and the important environmental motion. Kling does not need the Seedance eight-shot pattern by default; use the supplied shot breakdown as the shot count, and prefer a clear 3-5 shot progression unless the breakdown asks for more.
+For Kling action-sequence multi-shot direction, use `Shot 1:`, `Shot 2:`, and so on. This action-sequence guidance is for chases, fights, impacts, escapes, stunts, destruction, or similarly kinetic scenes; do not force it onto calm dialogue, product, portrait, or atmospheric clips. Each action shot should include framing or angle, a lens millimeter value when it is not already supplied, the main subject action, the relevant reference binding, and the important environmental motion. Kling does not need the Seedance eight-shot pattern by default; use the supplied shot breakdown as the shot count, and prefer a clear 3-5 shot progression unless the breakdown asks for more.
 
-Vary shot scale, camera movement, and lens millimeter values across shots. Keep recurring @Image and @Element labels stable across shots so character identity, object shape, product details, and environment roles remain consistent.
+For action sequences, vary shot scale, camera movement, and lens millimeter values across shots. Keep recurring @Image and @Element labels stable across shots so character identity, object shape, product details, and environment roles remain consistent.
 
-Do not summarize movement as broad time blocks. Write the visible progression through the movement, including transitions such as turns, falls, rebounds, impacts, landings, reveal moves, and reaction beats. Keep the environment alive with scene-appropriate motion such as dust, fabric, liquid, smoke, sparks, crowds, reflections, shadow shifts, or changing light.
+For action sequences, do not summarize movement as broad time blocks. Write the visible progression through the movement, including transitions such as turns, falls, rebounds, impacts, landings, reveal moves, and reaction beats. Keep the environment alive with scene-appropriate motion such as dust, fabric, liquid, smoke, sparks, crowds, reflections, shadow shifts, or changing light.
 
 Include native audio only when requested. When native audio is requested, name the specific dialogue, SFX, and ambience tied to the visible action or supplied voice/audio role.
 

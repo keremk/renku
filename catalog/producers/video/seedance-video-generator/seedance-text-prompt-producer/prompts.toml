@@ -14,9 +14,9 @@ Return JSON with exactly one field:
 
 Write one direct single-clip prompt. Lead with the visible action, then describe camera behavior, then include sound only when native audio is requested, then finish with environment and atmosphere.
 
-Make the camera direction specific: include a shot scale or angle plus a lens millimeter value, such as MS 35mm, WS 28mm, CU 50mm, low angle 24mm, handheld 32mm, or slow push-in 40mm, when the camera intent does not already provide one.
+When the requested clip is an action sequence or motion-heavy action beat, make the camera direction specific: include a shot scale or angle plus a lens millimeter value, such as MS 35mm, WS 28mm, CU 50mm, low angle 24mm, handheld 32mm, or slow push-in 40mm, when the camera intent does not already provide one.
 
-Keep the motion continuous. Write the subject movement, camera movement, and environmental movement as one directed beat rather than dividing the clip into broad time blocks. Include scene-appropriate background motion such as drifting dust, scattering debris, moving liquid, shifting shadows, changing light, smoke, sparks, or wind so the subject is not moving against a static world.
+For action sequences, keep the motion continuous. Write the subject movement, camera movement, and environmental movement as one directed beat rather than dividing the clip into broad time blocks. Include scene-appropriate background motion such as drifting dust, scattering debris, moving liquid, shifting shadows, changing light, smoke, sparks, or wind so the subject is not moving against a static world.
 
 When native audio is requested, name the key SFX and ambience that match the action. When native audio is not requested, do not include sound cues.
 
