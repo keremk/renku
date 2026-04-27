@@ -1,0 +1,102 @@
+meta:
+  name: Kling Video Reference Clip
+  description: Generate a Kling motion clip guided by a source reference video.
+  id: KlingVideoReferenceClipProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Kling-ready video-reference prompt.
+    type: string
+    storyboard: main
+  - name: SourceVideo
+    description: Source reference video. Prompts should refer to it as @Video1.
+    type: video
+  - name: ReferenceImages
+    description: Optional reference images for style or appearance.
+    type: array
+    itemType: image
+    fanIn: true
+    required: false
+  - name: ElementFrontalImages
+    description: Grouped frontal images for Kling elements.
+    type: array
+    itemType: image
+    fanIn: true
+    required: false
+  - name: ElementReferenceImages
+    description: Grouped additional reference images for Kling elements.
+    type: array
+    itemType: image
+    fanIn: true
+    required: false
+  - name: ElementVideos
+    description: Optional grouped video references for Kling elements.
+    type: array
+    itemType: video
+    fanIn: true
+    required: false
+  - name: Duration
+    description: Motion clip duration in seconds.
+    type: integer
+    required: true
+  - name: Resolution
+    description: Output resolution as width/height pixel dimensions.
+    type: resolution
+  - name: KeepAudio
+    description: Whether to keep source-video audio.
+    type: boolean
+    required: false
+
+outputs:
+  - name: GeneratedVideo
+    description: Generated video.
+    type: video
+  - name: FirstFrame
+    description: First frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: Last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: Extracted native audio track.
+    type: audio
+
+mappings:
+  fal-ai:
+    kling-video/o3/standard/video-to-video/reference:
+      Prompt: prompt
+      SourceVideo: video_url
+      ReferenceImages: image_urls
+      ElementFrontalImages:
+        field: elements[].frontal_image_url
+      ElementReferenceImages:
+        field: elements[].reference_image_urls
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      KeepAudio: keep_audio
+
+    kling-video/o3/pro/video-to-video/reference:
+      Prompt: prompt
+      SourceVideo: video_url
+      ReferenceImages: image_urls
+      ElementFrontalImages:
+        field: elements[].frontal_image_url
+      ElementReferenceImages:
+        field: elements[].reference_image_urls
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      KeepAudio: keep_audio

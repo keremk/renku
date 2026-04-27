@@ -1505,19 +1505,44 @@ describe('yaml-parser edge cases', () => {
   });
 
   it('parses producer storyboard input metadata', async () => {
-    const blueprintPath = resolve(
-      process.cwd(),
-      '../catalog/producers/video/kling-multishot.yaml'
-    );
-    const document = await parseYamlBlueprintFile(blueprintPath);
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'producer-storyboard-'));
 
-    const promptInput = document.inputs.find((input) => input.name === 'Prompt');
-    const multiPromptInput = document.inputs.find(
-      (input) => input.name === 'MultiPrompt'
-    );
+    try {
+      const producerPath = resolve(tempDir, 'storyboard-producer.yaml');
+      await fs.writeFile(
+        producerPath,
+        [
+          'meta:',
+          '  id: StoryboardProducer',
+          '  name: Storyboard Producer',
+          '  kind: producer',
+          '',
+          'inputs:',
+          '  - name: Prompt',
+          '    type: string',
+          '    storyboard: main',
+          '  - name: MultiPrompt',
+          '    type: array',
+          '    storyboard: secondary',
+          '',
+          'outputs:',
+          '  - name: GeneratedVideo',
+          '    type: video',
+          '',
+        ].join('\n')
+      );
+      const document = await parseYamlBlueprintFile(producerPath);
 
-    expect(promptInput?.storyboard).toBe('main');
-    expect(multiPromptInput?.storyboard).toBe('secondary');
+      const promptInput = document.inputs.find((input) => input.name === 'Prompt');
+      const multiPromptInput = document.inputs.find(
+        (input) => input.name === 'MultiPrompt'
+      );
+
+      expect(promptInput?.storyboard).toBe('main');
+      expect(multiPromptInput?.storyboard).toBe('secondary');
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it('rejects multiple storyboard main inputs in a producer definition', async () => {

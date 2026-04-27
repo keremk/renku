@@ -2175,7 +2175,10 @@ function getSchemaNodeAtPath(
       if (!arraySchema) {
         return undefined;
       }
-      const resolvedArray = resolveSchemaNode(arraySchema, schema);
+      const resolvedArray = chooseArraySchemaBranch(
+        resolveSchemaNode(arraySchema, schema),
+        schema
+      );
       const itemSchema = toSchemaObject(resolvedArray.items);
       current = itemSchema ? resolveSchemaNode(itemSchema, schema) : undefined;
       continue;
@@ -2205,6 +2208,34 @@ function resolveSchemaNode(
   }
 
   return node;
+}
+
+function chooseArraySchemaBranch(
+  schemaNode: JSONSchema7,
+  rootSchema: JSONSchema7
+): JSONSchema7 {
+  const resolved = resolveSchemaNode(schemaNode, rootSchema);
+  if (resolved.type === 'array' || resolved.items) {
+    return resolved;
+  }
+
+  const candidates = [
+    ...(resolved.allOf ?? []),
+    ...(resolved.anyOf ?? []),
+    ...(resolved.oneOf ?? []),
+  ];
+  for (const entry of candidates) {
+    const candidate = toSchemaObject(entry);
+    if (!candidate) {
+      continue;
+    }
+    const resolvedCandidate = resolveSchemaNode(candidate, rootSchema);
+    if (resolvedCandidate.type === 'array' || resolvedCandidate.items) {
+      return resolvedCandidate;
+    }
+  }
+
+  return resolved;
 }
 
 function chooseSchemaBranchForProperty(

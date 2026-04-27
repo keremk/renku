@@ -1,5 +1,131 @@
 {
   "input_schema": {
+    "type": "object",
+    "title": "O3ProImageToVideoInput",
+    "required": [
+      "image_url"
+    ],
+    "properties": {
+      "end_image_url": {
+        "description": "URL of the end frame image (optional).",
+        "title": "End Image Url",
+        "anyOf": [
+          {
+            "type": "string",
+            "_fal_ui_field": "image",
+            "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+            "ui": {
+              "field": "image"
+            },
+            "x-fal": {
+              "min_aspect_ratio": 0.4,
+              "max_aspect_ratio": 2.5,
+              "min_height": 300,
+              "max_file_size": 10485760,
+              "min_width": 300,
+              "timeout": 20
+            },
+            "format": "uri"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "https://v3b.fal.media/files/b/0a8d0248/S415GcxackjjLKom6f3jq_VTImWrNO.png"
+        ]
+      },
+      "shot_type": {
+        "type": "string",
+        "description": "The type of multi-shot video generation.",
+        "title": "Shot Type",
+        "default": "customize",
+        "const": "customize"
+      },
+      "prompt": {
+        "description": "Text prompt for video generation. Either prompt or multi_prompt must be provided, but not both.",
+        "title": "Prompt",
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2500
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "The character walks forward slowly, with the camera following from behind."
+        ]
+      },
+      "multi_prompt": {
+        "description": "List of prompts for multi-shot video generation.",
+        "title": "Multi Prompt",
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/KlingV3MultiPromptElement"
+            }
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          null
+        ]
+      },
+      "image_url": {
+        "type": "string",
+        "description": "URL of the start frame image.",
+        "title": "Image Url",
+        "examples": [
+          "https://v3b.fal.media/files/b/0a8cfd5a/8ABMp4n9rh3kfD2Rq8fHd_start_frame.png"
+        ],
+        "_fal_ui_field": "image",
+        "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+        "x-fal": {
+          "min_aspect_ratio": 0.4,
+          "max_aspect_ratio": 2.5,
+          "min_height": 300,
+          "max_file_size": 10485760,
+          "min_width": 300,
+          "timeout": 20
+        },
+        "format": "uri"
+      },
+      "duration": {
+        "type": "string",
+        "description": "Video duration in seconds (3-15s).",
+        "title": "Duration",
+        "enum": [
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15"
+        ],
+        "default": "5",
+        "examples": [
+          "10"
+        ]
+      },
+      "generate_audio": {
+        "type": "boolean",
+        "description": "Whether to generate native audio for the video.",
+        "title": "Generate Audio",
+        "default": false
+      }
+    },
     "x-fal-order-properties": [
       "prompt",
       "image_url",
@@ -8,179 +134,51 @@
       "generate_audio",
       "multi_prompt",
       "shot_type"
-    ],
-    "type": "object",
-    "properties": {
-      "prompt": {
-        "examples": [
-          "The character walks forward slowly, with the camera following from behind."
-        ],
-        "maxLength": 2500,
-        "type": "string",
-        "title": "Prompt",
-        "description": "Text prompt for video generation. Either prompt or multi_prompt must be provided, but not both."
-      },
-      "duration": {
-        "enum": [
-          "3",
-          "4",
-          "5",
-          "6",
-          "7",
-          "8",
-          "9",
-          "10",
-          "11",
-          "12",
-          "13",
-          "14",
-          "15"
-        ],
-        "description": "Video duration in seconds (3-15s).",
-        "type": "string",
-        "examples": [
-          "10"
-        ],
-        "title": "Duration",
-        "default": "5"
-      },
-      "generate_audio": {
-        "title": "Generate Audio",
-        "type": "boolean",
-        "description": "Whether to generate native audio for the video.",
-        "default": false
-      },
-      "multi_prompt": {
-        "examples": [
-          null
-        ],
-        "title": "Multi Prompt",
-        "type": "array",
-        "description": "List of prompts for multi-shot video generation.",
-        "items": {
-          "$ref": "#/KlingV3MultiPromptElement"
-        }
-      },
-      "shot_type": {
-        "enum": [
-          "customize"
-        ],
-        "title": "Shot Type",
-        "type": "string",
-        "description": "The type of multi-shot video generation.",
-        "default": "customize"
-      },
-      "image_url": {
-        "description": "URL of the start frame image.",
-        "type": "string",
-        "examples": [
-          "https://v3b.fal.media/files/b/0a8cfd5a/8ABMp4n9rh3kfD2Rq8fHd_start_frame.png"
-        ],
-        "title": "Image Url",
-        "x-fal": {
-          "max_aspect_ratio": 2.5,
-          "min_height": 300,
-          "min_aspect_ratio": 0.4,
-          "min_width": 300,
-          "timeout": 20,
-          "max_file_size": 10485760
-        },
-        "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
-        "format": "uri"
-      },
-      "end_image_url": {
-        "description": "URL of the end frame image (optional).",
-        "type": "string",
-        "examples": [
-          "https://v3b.fal.media/files/b/0a8d0248/S415GcxackjjLKom6f3jq_VTImWrNO.png"
-        ],
-        "title": "End Image Url",
-        "x-fal": {
-          "max_aspect_ratio": 2.5,
-          "min_height": 300,
-          "min_aspect_ratio": 0.4,
-          "min_width": 300,
-          "timeout": 20,
-          "max_file_size": 10485760
-        },
-        "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
-        "format": "uri"
-      }
-    },
-    "title": "O3ProImageToVideoInput",
-    "description": "Single-shot image-to-video input for O3 model.",
-    "required": [
-      "image_url"
-    ],
-    "x-renku-constraints": {
-      "fields": {
-        "duration": {
-          "enum": {
-            "values": [
-              "3",
-              "4",
-              "5",
-              "6",
-              "7",
-              "8",
-              "9",
-              "10",
-              "11",
-              "12",
-              "13",
-              "14",
-              "15"
-            ],
-            "source": "explicit",
-            "confidence": "high"
-          }
-        }
-      }
-    }
+    ]
   },
   "output_schema": {
-    "x-fal-order-properties": [
+    "type": "object",
+    "title": "O3ProImageToVideoOutput",
+    "required": [
       "video"
     ],
-    "type": "object",
     "properties": {
       "video": {
+        "description": "The generated video.",
+        "$ref": "#/File",
         "examples": [
           {
-            "file_size": 12037975,
-            "file_name": "output.mp4",
             "content_type": "video/mp4",
-            "url": "https://v3b.fal.media/files/b/0a8d0278/pgIO9yOXTFCTetKBsqDwX_output.mp4"
-          }
-        ],
-        "title": "Video",
-        "description": "The generated video.",
-        "allOf": [
-          {
-            "$ref": "#/File"
+            "file_size": 12037975,
+            "url": "https://v3b.fal.media/files/b/0a8d0278/pgIO9yOXTFCTetKBsqDwX_output.mp4",
+            "file_name": "output.mp4"
           }
         ]
       }
     },
-    "title": "O3ProImageToVideoOutput",
-    "required": [
+    "x-fal-order-properties": [
       "video"
     ]
   },
   "KlingV3MultiPromptElement": {
-    "x-fal-order-properties": [
-      "prompt",
-      "duration"
-    ],
     "type": "object",
+    "title": "KlingV3MultiPromptElement",
+    "required": [
+      "prompt"
+    ],
     "properties": {
       "prompt": {
-        "title": "Prompt",
         "type": "string",
-        "description": "The prompt for this shot."
+        "description": "The prompt for this shot.",
+        "title": "Prompt"
       },
       "duration": {
+        "type": "string",
+        "description": "The duration of this shot in seconds",
+        "title": "Duration",
         "enum": [
+          "1",
+          "2",
           "3",
           "4",
           "5",
@@ -195,67 +193,78 @@
           "14",
           "15"
         ],
-        "title": "Duration",
-        "type": "string",
-        "description": "The duration of this shot in seconds",
         "default": "5"
       }
     },
-    "title": "KlingV3MultiPromptElement",
-    "required": [
-      "prompt"
+    "x-fal-order-properties": [
+      "prompt",
+      "duration"
     ]
   },
   "File": {
+    "type": "object",
+    "title": "File",
+    "required": [
+      "url"
+    ],
+    "properties": {
+      "content_type": {
+        "description": "The mime type of the file.",
+        "title": "Content Type",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "image/png"
+        ]
+      },
+      "file_size": {
+        "description": "The size of the file in bytes.",
+        "title": "File Size",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          4404019
+        ]
+      },
+      "url": {
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_name": {
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "title": "File Name",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "z9RV14K95DvU.png"
+        ]
+      }
+    },
     "x-fal-order-properties": [
       "url",
       "content_type",
       "file_name",
-      "file_size",
-      "file_data"
-    ],
-    "type": "object",
-    "properties": {
-      "file_size": {
-        "examples": [
-          4404019
-        ],
-        "title": "File Size",
-        "type": "integer",
-        "description": "The size of the file in bytes."
-      },
-      "file_name": {
-        "examples": [
-          "z9RV14K95DvU.png"
-        ],
-        "title": "File Name",
-        "type": "string",
-        "description": "The name of the file. It will be auto-generated if not provided."
-      },
-      "content_type": {
-        "examples": [
-          "image/png"
-        ],
-        "title": "Content Type",
-        "type": "string",
-        "description": "The mime type of the file."
-      },
-      "url": {
-        "title": "Url",
-        "type": "string",
-        "description": "The URL where the file can be downloaded from.",
-        "format": "uri"
-      },
-      "file_data": {
-        "format": "binary",
-        "title": "File Data",
-        "type": "string",
-        "description": "File data"
-      }
-    },
-    "title": "File",
-    "required": [
-      "url"
+      "file_size"
     ]
   },
   "x-renku-viewer": {
@@ -265,19 +274,75 @@
       "component": "object",
       "label": "Input",
       "order": [
-        "prompt",
-        "duration",
-        "generate_audio",
-        "multi_prompt",
+        "end_image_url",
         "shot_type",
+        "prompt",
+        "multi_prompt",
         "image_url",
-        "end_image_url"
+        "duration",
+        "generate_audio"
       ],
       "fields": {
+        "end_image_url": {
+          "pointer": "/input_schema/properties/end_image_url",
+          "component": "nullable",
+          "label": "End Image Url",
+          "value": {
+            "pointer": "/input_schema/properties/end_image_url/anyOf/0",
+            "component": "file-uri",
+            "label": "End Image Url"
+          }
+        },
+        "shot_type": {
+          "pointer": "/input_schema/properties/shot_type",
+          "component": "string",
+          "label": "Shot Type"
+        },
         "prompt": {
           "pointer": "/input_schema/properties/prompt",
-          "component": "string",
-          "label": "Prompt"
+          "component": "nullable",
+          "label": "Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/prompt/anyOf/0",
+            "component": "string",
+            "label": "Prompt"
+          }
+        },
+        "multi_prompt": {
+          "pointer": "/input_schema/properties/multi_prompt",
+          "component": "nullable",
+          "label": "Multi Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/multi_prompt/anyOf/0",
+            "component": "array-object-cards",
+            "label": "Multi Prompt",
+            "item": {
+              "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items",
+              "component": "object",
+              "label": "Item",
+              "order": [
+                "prompt",
+                "duration"
+              ],
+              "fields": {
+                "prompt": {
+                  "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items/properties/prompt",
+                  "component": "string",
+                  "label": "Prompt"
+                },
+                "duration": {
+                  "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items/properties/duration",
+                  "component": "string-enum",
+                  "label": "Duration"
+                }
+              }
+            }
+          }
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "file-uri",
+          "label": "Image Url"
         },
         "duration": {
           "pointer": "/input_schema/properties/duration",
@@ -288,47 +353,6 @@
           "pointer": "/input_schema/properties/generate_audio",
           "component": "boolean",
           "label": "Generate Audio"
-        },
-        "multi_prompt": {
-          "pointer": "/input_schema/properties/multi_prompt",
-          "component": "array-object-cards",
-          "label": "Multi Prompt",
-          "item": {
-            "pointer": "/input_schema/properties/multi_prompt/items",
-            "component": "object",
-            "label": "Item",
-            "order": [
-              "prompt",
-              "duration"
-            ],
-            "fields": {
-              "prompt": {
-                "pointer": "/input_schema/properties/multi_prompt/items/properties/prompt",
-                "component": "string",
-                "label": "Prompt"
-              },
-              "duration": {
-                "pointer": "/input_schema/properties/multi_prompt/items/properties/duration",
-                "component": "string-enum",
-                "label": "Duration"
-              }
-            }
-          }
-        },
-        "shot_type": {
-          "pointer": "/input_schema/properties/shot_type",
-          "component": "string-enum",
-          "label": "Shot Type"
-        },
-        "image_url": {
-          "pointer": "/input_schema/properties/image_url",
-          "component": "file-uri",
-          "label": "Image Url"
-        },
-        "end_image_url": {
-          "pointer": "/input_schema/properties/end_image_url",
-          "component": "file-uri",
-          "label": "End Image Url"
         }
       }
     }

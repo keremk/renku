@@ -1,0 +1,91 @@
+meta:
+  name: Kling Text Clip
+  description: Generate a Kling motion clip from a text prompt.
+  id: KlingTextClipProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Kling-ready text-to-video prompt.
+    type: string
+    storyboard: main
+  - name: Duration
+    description: Motion clip duration in seconds.
+    type: integer
+    required: true
+  - name: Resolution
+    description: Output resolution as width/height pixel dimensions.
+    type: resolution
+  - name: GenerateAudio
+    description: Whether the clip should request native audio.
+    type: boolean
+    required: false
+  - name: NegativePrompt
+    description: Things Kling should avoid. Used by V3 endpoints.
+    type: string
+    required: false
+
+outputs:
+  - name: GeneratedVideo
+    description: Generated video.
+    type: video
+  - name: FirstFrame
+    description: First frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: Last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: Extracted native audio track.
+    type: audio
+
+mappings:
+  fal-ai:
+    kling-video/v3/standard/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      GenerateAudio: generate_audio
+      NegativePrompt: negative_prompt
+
+    kling-video/v3/pro/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      GenerateAudio: generate_audio
+      NegativePrompt: negative_prompt
+
+    kling-video/o3/standard/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      GenerateAudio: generate_audio
+
+    kling-video/o3/pro/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      GenerateAudio: generate_audio

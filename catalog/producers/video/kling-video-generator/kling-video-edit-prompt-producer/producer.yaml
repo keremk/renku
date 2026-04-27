@@ -1,0 +1,35 @@
+meta:
+  name: Kling Video Edit Prompt Producer
+  description: Converts one semantic edit intent into a Kling video edit prompt.
+  id: KlingVideoEditPromptProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./prompts.toml
+  outputSchema: ./output-schema.json
+
+inputs:
+  - name: SceneIntent
+    description: Core visible scene, subject, and action.
+    type: string
+  - name: CameraIntent
+    description: Camera and continuity intent.
+    type: string
+  - name: AudioIntent
+    description: Source-audio or sound-design intent.
+    type: string
+  - name: EnvironmentAndStyle
+    description: Environment, lighting, and visual texture.
+    type: string
+  - name: ReferenceInstructions
+    description: Explicit explanation of what @Image and @Element references contribute.
+    type: string
+  - name: EditInstructions
+    description: Explicit instruction for what to change in @Video1.
+    type: string
+
+outputs:
+  - name: Prompt
+    description: Final Kling video edit prompt for one clip.
+    type: string

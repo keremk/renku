@@ -1,0 +1,123 @@
+meta:
+  name: Kling Reference Clip
+  description: Generate a Kling motion clip from a prompt plus optional image and element references.
+  id: KlingReferenceClipProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Kling-ready reference-to-video prompt.
+    type: string
+    storyboard: main
+  - name: StartImage
+    description: Optional starting frame image.
+    type: image
+    required: false
+  - name: EndImage
+    description: Optional ending frame image.
+    type: image
+    required: false
+  - name: ReferenceImages
+    description: Optional reference images for style, appearance, or composition.
+    type: array
+    itemType: image
+    fanIn: true
+    required: false
+  - name: ElementFrontalImages
+    description: Grouped frontal images for Kling elements.
+    type: array
+    itemType: image
+    fanIn: true
+    required: false
+  - name: ElementReferenceImages
+    description: Grouped additional reference images for Kling elements.
+    type: array
+    itemType: image
+    fanIn: true
+    required: false
+  - name: ElementVideos
+    description: Optional grouped video references for Kling elements.
+    type: array
+    itemType: video
+    fanIn: true
+    required: false
+  - name: ElementVoiceIds
+    description: Optional Kling voice IDs for video elements. Group order binds to @Element1, @Element2, and so on.
+    type: array
+    itemType: string
+    fanIn: true
+    required: false
+  - name: Duration
+    description: Motion clip duration in seconds.
+    type: integer
+    required: true
+  - name: Resolution
+    description: Output resolution as width/height pixel dimensions.
+    type: resolution
+  - name: GenerateAudio
+    description: Whether the clip should request native audio.
+    type: boolean
+    required: false
+
+outputs:
+  - name: GeneratedVideo
+    description: Generated video.
+    type: video
+  - name: FirstFrame
+    description: First frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: Last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: Extracted native audio track.
+    type: audio
+
+mappings:
+  fal-ai:
+    kling-video/o3/standard/reference-to-video:
+      Prompt: prompt
+      StartImage: start_image_url
+      EndImage: end_image_url
+      ReferenceImages: image_urls
+      ElementFrontalImages:
+        field: elements[].frontal_image_url
+      ElementReferenceImages:
+        field: elements[].reference_image_urls
+      ElementVideos:
+        field: elements[].video_url
+      ElementVoiceIds:
+        field: elements[].voice_id
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      GenerateAudio: generate_audio
+
+    kling-video/o3/pro/reference-to-video:
+      Prompt: prompt
+      StartImage: start_image_url
+      EndImage: end_image_url
+      ReferenceImages: image_urls
+      ElementFrontalImages:
+        field: elements[].frontal_image_url
+      ElementReferenceImages:
+        field: elements[].reference_image_urls
+      ElementVideos:
+        field: elements[].video_url
+      ElementVoiceIds:
+        field: elements[].voice_id
+      Duration:
+        field: duration
+        intToString: true
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      GenerateAudio: generate_audio

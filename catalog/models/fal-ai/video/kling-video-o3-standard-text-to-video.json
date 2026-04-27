@@ -1,54 +1,64 @@
 {
   "input_schema": {
-    "description": "Single-shot text-to-video input for O3 model.",
     "type": "object",
+    "title": "O3StandardTextToVideoInput",
     "properties": {
+      "shot_type": {
+        "type": "string",
+        "description": "The type of multi-shot video generation.",
+        "title": "Shot Type",
+        "default": "customize",
+        "const": "customize"
+      },
       "prompt": {
+        "description": "Text prompt for video generation. Required unless multi_prompt is provided.",
+        "title": "Prompt",
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2500
+          },
+          {
+            "type": "null"
+          }
+        ],
         "examples": [
           "A mecha lands on the ground to save the city, and says \"I'm here\", in anime style"
+        ]
+      },
+      "multi_prompt": {
+        "description": "List of prompts for multi-shot video generation.",
+        "title": "Multi Prompt",
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/KlingV3MultiPromptElement"
+            }
+          },
+          {
+            "type": "null"
+          }
         ],
-        "description": "Text prompt for video generation. Required unless multi_prompt is provided.",
-        "type": "string",
-        "title": "Prompt",
-        "maxLength": 2500
+        "examples": [
+          null
+        ]
       },
       "aspect_ratio": {
+        "type": "string",
+        "description": "Aspect ratio of the generated video.",
+        "title": "Aspect Ratio",
         "enum": [
           "16:9",
           "9:16",
           "1:1"
         ],
-        "description": "Aspect ratio of the generated video.",
-        "type": "string",
-        "title": "Aspect Ratio",
         "default": "16:9"
       },
-      "voice_ids": {
-        "description": "Optional Voice IDs for video generation. Reference voices in your prompt with <<<voice_1>>> and <<<voice_2>>> (maximum 2 voices per task). Get voice IDs from the kling video create-voice endpoint: https://fal.ai/models/fal-ai/kling-video/create-voice",
-        "type": "array",
-        "title": "Voice Ids",
-        "items": {
-          "type": "string"
-        }
-      },
-      "generate_audio": {
-        "description": "Whether to generate native audio for the video.",
-        "type": "boolean",
-        "title": "Generate Audio",
-        "default": false
-      },
-      "multi_prompt": {
-        "examples": [
-          null
-        ],
-        "description": "List of prompts for multi-shot video generation.",
-        "type": "array",
-        "title": "Multi Prompt",
-        "items": {
-          "$ref": "#/KlingV3MultiPromptElement"
-        }
-      },
       "duration": {
+        "type": "string",
+        "description": "Video duration in seconds (3-15s).",
+        "title": "Duration",
         "enum": [
           "3",
           "4",
@@ -64,19 +74,13 @@
           "14",
           "15"
         ],
-        "description": "Video duration in seconds (3-15s).",
-        "type": "string",
-        "title": "Duration",
         "default": "5"
       },
-      "shot_type": {
-        "enum": [
-          "customize"
-        ],
-        "description": "The type of multi-shot video generation.",
-        "type": "string",
-        "title": "Shot Type",
-        "default": "customize"
+      "generate_audio": {
+        "type": "boolean",
+        "description": "Whether to generate native audio for the video.",
+        "title": "Generate Audio",
+        "default": false
       }
     },
     "x-fal-order-properties": [
@@ -84,89 +88,54 @@
       "duration",
       "aspect_ratio",
       "generate_audio",
-      "voice_ids",
       "multi_prompt",
       "shot_type"
-    ],
-    "title": "O3StandardTextToVideoInput",
-    "x-renku-constraints": {
-      "fields": {
-        "aspect_ratio": {
-          "enum": {
-            "values": [
-              "16:9",
-              "9:16",
-              "1:1"
-            ],
-            "source": "explicit",
-            "confidence": "high"
-          }
-        },
-        "duration": {
-          "enum": {
-            "values": [
-              "3",
-              "4",
-              "5",
-              "6",
-              "7",
-              "8",
-              "9",
-              "10",
-              "11",
-              "12",
-              "13",
-              "14",
-              "15"
-            ],
-            "source": "explicit",
-            "confidence": "high"
-          }
-        }
-      }
-    }
+    ]
   },
   "output_schema": {
-    "description": "Output for O3 video generation endpoints.",
     "type": "object",
+    "description": "Output for O3 video generation endpoints.",
+    "title": "O3StandardTextToVideoOutput",
+    "required": [
+      "video"
+    ],
     "properties": {
       "video": {
+        "description": "The generated video.",
+        "$ref": "#/File",
         "examples": [
           {
-            "file_size": 13096952,
-            "file_name": "output.mp4",
             "content_type": "video/mp4",
-            "url": "https://v3b.fal.media/files/b/0a8d04e2/idOb9V-Q9ujlggPSKqsfS_output.mp4"
-          }
-        ],
-        "description": "The generated video.",
-        "title": "Video",
-        "allOf": [
-          {
-            "$ref": "#/File"
+            "file_size": 13096952,
+            "url": "https://v3b.fal.media/files/b/0a8d04e2/idOb9V-Q9ujlggPSKqsfS_output.mp4",
+            "file_name": "output.mp4"
           }
         ]
       }
     },
     "x-fal-order-properties": [
       "video"
-    ],
-    "title": "O3StandardTextToVideoOutput",
-    "required": [
-      "video"
     ]
   },
   "KlingV3MultiPromptElement": {
-    "title": "KlingV3MultiPromptElement",
     "type": "object",
+    "title": "KlingV3MultiPromptElement",
+    "required": [
+      "prompt"
+    ],
     "properties": {
       "prompt": {
-        "description": "The prompt for this shot.",
         "type": "string",
+        "description": "The prompt for this shot.",
         "title": "Prompt"
       },
       "duration": {
+        "type": "string",
+        "description": "The duration of this shot in seconds",
+        "title": "Duration",
         "enum": [
+          "1",
+          "2",
           "3",
           "4",
           "5",
@@ -181,70 +150,78 @@
           "14",
           "15"
         ],
-        "description": "The duration of this shot in seconds",
-        "type": "string",
-        "title": "Duration",
         "default": "5"
       }
     },
     "x-fal-order-properties": [
       "prompt",
       "duration"
-    ],
-    "required": [
-      "prompt"
     ]
   },
   "File": {
-    "title": "File",
     "type": "object",
+    "title": "File",
+    "required": [
+      "url"
+    ],
     "properties": {
-      "file_size": {
-        "examples": [
-          4404019
-        ],
-        "description": "The size of the file in bytes.",
-        "type": "integer",
-        "title": "File Size"
-      },
-      "file_name": {
-        "examples": [
-          "z9RV14K95DvU.png"
-        ],
-        "description": "The name of the file. It will be auto-generated if not provided.",
-        "type": "string",
-        "title": "File Name"
-      },
       "content_type": {
+        "description": "The mime type of the file.",
+        "title": "Content Type",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "examples": [
           "image/png"
+        ]
+      },
+      "file_size": {
+        "description": "The size of the file in bytes.",
+        "title": "File Size",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
         ],
-        "description": "The mime type of the file.",
-        "type": "string",
-        "title": "Content Type"
+        "examples": [
+          4404019
+        ]
       },
       "url": {
-        "description": "The URL where the file can be downloaded from.",
         "type": "string",
+        "description": "The URL where the file can be downloaded from.",
         "title": "Url",
         "format": "uri"
       },
-      "file_data": {
-        "format": "binary",
-        "description": "File data",
-        "type": "string",
-        "title": "File Data"
+      "file_name": {
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "title": "File Name",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "z9RV14K95DvU.png"
+        ]
       }
     },
     "x-fal-order-properties": [
       "url",
       "content_type",
       "file_name",
-      "file_size",
-      "file_data"
-    ],
-    "required": [
-      "url"
+      "file_size"
     ]
   },
   "x-renku-viewer": {
@@ -254,75 +231,74 @@
       "component": "object",
       "label": "Input",
       "order": [
+        "shot_type",
         "prompt",
-        "aspect_ratio",
-        "voice_ids",
-        "generate_audio",
         "multi_prompt",
+        "aspect_ratio",
         "duration",
-        "shot_type"
+        "generate_audio"
       ],
       "fields": {
+        "shot_type": {
+          "pointer": "/input_schema/properties/shot_type",
+          "component": "string",
+          "label": "Shot Type"
+        },
         "prompt": {
           "pointer": "/input_schema/properties/prompt",
-          "component": "string",
-          "label": "Prompt"
+          "component": "nullable",
+          "label": "Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/prompt/anyOf/0",
+            "component": "string",
+            "label": "Prompt"
+          }
+        },
+        "multi_prompt": {
+          "pointer": "/input_schema/properties/multi_prompt",
+          "component": "nullable",
+          "label": "Multi Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/multi_prompt/anyOf/0",
+            "component": "array-object-cards",
+            "label": "Multi Prompt",
+            "item": {
+              "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items",
+              "component": "object",
+              "label": "Item",
+              "order": [
+                "prompt",
+                "duration"
+              ],
+              "fields": {
+                "prompt": {
+                  "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items/properties/prompt",
+                  "component": "string",
+                  "label": "Prompt"
+                },
+                "duration": {
+                  "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items/properties/duration",
+                  "component": "string-enum",
+                  "label": "Duration"
+                }
+              }
+            }
+          }
         },
         "aspect_ratio": {
           "pointer": "/input_schema/properties/aspect_ratio",
           "component": "string-enum",
           "label": "Aspect Ratio"
         },
-        "voice_ids": {
-          "pointer": "/input_schema/properties/voice_ids",
-          "component": "array-scalar",
-          "label": "Voice Ids",
-          "item": {
-            "pointer": "/input_schema/properties/voice_ids/items",
-            "component": "string",
-            "label": "Item"
-          }
-        },
-        "generate_audio": {
-          "pointer": "/input_schema/properties/generate_audio",
-          "component": "boolean",
-          "label": "Generate Audio"
-        },
-        "multi_prompt": {
-          "pointer": "/input_schema/properties/multi_prompt",
-          "component": "array-object-cards",
-          "label": "Multi Prompt",
-          "item": {
-            "pointer": "/input_schema/properties/multi_prompt/items",
-            "component": "object",
-            "label": "Item",
-            "order": [
-              "prompt",
-              "duration"
-            ],
-            "fields": {
-              "prompt": {
-                "pointer": "/input_schema/properties/multi_prompt/items/properties/prompt",
-                "component": "string",
-                "label": "Prompt"
-              },
-              "duration": {
-                "pointer": "/input_schema/properties/multi_prompt/items/properties/duration",
-                "component": "string-enum",
-                "label": "Duration"
-              }
-            }
-          }
-        },
         "duration": {
           "pointer": "/input_schema/properties/duration",
           "component": "string-enum",
           "label": "Duration"
         },
-        "shot_type": {
-          "pointer": "/input_schema/properties/shot_type",
-          "component": "string-enum",
-          "label": "Shot Type"
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
         }
       }
     }

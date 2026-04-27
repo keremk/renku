@@ -937,6 +937,31 @@ describe('buildStoryboardProjection', () => {
 
     try {
       const blueprintPath = path.join(tempDir, 'secondary-fallback.yaml');
+      const producerPath = path.join(tempDir, 'secondary-producer.yaml');
+
+      await fs.writeFile(
+        producerPath,
+        [
+          'meta:',
+          '  id: SecondaryProducer',
+          '  name: Secondary Producer',
+          '  kind: producer',
+          '',
+          'inputs:',
+          '  - name: Prompt',
+          '    type: string',
+          '    storyboard: main',
+          '  - name: MultiPrompt',
+          '    type: array',
+          '    storyboard: secondary',
+          '',
+          'outputs:',
+          '  - name: GeneratedVideo',
+          '    type: video',
+          '',
+        ].join('\n')
+      );
+
       await fs.writeFile(
         blueprintPath,
         [
@@ -963,7 +988,7 @@ describe('buildStoryboardProjection', () => {
           '',
           'imports:',
           '  - name: SegmentVideoProducer',
-          '    producer: video/kling-multishot',
+          '    path: ./secondary-producer.yaml',
           '    loop: segment',
           '',
           'connections:',

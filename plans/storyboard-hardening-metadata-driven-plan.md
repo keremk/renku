@@ -59,7 +59,6 @@ Examples already present:
 
 - [catalog/producers/image/text-to-image.yaml](/Users/keremk/Projects/aitinkerbox/renku/catalog/producers/image/text-to-image.yaml)
 - [catalog/producers/audio/text-to-speech.yaml](/Users/keremk/Projects/aitinkerbox/renku/catalog/producers/audio/text-to-speech.yaml)
-- [catalog/producers/video/kling-multishot.yaml](/Users/keremk/Projects/aitinkerbox/renku/catalog/producers/video/kling-multishot.yaml)
 
 Special case already identified:
 
@@ -67,12 +66,7 @@ Special case already identified:
 
 For `motion-transfer`, no input is marked for storyboard. That means storyboard should show the generated media card with no prompt-equivalent companion card.
 
-For `kling-multishot`:
-
-- `Prompt` is `main`
-- `MultiPrompt` is `secondary`
-
-Meaning:
+For producers with both main and secondary storyboard inputs:
 
 - if the `main` storyboard input is bound for a producer instance, use it
 - if the `main` input is not bound, use the `secondary` one
@@ -476,4 +470,3 @@ Here are confirmed answers:
 
 3. Metadata scope:
    `storyboard: main|secondary` intended to apply only to text-like producer inputs. They are already marked in producers accordingly.
-

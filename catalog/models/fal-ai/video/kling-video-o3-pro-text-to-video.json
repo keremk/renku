@@ -1,30 +1,17 @@
 {
   "input_schema": {
     "type": "object",
-    "title": "TextToVideoV3ProRequest",
+    "title": "O3ProTextToVideoInput",
     "properties": {
-      "negative_prompt": {
+      "shot_type": {
         "type": "string",
-        "default": "blur, distort, and low quality",
-        "title": "Negative Prompt",
-        "maxLength": 2500
-      },
-      "generate_audio": {
-        "type": "boolean",
-        "description": "Whether to generate native audio for the video. Supports Chinese and English voice output. Other languages are automatically translated to English. For English speech, use lowercase letters; for acronyms or proper nouns, use uppercase.",
-        "title": "Generate Audio",
-        "default": true
-      },
-      "cfg_scale": {
-        "type": "number",
-        "description": "\n            The CFG (Classifier Free Guidance) scale is a measure of how close you want\n            the model to stick to your prompt.\n        ",
-        "title": "Cfg Scale",
-        "default": 0.5,
-        "maximum": 1,
-        "minimum": 0
+        "description": "The type of multi-shot video generation.",
+        "title": "Shot Type",
+        "default": "customize",
+        "const": "customize"
       },
       "prompt": {
-        "description": "Text prompt for video generation. Either prompt or multi_prompt must be provided, but not both.",
+        "description": "Text prompt for video generation. Required unless multi_prompt is provided.",
         "title": "Prompt",
         "anyOf": [
           {
@@ -36,21 +23,11 @@
           }
         ],
         "examples": [
-          "Close-up of glowing fireflies dancing in a dark forest at twilight. Soft bioluminescent particles float through the air. Shallow depth of field, bokeh lights in background. Magical atmosphere, gentle movement."
+          "A mecha lands on the ground to save the city, and says \"I'm here\", in anime style"
         ]
       },
-      "shot_type": {
-        "type": "string",
-        "description": "The type of multi-shot video generation",
-        "title": "Shot Type",
-        "enum": [
-          "customize",
-          "intelligent"
-        ],
-        "default": "customize"
-      },
       "multi_prompt": {
-        "description": "List of prompts for multi-shot video generation. If provided, overrides the single prompt and divides the video into multiple shots with specified prompts and durations.",
+        "description": "List of prompts for multi-shot video generation.",
         "title": "Multi Prompt",
         "anyOf": [
           {
@@ -69,7 +46,7 @@
       },
       "aspect_ratio": {
         "type": "string",
-        "description": "The aspect ratio of the generated video frame",
+        "description": "Aspect ratio of the generated video.",
         "title": "Aspect Ratio",
         "enum": [
           "16:9",
@@ -80,7 +57,7 @@
       },
       "duration": {
         "type": "string",
-        "description": "The duration of the generated video in seconds",
+        "description": "Video duration in seconds (3-15s).",
         "title": "Duration",
         "enum": [
           "3",
@@ -98,34 +75,39 @@
           "15"
         ],
         "default": "5"
+      },
+      "generate_audio": {
+        "type": "boolean",
+        "description": "Whether to generate native audio for the video.",
+        "title": "Generate Audio",
+        "default": false
       }
     },
     "x-fal-order-properties": [
       "prompt",
       "duration",
-      "multi_prompt",
-      "generate_audio",
-      "shot_type",
       "aspect_ratio",
-      "negative_prompt",
-      "cfg_scale"
+      "generate_audio",
+      "multi_prompt",
+      "shot_type"
     ]
   },
   "output_schema": {
     "type": "object",
-    "title": "TextToVideoV3ProOutput",
+    "description": "Output for O3 video generation endpoints.",
+    "title": "O3ProTextToVideoOutput",
     "required": [
       "video"
     ],
     "properties": {
       "video": {
-        "description": "The generated video",
+        "description": "The generated video.",
         "$ref": "#/File",
         "examples": [
           {
             "content_type": "video/mp4",
-            "file_size": 8062911,
-            "url": "https://storage.googleapis.com/falserverless/example_outputs/kling-v3/pro-t2v/out.mp4",
+            "file_size": 13096952,
+            "url": "https://v3b.fal.media/files/b/0a8d04e2/idOb9V-Q9ujlggPSKqsfS_output.mp4",
             "file_name": "output.mp4"
           }
         ]
@@ -249,30 +231,18 @@
       "component": "object",
       "label": "Input",
       "order": [
-        "negative_prompt",
-        "generate_audio",
-        "cfg_scale",
-        "prompt",
         "shot_type",
+        "prompt",
         "multi_prompt",
         "aspect_ratio",
-        "duration"
+        "duration",
+        "generate_audio"
       ],
       "fields": {
-        "negative_prompt": {
-          "pointer": "/input_schema/properties/negative_prompt",
+        "shot_type": {
+          "pointer": "/input_schema/properties/shot_type",
           "component": "string",
-          "label": "Negative Prompt"
-        },
-        "generate_audio": {
-          "pointer": "/input_schema/properties/generate_audio",
-          "component": "boolean",
-          "label": "Generate Audio"
-        },
-        "cfg_scale": {
-          "pointer": "/input_schema/properties/cfg_scale",
-          "component": "number",
-          "label": "Cfg Scale"
+          "label": "Shot Type"
         },
         "prompt": {
           "pointer": "/input_schema/properties/prompt",
@@ -283,11 +253,6 @@
             "component": "string",
             "label": "Prompt"
           }
-        },
-        "shot_type": {
-          "pointer": "/input_schema/properties/shot_type",
-          "component": "string-enum",
-          "label": "Shot Type"
         },
         "multi_prompt": {
           "pointer": "/input_schema/properties/multi_prompt",
@@ -329,6 +294,11 @@
           "pointer": "/input_schema/properties/duration",
           "component": "string-enum",
           "label": "Duration"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
         }
       }
     }

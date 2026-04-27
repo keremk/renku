@@ -1,0 +1,347 @@
+meta:
+  name: Kling Video Generator
+  description: Generates one Kling motion clip from semantic motion intent, routing to the matching Kling workflow internally.
+  id: KlingVideoGenerator
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Workflow
+    description: Motion workflow type. One of Text, Image, Reference, VideoReference, or VideoEdit.
+    type: string
+    required: true
+  - name: SceneIntent
+    description: Core visible scene, subject, action, and requested transformation.
+    type: string
+    required: true
+  - name: CameraIntent
+    description: Camera movement, shot size, and framing intent.
+    type: string
+    required: true
+  - name: AudioIntent
+    description: Native audio, dialogue, ambience, or source-audio handling intent.
+    type: string
+    required: true
+  - name: EnvironmentAndStyle
+    description: Environment, lighting, rendering style, texture, and mood.
+    type: string
+    required: true
+  - name: ReferenceInstructions
+    description: Explicit explanation of what supplied images, videos, and elements contribute. Use @Image1, @Video1, @Element1 labels only for supplied references.
+    type: string
+    required: false
+  - name: EditInstructions
+    description: Explicit instruction for how the source video should be changed in VideoEdit workflow.
+    type: string
+    required: false
+  - name: ShotBreakdown
+    description: Optional shot-by-shot guidance folded into the final Kling prompt.
+    type: string
+    required: false
+  - name: StartImage
+    description: Starting frame image for Image and Reference workflows.
+    type: image
+    required: false
+  - name: EndImage
+    description: Optional ending frame image for Image and Reference workflows.
+    type: image
+    required: false
+  - name: SourceVideo
+    description: Source video for VideoReference or VideoEdit workflows.
+    type: video
+    required: false
+  - name: ReferenceImages
+    description: Optional style, appearance, subject, or composition reference images. Prompts may refer to them as @Image1, @Image2, and so on.
+    type: array
+    itemType: image
+    required: false
+    fanIn: true
+  - name: ElementFrontalImages
+    description: Grouped frontal images for Kling character/object elements. Group order defines @Element1, @Element2, and so on.
+    type: array
+    itemType: image
+    required: false
+    fanIn: true
+  - name: ElementReferenceImages
+    description: Grouped additional reference images for Kling character/object elements.
+    type: array
+    itemType: image
+    required: false
+    fanIn: true
+  - name: ElementVideos
+    description: Optional grouped video references for Kling elements. Each populated group must contain exactly one video.
+    type: array
+    itemType: video
+    required: false
+    fanIn: true
+  - name: ElementVoiceIds
+    description: Optional Kling voice IDs to bind to video elements. Create these with KlingCreateVoiceProducer and reference the speaking element in the prompt as @Element1, @Element2, and so on.
+    type: array
+    itemType: string
+    required: false
+    fanIn: true
+  - name: UseNativeAudio
+    description: Whether the clip should request native Kling audio where the selected endpoint supports it.
+    type: boolean
+    required: true
+  - name: KeepSourceAudio
+    description: Whether VideoReference or VideoEdit should keep the source video's original audio.
+    type: boolean
+    required: true
+  - name: NegativePrompt
+    description: Things Kling should avoid. Used by V3 endpoints.
+    type: string
+    required: false
+  - name: Duration
+    description: Motion clip duration in seconds.
+    type: integer
+    required: true
+  - name: Resolution
+    description: Output resolution for the motion clip.
+    type: resolution
+    required: true
+
+outputs:
+  - name: GeneratedVideo
+    description: Generated motion clip.
+    type: video
+
+conditions:
+  useText:
+    when: Workflow
+    is: Text
+  useImage:
+    when: Workflow
+    is: Image
+  useReference:
+    when: Workflow
+    is: Reference
+  useVideoReference:
+    when: Workflow
+    is: VideoReference
+  useVideoEdit:
+    when: Workflow
+    is: VideoEdit
+
+imports:
+  - name: TextPromptCompiler
+    path: ./kling-text-prompt-producer/producer.yaml
+    if: useText
+  - name: TextClipProducer
+    path: ./kling-text-clip/producer.yaml
+    if: useText
+  - name: ImagePromptCompiler
+    path: ./kling-image-prompt-producer/producer.yaml
+    if: useImage
+  - name: ImageClipProducer
+    path: ./kling-image-clip/producer.yaml
+    if: useImage
+  - name: ReferencePromptCompiler
+    path: ./kling-reference-prompt-producer/producer.yaml
+    if: useReference
+  - name: ReferenceClipProducer
+    path: ./kling-reference-clip/producer.yaml
+    if: useReference
+  - name: VideoReferencePromptCompiler
+    path: ./kling-video-reference-prompt-producer/producer.yaml
+    if: useVideoReference
+  - name: VideoReferenceClipProducer
+    path: ./kling-video-reference-clip/producer.yaml
+    if: useVideoReference
+  - name: VideoEditPromptCompiler
+    path: ./kling-video-edit-prompt-producer/producer.yaml
+    if: useVideoEdit
+  - name: VideoEditClipProducer
+    path: ./kling-video-edit-clip/producer.yaml
+    if: useVideoEdit
+
+connections:
+  - from: SceneIntent
+    to: TextPromptCompiler.SceneIntent
+  - from: CameraIntent
+    to: TextPromptCompiler.CameraIntent
+  - from: AudioIntent
+    to: TextPromptCompiler.AudioIntent
+  - from: EnvironmentAndStyle
+    to: TextPromptCompiler.EnvironmentAndStyle
+  - from: ShotBreakdown
+    to: TextPromptCompiler.ShotBreakdown
+  - from: UseNativeAudio
+    to: TextPromptCompiler.UseNativeAudio
+  - from: TextPromptCompiler.Prompt
+    to: TextClipProducer.Prompt
+  - from: Duration
+    to: TextClipProducer.Duration
+  - from: Resolution
+    to: TextClipProducer.Resolution
+  - from: UseNativeAudio
+    to: TextClipProducer.GenerateAudio
+  - from: NegativePrompt
+    to: TextClipProducer.NegativePrompt
+
+  - from: SceneIntent
+    to: ImagePromptCompiler.SceneIntent
+  - from: CameraIntent
+    to: ImagePromptCompiler.CameraIntent
+  - from: AudioIntent
+    to: ImagePromptCompiler.AudioIntent
+  - from: EnvironmentAndStyle
+    to: ImagePromptCompiler.EnvironmentAndStyle
+  - from: ReferenceInstructions
+    to: ImagePromptCompiler.ReferenceInstructions
+  - from: ShotBreakdown
+    to: ImagePromptCompiler.ShotBreakdown
+  - from: UseNativeAudio
+    to: ImagePromptCompiler.UseNativeAudio
+  - from: ImagePromptCompiler.Prompt
+    to: ImageClipProducer.Prompt
+  - from: StartImage
+    to: ImageClipProducer.StartImage
+  - from: EndImage
+    to: ImageClipProducer.EndImage
+  - from: ElementFrontalImages
+    to: ImageClipProducer.ElementFrontalImages
+    groupBy: singleton
+  - from: ElementReferenceImages
+    to: ImageClipProducer.ElementReferenceImages
+    groupBy: singleton
+  - from: ElementVideos
+    to: ImageClipProducer.ElementVideos
+    groupBy: singleton
+  - from: ElementVoiceIds
+    to: ImageClipProducer.ElementVoiceIds
+    groupBy: singleton
+  - from: Duration
+    to: ImageClipProducer.Duration
+  - from: Resolution
+    to: ImageClipProducer.Resolution
+  - from: UseNativeAudio
+    to: ImageClipProducer.GenerateAudio
+  - from: NegativePrompt
+    to: ImageClipProducer.NegativePrompt
+
+  - from: SceneIntent
+    to: ReferencePromptCompiler.SceneIntent
+  - from: CameraIntent
+    to: ReferencePromptCompiler.CameraIntent
+  - from: AudioIntent
+    to: ReferencePromptCompiler.AudioIntent
+  - from: EnvironmentAndStyle
+    to: ReferencePromptCompiler.EnvironmentAndStyle
+  - from: ReferenceInstructions
+    to: ReferencePromptCompiler.ReferenceInstructions
+  - from: ShotBreakdown
+    to: ReferencePromptCompiler.ShotBreakdown
+  - from: UseNativeAudio
+    to: ReferencePromptCompiler.UseNativeAudio
+  - from: ReferencePromptCompiler.Prompt
+    to: ReferenceClipProducer.Prompt
+  - from: StartImage
+    to: ReferenceClipProducer.StartImage
+  - from: EndImage
+    to: ReferenceClipProducer.EndImage
+  - from: ReferenceImages
+    to: ReferenceClipProducer.ReferenceImages
+    groupBy: singleton
+  - from: ElementFrontalImages
+    to: ReferenceClipProducer.ElementFrontalImages
+    groupBy: singleton
+  - from: ElementReferenceImages
+    to: ReferenceClipProducer.ElementReferenceImages
+    groupBy: singleton
+  - from: ElementVideos
+    to: ReferenceClipProducer.ElementVideos
+    groupBy: singleton
+  - from: ElementVoiceIds
+    to: ReferenceClipProducer.ElementVoiceIds
+    groupBy: singleton
+  - from: Duration
+    to: ReferenceClipProducer.Duration
+  - from: Resolution
+    to: ReferenceClipProducer.Resolution
+  - from: UseNativeAudio
+    to: ReferenceClipProducer.GenerateAudio
+
+  - from: SceneIntent
+    to: VideoReferencePromptCompiler.SceneIntent
+  - from: CameraIntent
+    to: VideoReferencePromptCompiler.CameraIntent
+  - from: AudioIntent
+    to: VideoReferencePromptCompiler.AudioIntent
+  - from: EnvironmentAndStyle
+    to: VideoReferencePromptCompiler.EnvironmentAndStyle
+  - from: ReferenceInstructions
+    to: VideoReferencePromptCompiler.ReferenceInstructions
+  - from: VideoReferencePromptCompiler.Prompt
+    to: VideoReferenceClipProducer.Prompt
+  - from: SourceVideo
+    to: VideoReferenceClipProducer.SourceVideo
+  - from: ReferenceImages
+    to: VideoReferenceClipProducer.ReferenceImages
+    groupBy: singleton
+  - from: ElementFrontalImages
+    to: VideoReferenceClipProducer.ElementFrontalImages
+    groupBy: singleton
+  - from: ElementReferenceImages
+    to: VideoReferenceClipProducer.ElementReferenceImages
+    groupBy: singleton
+  - from: ElementVideos
+    to: VideoReferenceClipProducer.ElementVideos
+    groupBy: singleton
+  - from: Duration
+    to: VideoReferenceClipProducer.Duration
+  - from: Resolution
+    to: VideoReferenceClipProducer.Resolution
+  - from: KeepSourceAudio
+    to: VideoReferenceClipProducer.KeepAudio
+
+  - from: SceneIntent
+    to: VideoEditPromptCompiler.SceneIntent
+  - from: CameraIntent
+    to: VideoEditPromptCompiler.CameraIntent
+  - from: AudioIntent
+    to: VideoEditPromptCompiler.AudioIntent
+  - from: EnvironmentAndStyle
+    to: VideoEditPromptCompiler.EnvironmentAndStyle
+  - from: ReferenceInstructions
+    to: VideoEditPromptCompiler.ReferenceInstructions
+  - from: EditInstructions
+    to: VideoEditPromptCompiler.EditInstructions
+  - from: VideoEditPromptCompiler.Prompt
+    to: VideoEditClipProducer.Prompt
+  - from: SourceVideo
+    to: VideoEditClipProducer.SourceVideo
+  - from: ReferenceImages
+    to: VideoEditClipProducer.ReferenceImages
+    groupBy: singleton
+  - from: ElementFrontalImages
+    to: VideoEditClipProducer.ElementFrontalImages
+    groupBy: singleton
+  - from: ElementReferenceImages
+    to: VideoEditClipProducer.ElementReferenceImages
+    groupBy: singleton
+  - from: ElementVideos
+    to: VideoEditClipProducer.ElementVideos
+    groupBy: singleton
+  - from: Duration
+    to: VideoEditClipProducer.Duration
+  - from: KeepSourceAudio
+    to: VideoEditClipProducer.KeepAudio
+
+  - from: TextClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useText
+  - from: ImageClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useImage
+  - from: ReferenceClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useReference
+  - from: VideoReferenceClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useVideoReference
+  - from: VideoEditClipProducer.GeneratedVideo
+    to: GeneratedVideo
+    if: useVideoEdit

@@ -1,0 +1,24 @@
+meta:
+  name: Kling Voice Creator
+  description: Upload a clean voice sample and create a Kling voice ID for voice-controlled Kling video generation.
+  id: KlingCreateVoiceProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: VoiceSample
+    description: Clean single-speaker voice sample. fal accepts mp3/wav audio or mp4/mov video, 5-30 seconds.
+    type: audio
+    required: true
+
+outputs:
+  - name: Voice
+    description: JSON response containing voice_id.
+    type: json
+
+mappings:
+  fal-ai:
+    kling-video/create-voice:
+      VoiceSample: voice_url

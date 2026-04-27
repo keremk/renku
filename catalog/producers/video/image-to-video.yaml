@@ -269,10 +269,6 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      Resolution:
-        field: aspect_ratio
-        resolution:
-          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Kling V3 Pro Image-to-Video
@@ -283,10 +279,6 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      Resolution:
-        field: aspect_ratio
-        resolution:
-          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Pixverse V5 Image-to-Video

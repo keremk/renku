@@ -1,0 +1,8 @@
+{
+  "name": "Prompt",
+  "strict": true,
+  "schema": {
+    "type": "string",
+    "description": "Final Kling video edit prompt."
+  }
+}

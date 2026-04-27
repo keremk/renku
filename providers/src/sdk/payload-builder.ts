@@ -360,7 +360,7 @@ function projectFieldValue(args: {
     return;
   }
 
-  if (fieldSchema?.schema?.type === 'array') {
+  if (isArraySchema(fieldSchema?.schema)) {
     const values = collectFanInValues(args.value, args.resolvedInputs);
     if (values.length === 0) {
       return;
@@ -519,11 +519,36 @@ function resolveArrayItemSchema(
 
   const properties = readSchemaProperties(schemaRoot);
   const arraySchema = properties?.[arrayField];
-  const rawItems = arraySchema?.items;
+  const resolvedArraySchema = resolveArraySchema(arraySchema);
+  const rawItems = resolvedArraySchema?.items;
   if (!isRecord(rawItems)) {
     return undefined;
   }
   return resolveSchemaReference(rawItems, schemaRoot) ?? rawItems;
+}
+
+function resolveArraySchema(schema: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(schema)) {
+    return undefined;
+  }
+  if (schema.type === 'array' || isRecord(schema.items)) {
+    return schema;
+  }
+
+  for (const key of ['anyOf', 'oneOf', 'allOf']) {
+    const variants = schema[key];
+    if (!Array.isArray(variants)) {
+      continue;
+    }
+    for (const variant of variants) {
+      const resolved = resolveArraySchema(variant);
+      if (resolved) {
+        return resolved;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function resolveSchemaReference(

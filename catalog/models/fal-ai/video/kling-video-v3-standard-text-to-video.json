@@ -1,29 +1,87 @@
 {
   "input_schema": {
-    "title": "TextToVideoV3StandardRequest",
     "type": "object",
+    "title": "TextToVideoV3StandardRequest",
     "properties": {
-      "prompt": {
-        "examples": [
-          "Cinematic drone shot flying through ancient stone ruins covered in moss and vines at golden hour. Camera starts low, rises through crumbling archways, revealing a vast misty valley beyond. Volumetric light rays pierce through gaps in the stone. Epic scale, photorealistic, 8K quality."
-        ],
-        "description": "Text prompt for video generation. Either prompt or multi_prompt must be provided, but not both.",
+      "negative_prompt": {
         "type": "string",
-        "title": "Prompt",
+        "default": "blur, distort, and low quality",
+        "title": "Negative Prompt",
         "maxLength": 2500
       },
+      "generate_audio": {
+        "type": "boolean",
+        "description": "Whether to generate native audio for the video. Supports Chinese and English voice output. Other languages are automatically translated to English. For English speech, use lowercase letters; for acronyms or proper nouns, use uppercase.",
+        "title": "Generate Audio",
+        "default": true
+      },
+      "cfg_scale": {
+        "type": "number",
+        "description": "\n            The CFG (Classifier Free Guidance) scale is a measure of how close you want\n            the model to stick to your prompt.\n        ",
+        "title": "Cfg Scale",
+        "default": 0.5,
+        "maximum": 1,
+        "minimum": 0
+      },
+      "prompt": {
+        "description": "Text prompt for video generation. Either prompt or multi_prompt must be provided, but not both.",
+        "title": "Prompt",
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2500
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "Cinematic drone shot flying through ancient stone ruins covered in moss and vines at golden hour. Camera starts low, rises through crumbling archways, revealing a vast misty valley beyond. Volumetric light rays pierce through gaps in the stone. Epic scale, photorealistic, 8K quality."
+        ]
+      },
+      "shot_type": {
+        "type": "string",
+        "description": "The type of multi-shot video generation",
+        "title": "Shot Type",
+        "enum": [
+          "customize",
+          "intelligent"
+        ],
+        "default": "customize"
+      },
+      "multi_prompt": {
+        "description": "List of prompts for multi-shot video generation. If provided, overrides the single prompt and divides the video into multiple shots with specified prompts and durations.",
+        "title": "Multi Prompt",
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/KlingV3MultiPromptElement"
+            }
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          null
+        ]
+      },
       "aspect_ratio": {
+        "type": "string",
+        "description": "The aspect ratio of the generated video frame",
+        "title": "Aspect Ratio",
         "enum": [
           "16:9",
           "9:16",
           "1:1"
         ],
-        "description": "The aspect ratio of the generated video frame",
-        "type": "string",
-        "title": "Aspect Ratio",
         "default": "16:9"
       },
       "duration": {
+        "type": "string",
+        "description": "The duration of the generated video in seconds",
+        "title": "Duration",
         "enum": [
           "3",
           "4",
@@ -39,59 +97,7 @@
           "14",
           "15"
         ],
-        "description": "The duration of the generated video in seconds",
-        "type": "string",
-        "title": "Duration",
         "default": "5"
-      },
-      "generate_audio": {
-        "description": "Whether to generate native audio for the video. Supports Chinese and English voice output. Other languages are automatically translated to English. For English speech, use lowercase letters; for acronyms or proper nouns, use uppercase.",
-        "type": "boolean",
-        "title": "Generate Audio",
-        "default": true
-      },
-      "multi_prompt": {
-        "examples": [
-          null
-        ],
-        "description": "List of prompts for multi-shot video generation. If provided, overrides the single prompt and divides the video into multiple shots with specified prompts and durations.",
-        "type": "array",
-        "title": "Multi Prompt",
-        "items": {
-          "$ref": "#/KlingV3MultiPromptElement"
-        }
-      },
-      "voice_ids": {
-        "description": "Optional Voice IDs for video generation. Reference voices in your prompt with <<<voice_1>>> and <<<voice_2>>> (maximum 2 voices per task). Get voice IDs from the kling video create-voice endpoint: https://fal.ai/models/fal-ai/kling-video/create-voice",
-        "type": "array",
-        "title": "Voice Ids",
-        "items": {
-          "type": "string"
-        }
-      },
-      "shot_type": {
-        "enum": [
-          "customize",
-          "intelligent"
-        ],
-        "description": "The type of multi-shot video generation",
-        "type": "string",
-        "title": "Shot Type",
-        "default": "customize"
-      },
-      "negative_prompt": {
-        "title": "Negative Prompt",
-        "type": "string",
-        "maxLength": 2500,
-        "default": "blur, distort, and low quality"
-      },
-      "cfg_scale": {
-        "minimum": 0,
-        "maximum": 1,
-        "type": "number",
-        "title": "Cfg Scale",
-        "description": "\n            The CFG (Classifier Free Guidance) scale is a measure of how close you want\n            the model to stick to your prompt.\n        ",
-        "default": 0.5
       }
     },
     "x-fal-order-properties": [
@@ -99,89 +105,55 @@
       "duration",
       "multi_prompt",
       "generate_audio",
-      "voice_ids",
       "shot_type",
       "aspect_ratio",
       "negative_prompt",
       "cfg_scale"
-    ],
-    "x-renku-constraints": {
-      "fields": {
-        "aspect_ratio": {
-          "enum": {
-            "values": [
-              "16:9",
-              "9:16",
-              "1:1"
-            ],
-            "source": "explicit",
-            "confidence": "high"
-          }
-        },
-        "duration": {
-          "enum": {
-            "values": [
-              "3",
-              "4",
-              "5",
-              "6",
-              "7",
-              "8",
-              "9",
-              "10",
-              "11",
-              "12",
-              "13",
-              "14",
-              "15"
-            ],
-            "source": "explicit",
-            "confidence": "high"
-          }
-        }
-      }
-    }
+    ]
   },
   "output_schema": {
-    "title": "TextToVideoV3StandardOutput",
     "type": "object",
+    "title": "TextToVideoV3StandardOutput",
+    "required": [
+      "video"
+    ],
     "properties": {
       "video": {
+        "description": "The generated video",
+        "$ref": "#/File",
         "examples": [
           {
-            "file_size": 6797486,
-            "file_name": "output.mp4",
             "content_type": "video/mp4",
-            "url": "https://storage.googleapis.com/falserverless/example_outputs/kling-v3/standard-t2v/out.mp4"
-          }
-        ],
-        "description": "The generated video",
-        "title": "Video",
-        "allOf": [
-          {
-            "$ref": "#/File"
+            "file_size": 6797486,
+            "url": "https://storage.googleapis.com/falserverless/example_outputs/kling-v3/standard-t2v/out.mp4",
+            "file_name": "output.mp4"
           }
         ]
       }
     },
     "x-fal-order-properties": [
       "video"
-    ],
-    "required": [
-      "video"
     ]
   },
   "KlingV3MultiPromptElement": {
-    "title": "KlingV3MultiPromptElement",
     "type": "object",
+    "title": "KlingV3MultiPromptElement",
+    "required": [
+      "prompt"
+    ],
     "properties": {
       "prompt": {
-        "description": "The prompt for this shot.",
         "type": "string",
+        "description": "The prompt for this shot.",
         "title": "Prompt"
       },
       "duration": {
+        "type": "string",
+        "description": "The duration of this shot in seconds",
+        "title": "Duration",
         "enum": [
+          "1",
+          "2",
           "3",
           "4",
           "5",
@@ -196,70 +168,78 @@
           "14",
           "15"
         ],
-        "description": "The duration of this shot in seconds",
-        "type": "string",
-        "title": "Duration",
         "default": "5"
       }
     },
     "x-fal-order-properties": [
       "prompt",
       "duration"
-    ],
-    "required": [
-      "prompt"
     ]
   },
   "File": {
-    "title": "File",
     "type": "object",
+    "title": "File",
+    "required": [
+      "url"
+    ],
     "properties": {
-      "file_size": {
-        "examples": [
-          4404019
-        ],
-        "description": "The size of the file in bytes.",
-        "type": "integer",
-        "title": "File Size"
-      },
-      "file_name": {
-        "examples": [
-          "z9RV14K95DvU.png"
-        ],
-        "description": "The name of the file. It will be auto-generated if not provided.",
-        "type": "string",
-        "title": "File Name"
-      },
       "content_type": {
+        "description": "The mime type of the file.",
+        "title": "Content Type",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "examples": [
           "image/png"
+        ]
+      },
+      "file_size": {
+        "description": "The size of the file in bytes.",
+        "title": "File Size",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
         ],
-        "description": "The mime type of the file.",
-        "type": "string",
-        "title": "Content Type"
+        "examples": [
+          4404019
+        ]
       },
       "url": {
-        "description": "The URL where the file can be downloaded from.",
         "type": "string",
+        "description": "The URL where the file can be downloaded from.",
         "title": "Url",
         "format": "uri"
       },
-      "file_data": {
-        "format": "binary",
-        "description": "File data",
-        "type": "string",
-        "title": "File Data"
+      "file_name": {
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "title": "File Name",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "z9RV14K95DvU.png"
+        ]
       }
     },
     "x-fal-order-properties": [
       "url",
       "content_type",
       "file_name",
-      "file_size",
-      "file_data"
-    ],
-    "required": [
-      "url"
+      "file_size"
     ]
   },
   "x-renku-viewer": {
@@ -269,21 +249,76 @@
       "component": "object",
       "label": "Input",
       "order": [
-        "prompt",
-        "aspect_ratio",
-        "duration",
-        "generate_audio",
-        "multi_prompt",
-        "voice_ids",
-        "shot_type",
         "negative_prompt",
-        "cfg_scale"
+        "generate_audio",
+        "cfg_scale",
+        "prompt",
+        "shot_type",
+        "multi_prompt",
+        "aspect_ratio",
+        "duration"
       ],
       "fields": {
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "cfg_scale": {
+          "pointer": "/input_schema/properties/cfg_scale",
+          "component": "number",
+          "label": "Cfg Scale"
+        },
         "prompt": {
           "pointer": "/input_schema/properties/prompt",
-          "component": "string",
-          "label": "Prompt"
+          "component": "nullable",
+          "label": "Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/prompt/anyOf/0",
+            "component": "string",
+            "label": "Prompt"
+          }
+        },
+        "shot_type": {
+          "pointer": "/input_schema/properties/shot_type",
+          "component": "string-enum",
+          "label": "Shot Type"
+        },
+        "multi_prompt": {
+          "pointer": "/input_schema/properties/multi_prompt",
+          "component": "nullable",
+          "label": "Multi Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/multi_prompt/anyOf/0",
+            "component": "array-object-cards",
+            "label": "Multi Prompt",
+            "item": {
+              "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items",
+              "component": "object",
+              "label": "Item",
+              "order": [
+                "prompt",
+                "duration"
+              ],
+              "fields": {
+                "prompt": {
+                  "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items/properties/prompt",
+                  "component": "string",
+                  "label": "Prompt"
+                },
+                "duration": {
+                  "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items/properties/duration",
+                  "component": "string-enum",
+                  "label": "Duration"
+                }
+              }
+            }
+          }
         },
         "aspect_ratio": {
           "pointer": "/input_schema/properties/aspect_ratio",
@@ -294,62 +329,6 @@
           "pointer": "/input_schema/properties/duration",
           "component": "string-enum",
           "label": "Duration"
-        },
-        "generate_audio": {
-          "pointer": "/input_schema/properties/generate_audio",
-          "component": "boolean",
-          "label": "Generate Audio"
-        },
-        "multi_prompt": {
-          "pointer": "/input_schema/properties/multi_prompt",
-          "component": "array-object-cards",
-          "label": "Multi Prompt",
-          "item": {
-            "pointer": "/input_schema/properties/multi_prompt/items",
-            "component": "object",
-            "label": "Item",
-            "order": [
-              "prompt",
-              "duration"
-            ],
-            "fields": {
-              "prompt": {
-                "pointer": "/input_schema/properties/multi_prompt/items/properties/prompt",
-                "component": "string",
-                "label": "Prompt"
-              },
-              "duration": {
-                "pointer": "/input_schema/properties/multi_prompt/items/properties/duration",
-                "component": "string-enum",
-                "label": "Duration"
-              }
-            }
-          }
-        },
-        "voice_ids": {
-          "pointer": "/input_schema/properties/voice_ids",
-          "component": "array-scalar",
-          "label": "Voice Ids",
-          "item": {
-            "pointer": "/input_schema/properties/voice_ids/items",
-            "component": "string",
-            "label": "Item"
-          }
-        },
-        "shot_type": {
-          "pointer": "/input_schema/properties/shot_type",
-          "component": "string-enum",
-          "label": "Shot Type"
-        },
-        "negative_prompt": {
-          "pointer": "/input_schema/properties/negative_prompt",
-          "component": "string",
-          "label": "Negative Prompt"
-        },
-        "cfg_scale": {
-          "pointer": "/input_schema/properties/cfg_scale",
-          "component": "number",
-          "label": "Cfg Scale"
         }
       }
     }

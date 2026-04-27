@@ -1,0 +1,36 @@
+meta:
+  name: Kling Text Prompt Producer
+  description: Converts one semantic scene intent into a Kling text-to-video prompt.
+  id: KlingTextPromptProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./prompts.toml
+  outputSchema: ./output-schema.json
+
+inputs:
+  - name: SceneIntent
+    description: Core visible scene, subject, and action.
+    type: string
+  - name: CameraIntent
+    description: Camera movement and framing intent.
+    type: string
+  - name: AudioIntent
+    description: Sound-design or dialogue intent when native audio is requested.
+    type: string
+  - name: EnvironmentAndStyle
+    description: Environment, lighting, and visual texture.
+    type: string
+  - name: ShotBreakdown
+    description: Optional shot-by-shot guidance to fold into one prompt.
+    type: string
+    required: false
+  - name: UseNativeAudio
+    description: Whether native clip audio is wanted.
+    type: boolean
+
+outputs:
+  - name: Prompt
+    description: Final Kling text-to-video prompt for one clip.
+    type: string

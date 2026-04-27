@@ -429,29 +429,6 @@ This document inventories every producer/model mapping and evaluates how a canon
 | replicate | wan-video/wan2.6-i2v-flash | `Resolution` -> field `resolution` (direct) | `resolution` | catalog/models/replicate/video/wan-video-wan2-6-i2v-flash.json | `resolution`: allOf=$ref:#/components/schemas/resolution | MATCHED | Resolution mapping target fields exist and have compatible top-level schema types. |
 | replicate | xai/grok-imagine-video | `Resolution` -> field `resolution` (direct) | `resolution` | catalog/models/replicate/video/xai-grok-imagine-video.json | `resolution`: type=string, enum=["720p", "480p"] | TYPE_MISMATCH_OBJECT_TO_NONOBJECT | Current mapping passes Resolution object into field(s) whose schema is non-object; requires explicit transform (preset/aspect/width/height/size token). |
 
-### catalog/producers/video/kling-multishot.yaml
-- Declares Resolution input: no
-
-| Provider | Model | Resolution Mapping Rule(s) | Target Field(s) | Schema Path | Relevant Schema Input Field(s) | Status | Notes |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| fal-ai | kling-video/o1/image-to-video | none | - | catalog/models/fal-ai/video/kling-video-o1-image-to-video.json | (no size-related input fields) | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/o1/reference-to-video | none | - | catalog/models/fal-ai/video/kling-video-o1-reference-to-video.json | `aspect_ratio`: type=string, enum=["16:9", "9:16", "1:1"] | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/o1/standard/reference-to-video | none | - | catalog/models/fal-ai/video/kling-video-o1-standard-reference-to-video.json | `aspect_ratio`: type=string, enum=["16:9", "9:16", "1:1"] | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/o3/pro/image-to-video | none | - | catalog/models/fal-ai/video/kling-video-o3-pro-image-to-video.json | (no size-related input fields) | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/o3/pro/reference-to-video | none | - | catalog/models/fal-ai/video/kling-video-o3-pro-reference-to-video.json | `aspect_ratio`: type=string, enum=["16:9", "9:16", "1:1"] | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/o3/pro/video-to-video-reference | none | - | - | schema unavailable (MODEL_NOT_FOUND) | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/o3/standard/image-to-video | none | - | catalog/models/fal-ai/video/kling-video-o3-standard-image-to-video.json | (no size-related input fields) | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/o3/standard/reference-to-video | none | - | catalog/models/fal-ai/video/kling-video-o3-standard-reference-to-video.json | `aspect_ratio`: type=string, enum=["16:9", "9:16", "1:1"] | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/o3/standard/text-to-video | none | - | catalog/models/fal-ai/video/kling-video-o3-standard-text-to-video.json | `aspect_ratio`: type=string, enum=["16:9", "9:16", "1:1"] | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/o3/standard/video-to-video-reference | none | - | - | schema unavailable (MODEL_NOT_FOUND) | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/v3/pro/image-to-video | none | - | catalog/models/fal-ai/video/kling-video-v3-pro-image-to-video.json | `aspect_ratio`: type=string, enum=["16:9", "9:16", "1:1"] | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/v3/pro/text-to-video | none | - | catalog/models/fal-ai/video/kling-video-v3-pro-text-to-video.json | `aspect_ratio`: type=string, enum=["16:9", "9:16", "1:1"] | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/v3/standard/image-to-video | none | - | catalog/models/fal-ai/video/kling-video-v3-standard-image-to-video.json | `aspect_ratio`: type=string, enum=["16:9", "9:16", "1:1"] | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| fal-ai | kling-video/v3/standard/text-to-video | none | - | catalog/models/fal-ai/video/kling-video-v3-standard-text-to-video.json | `aspect_ratio`: type=string, enum=["16:9", "9:16", "1:1"] | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| replicate | kwaivgi/kling-o1 | none | - | catalog/models/replicate/video/kwaivgi-kling-o1.json | `aspect_ratio`: allOf=$ref:#/components/schemas/aspect_ratio | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| replicate | kwaivgi/kling-v3-omni-video | none | - | catalog/models/replicate/video/kwaivgi-kling-v3-omni-video.json | `aspect_ratio`: allOf=$ref:#/components/schemas/aspect_ratio | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-| replicate | kwaivgi/kling-v3-video | none | - | catalog/models/replicate/video/kwaivgi-kling-v3-video.json | `aspect_ratio`: allOf=$ref:#/components/schemas/aspect_ratio | N/A_NO_RESOLUTION_INPUT | Producer does not declare a Resolution input. |
-
 ### catalog/producers/video/motion-transfer.yaml
 - Declares Resolution input: no
 
