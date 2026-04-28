@@ -1809,6 +1809,60 @@ models:
         - resolution: 1080p
           pricePerSecond: 0.077
 
+  # Alibaba Happy Horse Models
+  - name: alibaba/happy-horse/text-to-video
+    subProvider: alibaba
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.14
+        - resolution: 1080p
+          pricePerSecond: 0.28
+  - name: alibaba/happy-horse/image-to-video
+    subProvider: alibaba
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.14
+        - resolution: 1080p
+          pricePerSecond: 0.28
+  - name: alibaba/happy-horse/reference-to-video
+    subProvider: alibaba
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.14
+        - resolution: 1080p
+          pricePerSecond: 0.28
+  - name: alibaba/happy-horse/video-edit
+    subProvider: alibaba
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.28
+        - resolution: 1080p
+          pricePerSecond: 0.56
+
   # Decart Lucy Models
   - name: decart/lucy-14b/image-to-video
     subProvider: decart

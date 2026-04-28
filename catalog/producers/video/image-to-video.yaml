@@ -378,6 +378,16 @@ mappings:
           mode: preset
       GenerateAudio: generate_audio_switch
 
+    # Alibaba Happy Horse Image-to-Video
+    alibaba/happy-horse/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration: duration
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
+
   replicate:
     # Google Veo 3.1 Fast
     google/veo-3.1-fast:

@@ -1,0 +1,311 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "image_url",
+      "prompt",
+      "resolution",
+      "duration",
+      "seed",
+      "enable_safety_checker"
+    ],
+    "title": "HappyHorseImageToVideoInput",
+    "properties": {
+      "prompt": {
+        "title": "Prompt",
+        "examples": [
+          "Bring the scene in the image to life."
+        ],
+        "description": "Optional text prompt guiding the animation. Max 2500 characters.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "enable_safety_checker": {
+        "title": "Enable Safety Checker",
+        "description": "Enable content moderation for input and output.",
+        "default": true,
+        "type": "boolean"
+      },
+      "seed": {
+        "title": "Seed",
+        "description": "Random seed for reproducibility (0-2147483647).",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "image_url": {
+        "title": "Image Url",
+        "examples": [
+          "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250925/wpimhv/rap.png"
+        ],
+        "description": "URL of the first frame image. Formats: JPEG, JPG, PNG, BMP, WEBP. Dimensions must be at least 300px. Aspect ratio must be between 1:2.5 and 2.5:1. Max 10 MB.",
+        "type": "string",
+        "format": "uri"
+      },
+      "resolution": {
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution",
+        "description": "Output video resolution tier.",
+        "default": "1080p",
+        "type": "string"
+      },
+      "duration": {
+        "enum": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "examples": [
+          5,
+          10,
+          15
+        ],
+        "description": "Output video duration in seconds (3-15).",
+        "default": 5,
+        "type": "integer",
+        "title": "Duration"
+      }
+    },
+    "required": [
+      "image_url"
+    ],
+    "description": "Input for Happy Horse image-to-video generation (first frame only).",
+    "type": "object"
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video",
+      "seed"
+    ],
+    "title": "HappyHorseOutput",
+    "properties": {
+      "video": {
+        "$ref": "#/VideoFile",
+        "description": "The generated video file."
+      },
+      "seed": {
+        "title": "Seed",
+        "description": "The seed used for generation.",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "video",
+      "seed"
+    ],
+    "description": "Output for Happy Horse video generation.",
+    "type": "object"
+  },
+  "VideoFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "title": "VideoFile",
+    "properties": {
+      "fps": {
+        "title": "Fps",
+        "description": "The FPS of the video",
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "width": {
+        "title": "Width",
+        "description": "The width of the video",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "num_frames": {
+        "title": "Num Frames",
+        "description": "The number of frames in the video",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "content_type": {
+        "title": "Content Type",
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "file_size": {
+        "title": "File Size",
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "file_name": {
+        "title": "File Name",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "height": {
+        "title": "Height",
+        "description": "The height of the video",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "duration": {
+        "title": "Duration",
+        "description": "The duration of the video",
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "url": {
+        "title": "Url",
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "required": [
+      "url"
+    ],
+    "type": "object"
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "enable_safety_checker",
+        "seed",
+        "image_url",
+        "resolution",
+        "duration"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "nullable",
+          "label": "Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/prompt/anyOf/0",
+            "component": "string",
+            "label": "Prompt"
+          }
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "file-uri",
+          "label": "Image Url"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        }
+      }
+    }
+  }
+}

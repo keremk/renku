@@ -185,6 +185,18 @@ mappings:
           presetField: resolution
       GenerateAudio: generate_audio
 
+    # Alibaba Happy Horse Reference-to-Video
+    alibaba/happy-horse/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+
   replicate:
     # ByteDance Seedance 1 Lite (has reference_images for character/environment consistency)
     bytedance/seedance-1-lite:

@@ -780,3 +780,15 @@ models:
       function: costByVideoDuration
       inputs: [duration]
       pricePerSecond: 0.07
+  - name: alibaba/happyhorse-1.0
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.14
+        - resolution: 1080p
+          pricePerSecond: 0.28

@@ -303,6 +303,17 @@ mappings:
           presetField: resolution
       GenerateAudio: generate_audio_switch
 
+    # Alibaba Happy Horse Text-to-Video
+    alibaba/happy-horse/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+
   replicate:
     # ByteDance Seedance 1.5 Pro
     bytedance/seedance-1.5-pro:

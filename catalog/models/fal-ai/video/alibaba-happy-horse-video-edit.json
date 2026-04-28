@@ -1,0 +1,322 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "video_url",
+      "prompt",
+      "reference_image_urls",
+      "resolution",
+      "audio_setting",
+      "seed",
+      "enable_safety_checker"
+    ],
+    "title": "HappyHorseVideoEditInput",
+    "properties": {
+      "prompt": {
+        "title": "Prompt",
+        "examples": [
+          "Recolor the sky to a deep purple sunset."
+        ],
+        "description": "Text prompt describing the desired edit. Reference any supplied reference images using @Image1, @Image2, ... up to @Image5. Max 2500 characters.",
+        "type": "string",
+        "minLength": 1
+      },
+      "resolution": {
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution",
+        "description": "Output video resolution tier.",
+        "default": "1080p",
+        "type": "string"
+      },
+      "enable_safety_checker": {
+        "title": "Enable Safety Checker",
+        "description": "Enable content moderation for input and output.",
+        "default": true,
+        "type": "boolean"
+      },
+      "seed": {
+        "title": "Seed",
+        "description": "Random seed for reproducibility (0-2147483647).",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "audio_setting": {
+        "enum": [
+          "auto",
+          "origin"
+        ],
+        "title": "Audio Setting",
+        "description": "Audio handling. 'auto': model decides whether to regenerate audio. 'origin': preserve the original audio from the input video.",
+        "default": "auto",
+        "type": "string"
+      },
+      "reference_image_urls": {
+        "title": "Reference Image Urls",
+        "description": "Optional reference images used to guide the edit (up to 5). Formats: JPEG, JPG, PNG, WEBP. Dimensions must be at least 300px. Aspect ratio between 1:2.5 and 2.5:1. Max 10 MB each.",
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "_fal_ui_field": "image",
+              "type": "string",
+              "ui": {
+                "field": "image"
+              },
+              "format": "uri"
+            }
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "video_url": {
+        "title": "Video Url",
+        "examples": [
+          "https://v3b.fal.media/files/b/0a8675cf/bCu9FiFXSjsSnIwOmjUOY_BVs2IFR3.mp4"
+        ],
+        "description": "URL of the source video to edit. Formats: MP4, MOV (H.264 recommended). Duration: 3-60 s. Longer side ≤ 2160 px, shorter side ≥ 320 px. Aspect ratio between 1:2.5 and 2.5:1. Frame rate > 8 fps. Max 100 MB. The output video preserves the source aspect ratio. Output duration matches the input video, capped at 15 s (longer inputs are truncated to the first 15 s).",
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "required": [
+      "video_url",
+      "prompt"
+    ],
+    "description": "Input for Happy Horse video-editing (source video + edit prompt).",
+    "type": "object"
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video",
+      "seed"
+    ],
+    "title": "HappyHorseOutput",
+    "properties": {
+      "video": {
+        "$ref": "#/VideoFile",
+        "description": "The generated video file."
+      },
+      "seed": {
+        "title": "Seed",
+        "description": "The seed used for generation.",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "video",
+      "seed"
+    ],
+    "description": "Output for Happy Horse video generation.",
+    "type": "object"
+  },
+  "VideoFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "title": "VideoFile",
+    "properties": {
+      "fps": {
+        "title": "Fps",
+        "description": "The FPS of the video",
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "width": {
+        "title": "Width",
+        "description": "The width of the video",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "num_frames": {
+        "title": "Num Frames",
+        "description": "The number of frames in the video",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "content_type": {
+        "title": "Content Type",
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "file_size": {
+        "title": "File Size",
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "file_name": {
+        "title": "File Name",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "height": {
+        "title": "Height",
+        "description": "The height of the video",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "duration": {
+        "title": "Duration",
+        "description": "The duration of the video",
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "url": {
+        "title": "Url",
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "required": [
+      "url"
+    ],
+    "type": "object"
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "resolution",
+        "enable_safety_checker",
+        "seed",
+        "audio_setting",
+        "reference_image_urls",
+        "video_url"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        },
+        "audio_setting": {
+          "pointer": "/input_schema/properties/audio_setting",
+          "component": "string-enum",
+          "label": "Audio Setting"
+        },
+        "reference_image_urls": {
+          "pointer": "/input_schema/properties/reference_image_urls",
+          "component": "nullable",
+          "label": "Reference Image Urls",
+          "value": {
+            "pointer": "/input_schema/properties/reference_image_urls/anyOf/0",
+            "component": "array-file-uri",
+            "label": "Reference Image Urls",
+            "item": {
+              "pointer": "/input_schema/properties/reference_image_urls/anyOf/0/items",
+              "component": "file-uri",
+              "label": "Item"
+            }
+          }
+        },
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "file-uri",
+          "label": "Video Url"
+        }
+      }
+    }
+  }
+}

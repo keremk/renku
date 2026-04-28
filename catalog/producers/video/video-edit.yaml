@@ -92,6 +92,15 @@ mappings:
           aspectRatioField: aspect_ratio
           presetField: resolution
 
+    # Alibaba Happy Horse Video-Edit
+    alibaba/happy-horse/video-edit:
+      Prompt: prompt
+      SourceVideo: video_url
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
+
   replicate:
     # XAI Grok Imagine Video (video editing mode)
     xai/grok-imagine-video:
