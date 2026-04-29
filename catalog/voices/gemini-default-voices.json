@@ -1,0 +1,212 @@
+[
+  {
+    "name": "Achernar",
+    "tagline": "Soft,Gentle,Soothing",
+    "voice_id": "Achernar",
+    "gender": "Female",
+    "description": "Soft, gentle, and soothing with a calm, delicate quality. Ideal for meditation, ASMR, and intimate narration where a tender touch creates warmth and closeness."
+  },
+  {
+    "name": "Achird",
+    "tagline": "Friendly,Warm,Approachable",
+    "voice_id": "Achird",
+    "gender": "Male",
+    "description": "Warm, personable, and approachable with a natural conversational tone. Great for educational content, tutorials, and casual explainers where friendliness builds instant trust."
+  },
+  {
+    "name": "Algenib",
+    "tagline": "Gravelly,Textured,Dramatic",
+    "voice_id": "Algenib",
+    "gender": "Male",
+    "description": "Deep, gravelly, and textured with a rugged, cinematic quality. Perfect for dramatic narration, trailers, and content needing gravitas, edge, and a compelling masculine presence."
+  },
+  {
+    "name": "Algieba",
+    "tagline": "Smooth,Polished,Confident",
+    "voice_id": "Algieba",
+    "gender": "Male",
+    "description": "Smooth, polished, and fluid with confident, unhurried delivery. Excellent for corporate narration, audiobooks, and professional presentations that need an authoritative yet accessible tone."
+  },
+  {
+    "name": "Alnilam",
+    "tagline": "Firm,Clear,Decisive",
+    "voice_id": "Alnilam",
+    "gender": "Male",
+    "description": "Clear, authoritative, and firm with a decisive and measured delivery. Ideal for news, announcements, and content requiring strong, confident authority."
+  },
+  {
+    "name": "Aoede",
+    "tagline": "Breezy,Natural,Flowing",
+    "voice_id": "Aoede",
+    "gender": "Female",
+    "description": "Light, breezy, and natural with a freely flowing quality. Excellent for lifestyle content, travel storytelling, and upbeat narration where ease and warmth feel effortless."
+  },
+  {
+    "name": "Autonoe",
+    "tagline": "Bright,Energetic,Expressive",
+    "voice_id": "Autonoe",
+    "gender": "Female",
+    "description": "Bright, energetic, and expressive with clear, vibrant tone. Perfect for educational content, ads, and any narration needing enthusiasm, clarity, and positive momentum."
+  },
+  {
+    "name": "Callirrhoe",
+    "tagline": "Easy-going,Relaxed,Casual",
+    "voice_id": "Callirrhoe",
+    "gender": "Female",
+    "description": "Relaxed, easy-going, and natural with a casual and comfortable feel. Great for lifestyle content, friendly explainers, and storytelling where an unforced, conversational tone matters."
+  },
+  {
+    "name": "Charon",
+    "tagline": "Informative,Professional,Authoritative",
+    "voice_id": "Charon",
+    "gender": "Male",
+    "description": "Professional, informative, and clear with authoritative composure. Excellent for documentaries, factual explainers, and narration where credibility and clarity are paramount."
+  },
+  {
+    "name": "Despina",
+    "tagline": "Smooth,Refined,Elegant",
+    "voice_id": "Despina",
+    "gender": "Female",
+    "description": "Smooth, refined, and elegantly polished with a poised and graceful delivery. Ideal for luxury brand narration, audiobooks, and sophisticated content requiring class and poise."
+  },
+  {
+    "name": "Enceladus",
+    "tagline": "Breathy,Intimate,Contemplative",
+    "voice_id": "Enceladus",
+    "gender": "Male",
+    "description": "Breathy, intimate, and softly contemplative. Great for poetry, emotional storytelling, and personal narration where vulnerability and heartfelt authenticity resonate most."
+  },
+  {
+    "name": "Erinome",
+    "tagline": "Clear,Precise,Articulate",
+    "voice_id": "Erinome",
+    "gender": "Female",
+    "description": "Clear, precise, and sharply articulate with clean, composed delivery. Perfect for technical explainers, instructional content, and professional narration demanding crisp accuracy."
+  },
+  {
+    "name": "Fenrir",
+    "tagline": "Excitable,Energetic,Dynamic",
+    "voice_id": "Fenrir",
+    "gender": "Male",
+    "description": "Energetic, excitable, and dynamic with enthusiastic and high-spirited delivery. Ideal for sports commentary, gaming content, and high-energy presentations that need contagious excitement."
+  },
+  {
+    "name": "Gacrux",
+    "tagline": "Mature,Composed,Authoritative",
+    "voice_id": "Gacrux",
+    "gender": "Female",
+    "description": "Mature, composed, and seasoned with a commanding and authoritative presence. Excellent for serious documentaries, historical narration, and content where depth and gravitas matter."
+  },
+  {
+    "name": "Iapetus",
+    "tagline": "Clear,Measured,Professional",
+    "voice_id": "Iapetus",
+    "gender": "Male",
+    "description": "Crisp, clear, and measured with articulate and professional delivery. Great for educational content, news narration, and clean professional explainers requiring focused clarity."
+  },
+  {
+    "name": "Kore",
+    "tagline": "Firm,Strong,Confident",
+    "voice_id": "Kore",
+    "gender": "Female",
+    "description": "Strong, firm, and confident with a decisive and assured quality. Ideal for leadership content, corporate narration, and authoritative storytelling where conviction and clarity lead."
+  },
+  {
+    "name": "Laomedeia",
+    "tagline": "Upbeat,Cheerful,Lively",
+    "voice_id": "Laomedeia",
+    "gender": "Female",
+    "description": "Upbeat, cheerful, and lively with a positive, motivating energy. Perfect for marketing, wellness content, and motivational narration where brightness and optimism inspire action."
+  },
+  {
+    "name": "Leda",
+    "tagline": "Youthful,Fresh,Vibrant",
+    "voice_id": "Leda",
+    "gender": "Female",
+    "description": "Fresh, youthful, and vibrant with an engaging, contemporary quality. Great for youth-oriented content, social media narration, and modern storytelling that feels alive and current."
+  },
+  {
+    "name": "Orus",
+    "tagline": "Firm,Steady,Reliable",
+    "voice_id": "Orus",
+    "gender": "Male",
+    "description": "Steady, firm, and grounded with a reliable and measured delivery. Ideal for corporate content, educational narration, and authoritative explainers needing calm conviction."
+  },
+  {
+    "name": "Puck",
+    "tagline": "Upbeat,Playful,Charismatic",
+    "voice_id": "Puck",
+    "gender": "Male",
+    "description": "Lively, upbeat, and playfully charismatic with engaging, spirited delivery. Perfect for entertainment, podcast hosting, and social content where personality and energy captivate listeners."
+  },
+  {
+    "name": "Pulcherrima",
+    "tagline": "Forward,Bold,Direct",
+    "voice_id": "Pulcherrima",
+    "gender": "Female",
+    "description": "Bold, forward, and direct with confident, assertive delivery. Excellent for promotional content, calls-to-action, and narration that needs to command attention and drive impact."
+  },
+  {
+    "name": "Rasalgethi",
+    "tagline": "Informative,Knowledgeable,Clear",
+    "voice_id": "Rasalgethi",
+    "gender": "Male",
+    "description": "Knowledgeable, informative, and clear with an educational and credible tone. Great for documentaries, science communication, and in-depth explainers requiring expertise and trustworthiness."
+  },
+  {
+    "name": "Sadachbia",
+    "tagline": "Lively,Dynamic,Engaging",
+    "voice_id": "Sadachbia",
+    "gender": "Male",
+    "description": "Dynamic, lively, and engaging with spirited and expressive delivery. Ideal for entertainment, podcast hosting, and storytelling where energy and personality keep audiences hooked."
+  },
+  {
+    "name": "Sadaltager",
+    "tagline": "Knowledgeable,Thoughtful,Measured",
+    "voice_id": "Sadaltager",
+    "gender": "Male",
+    "description": "Thoughtful, knowledgeable, and measured with credible, deliberate delivery. Perfect for educational content, expert commentary, and narration where depth and intellectual authority matter."
+  },
+  {
+    "name": "Schedar",
+    "tagline": "Even,Balanced,Neutral",
+    "voice_id": "Schedar",
+    "gender": "Male",
+    "description": "Even-tempered, balanced, and neutral with steady, unbiased delivery. Excellent for news, corporate announcements, and professional narration requiring objectivity and consistency."
+  },
+  {
+    "name": "Sulafat",
+    "tagline": "Warm,Inviting,Comforting",
+    "voice_id": "Sulafat",
+    "gender": "Female",
+    "description": "Warm, inviting, and comforting with a nurturing and heartfelt quality. Ideal for wellness content, guided meditation, and emotional storytelling where genuine warmth creates connection."
+  },
+  {
+    "name": "Umbriel",
+    "tagline": "Easy-going,Relaxed,Friendly",
+    "voice_id": "Umbriel",
+    "gender": "Male",
+    "description": "Relaxed, easy-going, and friendly with a casual and approachable tone. Great for lifestyle content, casual podcasts, and laid-back narration where naturalness and comfort prevail."
+  },
+  {
+    "name": "Vindemiatrix",
+    "tagline": "Gentle,Refined,Graceful",
+    "voice_id": "Vindemiatrix",
+    "gender": "Female",
+    "description": "Gentle, refined, and graceful with a soft and sensitively elegant delivery. Perfect for literary narration, poetry readings, and content where quiet sophistication and care shine through."
+  },
+  {
+    "name": "Zephyr",
+    "tagline": "Bright,Clear,Cheerful",
+    "voice_id": "Zephyr",
+    "gender": "Female",
+    "description": "Bright, clear, and cheerfully expressive with an optimistic and open quality. Excellent for educational content, brand narration, and upbeat storytelling that needs warmth and energy."
+  },
+  {
+    "name": "Zubenelgenubi",
+    "tagline": "Casual,Conversational,Approachable",
+    "voice_id": "Zubenelgenubi",
+    "gender": "Male",
+    "description": "Casual, conversational, and approachable with a relaxed and down-to-earth style. Ideal for podcasts, casual explainers, and friendly brand content where authenticity and informality connect."
+  }
+]

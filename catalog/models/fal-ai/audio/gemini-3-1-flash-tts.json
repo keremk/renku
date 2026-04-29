@@ -1,0 +1,496 @@
+{
+  "input_schema": {
+    "title": "Gemini31FlashTTSInput",
+    "x-fal-order-properties": [
+      "prompt",
+      "style_instructions",
+      "voice",
+      "language_code",
+      "speakers",
+      "temperature",
+      "output_format"
+    ],
+    "properties": {
+      "output_format": {
+        "title": "Output Format",
+        "type": "string",
+        "enum": [
+          "wav",
+          "mp3",
+          "ogg_opus"
+        ],
+        "description": "Audio output format. mp3: compressed, small file size (recommended). wav: uncompressed PCM wrapped in WAV (24 kHz, 16-bit mono). ogg_opus: Ogg container with Opus codec, good quality-to-size ratio.",
+        "default": "mp3"
+      },
+      "language_code": {
+        "title": "Language Code",
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "Arabic (Egypt)",
+              "Bangla (Bangladesh)",
+              "Dutch (Netherlands)",
+              "English (India)",
+              "English (US)",
+              "French (France)",
+              "German (Germany)",
+              "Hindi (India)",
+              "Indonesian (Indonesia)",
+              "Italian (Italy)",
+              "Japanese (Japan)",
+              "Korean (South Korea)",
+              "Marathi (India)",
+              "Polish (Poland)",
+              "Portuguese (Brazil)",
+              "Romanian (Romania)",
+              "Russian (Russia)",
+              "Spanish (Spain)",
+              "Tamil (India)",
+              "Telugu (India)",
+              "Thai (Thailand)",
+              "Turkish (Turkey)",
+              "Ukrainian (Ukraine)",
+              "Vietnamese (Vietnam)",
+              "Afrikaans (South Africa)",
+              "Albanian (Albania)",
+              "Amharic (Ethiopia)",
+              "Arabic (World)",
+              "Armenian (Armenia)",
+              "Azerbaijani (Azerbaijan)",
+              "Basque (Spain)",
+              "Belarusian (Belarus)",
+              "Bulgarian (Bulgaria)",
+              "Burmese (Myanmar)",
+              "Catalan (Spain)",
+              "Cebuano (Philippines)",
+              "Chinese Mandarin (China)",
+              "Chinese Mandarin (Taiwan)",
+              "Croatian (Croatia)",
+              "Czech (Czech Republic)",
+              "Danish (Denmark)",
+              "English (Australia)",
+              "English (UK)",
+              "Estonian (Estonia)",
+              "Filipino (Philippines)",
+              "Finnish (Finland)",
+              "French (Canada)",
+              "Galician (Spain)",
+              "Georgian (Georgia)",
+              "Greek (Greece)",
+              "Gujarati (India)",
+              "Haitian Creole (Haiti)",
+              "Hebrew (Israel)",
+              "Hungarian (Hungary)",
+              "Icelandic (Iceland)",
+              "Javanese (Java)",
+              "Kannada (India)",
+              "Konkani (India)",
+              "Lao (Laos)",
+              "Latin (Vatican City)",
+              "Latvian (Latvia)",
+              "Lithuanian (Lithuania)",
+              "Luxembourgish (Luxembourg)",
+              "Macedonian (North Macedonia)",
+              "Maithili (India)",
+              "Malagasy (Madagascar)",
+              "Malay (Malaysia)",
+              "Malayalam (India)",
+              "Mongolian (Mongolia)",
+              "Nepali (Nepal)",
+              "Norwegian Bokmal (Norway)",
+              "Norwegian Nynorsk (Norway)",
+              "Odia (India)",
+              "Pashto (Afghanistan)",
+              "Persian (Iran)",
+              "Portuguese (Portugal)",
+              "Punjabi (India)",
+              "Serbian (Serbia)",
+              "Sindhi (India)",
+              "Sinhala (Sri Lanka)",
+              "Slovak (Slovakia)",
+              "Slovenian (Slovenia)",
+              "Spanish (Latin America)",
+              "Spanish (Mexico)",
+              "Swahili (Kenya)",
+              "Swedish (Sweden)",
+              "Urdu (Pakistan)"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "English (US)",
+          "French (France)",
+          "Japanese (Japan)"
+        ],
+        "description": "Language for multilingual synthesis. When set, steers the model to speak in the specified language. If not set, the model auto-detects the language from the text."
+      },
+      "style_instructions": {
+        "title": "Style Instructions",
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 4000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "Say the following in a warm, conversational tone",
+          "Read this as a dramatic newscast with gravitas",
+          "Speak with a British accent, cheerfully and energetically"
+        ],
+        "description": "Optional style and delivery instructions prepended to the prompt. Controls expressiveness, accent, pace, tone, and emotional expression using natural language. Use this to separate style control from the text content. Examples: 'Speak warmly and slowly', 'Read this as a dramatic newscast', 'Use a British accent with a cheerful tone', 'Whisper mysteriously'."
+      },
+      "temperature": {
+        "title": "Temperature",
+        "type": "number",
+        "minimum": 0,
+        "description": "Controls the randomness of the speech output. Higher values produce more creative and varied delivery, while lower values make the output more predictable and focused.",
+        "maximum": 2,
+        "default": 1
+      },
+      "prompt": {
+        "title": "Prompt",
+        "type": "string",
+        "maxLength": 50000,
+        "description": "The text to convert to speech. Gemini 3.1 Flash TTS supports natural-language prompting for style, pace, accent, and emotional expression — include delivery instructions inline with the text (e.g. 'Say cheerfully: Have a wonderful day!'). Supports expressive audio tags like [sigh], [laughing], [whispering], [short pause] for fine-grained control over delivery. For multi-speaker synthesis, prefix lines with speaker aliases defined in the speakers field (e.g. 'Alice: Hello!\\nBob: Hi!').",
+        "minLength": 1,
+        "examples": [
+          "I can't believe it worked! [laughing] After all those hours of debugging [sigh] it was just a missing semicolon."
+        ]
+      },
+      "speakers": {
+        "title": "Speakers",
+        "anyOf": [
+          {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "$ref": "#/SpeakerConfig"
+            },
+            "minItems": 2
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          [
+            {
+              "speaker_id": "Host",
+              "voice": "Charon"
+            },
+            {
+              "speaker_id": "DrChen",
+              "voice": "Kore"
+            }
+          ]
+        ],
+        "description": "Multi-speaker voice configuration. When set, enables multi-speaker synthesis where different parts of the text are spoken by different voices. Each speaker needs a voice and a speaker_id (alias) that matches prefixes in the prompt."
+      },
+      "voice": {
+        "title": "Voice",
+        "type": "string",
+        "enum": [
+          "Achernar",
+          "Achird",
+          "Algenib",
+          "Algieba",
+          "Alnilam",
+          "Aoede",
+          "Autonoe",
+          "Callirrhoe",
+          "Charon",
+          "Despina",
+          "Enceladus",
+          "Erinome",
+          "Fenrir",
+          "Gacrux",
+          "Iapetus",
+          "Kore",
+          "Laomedeia",
+          "Leda",
+          "Orus",
+          "Pulcherrima",
+          "Puck",
+          "Rasalgethi",
+          "Sadachbia",
+          "Sadaltager",
+          "Schedar",
+          "Sulafat",
+          "Umbriel",
+          "Vindemiatrix",
+          "Zephyr",
+          "Zubenelgenubi"
+        ],
+        "x-voice-id": true,
+        "x-voices-file": "voices/gemini-default-voices.json",
+        "description": "Voice preset for single-speaker synthesis. 30 distinct voices are available. Ignored when speakers is set. Popular choices: Kore (strong, firm female), Puck (upbeat, lively male), Charon (calm, professional male), Zephyr (bright, clear female), Aoede (warm, melodic female).",
+        "default": "Kore"
+      }
+    },
+    "type": "object",
+    "description": "Input for Gemini 3.1 Flash TTS preview speech generation.",
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "title": "GeminiTTSOutput",
+    "x-fal-order-properties": [
+      "audio"
+    ],
+    "properties": {
+      "audio": {
+        "$ref": "#/File",
+        "description": "The generated audio file.",
+        "examples": [
+          {
+            "url": "https://v3b.fal.media/files/b/0a935d4f/Ez4NpcnFTuGsu2FHDaJTR_gemini_tts_output.mp3"
+          }
+        ]
+      }
+    },
+    "type": "object",
+    "description": "Output for Gemini text-to-speech generation.",
+    "required": [
+      "audio"
+    ]
+  },
+  "SpeakerConfig": {
+    "title": "SpeakerConfig",
+    "x-fal-order-properties": [
+      "voice",
+      "speaker_id"
+    ],
+    "properties": {
+      "speaker_id": {
+        "title": "Speaker Id",
+        "type": "string",
+        "examples": [
+          "Speaker1",
+          "Alice",
+          "Narrator"
+        ],
+        "description": "Alias used to identify this speaker in the prompt. Use this alias as a prefix in the prompt field, e.g. 'Alice: Hello! Bob: Hi there!'. Must be alphanumeric with no whitespace.",
+        "pattern": "^\\w+$"
+      },
+      "voice": {
+        "title": "Voice",
+        "type": "string",
+        "enum": [
+          "Achernar",
+          "Achird",
+          "Algenib",
+          "Algieba",
+          "Alnilam",
+          "Aoede",
+          "Autonoe",
+          "Callirrhoe",
+          "Charon",
+          "Despina",
+          "Enceladus",
+          "Erinome",
+          "Fenrir",
+          "Gacrux",
+          "Iapetus",
+          "Kore",
+          "Laomedeia",
+          "Leda",
+          "Orus",
+          "Pulcherrima",
+          "Puck",
+          "Rasalgethi",
+          "Sadachbia",
+          "Sadaltager",
+          "Schedar",
+          "Sulafat",
+          "Umbriel",
+          "Vindemiatrix",
+          "Zephyr",
+          "Zubenelgenubi"
+        ],
+        "x-voice-id": true,
+        "x-voices-file": "voices/gemini-default-voices.json",
+        "description": "Voice preset for this speaker."
+      }
+    },
+    "type": "object",
+    "description": "Voice configuration for a single speaker in multi-speaker synthesis.",
+    "required": [
+      "voice",
+      "speaker_id"
+    ]
+  },
+  "File": {
+    "title": "File",
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size"
+    ],
+    "properties": {
+      "file_name": {
+        "title": "File Name",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "file_size": {
+        "title": "File Size",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes."
+      },
+      "content_type": {
+        "title": "Content Type",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      }
+    },
+    "type": "object",
+    "required": [
+      "url"
+    ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "output_format",
+        "language_code",
+        "style_instructions",
+        "temperature",
+        "prompt",
+        "speakers",
+        "voice"
+      ],
+      "fields": {
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "language_code": {
+          "pointer": "/input_schema/properties/language_code",
+          "component": "nullable",
+          "label": "Language Code",
+          "value": {
+            "pointer": "/input_schema/properties/language_code/anyOf/0",
+            "component": "string-enum",
+            "label": "Language Code"
+          }
+        },
+        "style_instructions": {
+          "pointer": "/input_schema/properties/style_instructions",
+          "component": "nullable",
+          "label": "Style Instructions",
+          "value": {
+            "pointer": "/input_schema/properties/style_instructions/anyOf/0",
+            "component": "string",
+            "label": "Style Instructions"
+          }
+        },
+        "temperature": {
+          "pointer": "/input_schema/properties/temperature",
+          "component": "number",
+          "label": "Temperature"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "speakers": {
+          "pointer": "/input_schema/properties/speakers",
+          "component": "nullable",
+          "label": "Speakers",
+          "value": {
+            "pointer": "/input_schema/properties/speakers/anyOf/0",
+            "component": "array-object-cards",
+            "label": "Speakers",
+            "item": {
+              "pointer": "/input_schema/properties/speakers/anyOf/0/items",
+              "component": "object",
+              "label": "Item",
+              "order": [
+                "speaker_id",
+                "voice"
+              ],
+              "fields": {
+                "speaker_id": {
+                  "pointer": "/input_schema/properties/speakers/anyOf/0/items/properties/speaker_id",
+                  "component": "string",
+                  "label": "Speaker Id"
+                },
+                "voice": {
+                  "pointer": "/input_schema/properties/speakers/anyOf/0/items/properties/voice",
+                  "component": "string",
+                  "label": "Voice",
+                  "custom": "voice-id-selector",
+                  "custom_config": {
+                    "allow_custom": true,
+                    "options_file": "voices/gemini-default-voices.json"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "voice": {
+          "pointer": "/input_schema/properties/voice",
+          "component": "string",
+          "label": "Voice",
+          "custom": "voice-id-selector",
+          "custom_config": {
+            "allow_custom": true,
+            "options_file": "voices/gemini-default-voices.json"
+          }
+        }
+      }
+    }
+  }
+}

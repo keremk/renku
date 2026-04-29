@@ -103,6 +103,12 @@ mappings:
       VoiceId: voice
       LanguageCode: language
 
+    # Gemini 3.1 Flash TTS
+    gemini-3.1-flash-tts:
+      Text: prompt
+      VoiceId: voice
+      LanguageCode: language_code
+
   replicate:
     # MiniMax Speech 02 HD
     minimax/speech-02-hd:
