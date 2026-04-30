@@ -10,7 +10,7 @@ export const InputIdList = [
   'Audience',
   'Language',
   'Duration',
-  'SegmentDuration',
+  'ClipDuration',
   'ImagesPerSegment',
   'SegmentImagePromptInput',
   'Style',
@@ -33,7 +33,7 @@ type InputValueTypeMap = {
   Audience: string;
   Language: string;
   Duration: number;
-  SegmentDuration: number;
+  ClipDuration: number;
   ImagesPerSegment: number;
   SegmentImagePromptInput: string[];
   Style: string;
@@ -55,7 +55,7 @@ const InputValueShape = z
     Audience: z.string(),
     Language: z.string(),
     Duration: z.number().positive(),
-    SegmentDuration: z.number().positive(),
+    ClipDuration: z.number().positive(),
     ImagesPerSegment: z.number().int().nonnegative(),
     SegmentImagePromptInput: z.array(z.string()),
     Style: z.string(),

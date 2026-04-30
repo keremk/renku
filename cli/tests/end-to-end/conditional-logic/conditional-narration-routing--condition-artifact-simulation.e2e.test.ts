@@ -94,13 +94,13 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		);
 		expect(booleanArtifacts).toHaveLength(3);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[0].UseNarrationAudio'
+			'Artifact:DocProducer.VideoScript.Clips[0].UseNarrationAudio'
 		);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[1].UseNarrationAudio'
+			'Artifact:DocProducer.VideoScript.Clips[1].UseNarrationAudio'
 		);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[2].UseNarrationAudio'
+			'Artifact:DocProducer.VideoScript.Clips[2].UseNarrationAudio'
 		);
 
 		// ============================================================
@@ -111,13 +111,13 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		);
 		expect(enumArtifacts).toHaveLength(3);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[0].NarrationType'
+			'Artifact:DocProducer.VideoScript.Clips[0].NarrationType'
 		);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[1].NarrationType'
+			'Artifact:DocProducer.VideoScript.Clips[1].NarrationType'
 		);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[2].NarrationType'
+			'Artifact:DocProducer.VideoScript.Clips[2].NarrationType'
 		);
 
 		expect(errors).toHaveLength(0);
@@ -190,13 +190,13 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		);
 		expect(booleanArtifacts).toHaveLength(3);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[0].UseNarrationAudio'
+			'Artifact:DocProducer.VideoScript.Clips[0].UseNarrationAudio'
 		);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[1].UseNarrationAudio'
+			'Artifact:DocProducer.VideoScript.Clips[1].UseNarrationAudio'
 		);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[2].UseNarrationAudio'
+			'Artifact:DocProducer.VideoScript.Clips[2].UseNarrationAudio'
 		);
 
 		// Verify enum artifacts are in the produces list
@@ -205,13 +205,13 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		);
 		expect(enumArtifacts).toHaveLength(3);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[0].NarrationType'
+			'Artifact:DocProducer.VideoScript.Clips[0].NarrationType'
 		);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[1].NarrationType'
+			'Artifact:DocProducer.VideoScript.Clips[1].NarrationType'
 		);
 		expect(produces).toContain(
-			'Artifact:DocProducer.VideoScript.Segments[2].NarrationType'
+			'Artifact:DocProducer.VideoScript.Clips[2].NarrationType'
 		);
 
 		// ============================================================
@@ -418,7 +418,7 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		// ============================================================
 		// The condition evaluator must:
 		// 1. Find decomposed artifacts using full path as artifact ID
-		//    e.g., "Artifact:DocProducer.VideoScript.Segments[0].UseNarrationAudio"
+		//    e.g., "Artifact:DocProducer.VideoScript.Clips[0].UseNarrationAudio"
 		// 2. Coerce string blob content ("true"/"false") to boolean
 		// 3. Compare against the boolean condition value (is: true)
 		//
@@ -435,9 +435,9 @@ describe('end-to-end: condition-referenced artifacts in producer graph', () => {
 		// Check which boolean values were generated
 		const blobsDir = resolve(savedStoragePath, 'blobs');
 		const booleanArtifactIds = [
-			'Artifact:DocProducer.VideoScript.Segments[0].UseNarrationAudio',
-			'Artifact:DocProducer.VideoScript.Segments[1].UseNarrationAudio',
-			'Artifact:DocProducer.VideoScript.Segments[2].UseNarrationAudio',
+			'Artifact:DocProducer.VideoScript.Clips[0].UseNarrationAudio',
+			'Artifact:DocProducer.VideoScript.Clips[1].UseNarrationAudio',
+			'Artifact:DocProducer.VideoScript.Clips[2].UseNarrationAudio',
 		];
 
 		const booleanValuesByIndex: Record<number, boolean> = {};

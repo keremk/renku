@@ -72,18 +72,18 @@ describe('simulateOpenAiGeneration', () => {
       const request = createBasicRequest([], {
         extras: {
           resolvedInputs: {
-            'Input:SourceDirector.NumOfSegments': 3,
+            'Input:SourceDirector.NumOfClips': 3,
           },
           jobContext: {
             inputBindings: {
-              NumOfSegments: 'Input:SourceDirector.NumOfSegments',
+              NumOfClips: 'Input:SourceDirector.NumOfClips',
             },
           },
           outputDefinitions: {
             AssetPlan: {
               name: 'AssetPlan',
               type: 'json',
-              arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+              arrays: [{ path: 'Segments', countInput: 'NumOfClips' }],
             },
           },
         },
@@ -120,18 +120,18 @@ describe('simulateOpenAiGeneration', () => {
         {
           extras: {
             resolvedInputs: {
-              'Input:SourceDirector.NumOfSegments': 3,
+              'Input:SourceDirector.NumOfClips': 3,
             },
             jobContext: {
               inputBindings: {
-                NumOfSegments: 'Input:SourceDirector.NumOfSegments',
+                NumOfClips: 'Input:SourceDirector.NumOfClips',
               },
             },
             outputDefinitions: {
               AssetPlan: {
                 name: 'AssetPlan',
                 type: 'json',
-                arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+                arrays: [{ path: 'Segments', countInput: 'NumOfClips' }],
               },
             },
           },
@@ -166,18 +166,18 @@ describe('simulateOpenAiGeneration', () => {
         {
           extras: {
             resolvedInputs: {
-              'Input:SourceDirector.NumOfSegments': 3,
+              'Input:SourceDirector.NumOfClips': 3,
             },
             jobContext: {
               inputBindings: {
-                NumOfSegments: 'Input:SourceDirector.NumOfSegments',
+                NumOfClips: 'Input:SourceDirector.NumOfClips',
               },
             },
             outputDefinitions: {
               AssetPlan: {
                 name: 'AssetPlan',
                 type: 'json',
-                arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+                arrays: [{ path: 'Segments', countInput: 'NumOfClips' }],
               },
             },
           },

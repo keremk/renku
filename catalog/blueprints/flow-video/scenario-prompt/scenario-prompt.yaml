@@ -1,6 +1,6 @@
 meta:
   name: Scenario Prompt Producer
-  description: Generate video prompts for continuous multi-segment videos using LastFrame continuity
+  description: Generate video prompts for continuous multi-clip videos using LastFrame continuity
   id: ScenarioPromptProducer
   kind: producer
   version: 0.1.0
@@ -14,11 +14,11 @@ inputs:
   - name: Duration
     description: Desired video duration in seconds.
     type: int
-  - name: NumOfSegments
-    description: Number of video segments to produce.
+  - name: NumOfClips
+    description: Number of video clips to produce.
     type: int
-  - name: SegmentDuration
-    description: Duration of each video segment in seconds.
+  - name: ClipDuration
+    description: Duration of each video clip in seconds.
     type: int
   - name: CameraStyle
     description: Camera movement style and instructions (e.g., tracking shot, aerial, handheld).
@@ -35,15 +35,15 @@ outputs:
     description: Prompt for generating the starting frame image.
     type: string
   - name: VideoPrompts
-    description: Array of video prompts per segment.
+    description: Array of video prompts per clip.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: NarrationScript
-    description: Array of narration text per segment to be spoken by voice actor.
+    description: Array of narration text per clip to be spoken by voice actor.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: MusicPrompt
     description: Prompt for generating background music.
     type: string

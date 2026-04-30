@@ -5,7 +5,7 @@ import {
   validateConnectionEndpoints,
   validateProducerInputOutput,
   validateMediaProducerDurationContract,
-  validateSegmentDurationContract,
+  validateClipDurationContract,
   validateInputCountInputs,
   validateLoopCountInputs,
   validateArtifactCountInputs,
@@ -343,8 +343,8 @@ describe('validateConnectionEndpoints', () => {
       outputs: [{ name: 'Output', type: 'string', required: true }],
       edges: [
         { from: 'Duration', to: 'Output' },
-        { from: 'NumOfSegments', to: 'Output' },
-        { from: 'SegmentDuration', to: 'Output' },
+        { from: 'NumOfClips', to: 'Output' },
+        { from: 'ClipDuration', to: 'Output' },
       ],
     });
     const tree = createTreeNode(doc);
@@ -359,7 +359,7 @@ describe('validateConnectionEndpoints', () => {
       inputs: [{ name: 'Input', type: 'string', required: true }],
       outputs: [{ name: 'Output', type: 'string', required: true }],
       producers: [{ name: 'Producer' }],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'segment', countInput: 'NumOfClips' }],
       edges: [{ from: 'Input', to: 'Producer[undeclaredLoop].Input' }],
     });
     const tree = createTreeNode(doc);
@@ -714,7 +714,7 @@ describe('validateMediaProducerDurationContract', () => {
       imports: [{ name: 'AudioProducer', producer: 'test/audio-producer' }],
       edges: [
         { from: 'Prompt', to: 'AudioProducer.Prompt' },
-        { from: 'SegmentDuration', to: 'AudioProducer.Duration' },
+        { from: 'ClipDuration', to: 'AudioProducer.Duration' },
         { from: 'AudioProducer.Audio', to: 'Output' },
       ],
     });
@@ -728,86 +728,86 @@ describe('validateMediaProducerDurationContract', () => {
   });
 });
 
-describe('validateSegmentDurationContract', () => {
-  it('rejects SegmentDuration declared as a user-facing orchestration input', () => {
+describe('validateClipDurationContract', () => {
+  it('rejects ClipDuration declared as a user-facing orchestration input', () => {
     const doc = createDocument({
       inputs: [
         { name: 'Duration', type: 'int', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
-        { name: 'SegmentDuration', type: 'int', required: false },
+        { name: 'NumOfClips', type: 'int', required: true },
+        { name: 'ClipDuration', type: 'int', required: false },
       ],
       imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
-      edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
+      edges: [{ from: 'ClipDuration', to: 'VideoProducer.Duration' }],
     });
     const tree = createTreeNode(doc);
 
-    const issues = validateSegmentDurationContract(tree);
+    const issues = validateClipDurationContract(tree);
 
     expect(issues).toContainEqual(
       expect.objectContaining({
-        code: ValidationErrorCode.SEGMENT_DURATION_INPUT_DECLARED,
+        code: ValidationErrorCode.CLIP_DURATION_INPUT_DECLARED,
       })
     );
   });
 
-  it('requires Duration when SegmentDuration is used', () => {
+  it('requires Duration when ClipDuration is used', () => {
     const doc = createDocument({
-      inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
+      inputs: [{ name: 'NumOfClips', type: 'int', required: true }],
       imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
-      edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
+      edges: [{ from: 'ClipDuration', to: 'VideoProducer.Duration' }],
     });
     const tree = createTreeNode(doc);
 
-    const issues = validateSegmentDurationContract(tree);
+    const issues = validateClipDurationContract(tree);
 
     expect(issues).toContainEqual(
       expect.objectContaining({
-        code: ValidationErrorCode.SEGMENT_DURATION_REQUIRES_DURATION_INPUT,
+        code: ValidationErrorCode.CLIP_DURATION_REQUIRES_DURATION_INPUT,
       })
     );
   });
 
-  it('requires NumOfSegments when SegmentDuration is used', () => {
+  it('requires NumOfClips when ClipDuration is used', () => {
     const doc = createDocument({
       inputs: [{ name: 'Duration', type: 'int', required: true }],
       imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
-      edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
+      edges: [{ from: 'ClipDuration', to: 'VideoProducer.Duration' }],
     });
     const tree = createTreeNode(doc);
 
-    const issues = validateSegmentDurationContract(tree);
+    const issues = validateClipDurationContract(tree);
 
     expect(issues).toContainEqual(
       expect.objectContaining({
-        code: ValidationErrorCode.SEGMENT_DURATION_REQUIRES_NUM_SEGMENTS_INPUT,
+        code: ValidationErrorCode.CLIP_DURATION_REQUIRES_NUM_CLIPS_INPUT,
       })
     );
   });
 
-  it('accepts orchestration blueprints that derive SegmentDuration from required Duration and NumOfSegments', () => {
+  it('accepts orchestration blueprints that derive ClipDuration from required Duration and NumOfClips', () => {
     const doc = createDocument({
       inputs: [
         { name: 'Duration', type: 'int', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       imports: [{ name: 'VideoProducer', producer: 'test/video-producer' }],
-      edges: [{ from: 'SegmentDuration', to: 'VideoProducer.Duration' }],
+      edges: [{ from: 'ClipDuration', to: 'VideoProducer.Duration' }],
     });
     const tree = createTreeNode(doc);
 
-    const issues = validateSegmentDurationContract(tree);
+    const issues = validateClipDurationContract(tree);
 
     expect(issues).toHaveLength(0);
   });
 
-  it('does not apply the SegmentDuration input rule to leaf prompt blueprints', () => {
+  it('does not apply the ClipDuration input rule to leaf prompt blueprints', () => {
     const doc = createDocument({
-      inputs: [{ name: 'SegmentDuration', type: 'int', required: true }],
+      inputs: [{ name: 'ClipDuration', type: 'int', required: true }],
       outputs: [{ name: 'Prompt', type: 'string', required: true }],
     });
     const tree = createTreeNode(doc);
 
-    const issues = validateSegmentDurationContract(tree);
+    const issues = validateClipDurationContract(tree);
 
     expect(issues).toHaveLength(0);
   });
@@ -833,7 +833,7 @@ describe('validateLoopCountInputs', () => {
 
   it('accepts system inputs as countInput', () => {
     const doc = createDocument({
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'segment', countInput: 'NumOfClips' }],
     });
     const tree = createTreeNode(doc);
 
@@ -876,7 +876,7 @@ describe('validateInputCountInputs', () => {
           type: 'array',
           itemType: 'text',
           required: true,
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
         },
       ],
     });
@@ -1201,7 +1201,7 @@ describe('findUnusedInputs', () => {
   it('does not warn on declared producer-contract inputs inside producer blueprints', () => {
     const doc = createDocument({
       meta: { kind: 'producer' },
-      inputs: [{ name: 'NumOfSegments', type: 'number', required: true }],
+      inputs: [{ name: 'NumOfClips', type: 'number', required: true }],
       outputs: [{ name: 'AssetPlan', type: 'json', required: true }],
     });
     const tree = createTreeNode(doc);
@@ -1416,7 +1416,7 @@ describe('validateDimensionConsistency', () => {
   it('detects dimension loss when target input is not fanIn', () => {
     const doc = createDocument({
       producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'segment', countInput: 'NumOfClips' }],
       edges: [{ from: 'ProducerA[segment].Output', to: 'ProducerB.Input' }],
     });
     const tree = createTreeNode(doc);
@@ -1437,7 +1437,7 @@ describe('validateDimensionConsistency', () => {
     const doc = createDocument({
       producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [
-        { name: 'segment', countInput: 'NumOfSegments' },
+        { name: 'segment', countInput: 'NumOfClips' },
         { name: 'image', countInput: 'NumOfImages' },
       ],
       edges: [
@@ -1455,7 +1455,7 @@ describe('validateDimensionConsistency', () => {
   it('allows matching dimensions', () => {
     const doc = createDocument({
       producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'segment', countInput: 'NumOfClips' }],
       edges: [
         { from: 'ProducerA[segment].Output', to: 'ProducerB[segment].Input' },
       ],
@@ -1470,7 +1470,7 @@ describe('validateDimensionConsistency', () => {
   it('allows dimension loss when target input is fanIn', () => {
     const doc = createDocument({
       producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'segment', countInput: 'NumOfClips' }],
       edges: [{ from: 'ProducerA[segment].Output', to: 'ProducerB.Input' }],
     });
     const tree = createTreeNode(doc, {
@@ -1497,7 +1497,7 @@ describe('validateDimensionConsistency', () => {
   it('reports error when edge has dimension loss and target input is not fanIn', () => {
     const doc = createDocument({
       producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'segment', countInput: 'NumOfClips' }],
       edges: [{ from: 'ProducerA[segment].Output', to: 'ProducerB.Input' }],
     });
     const tree = createTreeNode(doc);
@@ -1514,7 +1514,7 @@ describe('validateDimensionConsistency', () => {
   it('rejects groupBy/orderBy on non-fanIn targets', () => {
     const doc = createDocument({
       producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'segment', countInput: 'NumOfClips' }],
       edges: [
         {
           from: 'ProducerA[segment].Output',
@@ -1539,7 +1539,7 @@ describe('validateDimensionConsistency', () => {
     const doc = createDocument({
       producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [
-        { name: 'segment', countInput: 'NumOfSegments' },
+        { name: 'segment', countInput: 'NumOfClips' },
         { name: 'image', countInput: 'NumOfImages' },
         { name: 'variant', countInput: 'NumOfVariants' },
       ],
@@ -1580,7 +1580,7 @@ describe('validateDimensionConsistency', () => {
     const doc = createDocument({
       producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [
-        { name: 'segment', countInput: 'NumOfSegments' },
+        { name: 'segment', countInput: 'NumOfClips' },
         { name: 'image', countInput: 'NumOfImages' },
         { name: 'variant', countInput: 'NumOfVariants' },
       ],
@@ -1630,7 +1630,7 @@ describe('validateDimensionConsistency', () => {
   it('ignores offset expressions in dimensions', () => {
     const doc = createDocument({
       producers: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'segment', countInput: 'NumOfClips' }],
       edges: [
         { from: 'ProducerA[segment+1].Output', to: 'ProducerB[segment].Input' },
       ],
@@ -1649,7 +1649,7 @@ describe('validateDimensionConsistency', () => {
       inputs: [{ name: 'Input', type: 'string', required: true }],
       outputs: [{ name: 'Output', type: 'string', required: true }],
       producers: [{ name: 'Producer' }],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'segment', countInput: 'NumOfClips' }],
       edges: [
         { from: 'Input', to: 'Producer[segment].Input' },
         { from: 'Producer[segment].Output', to: 'Output' },

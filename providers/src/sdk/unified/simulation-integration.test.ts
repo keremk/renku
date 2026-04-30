@@ -310,11 +310,11 @@ describe('Simulation Integration Tests', () => {
         schema: wavespeedSchema,
         resolvedInputs: {
           'Input:Prompt': 'A serene forest scene',
-          'Input:SegmentDuration': 5,
+          'Input:ClipDuration': 5,
         },
         inputBindings: {
           Prompt: 'Input:Prompt',
-          Duration: 'Input:SegmentDuration',
+          Duration: 'Input:ClipDuration',
         },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },
@@ -378,7 +378,7 @@ describe('Simulation Integration Tests', () => {
           mimeType === 'video/mp4'
             ? {
                 'Input:Prompt': 'Test prompt',
-                'Input:SegmentDuration': 5,
+                'Input:ClipDuration': 5,
               }
             : {
                 'Input:Prompt': 'Test prompt',
@@ -387,7 +387,7 @@ describe('Simulation Integration Tests', () => {
           mimeType === 'video/mp4'
             ? {
                 Prompt: 'Input:Prompt',
-                Duration: 'Input:SegmentDuration',
+                Duration: 'Input:ClipDuration',
               }
             : {
                 Prompt: 'Input:Prompt',
@@ -423,7 +423,7 @@ describe('Simulation Integration Tests', () => {
           mimeType === 'video/mp4'
             ? {
                 'Input:Prompt': 'Test prompt',
-                'Input:SegmentDuration': 5,
+                'Input:ClipDuration': 5,
               }
             : {
                 'Input:Prompt': 'Test prompt',
@@ -432,7 +432,7 @@ describe('Simulation Integration Tests', () => {
           mimeType === 'video/mp4'
             ? {
                 Prompt: 'Input:Prompt',
-                Duration: 'Input:SegmentDuration',
+                Duration: 'Input:ClipDuration',
               }
             : {
                 Prompt: 'Input:Prompt',
@@ -468,7 +468,7 @@ describe('Simulation Integration Tests', () => {
           mimeType === 'video/mp4'
             ? {
                 'Input:Prompt': 'Test prompt',
-                'Input:SegmentDuration': 5,
+                'Input:ClipDuration': 5,
               }
             : {
                 'Input:Prompt': 'Test prompt',
@@ -477,7 +477,7 @@ describe('Simulation Integration Tests', () => {
           mimeType === 'video/mp4'
             ? {
                 Prompt: 'Input:Prompt',
-                Duration: 'Input:SegmentDuration',
+                Duration: 'Input:ClipDuration',
               }
             : {
                 Prompt: 'Input:Prompt',
@@ -567,11 +567,11 @@ describe('Simulation Integration Tests', () => {
         schema: videoSchema,
         resolvedInputs: {
           'Input:Prompt': 'A dancing robot',
-          'Input:SegmentDuration': 5,
+          'Input:ClipDuration': 5,
         },
         inputBindings: {
           Prompt: 'Input:Prompt',
-          Duration: 'Input:SegmentDuration',
+          Duration: 'Input:ClipDuration',
         },
         sdkMapping: {
           Prompt: { field: 'prompt', required: true },

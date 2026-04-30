@@ -1,10 +1,10 @@
-variables = ["NarrativeText", "Style", "Audience", "MovieSummary", "SegmentDuration"]
+variables = ["NarrativeText", "Style", "Audience", "MovieSummary", "ClipDuration"]
 
 systemPrompt = """
-You are a well-renowned documentary filmmaker. You will be given a narrative for a short {{SegmentDuration}} second segment in the documentary,
+You are a well-renowned documentary filmmaker. You will be given a narrative for a short {{ClipDuration}} second clip in the documentary,
 as well as the summary of the overall documentary. Your task is to generate:
 - A prompt for the video generator to describe the setup and backstory, help set the mood, camera movements and the cut scenes 
-for the overall {{SegmentDuration}} second video. Use the narrative text to help highlight the core idea of video segment for the video generation model.
+for the overall {{ClipDuration}} second video. Use the narrative text to help highlight the core idea of video clip for the video generation model.
 Make sure the cut scenes are separated with [cut] markers. (See example)
 
 # Important Instructions:
@@ -32,6 +32,6 @@ The overall summary of the movie is:
 {{MovieSummary}}
 The movie style is:
 {{Style}}
-The duration of the video segment is {{SegmentDuration}} seconds.
+The duration of the video clip is {{ClipDuration}} seconds.
 Generate a video that best reflects the above. 
 """

@@ -63,7 +63,7 @@ describe('end-to-end: image-to-video dry runs', () => {
     const plan = await readPlan(queryResult.planPath);
 
     const imageJobs = plan.layers.flat().filter((job: any) => job.producer === 'ImageProducer');
-    expect(imageJobs).toHaveLength(3); // NumOfSegments + 1 via countInputOffset
+    expect(imageJobs).toHaveLength(3); // NumOfClips + 1 via countInputOffset
 
     const videoJobs = plan.layers.flat().filter((job: any) => job.producer === 'ImageToVideoProducer');
     expect(videoJobs).toHaveLength(2);

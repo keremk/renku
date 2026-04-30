@@ -6,41 +6,41 @@ inputs:
   - name: Duration
     type: number
     required: true
-  - name: NumOfSegments
+  - name: NumOfClips
     type: int
     required: true
   - name: Prompts
     type: array
     itemType: string
     required: true
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: SourceImages
     type: array
     itemType: image
     required: true
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 outputs:
-  - name: SegmentVideos
+  - name: ClipVideos
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
-  - name: segment
-    countInput: NumOfSegments
+  - name: clip
+    countInput: NumOfClips
 
 imports:
-  - name: SegmentUnit
+  - name: ClipUnit
     path: ./segment-unit/segment-unit.yaml
-    loop: segment
+    loop: clip
 
 connections:
   - from: Duration
-    to: SegmentUnit[segment].Duration
-  - from: Prompts[segment]
-    to: SegmentUnit[segment].Prompt
-  - from: SourceImages[segment]
-    to: SegmentUnit[segment].SourceImage
-  - from: SegmentUnit[segment].FinalVideo
-    to: SegmentVideos[segment]
+    to: ClipUnit[clip].Duration
+  - from: Prompts[clip]
+    to: ClipUnit[clip].Prompt
+  - from: SourceImages[clip]
+    to: ClipUnit[clip].SourceImage
+  - from: ClipUnit[clip].FinalVideo
+    to: ClipVideos[clip]

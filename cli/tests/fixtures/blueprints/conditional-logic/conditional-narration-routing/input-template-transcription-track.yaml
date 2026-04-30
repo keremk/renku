@@ -1,9 +1,8 @@
 inputs:
   InquiryPrompt: 'I want to learn about the last days of Pompeii'
-  NumOfSegments: 4
-  NumOfImagesPerSegment: 2
+  NumOfClips: 4
+  NumOfImagesPerClip: 2
   Duration: 40
-  SegmentDuration: 10
   VoiceId: Wise_Woman
   Resolution:
     width: 1280
@@ -32,11 +31,11 @@ models:
         masterTracks: ['Audio', 'Video']
         numTracks: 4
         imageClip:
-          artifact: ImageSegments
+          artifact: ImageClips
         audioClip:
-          artifact: AudioSegments
+          artifact: AudioClips
           volume: 0.9
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         transcriptionClip:
           artifact: TranscriptionAudio

@@ -47,7 +47,7 @@
         }
       },
       "multi_shots": {
-        "description": "When true (default), enables intelligent multi-shot segmentation for coherent narrative videos with multiple shots. When false, generates single continuous shot. Only active when enable_prompt_expansion is True.",
+        "description": "When true (default), enables intelligent multi-shot clipation for coherent narrative videos with multiple shots. When false, generates single continuous shot. Only active when enable_prompt_expansion is True.",
         "type": "boolean",
         "title": "Multi Shots",
         "default": true

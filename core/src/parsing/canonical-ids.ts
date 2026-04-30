@@ -577,7 +577,7 @@ export function createInputIdResolver(
       return `Artifact:${trimmed}`;
     }
 
-    // Check if it's a system input (Duration, NumOfSegments, SegmentDuration, etc.)
+    // Check if it's a system input (Duration, NumOfClips, ClipDuration, etc.)
     // System inputs are automatically recognized without explicit declaration in blueprint YAML
     if (isSystemInput(trimmed)) {
       return `Input:${trimmed}`;

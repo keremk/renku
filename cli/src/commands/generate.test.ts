@@ -55,7 +55,7 @@ const AUDIO_ONLY_MODELS = [
 ];
 const AUDIO_ONLY_OVERRIDES = {
 	Duration: 60,
-	NumOfSegments: 3,
+	NumOfClips: 3,
 	VoiceId: 'default-voice',
 	Audience: 'Adult',
 	Emotion: 'neutral',
@@ -421,7 +421,7 @@ describe('runGenerate (new runs)', () => {
 			prompt: 'History of comets',
 			overrides: {
 				VoiceId: 'timeline-voice',
-				NumOfSegments: 2,
+				NumOfClips: 2,
 			},
 		});
 		const result = await runGenerate({
@@ -612,7 +612,7 @@ describe('runGenerate (new runs)', () => {
 			prompt: 'Formation of galaxies',
 			overrides: {
 				VoiceId: 'timeline-voice',
-				NumOfSegments: 2,
+				NumOfClips: 2,
 			},
 		});
 		const result = await runGenerate({

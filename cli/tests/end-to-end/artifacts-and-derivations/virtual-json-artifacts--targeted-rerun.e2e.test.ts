@@ -105,32 +105,32 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		// Verify specific virtual artifact IDs are in produces list
 		expect(
 			docJob.produces.some((id: string) =>
-				id.includes('Segments[0].ImagePrompts[0]')
+				id.includes('Clips[0].ImagePrompts[0]')
 			)
 		).toBe(true);
 		expect(
 			docJob.produces.some((id: string) =>
-				id.includes('Segments[0].ImagePrompts[1]')
+				id.includes('Clips[0].ImagePrompts[1]')
 			)
 		).toBe(true);
 		expect(
 			docJob.produces.some((id: string) =>
-				id.includes('Segments[1].ImagePrompts[0]')
+				id.includes('Clips[1].ImagePrompts[0]')
 			)
 		).toBe(true);
 		expect(
 			docJob.produces.some((id: string) =>
-				id.includes('Segments[1].ImagePrompts[1]')
+				id.includes('Clips[1].ImagePrompts[1]')
 			)
 		).toBe(true);
 
 		// Verify ImageProducer jobs reference virtual artifacts in their input bindings
 		for (const job of imageJobs) {
 			const promptBinding = job.context?.inputBindings?.Prompt;
-			expect(promptBinding).toBeDefined();
-			expect(promptBinding).toMatch(
-				/^Artifact:DocProducer\.VideoScript\.Segments\[\d+\]\.ImagePrompts\[\d+\]$/
-			);
+		expect(promptBinding).toBeDefined();
+		expect(promptBinding).toMatch(
+			/^Artifact:DocProducer\.VideoScript\.Clips\[\d+\]\.ImagePrompts\[\d+\]$/
+		);
 		}
 
 		// Verify specific ImageProducer job indices
@@ -266,7 +266,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 		await writeFile(overridePromptPath, overridePromptContent, 'utf8');
 
 		// Create inputs with virtual artifact override
-		// The key targets the virtual artifact: DocProducer.VideoScript.Segments[0].ImagePrompts[0]
+		// The key targets the virtual artifact: DocProducer.VideoScript.Clips[0].ImagePrompts[0]
 		const overrideInputsPath = join(tempRoot, 'override-inputs.yaml');
 		await writeFile(
 			overrideInputsPath,
@@ -274,12 +274,12 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 				inputs: {
 					InquiryPrompt: 'The history of the moon landing',
 					Duration: 30,
-					NumOfSegments: 2,
-					NumOfImagesPerSegment: 2,
+					NumOfClips: 2,
+					NumOfImagesPerClip: 2,
 					Style: 'Photorealistic documentary style',
 					Resolution: { width: 1280, height: 720 },
-					// Override virtual artifact: Segments[0].ImagePrompts[0]
-					'DocProducer.VideoScript.Segments[0].ImagePrompts[0]': `file:${overridePromptPath}`,
+					// Override virtual artifact: Clips[0].ImagePrompts[0]
+					'DocProducer.VideoScript.Clips[0].ImagePrompts[0]': `file:${overridePromptPath}`,
 				},
 				models: [
 					{
@@ -301,7 +301,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 								tracks: ['Image'],
 								masterTracks: ['Image'],
 								numTracks: 1,
-								imageClip: { artifact: 'ImageSegments' },
+								imageClip: { artifact: 'ImageClips' },
 							},
 						},
 					},
@@ -332,7 +332,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 
 		// CRITICAL VERIFICATION:
 		// - DocProducer should NOT be in the plan (artifact was overridden, not its inputs)
-		// - ImageProducer[0][0] should be in the plan (consumes overridden Segments[0].ImagePrompts[0])
+		// - ImageProducer[0][0] should be in the plan (consumes overridden Clips[0].ImagePrompts[0])
 		// - ImageProducer[0][1], [1][0], [1][1] should NOT be in the plan (not affected)
 		// - TimelineComposer SHOULD re-run (depends on ImageProducer outputs)
 
@@ -457,7 +457,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 
 		const buildState1 = await firstRunResult.buildStateSnapshot();
 
-		// PHASE 2: Override a DIFFERENT virtual artifact: Segments[1].ImagePrompts[1]
+		// PHASE 2: Override a DIFFERENT virtual artifact: Clips[1].ImagePrompts[1]
 		const overridePromptPath = join(tempRoot, 'override-prompt2.txt');
 		await writeFile(
 			overridePromptPath,
@@ -472,12 +472,12 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 				inputs: {
 					InquiryPrompt: 'The history of the moon landing',
 					Duration: 30,
-					NumOfSegments: 2,
-					NumOfImagesPerSegment: 2,
+					NumOfClips: 2,
+					NumOfImagesPerClip: 2,
 					Style: 'Photorealistic documentary style',
 					Resolution: { width: 1280, height: 720 },
-					// Override DIFFERENT virtual artifact: Segments[1].ImagePrompts[1]
-					'DocProducer.VideoScript.Segments[1].ImagePrompts[1]': `file:${overridePromptPath}`,
+					// Override DIFFERENT virtual artifact: Clips[1].ImagePrompts[1]
+					'DocProducer.VideoScript.Clips[1].ImagePrompts[1]': `file:${overridePromptPath}`,
 				},
 				models: [
 					{
@@ -499,7 +499,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 								tracks: ['Image'],
 								masterTracks: ['Image'],
 								numTracks: 1,
-								imageClip: { artifact: 'ImageSegments' },
+								imageClip: { artifact: 'ImageClips' },
 							},
 						},
 					},

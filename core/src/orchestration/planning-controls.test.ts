@@ -17,6 +17,7 @@ function makeNode(args: {
   producer: string;
   inputs: string[];
   produces: string[];
+  indices?: Record<string, number>;
 }): ProducerGraphNode {
   return {
     jobId: args.jobId,
@@ -28,7 +29,7 @@ function makeNode(args: {
     rateKey: 'test-rate',
     context: {
       namespacePath: [],
-      indices: {},
+      indices: args.indices ?? {},
       producerAlias: args.producer,
       inputs: [],
       produces: [],
@@ -50,12 +51,14 @@ function buildGraph(): ProducerGraph {
         producer: 'AudioProducer',
         inputs: ['Artifact:Script[0]'],
         produces: ['Artifact:Audio[0]'],
+        indices: { clip: 0 },
       }),
       makeNode({
         jobId: 'Producer:AudioProducer[1]',
         producer: 'AudioProducer',
         inputs: ['Artifact:Script[1]'],
         produces: ['Artifact:Audio[1]'],
+        indices: { clip: 1 },
       }),
       makeNode({
         jobId: 'Producer:TimelineProducer',
@@ -202,6 +205,90 @@ describe('resolvePlanningControls', () => {
     expect(result.blockedProducerJobIds).toEqual(['Producer:AudioProducer[1]']);
     expect(result.blockedProducerJobIds).not.toContain('Producer:ScriptProducer');
     expect(result.blockedProducerJobIds).not.toContain('Producer:TimelineProducer');
+  });
+
+  it('merges clip scope blocks with producer directive blocks', () => {
+    const result = resolvePlanningControls({
+      producerGraph: buildGraph(),
+      baselineInputs: {},
+      userControls: {
+        scope: {
+          clip: {
+            dimension: 'clip',
+            indices: [1],
+            mode: 'only',
+            includeUpstream: true,
+          },
+          producerDirectives: [{ producerId: 'Producer:AudioProducer', count: 1 }],
+        },
+      },
+      buildState: createBuildState(),
+      latestSnapshot: buildLatestSnapshot(),
+    });
+
+    expect(result.clipScope).toMatchObject({
+      dimension: 'clip',
+      mode: 'only',
+      selectedIndices: [1],
+      selectedJobIds: ['Producer:AudioProducer[1]'],
+      upstreamJobIds: ['Producer:ScriptProducer'],
+    });
+    expect(result.blockedProducerJobIds).toEqual(
+      expect.arrayContaining([
+        'Producer:AudioProducer[0]',
+        'Producer:AudioProducer[1]',
+        'Producer:TimelineProducer',
+      ])
+    );
+  });
+
+  it('keeps clip-scoped regenerate targets inside the active scope', () => {
+    const result = resolvePlanningControls({
+      producerGraph: buildGraph(),
+      baselineInputs: {},
+      userControls: {
+        scope: {
+          clip: {
+            dimension: 'clip',
+            indices: [1],
+            mode: 'only',
+            includeUpstream: true,
+          },
+        },
+        surgical: { regenerateIds: ['Artifact:Audio[1]'] },
+      },
+      buildState: createBuildState(),
+      latestSnapshot: buildLatestSnapshot(),
+    });
+
+    expect(result.forcedJobIds).toContain('Producer:AudioProducer[1]');
+    expect(result.forcedJobIds).not.toContain('Producer:AudioProducer[0]');
+  });
+
+  it('fails when a regenerate target is outside the active clip scope', () => {
+    expect(() =>
+      resolvePlanningControls({
+        producerGraph: buildGraph(),
+        baselineInputs: {},
+        userControls: {
+          scope: {
+            clip: {
+              dimension: 'clip',
+              indices: [1],
+              mode: 'only',
+              includeUpstream: true,
+            },
+          },
+          surgical: { regenerateIds: ['Artifact:Audio[0]'] },
+        },
+        buildState: createBuildState(),
+        latestSnapshot: buildLatestSnapshot(),
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        code: RuntimeErrorCode.PLANNING_CONFLICT_CLIP_SCOPE,
+      })
+    );
   });
 
   it('ignores out-of-scope regenerate controls with warnings', () => {

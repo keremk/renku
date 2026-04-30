@@ -87,11 +87,11 @@ describe('input source mapping', () => {
       meta: { id: 'Root', name: 'Root', kind: 'producer' },
       inputs: [],
       outputs: [
-        { name: 'SceneVideos', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'SceneVideos', type: 'array', countInput: 'NumOfClips' },
       ],
       producers: [{ name: 'Root' }],
       imports: [],
-      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'scene', countInput: 'NumOfClips' }],
       edges: [],
     };
 
@@ -105,11 +105,11 @@ describe('input source mapping', () => {
 
     const graph = buildBlueprintGraph(tree);
     const sources = buildInputSourceMapFromCanonical(graph);
-    expect(sources.get('Input:NumOfSegments')).toBe('Input:NumOfSegments');
+    expect(sources.get('Input:NumOfClips')).toBe('Input:NumOfClips');
 
     const normalized = normalizeInputValues(
       {
-        'Input:NumOfSegments': 3,
+        'Input:NumOfClips': 3,
       },
       sources
     );

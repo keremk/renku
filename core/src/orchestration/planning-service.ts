@@ -193,7 +193,7 @@ export function createPlanningService(
         args.movieId
       );
 
-      // Inject derived system inputs (e.g., SegmentDuration from Duration/NumOfSegments)
+      // Inject derived system inputs (e.g., ClipDuration from Duration/NumOfClips)
       const inputsWithDerived = injectDerivedInputs(inputsWithBlobRefs);
 
       const inputEvents = createInputEvents(
@@ -706,7 +706,7 @@ export function applyOutputSchemasToBlueprintTree(
 
 /**
  * Injects derived system inputs into the normalized inputs map.
- * Auto-computes SegmentDuration from Duration and NumOfSegments.
+ * Auto-computes ClipDuration from Duration and NumOfClips.
  *
  * This is called during planning to ensure cost estimation and plan preview
  * see the correct derived values.
@@ -719,17 +719,16 @@ export function injectDerivedInputs(
 ): Record<string, unknown> {
   const result = { ...inputs };
 
-  // Auto-compute SegmentDuration if Duration and NumOfSegments are present
   const duration = inputs['Input:Duration'];
-  const numSegments = inputs['Input:NumOfSegments'];
+  const numClips = inputs['Input:NumOfClips'];
 
   if (
     typeof duration === 'number' &&
-    typeof numSegments === 'number' &&
-    numSegments > 0 &&
-    result['Input:SegmentDuration'] === undefined
+    typeof numClips === 'number' &&
+    numClips > 0 &&
+    result['Input:ClipDuration'] === undefined
   ) {
-    result['Input:SegmentDuration'] = duration / numSegments;
+    result['Input:ClipDuration'] = duration / numClips;
   }
 
   return result;

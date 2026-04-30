@@ -75,8 +75,8 @@ describe('end-to-end: image-audio dry runs', () => {
 		const plan = await readPlan(queryResult.planPath);
 
 		const scriptJob = findJob(plan, 'ScriptProducer');
-		expect(scriptJob?.context?.inputBindings?.NumOfSegments).toBe(
-			'Input:NumOfSegments'
+		expect(scriptJob?.context?.inputBindings?.NumOfClips).toBe(
+			'Input:NumOfClips'
 		);
 		expect(scriptJob?.context?.inputBindings?.InquiryPrompt).toBe(
 			'Input:InquiryPrompt'
@@ -147,21 +147,21 @@ describe('end-to-end: image-audio dry runs', () => {
 		}
 		expect(timelineJob.inputs).toEqual(
 			expect.arrayContaining([
-				'Input:TimelineComposer.ImageSegments',
-				'Input:TimelineComposer.AudioSegments',
+				'Input:TimelineComposer.ImageClips',
+				'Input:TimelineComposer.AudioClips',
 				'Input:Duration',
 			])
 		);
 		expect(
-			timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageSegments']
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageClips']
 				?.members?.length
 		).toBe(6);
 		expect(
-			timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioSegments']
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioClips']
 				?.members?.length
 		).toBe(2);
 		const imageMembers =
-			timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageSegments']
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageClips']
 				?.members ?? [];
 		expect(
 			imageMembers
@@ -174,7 +174,7 @@ describe('end-to-end: image-audio dry runs', () => {
 				.map((m: any) => m.order)
 		).toEqual([0, 1, 2]);
 		const audioMembers =
-			timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioSegments']
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioClips']
 				?.members ?? [];
 		expect(audioMembers.map((member: any) => member.group)).toEqual([0, 1]);
 		expect(

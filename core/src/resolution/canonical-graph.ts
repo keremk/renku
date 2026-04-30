@@ -34,9 +34,11 @@ import {
  */
 const SYSTEM_INPUT_NAMES = new Set<string>([
   SYSTEM_INPUTS.DURATION,
-  SYSTEM_INPUTS.NUM_OF_SEGMENTS,
+  SYSTEM_INPUTS.NUM_OF_CLIPS,
+  SYSTEM_INPUTS.NUM_OF_CLIPS,
   SYSTEM_INPUTS.RESOLUTION,
-  SYSTEM_INPUTS.SEGMENT_DURATION,
+  SYSTEM_INPUTS.CLIP_DURATION,
+  SYSTEM_INPUTS.CLIP_DURATION,
   SYSTEM_INPUTS.MOVIE_ID,
   SYSTEM_INPUTS.STORAGE_ROOT,
   SYSTEM_INPUTS.STORAGE_BASE_PATH,
@@ -455,11 +457,11 @@ function createDimensionSymbolsFromDerived(dims: string[]): DimensionSymbol[] {
  *
  * This ensures that sibling fields from the same array element share the same
  * dimension source, preventing false conflicts like:
- * - `Segments[segment].TalkingHeadText` vs `Segments[segment].TalkingHeadPrompt`
+ * - `Clips[clip].TalkingHeadText` vs `Clips[clip].TalkingHeadPrompt`
  *
  * Examples:
- * - `DocProducer.VideoScript.Segments[segment].TalkingHeadText` → `DocProducer.VideoScript.Segments[segment]`
- * - `DocProducer.VideoScript.Segments[segment]` → `DocProducer.VideoScript.Segments[segment]`
+ * - `DocProducer.VideoScript.Clips[clip].TalkingHeadText` -> `DocProducer.VideoScript.Clips[clip]`
+ * - `DocProducer.VideoScript.Clips[clip]` -> `DocProducer.VideoScript.Clips[clip]`
  * - `ImageProducer.SegmentImage` → `ImageProducer.SegmentImage` (no index, unchanged)
  */
 function normalizeDimensionSourceKey(nodeId: string): string {
@@ -480,8 +482,8 @@ function normalizeDimensionSourceKey(nodeId: string): string {
  * which represents the actual dimension source independent of the specific field.
  *
  * Example:
- * - Input: `DocProducer.VideoScript.Segments[segment].TalkingHeadText::local:DocProducer.VideoScript.Segments[segment]:0:segment`
- * - Output: `local:DocProducer.VideoScript.Segments[segment]:0:segment`
+ * - Input: `DocProducer.VideoScript.Clips[clip].TalkingHeadText::local:DocProducer.VideoScript.Clips[clip]:0:clip`
+ * - Output: `local:DocProducer.VideoScript.Clips[clip]:0:clip`
  */
 function extractDimensionSourceKey(dimensionSymbol: string): string {
   const separatorIndex = dimensionSymbol.indexOf('::');
@@ -1217,9 +1219,9 @@ function resolveEdgeEndpoint(
   const allSegments = [...parsed.namespaceSegments, parsed.node];
 
   // Try progressively shorter namespace paths to handle decomposed artifact references
-  // e.g., "DocProducer.VideoScript.Segments[segment].Script" should resolve to:
+  // e.g., "DocProducer.VideoScript.Clips[clip].Script" should resolve to:
   // - namespace: ["DocProducer"]
-  // - nodeName: "VideoScript.Segments[segment].Script"
+  // - nodeName: "VideoScript.Clips[clip].Script"
   let owner: BlueprintTreeNode | undefined;
   let targetPath: string[] = [];
   let nodeNameSegments: ParsedSegment[] = [];
@@ -1494,8 +1496,8 @@ function collectLoopDefinitions(
  * Injects synthetic input declarations for system inputs that are referenced
  * in root-level graph wiring but not explicitly declared in the blueprint.
  *
- * This allows blueprints to use system inputs like NumOfSegments and
- * SegmentDuration in edge sources and countInput declarations without
+ * This allows blueprints to use system inputs like NumOfClips and
+ * ClipDuration in edge sources and countInput declarations without
  * having to declare them in the inputs section.
  */
 function injectSystemInputsFromRootReferences(root: BlueprintTreeNode): void {
@@ -1523,7 +1525,7 @@ function injectSystemInputsFromRootReferences(root: BlueprintTreeNode): void {
 function collectReferencedRootSystemInputs(root: BlueprintTreeNode): Set<string> {
   const referenced = new Set<string>();
 
-  // Edge-driven references (e.g., from: SegmentDuration)
+  // Edge-driven references (e.g., from: ClipDuration)
   for (const edge of root.document.edges) {
     const fromName = extractSimpleInputName(edge.from);
     if (fromName && SYSTEM_INPUT_NAMES.has(fromName)) {
@@ -1531,7 +1533,7 @@ function collectReferencedRootSystemInputs(root: BlueprintTreeNode): Set<string>
     }
   }
 
-  // Loop cardinality references (e.g., loops[].countInput: NumOfSegments)
+  // Loop cardinality references (e.g., loops[].countInput: NumOfClips)
   for (const loop of root.document.loops ?? []) {
     addSystemInputReference(loop.countInput, referenced);
   }
@@ -1561,7 +1563,7 @@ function addSystemInputReference(
  * Extracts a simple input name from an edge reference.
  * Returns the name only if it's a simple reference (no dots, no dimensions).
  * For example:
- * - "SegmentDuration" -> "SegmentDuration"
+ * - "ClipDuration" -> "ClipDuration"
  * - "Duration" -> "Duration"
  * - "StoryProducer.Script" -> undefined (not a simple input reference)
  */
@@ -1581,8 +1583,10 @@ function extractSimpleInputName(reference: string): string | undefined {
 function getSystemInputType(name: string): string {
   switch (name) {
     case SYSTEM_INPUTS.DURATION:
-    case SYSTEM_INPUTS.NUM_OF_SEGMENTS:
-    case SYSTEM_INPUTS.SEGMENT_DURATION:
+    case SYSTEM_INPUTS.NUM_OF_CLIPS:
+    case SYSTEM_INPUTS.NUM_OF_CLIPS:
+    case SYSTEM_INPUTS.CLIP_DURATION:
+    case SYSTEM_INPUTS.CLIP_DURATION:
       return 'number';
     case SYSTEM_INPUTS.RESOLUTION:
       return 'resolution';

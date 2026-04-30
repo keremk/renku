@@ -45,7 +45,7 @@ const mockVideoScript = {
 	Summary: 'Test summary for timeline composer testing',
 	CharacterPrompt: 'Test character prompt',
 	MusicPrompt: 'Test music prompt',
-	Segments: [
+	Clips: [
 		{
 			Script: 'Segment 0 script - ImageNarration without audio',
 			NarrationType: 'ImageNarration',
@@ -145,15 +145,15 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 
 		// Build resolvedInputs map that will be populated as mocked producers run
 		// System inputs are seeded here, artifact inputs will be added during execution
-		// Duration and SegmentDuration from input-template.yaml are needed for TimelineComposer
+		// Duration and ClipDuration from input-template.yaml are needed for TimelineComposer
 		const resolvedInputs: Record<string, unknown> = {
 			'Input:StorageRoot': cliConfig.storage.root,
 			'Input:StorageBasePath': cliConfig.storage.basePath,
 			'Input:MovieId': storageMovieId,
 			'Input:Duration': 30, // Total duration from input-template.yaml
-			'Input:SegmentDuration': 10, // Per-segment duration from input-template.yaml
+				'Input:ClipDuration': 10, // Per-clip duration from input-template.yaml
 			'Input:TimelineComposer.Duration': 30,
-			'Input:TimelineComposer.SegmentDuration': 10,
+			'Input:TimelineComposer.ClipDuration': 10,
 		};
 
 		// ============================================================
@@ -244,9 +244,9 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 					const timelineConfig = {
 						timeline: {
 							clips: [
-								{ kind: 'Image', inputs: 'ImageSegments' },
-								{ kind: 'Audio', inputs: 'AudioSegments', volume: 0.9 },
-								{ kind: 'Video', inputs: 'VideoSegments' },
+								{ kind: 'Image', inputs: 'ImageClips' },
+								{ kind: 'Audio', inputs: 'AudioClips', volume: 0.9 },
+								{ kind: 'Video', inputs: 'VideoClips' },
 							],
 							tracks: ['Image', 'Audio', 'Video'],
 							masterTracks: ['Audio', 'Video'],
@@ -417,11 +417,11 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 		// 2 clips (1 per segment with images: segment 0 and segment 2)
 		expect(imageTrack!.clips).toHaveLength(2);
 
-		// Segment 0 clip (duration: 10s, contains 2 images as effects)
+			// Clip 0 (duration: 10s, contains 2 images as effects)
 		const imgClipSeg0 = imageTrack!.clips[0];
 		expect(imgClipSeg0.kind).toBe('Image');
 		expect(imgClipSeg0.startTime).toBe(0);
-		expect(imgClipSeg0.duration).toBe(10); // Full segment duration
+			expect(imgClipSeg0.duration).toBe(10); // Full clip duration
 		const effects0 = imgClipSeg0.properties.effects as Array<{
 			assetId: string;
 		}>;
@@ -429,11 +429,11 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 		expect(effects0[0].assetId).toContain('ImageProducer.GeneratedImage[0][0]');
 		expect(effects0[1].assetId).toContain('ImageProducer.GeneratedImage[0][1]');
 
-		// Segment 2 clip (starting at 20s, duration: 10s, contains 2 images as effects)
+			// Clip 2 (starting at 20s, duration: 10s, contains 2 images as effects)
 		const imgClipSeg2 = imageTrack!.clips[1];
 		expect(imgClipSeg2.kind).toBe('Image');
 		expect(imgClipSeg2.startTime).toBe(20); // After segments 0+1 (20s)
-		expect(imgClipSeg2.duration).toBe(10); // Full segment duration
+			expect(imgClipSeg2.duration).toBe(10); // Full clip duration
 		const effects2 = imgClipSeg2.properties.effects as Array<{
 			assetId: string;
 		}>;

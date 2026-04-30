@@ -67,7 +67,7 @@ describe('end-to-end: conditional fan-in inference', () => {
 		}
 
 		const videoFanIn =
-			timelineJob.context?.fanIn?.['Input:TimelineComposer.VideoSegments'];
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.VideoClips'];
 		expect(videoFanIn).toBeDefined();
 		expect(videoFanIn?.groupBy).toBe('character');
 		expect(videoFanIn?.orderBy).toBeUndefined();

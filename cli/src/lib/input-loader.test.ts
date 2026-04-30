@@ -58,7 +58,7 @@ describe('input-loader', () => {
       stringifyYaml({
         inputs: {
           Duration: 30,
-          NumOfSegments: 3,
+          NumOfClips: 3,
           InquiryPrompt: 'Test story',
           VoiceId: 'Wise_Woman',
           'Input:AudioProducer.provider': 'replicate',

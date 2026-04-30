@@ -62,7 +62,7 @@ inputs:
 
   # Multi-shot
   - name: MultiShots
-    description: Enable multi-shot segmentation.
+    description: Enable multi-shot clipation.
     type: boolean
     required: false
 

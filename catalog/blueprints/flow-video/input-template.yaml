@@ -15,7 +15,7 @@ inputs:
 
   # System inputs
   Duration: 20
-  NumOfSegments: 2
+  NumOfClips: 2
 
 models:
   # LLM for generating prompts
@@ -51,9 +51,9 @@ models:
       timeline:
         masterTracks: ['Audio', 'Video']
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         audioClip:
-          artifact: AudioSegments
+          artifact: AudioClips
         transcriptionClip:
           artifact: TranscriptionAudio
         musicClip:

@@ -97,7 +97,7 @@ describe('end-to-end: transcription producer plan validation', () => {
       'Artifact:TimelineComposer.Timeline'
     );
 
-    // TranscriptionProducer no longer has AudioSegments fan-in;
+    // TranscriptionProducer no longer has AudioClips fan-in;
     // audio is now wired to TimelineComposer.TranscriptionAudio instead.
     // Verify the TimelineComposer receives the TranscriptionAudio fan-in
     const timelineJob = findJob(plan, 'TimelineComposer');

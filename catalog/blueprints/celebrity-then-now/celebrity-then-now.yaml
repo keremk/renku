@@ -1,6 +1,6 @@
 meta:
   name: Celebrity Then and Now
-  description: Generate a video showcasing celebrities' transformations over time. Each celebrity segment is built by a local composite producer that creates a meeting clip, a seamless camera move back to an empty scene, and stitches them into one segment video before timeline composition.
+  description: Generate a video showcasing celebrities' transformations over time. Each celebrity clip is built by a local composite producer that creates a meeting clip, a seamless camera move back to an empty scene, and stitches them into one clip video before timeline composition.
   id: CelebrityThenNow
   kind: blueprint
   version: 0.1.0
@@ -20,7 +20,7 @@ inputs:
     itemType: image
     required: true
   - name: SettingImage
-    description: Single background/setting image that establishes the environment for all segments (e.g., a movie set, iconic location).
+    description: Single background/setting image that establishes the environment for all clips (e.g., a movie set, iconic location).
     type: image
     required: true
 
@@ -43,16 +43,16 @@ inputs:
     required: false
 
   # Timing
-  - name: NumOfSegments
-    description: Number of celebrity segments in the video. Must match the length of CelebrityThenImages and CelebrityNowImages.
+  - name: NumOfClips
+    description: Number of celebrity clips in the video. Must match the length of CelebrityThenImages and CelebrityNowImages.
     type: int
     required: true
   - name: MeetingDuration
-    description: Duration of each meeting segment in seconds (recommended 10).
+    description: Duration of each meeting clip in seconds (recommended 10).
     type: int
     required: true
   - name: TransitionDuration
-    description: Duration of each transition segment in seconds (recommended 5).
+    description: Duration of each transition clip in seconds (recommended 5).
     type: int
     required: true
   - name: Duration
@@ -71,17 +71,17 @@ outputs:
     description: Generated consistent "then" images of celebrities placed in the setting.
     type: array
     itemType: image
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: ConsistentNowImages
     description: Generated consistent "now" images of celebrities placed in the setting.
     type: array
     itemType: image
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: CelebrityVideos
-    description: Stitched celebrity segment videos. Each segment shows the then self entering the empty scene, meeting the current self, and transitioning back to an empty scene.
+    description: Stitched celebrity clip videos. Each clip shows the then self entering the empty scene, meeting the current self, and transitioning back to an empty scene.
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: Music
     description: Generated background music for the entire video.
     type: audio
@@ -89,13 +89,13 @@ outputs:
     description: Composed timeline JSON manifest.
     type: json
   - name: FinalVideo
-    description: Final rendered video with all segments and music.
+    description: Final rendered video with all clips and music.
     type: video
 
 loops:
-  - name: segment
-    description: Iterates over celebrity segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over celebrity clips.
+    countInput: NumOfClips
 
 imports:
   # Script/prompt generation
@@ -105,15 +105,15 @@ imports:
   # Image composition - create consistent images from user photos
   - name: ThenImageProducer
     producer: image/image-compose
-    loop: segment
+    loop: clip
   - name: NowImageProducer
     producer: image/image-compose
-    loop: segment
+    loop: clip
 
-  # Per-celebrity composite segment builder
+  # Per-celebrity composite clip builder
   - name: CelebrityVideoProducer
     path: ./celebrity-video/celebrity-video.yaml
-    loop: segment
+    loop: clip
 
   # Music
   - name: MusicProducer
@@ -133,8 +133,8 @@ connections:
     to: DirectorProducer.EnvironmentDescription
   - from: VisualStyle
     to: DirectorProducer.VisualStyle
-  - from: NumOfSegments
-    to: DirectorProducer.NumOfSegments
+  - from: NumOfClips
+    to: DirectorProducer.NumOfClips
   - from: MeetingDuration
     to: DirectorProducer.MeetingDuration
   - from: TransitionDuration
@@ -144,66 +144,66 @@ connections:
   - from: MusicalStyle
     to: DirectorProducer.MusicalStyle
 
-  # === ThenImageProducer inputs (looped over segment) ===
-  - from: CelebrityThenImages[segment]
-    to: ThenImageProducer[segment].SourceImages[0]
+  # === ThenImageProducer inputs (looped over clip) ===
+  - from: CelebrityThenImages[clip]
+    to: ThenImageProducer[clip].SourceImages[0]
     note: User-provided young/then photo for this character
   - from: SettingImage
-    to: ThenImageProducer[segment].SourceImages[1]
+    to: ThenImageProducer[clip].SourceImages[1]
     note: Setting image for visual context
-  - from: DirectorProducer.Script.Characters[segment].ThenImagePrompt
-    to: ThenImageProducer[segment].Prompt
+  - from: DirectorProducer.Script.Characters[clip].ThenImagePrompt
+    to: ThenImageProducer[clip].Prompt
   - from: Resolution
-    to: ThenImageProducer[segment].Resolution
+    to: ThenImageProducer[clip].Resolution
 
   # === ThenImageProducer outputs ===
-  - from: ThenImageProducer[segment].ComposedImage
-    to: ConsistentThenImages[segment]
+  - from: ThenImageProducer[clip].ComposedImage
+    to: ConsistentThenImages[clip]
 
-  # === NowImageProducer inputs (looped over segment) ===
-  - from: CelebrityNowImages[segment]
-    to: NowImageProducer[segment].SourceImages[0]
+  # === NowImageProducer inputs (looped over clip) ===
+  - from: CelebrityNowImages[clip]
+    to: NowImageProducer[clip].SourceImages[0]
     note: User-provided current/now photo for this character
   - from: SettingImage
-    to: NowImageProducer[segment].SourceImages[1]
+    to: NowImageProducer[clip].SourceImages[1]
     note: Setting image for visual context
-  - from: DirectorProducer.Script.Characters[segment].NowImagePrompt
-    to: NowImageProducer[segment].Prompt
+  - from: DirectorProducer.Script.Characters[clip].NowImagePrompt
+    to: NowImageProducer[clip].Prompt
   - from: Resolution
-    to: NowImageProducer[segment].Resolution
+    to: NowImageProducer[clip].Resolution
 
   # === NowImageProducer outputs ===
-  - from: NowImageProducer[segment].ComposedImage
-    to: ConsistentNowImages[segment]
+  - from: NowImageProducer[clip].ComposedImage
+    to: ConsistentNowImages[clip]
 
-  # === CelebrityVideoProducer inputs (looped over segment) ===
-  - from: ThenImageProducer[segment].ComposedImage
-    to: CelebrityVideoProducer[segment].CelebrityThenImage
+  # === CelebrityVideoProducer inputs (looped over clip) ===
+  - from: ThenImageProducer[clip].ComposedImage
+    to: CelebrityVideoProducer[clip].CelebrityThenImage
     note: Consistent then image in the shared environment
-  - from: NowImageProducer[segment].ComposedImage
-    to: CelebrityVideoProducer[segment].CelebrityNowImage
+  - from: NowImageProducer[clip].ComposedImage
+    to: CelebrityVideoProducer[clip].CelebrityNowImage
     note: Consistent now image in the shared environment
   - from: SettingImage
-    to: CelebrityVideoProducer[segment].SettingImage
-    note: Empty setting used for seamless segment starts and exits
-  - from: DirectorProducer.Script.Characters[segment].TogetherImagePrompt
-    to: CelebrityVideoProducer[segment].TogetherImagePrompt
-  - from: DirectorProducer.Script.Characters[segment].MeetingVideoPrompt
-    to: CelebrityVideoProducer[segment].MeetingVideoPrompt
-  - from: DirectorProducer.Script.Characters[segment].TransitionVideoPrompt
-    to: CelebrityVideoProducer[segment].TransitionVideoPrompt
+    to: CelebrityVideoProducer[clip].SettingImage
+    note: Empty setting used for seamless clip starts and exits
+  - from: DirectorProducer.Script.Characters[clip].TogetherImagePrompt
+    to: CelebrityVideoProducer[clip].TogetherImagePrompt
+  - from: DirectorProducer.Script.Characters[clip].MeetingVideoPrompt
+    to: CelebrityVideoProducer[clip].MeetingVideoPrompt
+  - from: DirectorProducer.Script.Characters[clip].TransitionVideoPrompt
+    to: CelebrityVideoProducer[clip].TransitionVideoPrompt
   - from: MeetingDuration
-    to: CelebrityVideoProducer[segment].MeetingDuration
+    to: CelebrityVideoProducer[clip].MeetingDuration
   - from: TransitionDuration
-    to: CelebrityVideoProducer[segment].TransitionDuration
-  - from: SegmentDuration
-    to: CelebrityVideoProducer[segment].Duration
+    to: CelebrityVideoProducer[clip].TransitionDuration
+  - from: ClipDuration
+    to: CelebrityVideoProducer[clip].Duration
   - from: Resolution
-    to: CelebrityVideoProducer[segment].Resolution
+    to: CelebrityVideoProducer[clip].Resolution
 
   # === CelebrityVideoProducer outputs ===
-  - from: CelebrityVideoProducer[segment].CelebrityVideo
-    to: CelebrityVideos[segment]
+  - from: CelebrityVideoProducer[clip].CelebrityVideo
+    to: CelebrityVideos[clip]
 
   # === MusicProducer inputs ===
   - from: DirectorProducer.Script.MusicPrompt
@@ -218,8 +218,8 @@ connections:
   # === TimelineComposer inputs ===
   - from: Duration
     to: TimelineComposer.Duration
-  - from: CelebrityVideoProducer[segment].CelebrityVideo
-    to: TimelineComposer.VideoSegments
+  - from: CelebrityVideoProducer[clip].CelebrityVideo
+    to: TimelineComposer.VideoClips
   - from: MusicProducer.GeneratedMusic
     to: TimelineComposer.Music
 

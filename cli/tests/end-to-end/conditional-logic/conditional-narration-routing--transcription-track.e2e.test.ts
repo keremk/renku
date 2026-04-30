@@ -46,7 +46,7 @@ const mockVideoScript = {
 	Summary: 'Test summary for transcription timeline testing',
 	CharacterPrompt: 'Test character prompt',
 	MusicPrompt: 'Test music prompt',
-	Segments: [
+	Clips: [
 		{
 			Script: 'Segment 0 script - ImageNarration without audio',
 			NarrationType: 'ImageNarration',
@@ -157,9 +157,9 @@ describe('end-to-end: TimelineComposer with Transcription track', () => {
 			'Input:StorageBasePath': cliConfig.storage.basePath,
 			'Input:MovieId': storageMovieId,
 			'Input:Duration': 40,
-			'Input:SegmentDuration': 10,
+			'Input:ClipDuration': 10,
 			'Input:TimelineComposer.Duration': 40,
-			'Input:TimelineComposer.SegmentDuration': 10,
+			'Input:TimelineComposer.ClipDuration': 10,
 		};
 
 		// ============================================================
@@ -244,9 +244,9 @@ describe('end-to-end: TimelineComposer with Transcription track', () => {
 					const timelineConfig = {
 						timeline: {
 							clips: [
-								{ kind: 'Image', inputs: 'ImageSegments' },
-								{ kind: 'Audio', inputs: 'AudioSegments', volume: 0.9 },
-								{ kind: 'Video', inputs: 'VideoSegments' },
+								{ kind: 'Image', inputs: 'ImageClips' },
+								{ kind: 'Audio', inputs: 'AudioClips', volume: 0.9 },
+								{ kind: 'Video', inputs: 'VideoClips' },
 								{ kind: 'Transcription', inputs: 'TranscriptionAudio' },
 							],
 							tracks: ['Image', 'Audio', 'Video', 'Transcription'],

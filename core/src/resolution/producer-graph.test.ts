@@ -1574,7 +1574,7 @@ describe('createProducerGraph', () => {
             artifact: {
               name: 'AssetPlan',
               type: 'json',
-              arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+              arrays: [{ path: 'Segments', countInput: 'NumOfClips' }],
             },
           },
           {
@@ -1628,7 +1628,7 @@ describe('createProducerGraph', () => {
 
       expect(sourceProducer.produces).toContain('Artifact:SourceDirector.AssetPlan');
       expect(extras.outputDefinitions?.AssetPlan?.arrays).toEqual([
-        { path: 'Segments', countInput: 'NumOfSegments' },
+        { path: 'Segments', countInput: 'NumOfClips' },
       ]);
       expect(downstreamProducer.context?.inputBindings).toEqual({
         AssetPlan: 'Artifact:SourceDirector.AssetPlan',

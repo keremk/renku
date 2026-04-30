@@ -1,6 +1,6 @@
 inputs:
   # Celebrity images - provide one "then" and one "now" image per celebrity
-  # Arrays must have the same length as NumOfSegments
+  # Arrays must have the same length as NumOfClips
   CelebrityThenImages:
     - 'file:./images/celebrity1-then.jpg'
     - 'file:./images/celebrity2-then.jpg'
@@ -20,11 +20,10 @@ inputs:
   MusicalStyle: 'Nostalgic orchestral with soft strings and piano, building emotional arc'
 
   # Timing
-  NumOfSegments: 3
+  NumOfClips: 3
   MeetingDuration: 10
   TransitionDuration: 5
-  # System-derived segment duration used by orchestration wiring
-  SegmentDuration: 15
+  # System-derived clip duration used by orchestration wiring
 
   # Video settings
   Resolution:
@@ -32,8 +31,8 @@ inputs:
     height: 720
 
   # System inputs
-  # SegmentDuration must equal MeetingDuration + TransitionDuration
-  # Total Duration = NumOfSegments * SegmentDuration
+  # ClipDuration must equal MeetingDuration + TransitionDuration
+  # Total Duration = NumOfClips * ClipDuration
   # Example: 15 = 10 + 5, and 45 = 3 * 15
   Duration: 45
 
@@ -58,7 +57,7 @@ models:
     provider: fal-ai
     producerId: CelebrityVideoProducer.TogetherImageProducer
 
-  # Image-to-video for stitched celebrity segments
+  # Image-to-video for stitched celebrity clips
   - model: kling-video/v2.5-turbo/pro/image-to-video
     provider: fal-ai
     producerId: CelebrityVideoProducer.MeetingVideoProducer
@@ -83,7 +82,7 @@ models:
         tracks: ['Video', 'Music']
         masterTracks: ['Video']
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         musicClip:
           artifact: Music
           volume: 0.4

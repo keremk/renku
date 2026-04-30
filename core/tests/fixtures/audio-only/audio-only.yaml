@@ -33,12 +33,12 @@ outputs:
     description: Generated audio for each narration segment.
     type: array
     itemType: audio
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
   - name: segment
     description: Iterates over narration segments.
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 imports:
   - name: ScriptProducer
@@ -56,8 +56,8 @@ connections:
     to: ScriptProducer.Duration
   - from: Language
     to: ScriptProducer.Language
-  - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments
+  - from: NumOfClips
+    to: ScriptProducer.NumOfClips
 
   - from: ScriptProducer.NarrationScript[segment]
     to: AudioProducer[segment].Text

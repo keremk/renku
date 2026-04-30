@@ -28,8 +28,8 @@ describe('loadBlueprintBundle', () => {
       catalogRoot: CATALOG_ROOT,
     });
 
-    const composite = bundle.root.children.get('SegmentUnit');
-    expect(composite?.document.meta.id).toBe('SegmentUnit');
+    const composite = bundle.root.children.get('ClipUnit');
+    expect(composite?.document.meta.id).toBe('ClipUnit');
     expect(composite?.children.has('PrepImage')).toBe(true);
     expect(composite?.children.has('MainVideo')).toBe(true);
   });

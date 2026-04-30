@@ -1,6 +1,6 @@
 meta:
   name: Subtitles Composer
-  description: Align normalized per-segment transcripts to the final timeline and emit exporter-ready subtitles JSON.
+  description: Align normalized per-clip transcripts to the final timeline and emit exporter-ready subtitles JSON.
   id: SubtitlesComposer
   kind: producer
   version: 0.1.0
@@ -17,10 +17,10 @@ inputs:
     type: int
     required: true
   - name: Transcripts
-    description: Normalized transcripts grouped by original segment index.
+    description: Normalized transcripts grouped by original clip index.
     type: array
     itemType: json
-    dimensions: segment
+    dimensions: clip
     fanIn: true
     required: false
 

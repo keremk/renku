@@ -477,8 +477,8 @@ describe('TimelineProducer', () => {
     resolvedInputs.VideoSegments = videoFanIn.groups;
     resolvedInputs['Artifact:Video[0]'] = createAssetPayload(8);
     resolvedInputs['Artifact:Video[1]'] = createAssetPayload(6);
-    resolvedInputs['Input:SegmentDuration'] = 10;
-    resolvedInputs['SegmentDuration'] = 10;
+    resolvedInputs['Input:ClipDuration'] = 10;
+    resolvedInputs['ClipDuration'] = 10;
 
     const result = await handler.invoke(request);
     const timelinePayload = result.artifacts[0]?.blob?.data;
@@ -842,7 +842,7 @@ describe('TimelineProducer', () => {
     expect(videoTrack?.clips).toHaveLength(2);
   });
 
-  it('uses SegmentDuration fallback when all master tracks missing for a segment', async () => {
+  it('uses ClipDuration fallback when all master tracks missing for a segment', async () => {
     const handler = createHandler();
     const request = makeRequest();
     const resolvedInputs = request.context.extras?.resolvedInputs as Record<
@@ -870,7 +870,7 @@ describe('TimelineProducer', () => {
     // Add VideoSegments to the inputs array so canonicalization works
     request.inputs.push('Input:TimelineComposer.VideoSegments');
 
-    // Segment 0: no audio, no video - will use SegmentDuration fallback
+    // Segment 0: no audio, no video - will use ClipDuration fallback
     // Segment 1: has audio
     const audioGroups = [
       [], // segment 0 - no audio
@@ -900,9 +900,9 @@ describe('TimelineProducer', () => {
     };
     resolvedInputs['Artifact:Video[1]'] = createAssetPayload(8);
 
-    // Set SegmentDuration as fallback
-    resolvedInputs['Input:SegmentDuration'] = 5;
-    resolvedInputs['SegmentDuration'] = 5;
+    // Set ClipDuration as fallback
+    resolvedInputs['Input:ClipDuration'] = 5;
+    resolvedInputs['ClipDuration'] = 5;
 
     const result = await handler.invoke(request);
     expect(result.status).toBe('succeeded');
@@ -918,7 +918,7 @@ describe('TimelineProducer', () => {
       }>;
     };
 
-    // Segment 0: duration from SegmentDuration (5s)
+    // Segment 0: duration from ClipDuration (5s)
     // Segment 1: duration from Audio (8s)
     expect(timeline.duration).toBeCloseTo(13);
   });
@@ -1150,7 +1150,7 @@ describe('TimelineProducer', () => {
     request.inputs.push('Input:TimelineComposer.VideoSegments');
     request.inputs.push('Input:TimelineComposer.TranscriptionAudio');
 
-    // 4 segments: Audio durations [10, 8, 7, 10] — master track gives segment durations
+    // 4 clips: Audio durations [10, 8, 7, 10] — master track gives clip durations
     // Extend audio to 4 segments
     const audioGroups = [
       ['Artifact:AudioProducer.GeneratedAudio[0]'],
@@ -1422,9 +1422,9 @@ describe('TimelineProducer', () => {
     request.inputs.push('Input:TimelineComposer.AudioSegments');
     request.inputs.push('Input:TimelineComposer.TranscriptionAudio');
 
-    // 6 segments with uniform duration from SegmentDuration
-    resolvedInputs['Input:SegmentDuration'] = 5;
-    resolvedInputs['SegmentDuration'] = 5;
+    // 6 segments with uniform duration from ClipDuration
+    resolvedInputs['Input:ClipDuration'] = 5;
+    resolvedInputs['ClipDuration'] = 5;
     resolvedInputs['Input:TimelineComposer.Duration'] = 30;
     resolvedInputs['TimelineComposer.Duration'] = 30;
     resolvedInputs['Duration'] = 30;
@@ -2153,8 +2153,8 @@ describe('TimelineProducer', () => {
       resolvedInputs['Input:TimelineComposer.Duration'] = 24;
       resolvedInputs['TimelineComposer.Duration'] = 24;
       resolvedInputs.Duration = 24;
-      delete resolvedInputs['Input:SegmentDuration'];
-      delete resolvedInputs.SegmentDuration;
+      delete resolvedInputs['Input:ClipDuration'];
+      delete resolvedInputs.ClipDuration;
 
       const imageGroups = [
         ['Artifact:Image[0][a]', 'Artifact:Image[0][b]'],

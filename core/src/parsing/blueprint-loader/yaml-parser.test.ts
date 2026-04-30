@@ -397,7 +397,7 @@ outputs:
     const imagePrompts = document.outputs.find(
       (artifact) => artifact.name === 'ImagePrompts'
     );
-    expect(imagePrompts?.countInput).toBe('NumOfSegments');
+    expect(imagePrompts?.countInput).toBe('NumOfClips');
     expect(imagePrompts?.countInputOffset).toBe(1);
   });
 
@@ -445,7 +445,7 @@ meta:
 inputs:
   - name: NumOfCharacters
     type: int
-    countInput: NumOfSegments
+    countInput: NumOfClips
 outputs:
   - name: Output
     type: string
@@ -569,7 +569,7 @@ connections:
       expect.arrayContaining([
         expect.objectContaining({
           from: 'ImageProducer[image+1].GeneratedImage',
-          to: 'VideoProducer[segment].EndImage',
+          to: 'VideoProducer[clip].EndImage',
         }),
       ])
     );

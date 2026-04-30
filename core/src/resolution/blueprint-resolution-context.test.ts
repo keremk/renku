@@ -38,7 +38,7 @@ describe('blueprint resolution context', () => {
     expect(
       root.document.edges.some(
         (edge) =>
-          edge.to === 'VideoScript.Segments[segment].NarrationType'
+          edge.to === 'VideoScript.Clips[clip].NarrationType'
       )
     ).toBe(false);
 
@@ -52,14 +52,14 @@ describe('blueprint resolution context', () => {
     expect(
       context.graph.nodes.some(
         (node) =>
-          node.id === 'Output:VideoScript.Segments[segment].NarrationType'
+          node.id === 'Output:VideoScript.Clips[clip].NarrationType'
       )
     ).toBe(true);
     expect(root.document.outputs[0]?.schema).toBeUndefined();
     expect(
       root.document.edges.some(
         (edge) =>
-          edge.to === 'VideoScript.Segments[segment].NarrationType'
+          edge.to === 'VideoScript.Clips[clip].NarrationType'
       )
     ).toBe(false);
   });
@@ -114,7 +114,7 @@ describe('blueprint resolution context', () => {
     const normalizedInputs = normalizeBlueprintResolutionInputs(context, {
       InquiryPrompt: 'Industrial history',
       Duration: 60,
-      NumOfSegments: 2,
+      NumOfClips: 2,
       Audience: 'general',
       Language: 'en',
     });
@@ -123,7 +123,7 @@ describe('blueprint resolution context', () => {
     expect(normalizedInputs).toMatchObject({
       'Input:InquiryPrompt': 'Industrial history',
       'Input:Duration': 60,
-      'Input:NumOfSegments': 2,
+      'Input:NumOfClips': 2,
       'Input:Audience': 'general',
       'Input:Language': 'en',
     });

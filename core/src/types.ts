@@ -7,11 +7,11 @@ import { Buffer } from 'buffer';
 export const SYSTEM_INPUTS = {
   // User-provided system inputs
   DURATION: 'Duration',
-  NUM_OF_SEGMENTS: 'NumOfSegments',
+  NUM_OF_CLIPS: 'NumOfClips',
   RESOLUTION: 'Resolution',
 
   // Auto-computed system inputs
-  SEGMENT_DURATION: 'SegmentDuration',
+  CLIP_DURATION: 'ClipDuration',
 
   // Existing system inputs (for reference)
   MOVIE_ID: 'MovieId',
@@ -226,7 +226,7 @@ export interface BlueprintInputDefinition {
 export interface ArrayDimensionMapping {
   /** Path to the array property (e.g., "Segments" or "Segments.ImagePrompts") */
   path: string;
-  /** Input name that determines the array size (e.g., "NumOfSegments") */
+  /** Input name that determines the array size (e.g., "NumOfClips") */
   countInput: string;
   /** Optional offset for the count */
   countInputOffset?: number;
@@ -714,11 +714,28 @@ export interface ProducerDirective {
 /**
  * Scope controls for planning.
  */
+export type ClipScopeMode = 'through' | 'only';
+
+export interface PlanningClipScopeControls {
+  /** Structured loop dimension used as the clip axis. */
+  dimension: string;
+  /** Zero-based clip indices selected by the caller. */
+  indices: number[];
+  /** Whether to plan only selected clips, or every clip through the maximum selected index. */
+  mode: ClipScopeMode;
+  /** First implementation requires upstream closure to keep selected clip jobs runnable. */
+  includeUpstream: true;
+  /** Reserved for explicit future producer/artifact classification support. */
+  assetKinds?: string[];
+}
+
 export interface PlanningScopeControls {
   /** Limit plan to layers 0 through upToLayer (0-indexed). */
   upToLayer?: number;
   /** Per-producer directives. Unmentioned producers inherit baseline behavior. */
   producerDirectives?: ProducerDirective[];
+  /** Clip-scoped generation controls. */
+  clip?: PlanningClipScopeControls;
 }
 
 /**
@@ -788,6 +805,15 @@ export interface PlanningWarning {
   targetId: string;
 }
 
+export interface ResolvedClipScopeControls {
+  dimension: string;
+  mode: ClipScopeMode;
+  selectedIndices: number[];
+  selectedJobIds: string[];
+  upstreamJobIds: string[];
+  blockedJobIds: string[];
+}
+
 export interface ResolvedPlanningControls {
   effectiveUpToLayer?: number;
   blockedProducerJobIds: string[];
@@ -796,6 +822,7 @@ export interface ResolvedPlanningControls {
   pinnedArtifactIds: string[];
   producerSummaries: ProducerRunSummary[];
   warnings: PlanningWarning[];
+  clipScope?: ResolvedClipScopeControls;
 }
 
 /**

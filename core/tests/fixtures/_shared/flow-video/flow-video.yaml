@@ -16,7 +16,7 @@ inputs:
   - name: Duration
     description: Desired narration duration in seconds.
     type: int
-  - name: NumOfSegments
+  - name: NumOfClips
     description: Number of narration segments to produce.
     type: int
   - name: Style
@@ -34,15 +34,15 @@ outputs:
     description: Array of narration paragraphs per segment.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: VideoPrompts
     description: Array of video prompts per segment.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: ImagePrompts
     description: Array of image prompts per segment.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
     countInputOffset: 1

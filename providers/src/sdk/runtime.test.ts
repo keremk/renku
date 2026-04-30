@@ -995,10 +995,10 @@ describe('createProducerRuntime', () => {
       expect(payload).toEqual({ duration: 8 });
     });
 
-    it('normalizes SegmentDuration-bound duration to nearest enum value', async () => {
+    it('normalizes ClipDuration-bound duration to nearest enum value', async () => {
       const request = createTestJobContext(
-        { 'Input:SegmentDuration': 10 },
-        { Duration: 'Input:SegmentDuration' },
+        { 'Input:ClipDuration': 10 },
+        { Duration: 'Input:ClipDuration' },
         {
           Duration: { field: 'duration' },
         }
@@ -1025,8 +1025,8 @@ describe('createProducerRuntime', () => {
 
     it('normalizes using x-renku-constraints when schema enum is absent', async () => {
       const request = createTestJobContext(
-        { 'Input:SegmentDuration': 9 },
-        { Duration: 'Input:SegmentDuration' },
+        { 'Input:ClipDuration': 9 },
+        { Duration: 'Input:ClipDuration' },
         {
           Duration: { field: 'duration' },
         }

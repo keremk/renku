@@ -1,6 +1,6 @@
 meta:
-  name: Celebrity Video Segment
-  description: Build one celebrity segment by composing a together image, generating a meeting clip and an exit transition clip, then stitching them into one video.
+  name: Celebrity Video Clip
+  description: Build one celebrity clip by composing a together image, generating a meeting clip and an exit transition clip, then stitching them into one video.
   id: CelebrityVideo
   kind: blueprint
   version: 0.1.0
@@ -15,7 +15,7 @@ inputs:
     type: image
     required: true
   - name: SettingImage
-    description: Empty shared setting image used as the seamless start and end scene for the segment.
+    description: Empty shared setting image used as the seamless start and end scene for the clip.
     type: image
     required: true
   - name: TogetherImagePrompt
@@ -39,7 +39,7 @@ inputs:
     type: int
     required: true
   - name: Duration
-    description: Total duration of the stitched celebrity segment in seconds.
+    description: Total duration of the stitched celebrity clip in seconds.
     type: int
     required: true
   - name: Resolution
@@ -49,7 +49,7 @@ inputs:
 
 outputs:
   - name: CelebrityVideo
-    description: Final stitched celebrity segment video.
+    description: Final stitched celebrity clip video.
     type: video
 
 imports:
@@ -95,10 +95,10 @@ connections:
     to: TransitionVideoProducer.Duration
 
   - from: MeetingVideoProducer.GeneratedVideo
-    to: VideoStitcher.VideoSegments
+    to: VideoStitcher.VideoClips
     groupBy: singleton
   - from: TransitionVideoProducer.GeneratedVideo
-    to: VideoStitcher.VideoSegments
+    to: VideoStitcher.VideoClips
     groupBy: singleton
   - from: Duration
     to: VideoStitcher.Duration

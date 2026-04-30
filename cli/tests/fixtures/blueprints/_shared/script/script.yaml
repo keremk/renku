@@ -16,8 +16,8 @@ inputs:
   - name: Duration
     description: Desired narration duration in seconds.
     type: int
-  - name: NumOfSegments
-    description: Number of narration segments to produce.
+  - name: NumOfClips
+    description: Number of narration clips to produce.
     type: int
   - name: Audience
     description: Target audience for tone and vocabulary. Model default varies.
@@ -34,12 +34,12 @@ outputs:
     description: Narrative summary for supplemental reading.
     type: string
   - name: NarrationScript
-    description: Array of narration paragraphs per segment.
+    description: Array of narration paragraphs per clip.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
-  - name: segment
-    description: Iterates over narration segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narration clips.
+    countInput: NumOfClips

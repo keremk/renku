@@ -1,6 +1,6 @@
 meta:
   name: Content Generator
-  description: Generates content script with segments.
+  description: Generates content script with clips.
   id: ContentGenerator
   kind: producer
   version: 0.1.0
@@ -11,15 +11,15 @@ inputs:
     description: The topic for content generation.
     type: string
     required: true
-  - name: NumOfSegments
-    description: Number of segments to generate.
+  - name: NumOfClips
+    description: Number of clips to generate.
     type: int
     required: true
 
 outputs:
   - name: Script
-    description: Generated script with segments.
+    description: Generated script with clips.
     type: json
     arrays:
-      - path: Segments
-        countInput: NumOfSegments
+      - path: Clips
+        countInput: NumOfClips

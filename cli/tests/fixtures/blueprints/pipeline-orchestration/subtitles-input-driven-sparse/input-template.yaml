@@ -1,5 +1,5 @@
 inputs:
-  NumOfSegments: 3
+  NumOfClips: 3
   Duration: 30
   Language: 'en'
   Timeline:
@@ -14,19 +14,19 @@ inputs:
             startTime: 0
             duration: 10
             properties:
-              assetId: audio-segment-0
+              assetId: audio-clip-0
               groupIndex: 0
           - id: transcription-2
             kind: Transcription
             startTime: 20
             duration: 10
             properties:
-              assetId: audio-segment-2
+              assetId: audio-clip-2
               groupIndex: 2
   TranscriptionAudio:
-    - 'https://example.com/audio-segment-0.mp3'
+    - 'https://example.com/audio-clip-0.mp3'
     - null
-    - 'https://example.com/audio-segment-2.mp3'
+    - 'https://example.com/audio-clip-2.mp3'
 
 models:
   - model: elevenlabs/speech-to-text

@@ -8,7 +8,7 @@ meta:
   license: MIT
 
 inputs:
-  - name: VideoSegments
+  - name: VideoClips
     description: Ordered video clips to stitch together.
     type: array
     itemType: video

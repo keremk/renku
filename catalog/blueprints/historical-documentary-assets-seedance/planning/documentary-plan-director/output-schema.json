@@ -14,25 +14,25 @@
       },
       "ScenePlanMarkdown": {
         "type": "string",
-        "description": "Scene-by-scene markdown ordering the generated assets. Each scene line must reference artifact names like SegmentStillImages[0][0], SegmentReferenceStillImages[0][0][1], SegmentMapImages[0], SegmentNarrationAudio[0], SegmentMotionVideos[0], or SegmentExpertTalkingHeadVideos[0][1]. Do not include timing or transition instructions."
+        "description": "Scene-by-scene markdown ordering the generated assets. Each scene line must reference artifact names like ClipStillImages[0][0], ClipReferenceStillImages[0][0][1], ClipMapImages[0], ClipNarrationAudio[0], ClipMotionVideos[0], or ClipExpertTalkingHeadVideos[0][1]. Do not include timing or transition instructions."
       },
-      "Segments": {
+      "Clips": {
         "type": "array",
-        "description": "Ordered documentary segments.",
+        "description": "Ordered documentary clips.",
         "items": {
           "type": "object",
           "properties": {
             "SceneTitle": {
               "type": "string",
-              "description": "Short title for the segment."
+              "description": "Short title for the clip."
             },
             "NarrationScript": {
               "type": "string",
-              "description": "Narration for this segment, written for TTS and sized to fit the segment duration."
+              "description": "Narration for this clip, written for TTS and sized to fit the clip duration."
             },
             "ImagePlans": {
               "type": "array",
-              "description": "Still-image plans for this segment.",
+              "description": "Still-image plans for this clip.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -72,19 +72,19 @@
             },
             "HasMap": {
               "type": "boolean",
-              "description": "Whether this segment should generate a map image."
+              "description": "Whether this clip should generate a map image."
             },
             "MapPrompt": {
               "type": "string",
-              "description": "Map-image prompt for the segment. Empty string when HasMap is false."
+              "description": "Map-image prompt for the clip. Empty string when HasMap is false."
             },
             "MotionPlan": {
               "type": "object",
-              "description": "Seedance-oriented motion plan for this segment.",
+              "description": "Seedance-oriented motion plan for this clip.",
               "properties": {
                 "Enabled": {
                   "type": "boolean",
-                  "description": "Whether this segment should generate a motion clip."
+                  "description": "Whether this clip should generate a motion clip."
                 },
                 "Workflow": {
                   "type": "string",
@@ -168,13 +168,13 @@
             },
             "ExpertTalkingHeads": {
               "type": "array",
-              "description": "Per-expert talking-head decisions for this segment. Usually only one entry is active.",
+              "description": "Per-expert talking-head decisions for this clip. Usually only one entry is active.",
               "items": {
                 "type": "object",
                 "properties": {
                   "UseThisExpert": {
                     "type": "boolean",
-                    "description": "True when this expert speaks in this segment."
+                    "description": "True when this expert speaks in this clip."
                   },
                   "TalkingHeadText": {
                     "type": "string",
@@ -182,7 +182,7 @@
                   },
                   "TalkingHeadPrompt": {
                     "type": "string",
-                    "description": "Talking-head performance and framing prompt for this expert in this segment. Empty string when UseThisExpert is false."
+                    "description": "Talking-head performance and framing prompt for this expert in this clip. Empty string when UseThisExpert is false."
                   }
                 },
                 "required": [
@@ -211,7 +211,7 @@
       "Title",
       "Summary",
       "ScenePlanMarkdown",
-      "Segments"
+      "Clips"
     ],
     "additionalProperties": false
   }

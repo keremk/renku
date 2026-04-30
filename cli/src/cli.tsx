@@ -69,7 +69,7 @@ import {
 import { detectViewerAddress } from './lib/viewer-network.js';
 
 const cli = meow(
-	`\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize a new Renku workspace (requires --root)\n  update              Update the catalog in the active workspace\n  use                 Switch to an existing workspace (requires --root)\n  generate            Create or continue a movie generation\n  new:blueprint       Create a new blueprint folder with scaffold files\n  new:video           Create a new build for a blueprint (optionally named)\n  create:input-template  Create an inputs YAML template for a blueprint\n  export:davinci      Export timeline to OTIO format for DaVinci Resolve\n  explain             Explain why jobs were scheduled in a saved plan\n  list                List real builds in current project\n  launch [blueprint-name]  Open Renku app (optional blueprint deep-link by name)\n  shutdown            Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:validate <path>  Validate a blueprint YAML file\n  blueprints:dry-run-profile <path>  Generate a dry-run profile file\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to an existing workspace\n  $ renku new:blueprint history-video      # Create a new blueprint folder\n  $ renku new:blueprint my-video --using=ken-burns  # Copy from catalog blueprint\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku new:video "Draft v1"            # Auto-detect blueprint in cwd\n  $ renku new:video --blueprint=audio-only.yaml "Cut A"\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --movie-id=movie-abc123 --up-to-layer=1 --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --regen=Artifact:AudioProducer.GeneratedAudio[0] --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --regen=Producer:AudioProducer --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --pid=Producer:AudioProducer:1 --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --pin=Artifact:ScriptProducer.NarrationScript[0] --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --inputs=./inputs.yaml --explain  # Show why each job is scheduled\n  $ renku explain --movie-id=movie-abc123    # Explain a specific movie's plan\n  $ renku export:davinci --movie-id=abc123    # Export to OTIO for DaVinci Resolve\n  $ renku export:davinci --id=abc123 --fps=24 # Export specific movie at 24fps\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku blueprints:dry-run-profile image-audio.yaml\n  $ renku generate --inputs=./inputs.yaml --blueprint=image-audio.yaml --dry-run --profile=./image-audio.dry-run-profile.yaml\n  $ renku generate --inputs=./inputs.yaml --blueprint=image-audio.yaml --dry-run --save-dry-run\n  $ renku list                           # List real builds in current project\n  $ renku launch                         # Open home + onboarding flow\n  $ renku launch style-cartoon          # Open specific blueprint by name\n  $ renku shutdown                       # Stop background viewer server\n`,
+	`\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize a new Renku workspace (requires --root)\n  update              Update the catalog in the active workspace\n  use                 Switch to an existing workspace (requires --root)\n  generate            Create or continue a movie generation\n  new:blueprint       Create a new blueprint folder with scaffold files\n  new:video           Create a new build for a blueprint (optionally named)\n  create:input-template  Create an inputs YAML template for a blueprint\n  export:davinci      Export timeline to OTIO format for DaVinci Resolve\n  explain             Explain why jobs were scheduled in a saved plan\n  list                List real builds in current project\n  launch [blueprint-name]  Open Renku app (optional blueprint deep-link by name)\n  shutdown            Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:validate <path>  Validate a blueprint YAML file\n  blueprints:dry-run-profile <path>  Generate a dry-run profile file\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to an existing workspace\n  $ renku new:blueprint history-video      # Create a new blueprint folder\n  $ renku new:blueprint my-video --using=ken-burns  # Copy from catalog blueprint\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku new:video "Draft v1"            # Auto-detect blueprint in cwd\n  $ renku new:video --blueprint=audio-only.yaml "Cut A"\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --movie-id=movie-abc123 --up-to-layer=1 --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --regen=Artifact:AudioProducer.GeneratedAudio[0] --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --regen=Producer:AudioProducer --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --pid=Producer:AudioProducer:1 --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --pin=Artifact:ScriptProducer.NarrationScript[0] --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --clip=7 --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --through-clip=7 --inputs=./inputs.yaml\n  $ renku generate --movie-id=movie-abc123 --inputs=./inputs.yaml --explain  # Show why each job is scheduled\n  $ renku explain --movie-id=movie-abc123    # Explain a specific movie's plan\n  $ renku export:davinci --movie-id=abc123    # Export to OTIO for DaVinci Resolve\n  $ renku export:davinci --id=abc123 --fps=24 # Export specific movie at 24fps\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku blueprints:dry-run-profile image-audio.yaml\n  $ renku generate --inputs=./inputs.yaml --blueprint=image-audio.yaml --dry-run --profile=./image-audio.dry-run-profile.yaml\n  $ renku generate --inputs=./inputs.yaml --blueprint=image-audio.yaml --dry-run --save-dry-run\n  $ renku list                           # List real builds in current project\n  $ renku launch                         # Open home + onboarding flow\n  $ renku launch style-cartoon          # Open specific blueprint by name\n  $ renku shutdown                       # Stop background viewer server\n`,
 	{
 		importMeta: import.meta,
 		flags: {
@@ -94,6 +94,8 @@ const cli = meow(
 			producerId: { type: 'string', isMultiple: true },
 			pid: { type: 'string', isMultiple: true },
 			pin: { type: 'string', isMultiple: true },
+			clip: { type: 'string' },
+			throughClip: { type: 'string' },
 			costsOnly: { type: 'boolean' },
 			explain: { type: 'boolean' },
 			fps: { type: 'number' },
@@ -133,6 +135,8 @@ async function main(): Promise<void> {
 		producerId?: string[];
 		pid?: string[];
 		pin?: string[];
+		clip?: string;
+		throughClip?: string;
 		costsOnly?: boolean;
 		explain?: boolean;
 		fps?: number;
@@ -242,6 +246,8 @@ async function main(): Promise<void> {
 				...(flags.pid ?? []),
 			];
 			const pinFlags = [...(flags.pin ?? [])];
+			const clipFlag = flags.clip;
+			const throughClipFlag = flags.throughClip;
 
 			if (positionalInquiry !== undefined) {
 				logger.error(
@@ -262,6 +268,11 @@ async function main(): Promise<void> {
 			}
 			if (flags.saveDryRun && !flags.dryRun) {
 				logger.error('Error: --save-dry-run requires --dry-run.');
+				process.exitCode = 1;
+				return;
+			}
+			if (clipFlag !== undefined && throughClipFlag !== undefined) {
+				logger.error('Error: use either --clip or --through-clip, not both.');
 				process.exitCode = 1;
 				return;
 			}
@@ -305,6 +316,8 @@ async function main(): Promise<void> {
 					producerIds:
 						producerIdFlags.length > 0 ? producerIdFlags : undefined,
 					pinIds: pinFlags.length > 0 ? pinFlags : undefined,
+					clip: clipFlag,
+					throughClip: throughClipFlag,
 					dryRunProfilePath: dryRunProfileFlag,
 					saveDryRun: Boolean(flags.saveDryRun),
 					logLevel,

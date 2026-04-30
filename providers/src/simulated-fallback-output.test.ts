@@ -47,13 +47,13 @@ describe('createSimulatedFallbackArtifacts', () => {
   it('emits a valid MP4 using the explicit Duration binding', async () => {
     const artifacts = await createSimulatedFallbackArtifacts(
       createRequest({
-        inputs: ['Input:SegmentDuration'],
+        inputs: ['Input:ClipDuration'],
         produces: ['Artifact:GeneratedVideo[segment=0]'],
         resolvedInputs: {
-          'Input:SegmentDuration': 3,
+          'Input:ClipDuration': 3,
         },
         inputBindings: {
-          Duration: 'Input:SegmentDuration',
+          Duration: 'Input:ClipDuration',
         },
       })
     );

@@ -170,7 +170,7 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
 				inputs: {
 					InquiryPrompt: 'Explain the water cycle',
 					Duration: 15,
-					NumOfSegments: 3,
+					NumOfClips: 3,
 					VoiceId: 'Wise_Woman',
 					Audience: 'Adult',
 					Emotion: 'neutral',

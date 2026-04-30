@@ -1,6 +1,6 @@
 meta:
   name: Historical Ken Burns Documentary V2
-  description: A Ken Burns-style documentary blueprint optimized for historical narratives. Features narrated image segments with conditional text overlays for dates, locations, and historical figures, plus conditional map images for geographic context. Includes background music and the new composed subtitles pipeline for karaoke subtitles.
+  description: A Ken Burns-style documentary blueprint optimized for historical narratives. Features narrated image clips with conditional text overlays for dates, locations, and historical figures, plus conditional map images for geographic context. Includes background music and the new composed subtitles pipeline for karaoke subtitles.
   id: HistoricalDocumentaryV2
   kind: blueprint
   version: 0.1.0
@@ -12,16 +12,16 @@ inputs:
     description: Total video duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of narrative segments.
+  - name: NumOfClips
+    description: Number of narrative clips.
     type: int
     required: true
   - name: InquiryPrompt
     description: The historical topic or narrative to explore (e.g., "The fall of the Roman Empire", "The Silk Road trade routes").
     type: string
     required: true
-  - name: NumOfImagesPerSegment
-    description: Number of images to generate per narrative segment.
+  - name: NumOfImagesPerClip
+    description: Number of images to generate per narrative clip.
     type: int
     required: false
   - name: Style
@@ -46,12 +46,12 @@ inputs:
     required: true
 
 outputs:
-  - name: SegmentImage
-    description: Ken Burns style images per segment.
+  - name: ClipImage
+    description: Ken Burns style images per clip.
     type: multiDimArray
     itemType: image
-  - name: SegmentAudio
-    description: Narration audio per segment.
+  - name: ClipAudio
+    description: Narration audio per clip.
     type: array
     itemType: audio
   - name: Music
@@ -65,17 +65,17 @@ outputs:
     type: video
 
 loops:
-  - name: segment
-    description: Iterates over narrative segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narrative clips.
+    countInput: NumOfClips
   - name: image
-    description: Iterates over images per segment.
-    parent: segment
-    countInput: NumOfImagesPerSegment
+    description: Iterates over images per clip.
+    parent: clip
+    countInput: NumOfImagesPerClip
 
 conditions:
   hasTextOverlay:
-    when: HistoricalScriptProducer.VideoScript.Segments[segment].HasTextOverlay
+    when: HistoricalScriptProducer.VideoScript.Clips[clip].HasTextOverlay
     is: true
 
 imports:
@@ -83,10 +83,10 @@ imports:
     path: ./historical-script/historical-script.yaml
   - name: ImageProducer
     producer: image/text-to-image
-    loop: segment.image
+    loop: clip.image
   - name: AudioProducer
     producer: audio/text-to-speech
-    loop: segment
+    loop: clip
   - name: MusicProducer
     producer: audio/text-to-music
   - name: TimelineComposer
@@ -102,12 +102,12 @@ connections:
     to: HistoricalScriptProducer.InquiryPrompt
   - from: Duration
     to: HistoricalScriptProducer.Duration
-  - from: NumOfSegments
-    to: HistoricalScriptProducer.NumOfSegments
-  - from: NumOfImagesPerSegment
-    to: HistoricalScriptProducer.NumOfImagesPerSegment
-  - from: SegmentDuration
-    to: HistoricalScriptProducer.SegmentDuration
+  - from: NumOfClips
+    to: HistoricalScriptProducer.NumOfClips
+  - from: NumOfImagesPerClip
+    to: HistoricalScriptProducer.NumOfImagesPerClip
+  - from: ClipDuration
+    to: HistoricalScriptProducer.ClipDuration
   - from: Style
     to: HistoricalScriptProducer.Style
   - from: Audience
@@ -116,32 +116,32 @@ connections:
     to: HistoricalScriptProducer.Language
 
   # --- Image generation ---
-  - from: HistoricalScriptProducer.VideoScript.Segments[segment].ImagePrompts[image]
-    to: ImageProducer[segment][image].Prompt
+  - from: HistoricalScriptProducer.VideoScript.Clips[clip].ImagePrompts[image]
+    to: ImageProducer[clip][image].Prompt
   - from: Resolution
-    to: ImageProducer[segment][image].Resolution
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: SegmentImage[segment][image]
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments
-    groupBy: segment
+    to: ImageProducer[clip][image].Resolution
+  - from: ImageProducer[clip][image].GeneratedImage
+    to: ClipImage[clip][image]
+  - from: ImageProducer[clip][image].GeneratedImage
+    to: TimelineComposer.ImageClips
+    groupBy: clip
     orderBy: image
 
   # --- Audio narration ---
-  - from: HistoricalScriptProducer.VideoScript.Segments[segment].NarrationScript
-    to: AudioProducer[segment].Text
-  - from: SegmentDuration
-    to: AudioProducer[segment].Duration
+  - from: HistoricalScriptProducer.VideoScript.Clips[clip].NarrationScript
+    to: AudioProducer[clip].Text
+  - from: ClipDuration
+    to: AudioProducer[clip].Duration
   - from: VoiceId
-    to: AudioProducer[segment].VoiceId
-  - from: AudioProducer[segment].GeneratedAudio
-    to: SegmentAudio[segment]
-  - from: AudioProducer[segment].GeneratedAudio
-    to: TimelineComposer.AudioSegments
+    to: AudioProducer[clip].VoiceId
+  - from: AudioProducer[clip].GeneratedAudio
+    to: ClipAudio[clip]
+  - from: AudioProducer[clip].GeneratedAudio
+    to: TimelineComposer.AudioClips
 
   # --- Text overlay (conditional) ---
-  - from: HistoricalScriptProducer.VideoScript.Segments[segment].TextOverlay
-    to: TimelineComposer.TextSegments
+  - from: HistoricalScriptProducer.VideoScript.Clips[clip].TextOverlay
+    to: TimelineComposer.TextClips
     if: hasTextOverlay
 
   # --- Background music ---
@@ -161,18 +161,18 @@ connections:
     to: Timeline
 
   # --- Transcription (wire audio to transcription track) ---
-  - from: AudioProducer[segment].GeneratedAudio
+  - from: AudioProducer[clip].GeneratedAudio
     to: TimelineComposer.TranscriptionAudio
 
   # --- Subtitles composition ---
-  - from: AudioProducer[segment].GeneratedAudio
-    to: SubtitlesProducer.TranscriptionAudio[segment]
+  - from: AudioProducer[clip].GeneratedAudio
+    to: SubtitlesProducer.TranscriptionAudio[clip]
   - from: TimelineComposer.Timeline
     to: SubtitlesProducer.Timeline
   - from: Language
     to: SubtitlesProducer.LanguageCode
-  - from: NumOfSegments
-    to: SubtitlesProducer.NumOfSegments
+  - from: NumOfClips
+    to: SubtitlesProducer.NumOfClips
   - from: Duration
     to: SubtitlesProducer.Duration
 

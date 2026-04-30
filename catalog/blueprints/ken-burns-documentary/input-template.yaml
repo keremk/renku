@@ -1,8 +1,8 @@
 inputs:
   InquiryPrompt: 'How tulips became more expensive than houses in 1630s Holland'
   Duration: 60
-  NumOfSegments: 5
-  NumOfImagesPerSegment: 2
+  NumOfClips: 5
+  NumOfImagesPerClip: 2
   Style: 'Oil painting, classical antiquity style, dramatic chiaroscuro lighting, muted earth tones with gold accents'
   Resolution:
     width: 1280
@@ -39,12 +39,12 @@ models:
         masterTracks:
           - 'Audio'
         imageClip:
-          artifact: 'ImageSegments'
+          artifact: 'ImageClips'
         audioClip:
-          artifact: 'AudioSegments'
+          artifact: 'AudioClips'
           volume: 0.9
         textClip:
-          artifact: 'TextSegments'
+          artifact: 'TextClips'
           effect: 'fade-in-out'
         transcriptionClip:
           artifact: 'TranscriptionAudio'

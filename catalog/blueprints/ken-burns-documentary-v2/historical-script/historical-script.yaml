@@ -16,14 +16,14 @@ inputs:
   - name: Duration
     description: Total video duration in seconds.
     type: int
-  - name: NumOfSegments
-    description: Number of narrative segments.
+  - name: NumOfClips
+    description: Number of narrative clips.
     type: int
-  - name: NumOfImagesPerSegment
-    description: Number of images to generate per segment.
+  - name: NumOfImagesPerClip
+    description: Number of images to generate per clip.
     type: int
-  - name: SegmentDuration
-    description: Auto-calculated duration per segment in seconds.
+  - name: ClipDuration
+    description: Auto-calculated duration per clip in seconds.
     type: int
   - name: Style
     description: Visual style for image generation.
@@ -40,12 +40,12 @@ outputs:
     description: The generated documentary script with narration, image prompts, text overlays, and music direction.
     type: json
     arrays:
-      - path: Segments
-        countInput: NumOfSegments
-      - path: Segments.ImagePrompts
-        countInput: NumOfImagesPerSegment
+      - path: Clips
+        countInput: NumOfClips
+      - path: Clips.ImagePrompts
+        countInput: NumOfImagesPerClip
 
 loops:
-  - name: segment
-    description: Iterates over narrative segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narrative clips.
+    countInput: NumOfClips

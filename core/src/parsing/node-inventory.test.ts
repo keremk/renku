@@ -12,7 +12,7 @@ function createTree(): BlueprintTreeNode {
         { name: 'InquiryPrompt', type: 'string', required: true },
       ],
       outputs: [
-        { name: 'NarrationScript', type: 'string', required: true, countInput: 'NumOfSegments' },
+        { name: 'NarrationScript', type: 'string', required: true, countInput: 'NumOfClips' },
       ],
       producers: [
         { name: 'Script', provider: 'openai', model: 'gpt-5-mini' },
@@ -33,7 +33,7 @@ function createTree(): BlueprintTreeNode {
         { name: 'Style', type: 'string', required: true },
       ],
       outputs: [
-        { name: 'SegmentVideo', type: 'video', required: true, countInput: 'NumOfSegments' },
+        { name: 'SegmentVideo', type: 'video', required: true, countInput: 'NumOfClips' },
       ],
       producers: [
         { name: 'Video', provider: 'replicate', model: 'bytedance/seedance' },
@@ -52,10 +52,10 @@ function createTree(): BlueprintTreeNode {
       meta: { id: 'Root', name: 'Root Blueprint' },
       inputs: [
         { name: 'InquiryPrompt', type: 'string', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       outputs: [
-        { name: 'NarrationScript', type: 'string', required: true, countInput: 'NumOfSegments' },
+        { name: 'NarrationScript', type: 'string', required: true, countInput: 'NumOfClips' },
       ],
       producers: [],
       imports: [{ name: 'Script' }, { name: 'Video' }],
@@ -79,7 +79,7 @@ describe('collectNodeInventory', () => {
     expect(inventory.inputs).toEqual(
       expect.arrayContaining([
         'Input:InquiryPrompt',
-        'Input:NumOfSegments',
+        'Input:NumOfClips',
         'Input:Video.Style',
       ]),
     );

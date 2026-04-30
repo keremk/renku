@@ -2,7 +2,7 @@ inputs:
   # Boilerplate starter values.
   # This blueprint is intentionally incomplete and will not work out of the box yet.
   Duration: 30
-  NumOfSegments: 3
+  NumOfClips: 3
 
 models:
   - producerId: TimelineComposer
@@ -15,7 +15,7 @@ models:
         masterTracks:
           - Video
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
   - producerId: VideoExporter
     provider: renku
     model: ffmpeg/native-render

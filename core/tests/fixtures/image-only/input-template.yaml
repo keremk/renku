@@ -1,7 +1,7 @@
 inputs:
   InquiryPrompt: "Sketch an expedition to Europa's ice oceans"
   Duration: 20
-  NumOfSegments: 2
+  NumOfClips: 2
   NumOfImagesPerNarrative: 2
   Style: 'Ghibli'
   Audience: 'Adult'

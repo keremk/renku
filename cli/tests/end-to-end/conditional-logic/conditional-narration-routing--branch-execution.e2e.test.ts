@@ -38,7 +38,7 @@ const mockVideoScript = {
 	Summary: 'Test summary for conditional edge testing',
 	CharacterPrompt: 'Test character prompt',
 	MusicPrompt: 'Test music prompt',
-	Segments: [
+	Clips: [
 		{
 			Script: 'Segment 0 script - ImageNarration without audio',
 			NarrationType: 'ImageNarration',

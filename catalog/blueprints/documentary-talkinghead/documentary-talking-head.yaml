@@ -12,16 +12,16 @@ inputs:
     description: Total video duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of documentary segments.
+  - name: NumOfClips
+    description: Number of documentary clips.
     type: int
     required: true
   - name: InquiryPrompt
     description: The topic describing the desired documentary.
     type: string
     required: true
-  - name: NumOfImagesPerSegment
-    description: Number of images per segment.
+  - name: NumOfImagesPerClip
+    description: Number of images per clip.
     type: int
     required: true
   - name: Resolution
@@ -45,19 +45,19 @@ outputs:
     description: Generated talking head character image.
     type: array
     itemType: image
-  - name: SegmentImage
+  - name: ClipImage
     description: Generated images (conditional).
     type: multiDimArray
     itemType: image
-  - name: SegmentAudio
+  - name: ClipAudio
     description: Generated audio (conditional).
     type: array
     itemType: audio
-  - name: SegmentVideo
+  - name: ClipVideo
     description: Generated video (conditional).
     type: array
     itemType: video
-  - name: SegmentTalkingHeadVideo
+  - name: ClipTalkingHeadVideo
     description: Generated talking head videos (conditional).
     type: array
     itemType: video
@@ -66,31 +66,31 @@ outputs:
     type: json
 
 loops:
-  - name: segment
-    countInput: NumOfSegments
+  - name: clip
+    countInput: NumOfClips
   - name: image
-    parent: segment
-    countInput: NumOfImagesPerSegment
+    parent: clip
+    countInput: NumOfImagesPerClip
 
 # Named condition definitions (referenced by 'if:' on edges)
 conditions:
   isImageNarration:
     any:
-      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+      - when: DocProducer.VideoScript.Clips[clip].NarrationType
         is: 'MapNarration'
-      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+      - when: DocProducer.VideoScript.Clips[clip].NarrationType
         is: 'ImageNarration'
   isAudioNeeded:
     any:
-      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+      - when: DocProducer.VideoScript.Clips[clip].NarrationType
         is: 'TalkingHead'
-      - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
+      - when: DocProducer.VideoScript.Clips[clip].UseNarrationAudio
         is: true
   isTalkingHead:
-    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    when: DocProducer.VideoScript.Clips[clip].NarrationType
     is: 'TalkingHead'
   isVideoNarration:
-    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    when: DocProducer.VideoScript.Clips[clip].NarrationType
     is: 'VideoNarration'
 
 imports:
@@ -98,23 +98,23 @@ imports:
     path: ./documentary-talkinghead/documentary-talkinghead.yaml
   - name: ImageProducer
     producer: image/text-to-image
-    loop: segment.image
+    loop: clip.image
     if: isImageNarration
   - name: AudioProducer
     producer: audio/text-to-speech
-    loop: segment
+    loop: clip
     if: isAudioNeeded
   - name: VideoProducer
     producer: video/text-to-video
-    loop: segment
+    loop: clip
     if: isVideoNarration
   - name: TalkingHeadImageProducer
     producer: image/text-to-image
-    loop: segment
+    loop: clip
     if: isTalkingHead
   - name: TalkingHeadVideoProducer
     producer: video/text-to-talking-head
-    loop: segment
+    loop: clip
     if: isTalkingHead
   - name: TimelineComposer
     producer: composition/timeline-composer
@@ -123,83 +123,83 @@ connections:
   # Wire inputs to DocProducer
   - from: InquiryPrompt
     to: DocProducer.InquiryPrompt
-  - from: NumOfSegments
-    to: DocProducer.NumOfSegments
-  - from: NumOfImagesPerSegment
-    to: DocProducer.NumOfImagesPerSegment
+  - from: NumOfClips
+    to: DocProducer.NumOfClips
+  - from: NumOfImagesPerClip
+    to: DocProducer.NumOfImagesPerClip
   - from: Duration
     to: DocProducer.Duration
   - from: Style
     to: DocProducer.Style
 
   # Conditional: ImageProducer only when NarrationType is ImageNarration
-  - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
-    to: ImageProducer[segment][image].Prompt
+  - from: DocProducer.VideoScript.Clips[clip].ImagePrompts[image]
+    to: ImageProducer[clip][image].Prompt
   - from: Resolution
-    to: ImageProducer[segment][image].Resolution
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: SegmentImage[segment][image]
+    to: ImageProducer[clip][image].Resolution
+  - from: ImageProducer[clip][image].GeneratedImage
+    to: ClipImage[clip][image]
     if: isImageNarration
 
   # Conditional: AudioProducer only when audio is needed.
-  - from: DocProducer.VideoScript.Segments[segment].Script
-    to: AudioProducer[segment].Text
-  - from: SegmentDuration
-    to: AudioProducer[segment].Duration
+  - from: DocProducer.VideoScript.Clips[clip].Script
+    to: AudioProducer[clip].Text
+  - from: ClipDuration
+    to: AudioProducer[clip].Duration
   - from: VoiceId
-    to: AudioProducer[segment].VoiceId
-  - from: AudioProducer[segment].GeneratedAudio
-    to: SegmentAudio[segment]
+    to: AudioProducer[clip].VoiceId
+  - from: AudioProducer[clip].GeneratedAudio
+    to: ClipAudio[clip]
     if: isAudioNeeded
 
   # Conditional: Create Talking Head Image only when NarrationType is TalkingHead
-  - from: DocProducer.VideoScript.Segments[segment].TalkingHeadCharacterPrompt
-    to: TalkingHeadImageProducer[segment].Prompt
+  - from: DocProducer.VideoScript.Clips[clip].TalkingHeadCharacterPrompt
+    to: TalkingHeadImageProducer[clip].Prompt
   - from: Resolution
-    to: TalkingHeadImageProducer[segment].Resolution
-  - from: TalkingHeadImageProducer[segment].GeneratedImage
-    to: TalkingHeadCharacterImage[segment]
+    to: TalkingHeadImageProducer[clip].Resolution
+  - from: TalkingHeadImageProducer[clip].GeneratedImage
+    to: TalkingHeadCharacterImage[clip]
     if: isTalkingHead
 
   # Conditional: TalkingHeadVideoProducer only when NarrationType is TalkingHead
-  - from: SegmentDuration
-    to: TalkingHeadVideoProducer[segment].Duration
+  - from: ClipDuration
+    to: TalkingHeadVideoProducer[clip].Duration
   - from: Resolution
-    to: TalkingHeadVideoProducer[segment].Resolution
-  - from: DocProducer.VideoScript.Segments[segment].TalkingHeadText
-    to: TalkingHeadVideoProducer[segment].NarrativeText
-  - from: DocProducer.VideoScript.Segments[segment].TalkingHeadPrompt
-    to: TalkingHeadVideoProducer[segment].Prompt
-  - from: TalkingHeadImageProducer[segment].GeneratedImage
-    to: TalkingHeadVideoProducer[segment].CharacterImage
+    to: TalkingHeadVideoProducer[clip].Resolution
+  - from: DocProducer.VideoScript.Clips[clip].TalkingHeadText
+    to: TalkingHeadVideoProducer[clip].NarrativeText
+  - from: DocProducer.VideoScript.Clips[clip].TalkingHeadPrompt
+    to: TalkingHeadVideoProducer[clip].Prompt
+  - from: TalkingHeadImageProducer[clip].GeneratedImage
+    to: TalkingHeadVideoProducer[clip].CharacterImage
   - from: TalkingHeadVoiceId
-    to: TalkingHeadVideoProducer[segment].VoiceId
-  - from: TalkingHeadVideoProducer[segment].GeneratedVideo
-    to: SegmentTalkingHeadVideo[segment]
+    to: TalkingHeadVideoProducer[clip].VoiceId
+  - from: TalkingHeadVideoProducer[clip].GeneratedVideo
+    to: ClipTalkingHeadVideo[clip]
     if: isTalkingHead
 
   # Conditional: VideoProducer only when NarrationType is VideoNarration
-  - from: DocProducer.VideoScript.Segments[segment].VideoPrompt
-    to: VideoProducer[segment].Prompt
-  - from: SegmentDuration
-    to: VideoProducer[segment].Duration
+  - from: DocProducer.VideoScript.Clips[clip].VideoPrompt
+    to: VideoProducer[clip].Prompt
+  - from: ClipDuration
+    to: VideoProducer[clip].Duration
   - from: Resolution
-    to: VideoProducer[segment].Resolution
-  - from: VideoProducer[segment].GeneratedVideo
-    to: SegmentVideo[segment]
+    to: VideoProducer[clip].Resolution
+  - from: VideoProducer[clip].GeneratedVideo
+    to: ClipVideo[clip]
     if: isVideoNarration
 
-  - from: AudioProducer[segment].GeneratedAudio
-    to: TimelineComposer.AudioSegments
+  - from: AudioProducer[clip].GeneratedAudio
+    to: TimelineComposer.AudioClips
     if: isAudioNeeded
-  - from: VideoProducer[segment].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+  - from: VideoProducer[clip].GeneratedVideo
+    to: TimelineComposer.VideoClips
     if: isVideoNarration
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments
+  - from: ImageProducer[clip][image].GeneratedImage
+    to: TimelineComposer.ImageClips
     if: isImageNarration
-  - from: TalkingHeadVideoProducer[segment].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+  - from: TalkingHeadVideoProducer[clip].GeneratedVideo
+    to: TimelineComposer.VideoClips
     if: isTalkingHead
   - from: Duration
     to: TimelineComposer.Duration

@@ -16,19 +16,19 @@
         "type": "string",
         "description": "A prompt to generate instrumental background music that fits the historical era and tone of the documentary."
       },
-      "Segments": {
+      "Clips": {
         "type": "array",
-        "description": "An array of narrative segments for the documentary.",
+        "description": "An array of narrative clips for the documentary.",
         "items": {
           "type": "object",
           "properties": {
             "NarrationScript": {
               "type": "string",
-              "description": "The narration text to be read aloud by the narrator for this segment."
+              "description": "The narration text to be read aloud by the narrator for this clip."
             },
             "ImagePrompts": {
               "type": "array",
-              "description": "Image generation prompts for this segment. Each prompt creates one Ken Burns style image.",
+              "description": "Image generation prompts for this clip. Each prompt creates one Ken Burns style image.",
               "items": {
                 "type": "string",
                 "description": "A detailed image generation prompt describing the scene, composition, lighting, and atmosphere."
@@ -36,7 +36,7 @@
             },
             "HasTextOverlay": {
               "type": "boolean",
-              "description": "Whether this segment should display a text overlay. True when the narration mentions a specific date, time period, location, or historically important person."
+              "description": "Whether this clip should display a text overlay. True when the narration mentions a specific date, time period, location, or historically important person."
             },
             "TextOverlay": {
               "type": "string",
@@ -48,7 +48,7 @@
         }
       }
     },
-    "required": ["Title", "Summary", "MusicPrompt", "Segments"],
+    "required": ["Title", "Summary", "MusicPrompt", "Clips"],
     "additionalProperties": false
   }
 }

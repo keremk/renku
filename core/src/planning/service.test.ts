@@ -22,7 +22,7 @@ function buildTestBlueprint(): BlueprintTreeNode {
       },
       inputs: [
         { name: 'InquiryPrompt', type: 'string', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       outputs: [
         { name: 'NarrationScript', type: 'string', required: true },
@@ -53,7 +53,7 @@ function buildProviderOptions(): Map<string, ProviderOptionEntry> {
   const entry: ProviderOptionEntry = {
     sdkMapping: {
       InquiryPrompt: { field: 'prompt' },
-      NumOfSegments: { field: 'segments' },
+      NumOfClips: { field: 'segments' },
     },
     outputs: {
       NarrationScript: { type: 'text/plain', mimeType: 'text/plain' },
@@ -89,7 +89,7 @@ describe('planning service', () => {
       blueprintTree: blueprint,
       inputValues: {
         'Input:InquiryPrompt': 'Tell me a story',
-        'Input:NumOfSegments': 1,
+        'Input:NumOfClips': 1,
       },
       providerCatalog: catalog,
       providerOptions: buildProviderOptions(),
@@ -134,7 +134,7 @@ describe('planning service', () => {
       blueprintTree: blueprint,
       inputValues: {
         'Input:InquiryPrompt': 'Hello',
-        'Input:NumOfSegments': 1,
+        'Input:NumOfClips': 1,
       },
       providerCatalog: catalog,
       providerOptions: buildProviderOptions(),

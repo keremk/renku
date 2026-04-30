@@ -1,8 +1,7 @@
 inputs:
   InquiryPrompt: 'Chart the rise of reusable rockets'
   Duration: 24
-  NumOfSegments: 2
-  SegmentDuration: 12
+  NumOfClips: 2
   Audience: 'Adult'
   Language: 'en'
   Style: 'Documentary realism'
@@ -45,9 +44,9 @@ models:
         masterTracks: ['Audio']
         tracks: ['Video', 'Audio', 'Transcription', 'Music']
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         audioClip:
-          artifact: AudioSegments
+          artifact: AudioClips
         transcriptionClip:
           artifact: TranscriptionAudio
         musicClip:

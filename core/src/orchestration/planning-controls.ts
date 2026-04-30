@@ -7,15 +7,18 @@ import type {
   ArtifactRegenerationConfig,
   ArtifactEvent,
   BuildState,
+  PlanningClipScopeControls,
   PlanningUserControls,
   PlanningWarning,
   ProducerDirective,
   ProducerGraph,
   ProducerRunSummary,
+  ResolvedClipScopeControls,
   ResolvedPlanningControls,
 } from '../types.js';
 import { computeMultipleArtifactRegenerationJobs } from '../planning/planner.js';
 import { computeTopologyLayers } from '../topology/index.js';
+import { resolveClipScope } from './clip-scope.js';
 import {
   buildProducerSchedulingSummary,
   deriveProducerFamilyId,
@@ -32,6 +35,7 @@ export interface LatestArtifactSnapshot {
 interface MergedPlanningControls {
   upToLayer?: number;
   producerDirectives?: ProducerDirective[];
+  clip?: PlanningClipScopeControls;
   regenerateIds?: string[];
   pinIds?: string[];
 }
@@ -104,6 +108,24 @@ export function resolvePlanningControls(args: {
   });
   const blockedJobIds = new Set(normalizedOverrides.blockedProducerJobIds);
 
+  const clipScopeResolution = merged.clip
+    ? resolveClipScope({
+        producerGraph: args.producerGraph,
+        scope: merged.clip,
+      })
+    : undefined;
+  const clipScope =
+    merged.clip && clipScopeResolution
+      ? buildResolvedClipScopeControls(merged.clip, clipScopeResolution)
+      : undefined;
+
+  if (clipScopeResolution) {
+    for (const jobId of clipScopeResolution.blockedJobIds) {
+      blockedJobIds.add(jobId);
+    }
+    warnings.push(...clipScopeResolution.warnings);
+  }
+
   const regenerationIds = normalizeCanonicalTargetIds(
     merged.regenerateIds,
     'regenerate'
@@ -120,6 +142,16 @@ export function resolvePlanningControls(args: {
           'Remove the conflicting target from either --regen or --pin.',
       }
     );
+  }
+
+  if (clipScopeResolution && regenerationIds.length > 0) {
+    validateRegenerationTargetsWithinClipScope({
+      regenerationIds,
+      producerGraph: args.producerGraph,
+      buildState,
+      latestById: args.latestSnapshot.latestById,
+      scopedJobIds: clipScopeResolution.scopedJobIds,
+    });
   }
 
   const forceResolution = resolveForcedJobIds({
@@ -146,7 +178,7 @@ export function resolvePlanningControls(args: {
 
   return {
     effectiveUpToLayer,
-    blockedProducerJobIds: normalizedOverrides.blockedProducerJobIds,
+    blockedProducerJobIds: Array.from(blockedJobIds),
     cappedProducerJobIds: normalizedOverrides.cappedProducerJobIds,
     forcedJobIds: Array.from(forceResolution.forcedJobIds),
     pinnedArtifactIds,
@@ -156,6 +188,7 @@ export function resolvePlanningControls(args: {
     }),
     warnings,
     normalizedOverrides,
+    clipScope,
     artifactRegenerations:
       forceResolution.artifactRegenerations.length > 0
         ? forceResolution.artifactRegenerations
@@ -184,10 +217,72 @@ function mergePlanningControls(
   return {
     upToLayer: userControls?.scope?.upToLayer ?? baselineInputs.upToLayer,
     producerDirectives: userControls?.scope?.producerDirectives,
+    clip: userControls?.scope?.clip,
     regenerateIds:
       userControls?.surgical?.regenerateIds ?? baselineInputs.regenerateIds,
     pinIds: userControls?.surgical?.pinIds ?? baselineInputs.pinIds,
   };
+}
+
+function buildResolvedClipScopeControls(
+  scope: PlanningClipScopeControls,
+  resolution: ReturnType<typeof resolveClipScope>
+): ResolvedClipScopeControls {
+  return {
+    dimension: scope.dimension,
+    mode: scope.mode,
+    selectedIndices: resolution.selectedIndices,
+    selectedJobIds: Array.from(resolution.selectedJobIds),
+    upstreamJobIds: Array.from(resolution.upstreamJobIds),
+    blockedJobIds: Array.from(resolution.blockedJobIds),
+  };
+}
+
+function validateRegenerationTargetsWithinClipScope(args: {
+  regenerationIds: string[];
+  producerGraph: ProducerGraph;
+  buildState: BuildState;
+  latestById: Map<string, ArtifactEvent>;
+  scopedJobIds: Set<string>;
+}): void {
+  for (const targetId of args.regenerationIds) {
+    if (isCanonicalArtifactId(targetId)) {
+      const regeneration = resolveArtifactToJob(
+        targetId,
+        args.buildState,
+        args.producerGraph,
+        args.latestById
+      );
+      if (!args.scopedJobIds.has(regeneration.sourceJobId)) {
+        throw createRuntimeError(
+          RuntimeErrorCode.PLANNING_CONFLICT_CLIP_SCOPE,
+          `Regenerate target ${targetId} is outside the active clip scope.`,
+          {
+            context: `sourceJobId=${regeneration.sourceJobId}`,
+            suggestion:
+              'Select a clip scope that contains the regenerate target, or remove the regenerate control.',
+          }
+        );
+      }
+      continue;
+    }
+
+    const familyJobIds = resolveProducerIdsToJobs([targetId], args.producerGraph);
+    const hasScopedJob = familyJobIds.some((jobId) =>
+      args.scopedJobIds.has(jobId)
+    );
+    if (!hasScopedJob) {
+      throw createRuntimeError(
+        RuntimeErrorCode.PLANNING_CONFLICT_CLIP_SCOPE,
+        `Regenerate target ${targetId} is outside the active clip scope.`,
+        {
+          context: `producerId=${targetId}`,
+          suggestion:
+            'Select a clip scope that contains this producer, or remove the regenerate control.',
+        }
+      );
+    }
+  }
 }
 
 function normalizeCanonicalTargetIds(

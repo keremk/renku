@@ -13,16 +13,16 @@ describe('expandBlueprintGraph', () => {
       meta: { id: 'ScriptGenerator', name: 'ScriptGenerator', kind: 'producer' },
       inputs: [
         { name: 'InquiryPrompt', type: 'string', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       outputs: [
-        { name: 'NarrationScript', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'NarrationScript', type: 'array', countInput: 'NumOfClips' },
       ],
       producers: [{ name: 'ScriptProducer', provider: 'openai', model: 'gpt' }],
       imports: [],
       edges: [
         { from: 'InquiryPrompt', to: 'ScriptProducer' },
-        { from: 'NumOfSegments', to: 'ScriptProducer' },
+        { from: 'NumOfClips', to: 'ScriptProducer' },
         { from: 'ScriptProducer', to: 'NarrationScript[i]' },
       ],
     };
@@ -31,14 +31,14 @@ describe('expandBlueprintGraph', () => {
       meta: { id: 'ROOT', name: 'ROOT' },
       inputs: [
         { name: 'InquiryPrompt', type: 'string', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       outputs: [],
       producers: [],
       imports: [],
       edges: [
         { from: 'InquiryPrompt', to: 'ScriptGenerator.InquiryPrompt' },
-        { from: 'NumOfSegments', to: 'ScriptGenerator.NumOfSegments' },
+        { from: 'NumOfClips', to: 'ScriptGenerator.NumOfClips' },
       ],
     };
 
@@ -66,7 +66,7 @@ describe('expandBlueprintGraph', () => {
     const canonicalInputs = normalizeInputValues(
       {
         'Input:InquiryPrompt': 'Hello',
-        'Input:NumOfSegments': 2,
+        'Input:NumOfClips': 2,
       },
       inputSources
     );
@@ -85,8 +85,8 @@ describe('expandBlueprintGraph', () => {
     expect(canonical.inputBindings[producerId]?.InquiryPrompt).toBe(
       'Input:InquiryPrompt'
     );
-    expect(canonical.inputBindings[producerId]?.NumOfSegments).toBe(
-      'Input:NumOfSegments'
+    expect(canonical.inputBindings[producerId]?.NumOfClips).toBe(
+      'Input:NumOfClips'
     );
 
     const artifactNodes = canonical.nodes.filter(
@@ -241,14 +241,14 @@ describe('expandBlueprintGraph', () => {
     // Test the countInput-based dimension expansion (traditional approach)
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
-      inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
+      inputs: [{ name: 'NumOfClips', type: 'int', required: true }],
       outputs: [
-        { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'Script', type: 'array', countInput: 'NumOfClips' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
       imports: [],
       edges: [
-        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'NumOfClips', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
       ],
     };
@@ -265,7 +265,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 3,
+        'Input:NumOfClips': 3,
       },
       inputSources
     );
@@ -285,19 +285,19 @@ describe('expandBlueprintGraph', () => {
   it('handles countInputOffset for array artifacts', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
-      inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
+      inputs: [{ name: 'NumOfClips', type: 'int', required: true }],
       outputs: [
         {
           name: 'Script',
           type: 'array',
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
           countInputOffset: 1,
         },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
       imports: [],
       edges: [
-        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'NumOfClips', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
       ],
     };
@@ -314,14 +314,14 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 2,
+        'Input:NumOfClips': 2,
       },
       inputSources
     );
 
     const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
 
-    // With offset of 1, NumOfSegments=2 means 3 artifacts (2+1)
+    // With offset of 1, NumOfClips=2 means 3 artifacts (2+1)
     const scriptArtifacts = expanded.nodes.filter(
       (n) => n.type === 'Artifact' && n.id.includes('Script')
     );
@@ -337,11 +337,11 @@ describe('expandBlueprintGraph', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
         { name: 'NumOfImages', type: 'int', required: true },
       ],
       outputs: [
-        { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'Script', type: 'array', countInput: 'NumOfClips' },
         { name: 'Image', type: 'array', countInput: 'NumOfImages' },
       ],
       producers: [
@@ -350,11 +350,11 @@ describe('expandBlueprintGraph', () => {
       ],
       imports: [],
       loops: [
-        { name: 'i', countInput: 'NumOfSegments' },
+        { name: 'i', countInput: 'NumOfClips' },
         { name: 'j', countInput: 'NumOfImages' },
       ],
       edges: [
-        { from: 'NumOfSegments', to: 'ScriptProducer' },
+        { from: 'NumOfClips', to: 'ScriptProducer' },
         { from: 'ScriptProducer', to: 'Script[i]' },
         { from: 'NumOfImages', to: 'ImageProducer' },
         { from: 'Script[i]', to: 'ImageProducer' },
@@ -374,7 +374,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 2,
+        'Input:NumOfClips': 2,
         'Input:NumOfImages': 3,
       },
       inputSources
@@ -406,14 +406,14 @@ describe('expandBlueprintGraph', () => {
   it('throws error for zero count input', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
-      inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
+      inputs: [{ name: 'NumOfClips', type: 'int', required: true }],
       outputs: [
-        { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'Script', type: 'array', countInput: 'NumOfClips' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
       imports: [],
       edges: [
-        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'NumOfClips', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
       ],
     };
@@ -430,7 +430,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 0,
+        'Input:NumOfClips': 0,
       },
       inputSources
     );
@@ -438,7 +438,7 @@ describe('expandBlueprintGraph', () => {
     // Zero count is not allowed - throws validation error
     expect(() =>
       expandBlueprintGraph(graph, canonicalInputs, inputSources)
-    ).toThrow('Input "NumOfSegments" must be greater than zero.');
+    ).toThrow('Input "NumOfClips" must be greater than zero.');
   });
 
   it('expands producer nodes with multiple dimensions', () => {
@@ -502,14 +502,14 @@ describe('expandBlueprintGraph', () => {
   it('creates correct edges between producer and artifact instances', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
-      inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
+      inputs: [{ name: 'NumOfClips', type: 'int', required: true }],
       outputs: [
-        { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'Script', type: 'array', countInput: 'NumOfClips' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
       imports: [],
       edges: [
-        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'NumOfClips', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
       ],
     };
@@ -526,7 +526,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 2,
+        'Input:NumOfClips': 2,
       },
       inputSources
     );
@@ -551,19 +551,19 @@ describe('expandBlueprintGraph', () => {
     // First producer makes Scripts, second producer uses Scripts to make Images
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
-      inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
+      inputs: [{ name: 'NumOfClips', type: 'int', required: true }],
       outputs: [
-        { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
-        { name: 'Image', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'Script', type: 'array', countInput: 'NumOfClips' },
+        { name: 'Image', type: 'array', countInput: 'NumOfClips' },
       ],
       producers: [
         { name: 'ScriptProducer', provider: 'openai', model: 'gpt-4' },
         { name: 'ImageProducer', provider: 'replicate', model: 'flux' },
       ],
       imports: [],
-      loops: [{ name: 'i', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'i', countInput: 'NumOfClips' }],
       edges: [
-        { from: 'NumOfSegments', to: 'ScriptProducer' },
+        { from: 'NumOfClips', to: 'ScriptProducer' },
         { from: 'ScriptProducer', to: 'Script[i]' },
         { from: 'Script[i]', to: 'ImageProducer' },
         { from: 'ImageProducer', to: 'Image[i]' },
@@ -582,7 +582,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 2,
+        'Input:NumOfClips': 2,
       },
       inputSources
     );
@@ -602,16 +602,16 @@ describe('expandBlueprintGraph', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
         { name: 'UseSpecialEffect', type: 'boolean', required: true },
       ],
       outputs: [
-        { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'Script', type: 'array', countInput: 'NumOfClips' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
       imports: [],
       edges: [
-        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'NumOfClips', to: 'Producer' },
         {
           from: 'UseSpecialEffect',
           to: 'Producer',
@@ -633,7 +633,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 2,
+        'Input:NumOfClips': 2,
         'Input:UseSpecialEffect': true,
       },
       inputSources
@@ -703,7 +703,7 @@ describe('expandBlueprintGraph', () => {
     const rootDoc: BlueprintDocument = {
       meta: { id: 'ROOT', name: 'ROOT' },
       inputs: [
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
         { name: 'NumOfExperts', type: 'int', required: true },
         { name: 'TalkingHeadText', type: 'multiDimArray', itemType: 'string', required: true },
         { name: 'UseThisExpert', type: 'multiDimArray', itemType: 'boolean', required: true },
@@ -722,7 +722,7 @@ describe('expandBlueprintGraph', () => {
         },
       ],
       loops: [
-        { name: 'segment', countInput: 'NumOfSegments' },
+        { name: 'segment', countInput: 'NumOfClips' },
         { name: 'expert', countInput: 'NumOfExperts' },
       ],
       edges: [
@@ -773,7 +773,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 2,
+        'Input:NumOfClips': 2,
         'Input:NumOfExperts': 2,
         'Input:TalkingHeadText': [
           ['text-0-0', 'text-0-1'],
@@ -1006,19 +1006,19 @@ describe('expandBlueprintGraph', () => {
   it('throws error for negative countInputOffset', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
-      inputs: [{ name: 'NumOfSegments', type: 'int', required: true }],
+      inputs: [{ name: 'NumOfClips', type: 'int', required: true }],
       outputs: [
         {
           name: 'Script',
           type: 'array',
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
           countInputOffset: -1,
         },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
       imports: [],
       edges: [
-        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'NumOfClips', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
       ],
     };
@@ -1035,7 +1035,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 3,
+        'Input:NumOfClips': 3,
       },
       inputSources
     );
@@ -1051,16 +1051,16 @@ describe('expandBlueprintGraph', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
         { name: 'Prompt', type: 'string', required: true },
       ],
       outputs: [
-        { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'Script', type: 'array', countInput: 'NumOfClips' },
       ],
       producers: [{ name: 'Producer', provider: 'openai', model: 'gpt-4' }],
       imports: [],
       edges: [
-        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'NumOfClips', to: 'Producer' },
         { from: 'Prompt', to: 'Producer' },
         { from: 'Producer', to: 'Script[i]' },
       ],
@@ -1078,7 +1078,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 2,
+        'Input:NumOfClips': 2,
         'Input:Prompt': 'Generate a script',
       },
       inputSources
@@ -1088,7 +1088,7 @@ describe('expandBlueprintGraph', () => {
 
     // Input nodes should exist for each input
     const inputNodes = expanded.nodes.filter((n) => n.type === 'Input');
-    expect(inputNodes.some((n) => n.id === 'Input:NumOfSegments')).toBe(true);
+    expect(inputNodes.some((n) => n.id === 'Input:NumOfClips')).toBe(true);
     expect(inputNodes.some((n) => n.id === 'Input:Prompt')).toBe(true);
 
     // Edges should connect inputs to the producer
@@ -1103,7 +1103,7 @@ describe('expandBlueprintGraph', () => {
     const doc: BlueprintDocument = {
       meta: { id: 'Test', name: 'Test', kind: 'producer' },
       inputs: [
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
         { name: 'NumOfImages', type: 'int', required: true },
       ],
       outputs: [{ name: 'Image', type: 'array', countInput: 'NumOfImages' }],
@@ -1112,12 +1112,12 @@ describe('expandBlueprintGraph', () => {
       ],
       imports: [],
       loops: [
-        { name: 'i', countInput: 'NumOfSegments' },
+        { name: 'i', countInput: 'NumOfClips' },
         { name: 'j', countInput: 'NumOfImages' },
       ],
       edges: [
         { from: 'NumOfImages', to: 'ImageProducer' },
-        { from: 'NumOfSegments', to: 'ImageProducer' },
+        { from: 'NumOfClips', to: 'ImageProducer' },
         { from: 'ImageProducer', to: 'Image[i][j]' },
       ],
     };
@@ -1134,7 +1134,7 @@ describe('expandBlueprintGraph', () => {
     const inputSources = buildInputSourceMapFromCanonical(graph);
     const canonicalInputs = normalizeInputValues(
       {
-        'Input:NumOfSegments': 2,
+        'Input:NumOfClips': 2,
         'Input:NumOfImages': 3,
       },
       inputSources

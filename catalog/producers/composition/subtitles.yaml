@@ -1,6 +1,6 @@
 meta:
   name: Subtitles Producer
-  description: Generate exporter-ready subtitles by combining per-segment STT with the final timeline timing.
+  description: Generate exporter-ready subtitles by combining per-clip STT with the final timeline timing.
   id: SubtitlesProducer
   kind: blueprint
   version: 0.1.0
@@ -9,10 +9,10 @@ meta:
 
 inputs:
   - name: TranscriptionAudio
-    description: Narration audio clips grouped per segment for subtitle generation.
+    description: Narration audio clips grouped per clip for subtitle generation.
     type: array
     itemType: audio
-    dimensions: segment
+    dimensions: clip
     required: true
   - name: LanguageCode
     description: ISO 639-3 language code for transcription (e.g., eng, spa, fra).
@@ -22,8 +22,8 @@ inputs:
     description: Timeline document with Transcription track containing audio clip timing information.
     type: json
     required: true
-  - name: NumOfSegments
-    description: Number of narrative segments.
+  - name: NumOfClips
+    description: Number of narrative clips.
     type: int
     required: true
   - name: Duration
@@ -37,43 +37,43 @@ outputs:
     type: json
 
 loops:
-  - name: segment
-    description: Iterates over narrative segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narrative clips.
+    countInput: NumOfClips
 
 conditions:
   hasTranscriptionAudio:
-    when: Input:SubtitlesProducer.TranscriptionAudio[segment]
+    when: Input:SubtitlesProducer.TranscriptionAudio[clip]
     exists: true
 
 imports:
   - name: STTTimestamps
     producer: json/stt-timestamps
-    loop: segment
+    loop: clip
     if: hasTranscriptionAudio
   - name: STTNormalizer
     producer: composition/stt-normalizer
-    loop: segment
+    loop: clip
     if: hasTranscriptionAudio
   - name: SubtitlesComposer
     producer: composition/subtitles-composer
 
 connections:
-  - from: TranscriptionAudio[segment]
-    to: STTTimestamps[segment].TranscriptionAudio
+  - from: TranscriptionAudio[clip]
+    to: STTTimestamps[clip].TranscriptionAudio
   - from: LanguageCode
-    to: STTTimestamps[segment].LanguageCode
+    to: STTTimestamps[clip].LanguageCode
 
-  - from: STTTimestamps[segment].RawTranscription
-    to: STTNormalizer[segment].RawTranscription
+  - from: STTTimestamps[clip].RawTranscription
+    to: STTNormalizer[clip].RawTranscription
 
   - from: Timeline
     to: SubtitlesComposer.Timeline
   - from: Duration
     to: SubtitlesComposer.Duration
-  - from: STTNormalizer[segment].NormalizedTranscript
+  - from: STTNormalizer[clip].NormalizedTranscript
     to: SubtitlesComposer.Transcripts
-    groupBy: segment
+    groupBy: clip
     if: hasTranscriptionAudio
   - from: SubtitlesComposer.Transcription
     to: Transcription

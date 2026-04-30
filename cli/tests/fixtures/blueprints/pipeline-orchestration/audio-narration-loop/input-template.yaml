@@ -1,7 +1,7 @@
 inputs:
   InquiryPrompt: 'History of the Guiness Brewery'
   Duration: 20
-  NumOfSegments: 2
+  NumOfClips: 2
   Audience: 'Adult'
   VoiceId: 'Wise_Woman'
   Emotion: neutral

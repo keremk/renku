@@ -33,6 +33,8 @@ import {
 } from '@gorenku/core';
 import { createCliLogger } from '../lib/logger.js';
 
+type PlanningClipScope = NonNullable<PlanningUserControls['scope']>['clip'];
+
 /**
  * Creates an effective config for generation that uses project-local storage (cwd)
  * while preserving catalog configuration from the global config.
@@ -71,6 +73,10 @@ export interface GenerateOptions {
 	producerIds?: string[];
 	/** Pin IDs (canonical Artifact:... or Producer:...). */
 	pinIds?: string[];
+	/** One-based clip selection, comma-separated, e.g. "2" or "2,4". */
+	clip?: string;
+	/** One-based through-clip selection, e.g. "4" means clips 1-4. */
+	throughClip?: string;
 	/** Optional path to a dry-run profile file. */
 	dryRunProfilePath?: string;
 
@@ -191,11 +197,16 @@ export async function runGenerate(
 	const producerDirectives = normalizeProducerDirectivesFromCli(
 		options.producerIds
 	);
+	const clipScope = normalizeClipScopeFromCli({
+		clip: options.clip,
+		throughClip: options.throughClip,
+	});
 	const planningControls = buildPlanningUserControls({
 		upToLayer: options.upToLayer,
 		regenerateIds,
 		pinIds: options.pinIds,
 		producerDirectives,
+		clipScope,
 	});
 	const artifactsConfig = getCliArtifactsConfig(activeConfig);
 
@@ -505,17 +516,90 @@ function normalizeProducerDirectivesFromCli(
 	);
 }
 
+function normalizeClipScopeFromCli(args: {
+	clip?: string;
+	throughClip?: string;
+}): PlanningClipScope | undefined {
+	if (args.clip !== undefined && args.throughClip !== undefined) {
+		throw createRuntimeError(
+			RuntimeErrorCode.INVALID_INPUT_VALUE,
+			'Use either --clip or --through-clip, not both.',
+			{
+				suggestion:
+					'Use --clip=7 for exact clip selection, or --through-clip=7 for clips 1 through 7.',
+			}
+		);
+	}
+
+	if (args.clip !== undefined) {
+		return {
+			dimension: 'clip',
+			indices: parseOneBasedClipList(args.clip, '--clip'),
+			mode: 'only',
+			includeUpstream: true,
+		};
+	}
+
+	if (args.throughClip !== undefined) {
+		return {
+			dimension: 'clip',
+			indices: parseOneBasedClipList(args.throughClip, '--through-clip'),
+			mode: 'through',
+			includeUpstream: true,
+		};
+	}
+
+	return undefined;
+}
+
+function parseOneBasedClipList(value: string, flagName: string): number[] {
+	const rawParts = value.split(',');
+	const indices: number[] = [];
+
+	for (const rawPart of rawParts) {
+		const part = rawPart.trim();
+		if (!/^\d+$/.test(part)) {
+			throw createRuntimeError(
+				RuntimeErrorCode.INVALID_INPUT_VALUE,
+				`Invalid ${flagName} value "${value}". Expected one or more positive clip numbers.`,
+				{
+					suggestion:
+						'Use one-based clip numbers, for example --clip=7 or --clip=7,9,12.',
+				}
+			);
+		}
+
+		const clipNumber = Number(part);
+		if (!Number.isSafeInteger(clipNumber) || clipNumber < 1) {
+			throw createRuntimeError(
+				RuntimeErrorCode.INVALID_INPUT_VALUE,
+				`Invalid ${flagName} value "${value}". Clip numbers start at 1.`,
+				{
+					suggestion:
+						'Use one-based clip numbers, for example --clip=1 for the first clip.',
+				}
+			);
+		}
+
+		indices.push(clipNumber - 1);
+	}
+
+	return Array.from(new Set(indices));
+}
+
 function buildPlanningUserControls(args: {
 	upToLayer?: number;
 	regenerateIds?: string[];
 	pinIds?: string[];
 	producerDirectives?: Array<{ producerId: string; count: number }>;
+	clipScope?: PlanningClipScope;
 }): PlanningUserControls | undefined {
 	const scope: PlanningUserControls['scope'] = {
 		...(args.upToLayer !== undefined ? { upToLayer: args.upToLayer } : {}),
 		...(args.producerDirectives && args.producerDirectives.length > 0
 			? { producerDirectives: args.producerDirectives }
 			: {}),
+		...(args.clipScope ? { clip: args.clipScope } : {}),
 	};
 	const surgical: PlanningUserControls['surgical'] = {
 		...(args.regenerateIds && args.regenerateIds.length > 0

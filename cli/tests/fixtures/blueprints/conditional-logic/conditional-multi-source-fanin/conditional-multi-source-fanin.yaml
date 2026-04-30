@@ -79,9 +79,9 @@ connections:
     to: TransitionVideoProducer[character].Resolution
 
   - from: MeetingVideoProducer[character].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+    to: TimelineComposer.VideoClips
   - from: TransitionVideoProducer[character].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+    to: TimelineComposer.VideoClips
     if: hasTransition
 
   - from: DirectorProducer.Script.MusicPrompt

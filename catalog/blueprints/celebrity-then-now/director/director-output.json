@@ -36,11 +36,11 @@
             },
             "MeetingVideoPrompt": {
               "type": "string",
-              "description": "Video prompt for the meeting segment. The clip starts on the empty setting, the then version enters first, the current version approaches, and they come together in frame. Describe specific camera movements. Start frame: empty setting image. End frame: together image."
+              "description": "Video prompt for the meeting clip. The clip starts on the empty setting, the then version enters first, the current version approaches, and they come together in frame. Describe specific camera movements. Start frame: empty setting image. End frame: together image."
             },
             "TransitionVideoPrompt": {
               "type": "string",
-              "description": "Video prompt for the exit transition segment. Camera moves away from the pair as they leave and settles on an empty part of the same setting so the next segment can begin seamlessly. Start frame: together image. End frame: empty setting image."
+              "description": "Video prompt for the exit transition clip. Camera moves away from the pair as they leave and settles on an empty part of the same setting so the next clip can begin seamlessly. Start frame: together image. End frame: empty setting image."
             }
           },
           "required": ["CharacterName", "ThenImagePrompt", "NowImagePrompt", "TogetherImagePrompt", "MeetingVideoPrompt", "TransitionVideoPrompt"],

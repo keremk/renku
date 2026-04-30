@@ -86,7 +86,7 @@ describe('extractModelSelectionsFromInputs', () => {
   it('returns non-model inputs in remainingInputs', () => {
     const inputs = {
       'Duration': 60,
-      'NumOfSegments': 5,
+      'NumOfClips': 5,
       'TopicDescription': 'A video about cats',
       'ImageProducer.provider': 'replicate',
       'ImageProducer.model': 'flux-schnell',
@@ -97,7 +97,7 @@ describe('extractModelSelectionsFromInputs', () => {
     expect(result.modelSelections).toHaveLength(1);
     expect(result.remainingInputs).toEqual({
       'Duration': 60,
-      'NumOfSegments': 5,
+      'NumOfClips': 5,
       'TopicDescription': 'A video about cats',
     });
   });

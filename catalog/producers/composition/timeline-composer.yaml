@@ -8,39 +8,39 @@ meta:
   license: MIT
 
 inputs:
-  - name: ImageSegments
-    description: Collected image assets grouped per segment.
+  - name: ImageClips
+    description: Collected image assets grouped per clip.
     type: array
     itemType: image
-    dimensions: segment.image
+    dimensions: clip.image
     fanIn: true
     required: false
-  - name: VideoSegments
-    description: Collected video assets grouped per narration segment.
+  - name: VideoClips
+    description: Collected video assets grouped per narration clip.
     type: array
     itemType: video
-    dimensions: segment
+    dimensions: clip
     fanIn: true
     required: false
-  - name: AudioSegments
-    description: Narration audio clips grouped per segment (master track).
+  - name: AudioClips
+    description: Narration audio clips grouped per clip (master track).
     type: array
     itemType: audio
-    dimensions: segment
+    dimensions: clip
     fanIn: true
     required: false
   - name: TranscriptionAudio
-    description: Audio clips to transcribe, grouped per segment.
+    description: Audio clips to transcribe, grouped per clip.
     type: array
     itemType: audio
-    dimensions: segment
+    dimensions: clip
     fanIn: true
     required: false
-  - name: TextSegments
-    description: Text snippets grouped per segment.
+  - name: TextClips
+    description: Text snippets grouped per clip.
     type: array
     itemType: string
-    dimensions: segment
+    dimensions: clip
     fanIn: true
     required: false
   - name: Music
@@ -61,16 +61,16 @@ outputs:
 mappings:
   renku:
     timeline/ordered:
-      ImageSegments:
-        field: imageSegments
-      VideoSegments:
-        field: videoSegments
-      AudioSegments:
-        field: audioSegments
+      ImageClips:
+        field: imageClips
+      VideoClips:
+        field: videoClips
+      AudioClips:
+        field: audioClips
       TranscriptionAudio:
         field: transcriptionAudio
-      TextSegments:
-        field: textSegments
+      TextClips:
+        field: textClips
       Music:
         field: music
       Duration:

@@ -69,7 +69,7 @@ describe('end-to-end: video stitcher fan-in dry run', () => {
     );
 
     const videoFanIn =
-      stitcherJob.context?.fanIn?.['Input:VideoStitcher.VideoSegments'];
+      stitcherJob.context?.fanIn?.['Input:VideoStitcher.VideoClips'];
     expect(videoFanIn).toBeDefined();
     expect(videoFanIn?.members).toHaveLength(2);
     expect(videoFanIn?.members[0]?.id).toBe(
@@ -125,14 +125,14 @@ describe('end-to-end: video stitcher fan-in dry run', () => {
     const stitcherJobs = plan.layers
       .flat()
       .filter((job) => job !== undefined)
-      .filter((job) => job.producer === 'SegmentVideoProducer.VideoStitcher');
+      .filter((job) => job.producer === 'ClipVideoProducer.VideoStitcher');
 
     expect(stitcherJobs).toHaveLength(2);
     for (const stitcherJob of stitcherJobs) {
       const fanInInputIds = Object.keys(stitcherJob.context?.fanIn ?? {});
       expect(fanInInputIds).toHaveLength(1);
       expect(fanInInputIds[0]).not.toBe(
-        'Input:SegmentVideoProducer.VideoStitcher.VideoSegments'
+        'Input:ClipVideoProducer.VideoStitcher.VideoClips'
       );
       expect(stitcherJob.context?.fanIn?.[fanInInputIds[0]!]!.members).toHaveLength(
         2

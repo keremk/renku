@@ -24,11 +24,11 @@ export const SYSTEM_INPUT_DEFINITIONS = {
     userSupplied: true,
     description: 'System input: Duration',
   },
-  [SYSTEM_INPUTS.NUM_OF_SEGMENTS]: {
+  [SYSTEM_INPUTS.NUM_OF_CLIPS]: {
     type: 'number',
     kind: 'user',
     userSupplied: true,
-    description: 'System input: NumOfSegments',
+    description: 'System input: NumOfClips',
   },
   [SYSTEM_INPUTS.RESOLUTION]: {
     type: 'resolution',
@@ -36,11 +36,11 @@ export const SYSTEM_INPUT_DEFINITIONS = {
     userSupplied: true,
     description: 'System input: Resolution',
   },
-  [SYSTEM_INPUTS.SEGMENT_DURATION]: {
+  [SYSTEM_INPUTS.CLIP_DURATION]: {
     type: 'number',
     kind: 'derived',
     userSupplied: false,
-    description: 'System input: SegmentDuration',
+    description: 'System input: ClipDuration',
   },
   [SYSTEM_INPUTS.MOVIE_ID]: {
     type: 'string',
@@ -92,9 +92,9 @@ export function listSystemInputDefinitions(): SystemInputDefinition[] {
  */
 export const SYSTEM_INPUT_IDS = {
   DURATION: `Input:${SYSTEM_INPUTS.DURATION}`,
-  NUM_OF_SEGMENTS: `Input:${SYSTEM_INPUTS.NUM_OF_SEGMENTS}`,
+  NUM_OF_CLIPS: `Input:${SYSTEM_INPUTS.NUM_OF_CLIPS}`,
   RESOLUTION: `Input:${SYSTEM_INPUTS.RESOLUTION}`,
-  SEGMENT_DURATION: `Input:${SYSTEM_INPUTS.SEGMENT_DURATION}`,
+  CLIP_DURATION: `Input:${SYSTEM_INPUTS.CLIP_DURATION}`,
   MOVIE_ID: `Input:${SYSTEM_INPUTS.MOVIE_ID}`,
   STORAGE_ROOT: `Input:${SYSTEM_INPUTS.STORAGE_ROOT}`,
   STORAGE_BASE_PATH: `Input:${SYSTEM_INPUTS.STORAGE_BASE_PATH}`,
@@ -104,7 +104,7 @@ export const SYSTEM_INPUT_IDS = {
  * Injects derived system inputs into the resolved inputs map.
  *
  * Currently auto-computes:
- * - SegmentDuration from Duration and NumOfSegments
+ * - ClipDuration from Duration and NumOfClips
  *
  * This function is used during both planning (for cost estimation) and
  * execution (for provider invocation).
@@ -117,17 +117,16 @@ export function injectDerivedSystemInputs(
 ): Record<string, unknown> {
   const result = { ...inputs };
 
-  // Auto-compute SegmentDuration if Duration and NumOfSegments are present
   const duration = inputs[SYSTEM_INPUT_IDS.DURATION];
-  const numSegments = inputs[SYSTEM_INPUT_IDS.NUM_OF_SEGMENTS];
+  const numClips = inputs[SYSTEM_INPUT_IDS.NUM_OF_CLIPS];
 
   if (
     typeof duration === 'number' &&
-    typeof numSegments === 'number' &&
-    numSegments > 0 &&
-    result[SYSTEM_INPUT_IDS.SEGMENT_DURATION] === undefined
+    typeof numClips === 'number' &&
+    numClips > 0 &&
+    result[SYSTEM_INPUT_IDS.CLIP_DURATION] === undefined
   ) {
-    result[SYSTEM_INPUT_IDS.SEGMENT_DURATION] = duration / numSegments;
+    result[SYSTEM_INPUT_IDS.CLIP_DURATION] = duration / numClips;
   }
 
   return result;
@@ -175,7 +174,7 @@ export function injectBaseSystemInputs(
  *
  * This is a convenience function that:
  * 1. Injects base system inputs (MovieId, StorageRoot, StorageBasePath)
- * 2. Injects derived system inputs (SegmentDuration)
+ * 2. Injects derived system inputs (ClipDuration)
  *
  * @param inputs - The resolved inputs map with canonical IDs
  * @param movieId - The movie ID to inject

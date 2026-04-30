@@ -14,12 +14,12 @@
       },
       "VideoPrompts": {
         "type": "array",
-        "description": "Video prompts for each segment, describing the action and camera movement.",
+        "description": "Video prompts for each clip, describing the action and camera movement.",
         "items": { "type": "string" }
       },
       "NarrationScript": {
         "type": "array",
-        "description": "Narration text for each segment to be spoken by a voice actor.",
+        "description": "Narration text for each clip to be spoken by a voice actor.",
         "items": { "type": "string" }
       },
       "MusicPrompt": {

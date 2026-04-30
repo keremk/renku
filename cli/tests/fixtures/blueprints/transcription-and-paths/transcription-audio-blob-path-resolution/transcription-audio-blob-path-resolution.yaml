@@ -5,12 +5,12 @@ meta:
   version: 0.1.0
 
 inputs:
-  - name: NumOfSegments
-    description: Number of narration segments.
+  - name: NumOfClips
+    description: Number of narration clips.
     type: int
     required: true
   - name: NarrationScript
-    description: Narration text per segment.
+    description: Narration text per clip.
     type: array
     itemType: string
     required: true
@@ -28,11 +28,11 @@ inputs:
     required: true
 
 outputs:
-  - name: SegmentAudio
-    description: Narration audio per segment.
+  - name: ClipAudio
+    description: Narration audio per clip.
     type: array
     itemType: audio
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: Timeline
     description: Timeline document.
     type: json
@@ -41,31 +41,31 @@ outputs:
     type: json
 
 loops:
-  - name: segment
-    countInput: NumOfSegments
+  - name: clip
+    countInput: NumOfClips
 
 imports:
   - name: AudioProducer
     producer: audio/text-to-speech
-    loop: segment
+    loop: clip
   - name: TimelineComposer
     producer: composition/timeline-composer
   - name: TranscriptionProducer
     producer: json/transcription
 
 connections:
-  - from: NarrationScript[segment]
-    to: AudioProducer[segment].Text
-  - from: SegmentDuration
-    to: AudioProducer[segment].Duration
+  - from: NarrationScript[clip]
+    to: AudioProducer[clip].Text
+  - from: ClipDuration
+    to: AudioProducer[clip].Duration
   - from: VoiceId
-    to: AudioProducer[segment].VoiceId
-  - from: AudioProducer[segment].GeneratedAudio
-    to: SegmentAudio[segment]
+    to: AudioProducer[clip].VoiceId
+  - from: AudioProducer[clip].GeneratedAudio
+    to: ClipAudio[clip]
 
-  - from: AudioProducer[segment].GeneratedAudio
-    to: TimelineComposer.AudioSegments
-  - from: AudioProducer[segment].GeneratedAudio
+  - from: AudioProducer[clip].GeneratedAudio
+    to: TimelineComposer.AudioClips
+  - from: AudioProducer[clip].GeneratedAudio
     to: TimelineComposer.TranscriptionAudio
   - from: Duration
     to: TimelineComposer.Duration

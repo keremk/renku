@@ -33,7 +33,7 @@ describe('serializeInputsToYaml', () => {
       const data: RawInputsData = {
         inputs: {
           'Input:Topic': 'Test topic',
-          'Input:NumOfSegments': 5,
+          'Input:NumOfClips': 5,
         },
         models: [],
       };
@@ -42,7 +42,7 @@ describe('serializeInputsToYaml', () => {
       const parsed = parseYaml(yaml);
 
       expect(parsed.inputs.Topic).toBe('Test topic');
-      expect(parsed.inputs.NumOfSegments).toBe(5);
+      expect(parsed.inputs.NumOfClips).toBe(5);
       expect(parsed.inputs['Input:Topic']).toBeUndefined();
     });
 
@@ -364,13 +364,13 @@ describe('mergeInputValues', () => {
   });
 
   it('handles mixed prefix formats', () => {
-    const existing = { 'Input:Topic': 'Old', NumOfSegments: 3 };
-    const updates = { Topic: 'New', NumOfSegments: 5 };
+    const existing = { 'Input:Topic': 'Old', NumOfClips: 3 };
+    const updates = { Topic: 'New', NumOfClips: 5 };
 
     const result = mergeInputValues(existing, updates);
 
     expect(result['Input:Topic']).toBe('New');
-    expect(result.NumOfSegments).toBe(5);
+    expect(result.NumOfClips).toBe(5);
   });
 
   it('adds new keys without prefix', () => {

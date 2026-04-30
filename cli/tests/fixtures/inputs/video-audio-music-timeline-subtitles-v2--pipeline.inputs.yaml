@@ -1,8 +1,7 @@
 inputs:
   InquiryPrompt: 'Test transcription pipeline'
   Duration: 10
-  NumOfSegments: 2
-  SegmentDuration: 5
+  NumOfClips: 2
   Audience: 'Adult'
   Language: 'en'
   Style: 'Documentary realism'
@@ -42,9 +41,9 @@ models:
         masterTracks: ['Audio']
         tracks: ['Video', 'Audio', 'Transcription', 'Music']
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         audioClip:
-          artifact: AudioSegments
+          artifact: AudioClips
         transcriptionClip:
           artifact: TranscriptionAudio
         musicClip:

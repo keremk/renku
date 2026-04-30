@@ -49,7 +49,7 @@ export function validateBlueprintTree(
   issues.push(...validateConnectionEndpoints(tree));
   issues.push(...validateProducerInputOutput(tree));
   issues.push(...validateMediaProducerDurationContract(tree));
-  issues.push(...validateSegmentDurationContract(tree));
+  issues.push(...validateClipDurationContract(tree));
   issues.push(...validateInputCountInputs(tree));
   issues.push(...validateLoopCountInputs(tree));
   issues.push(...validateArtifactCountInputs(tree));
@@ -121,8 +121,8 @@ function getLoopNames(tree: BlueprintTreeNode): Set<string> {
 
 /**
  * Parses a reference string into its components.
- * E.g., "DocProducer.VideoScript.Segments[segment].Script" ->
- * { segments: ["DocProducer", "VideoScript", "Segments[segment]", "Script"], first: "DocProducer", last: "Script" }
+ * E.g., "DocProducer.VideoScript.Clips[clip].Script" ->
+ * { segments: ["DocProducer", "VideoScript", "Clips[clip]", "Script"], first: "DocProducer", last: "Script" }
  */
 function parseReference(reference: string): {
   segments: string[];
@@ -140,7 +140,7 @@ function parseReference(reference: string): {
 
 /**
  * Strips dimension brackets from a reference segment
- * E.g., "Segments[segment]" -> "Segments"
+ * E.g., "Clips[clip]" -> "Clips"
  */
 function stripDimensions(segment: string): string {
   return segment.replace(/\[[^\]]*\]/g, '');
@@ -559,92 +559,90 @@ export function validateMediaProducerDurationContract(
 }
 
 /**
- * Validates SegmentDuration usage for orchestration blueprints.
+ * Validates clip duration derived-input usage for orchestration blueprints.
  *
- * SegmentDuration is a derived system property:
+ * ClipDuration is a derived system property:
  * - orchestration blueprints must not declare it as a user-facing input
  * - if they use it in graph wiring, they must explicitly declare required
- *   Duration and NumOfSegments inputs so SegmentDuration can be derived
+ *   Duration and NumOfClips inputs so ClipDuration can be derived
  */
-export function validateSegmentDurationContract(
+export function validateClipDurationContract(
   tree: BlueprintTreeNode
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
     if (isOrchestrationBlueprint(node)) {
-      const declaredSegmentDuration = getDeclaredInput(
+      const declaredClipDuration = getDeclaredInput(
         node,
-        SYSTEM_INPUTS.SEGMENT_DURATION
+        SYSTEM_INPUTS.CLIP_DURATION
       );
-      if (declaredSegmentDuration) {
+      if (declaredClipDuration) {
         issues.push(
           createError(
-            ValidationErrorCode.SEGMENT_DURATION_INPUT_DECLARED,
-            'Orchestration blueprints must not declare "SegmentDuration" in inputs[]. It is a derived system value.',
+            ValidationErrorCode.CLIP_DURATION_INPUT_DECLARED,
+            'Orchestration blueprints must not declare "ClipDuration" in inputs[]. It is a derived system value.',
             {
               filePath: node.sourcePath,
               namespacePath: node.namespacePath,
-              context: 'input "SegmentDuration"',
+              context: 'input "ClipDuration"',
             },
-            'Remove `SegmentDuration` from inputs[] and derive it from required `Duration` and `NumOfSegments`.'
+            'Remove `ClipDuration` from inputs[] and derive it from required `Duration` and `NumOfClips`.'
           )
         );
       }
 
-      const usesSegmentDuration =
+      const usesClipDuration =
         node.document.edges.some(
           (edge) =>
             extractSimpleReferenceName(edge.from) ===
-            SYSTEM_INPUTS.SEGMENT_DURATION
+            SYSTEM_INPUTS.CLIP_DURATION
         ) ||
         node.document.loops?.some(
-          (loop) => loop.countInput === SYSTEM_INPUTS.SEGMENT_DURATION
+          (loop) => loop.countInput === SYSTEM_INPUTS.CLIP_DURATION
         ) ||
         node.document.inputs.some(
-          (input) => input.countInput === SYSTEM_INPUTS.SEGMENT_DURATION
+          (input) => input.countInput === SYSTEM_INPUTS.CLIP_DURATION
         ) ||
         node.document.outputs.some(
           (artifact) =>
-            artifact.countInput === SYSTEM_INPUTS.SEGMENT_DURATION ||
+            artifact.countInput === SYSTEM_INPUTS.CLIP_DURATION ||
             artifact.arrays?.some(
               (arrayMapping) =>
-                arrayMapping.countInput === SYSTEM_INPUTS.SEGMENT_DURATION
+                arrayMapping.countInput === SYSTEM_INPUTS.CLIP_DURATION
             ) === true
         );
 
-      if (usesSegmentDuration) {
+      const numOfClipsInput = getDeclaredInput(node, SYSTEM_INPUTS.NUM_OF_CLIPS);
+
+      if (usesClipDuration) {
         const durationInput = getDeclaredInput(node, SYSTEM_INPUTS.DURATION);
         if (!durationInput || durationInput.required !== true) {
           issues.push(
             createError(
-              ValidationErrorCode.SEGMENT_DURATION_REQUIRES_DURATION_INPUT,
-              'Blueprints that use "SegmentDuration" must declare a required "Duration" input.',
+              ValidationErrorCode.CLIP_DURATION_REQUIRES_DURATION_INPUT,
+              'Blueprints that use "ClipDuration" must declare a required "Duration" input.',
               {
                 filePath: node.sourcePath,
                 namespacePath: node.namespacePath,
-                context: 'derived input "SegmentDuration"',
+                context: 'derived input "ClipDuration"',
               },
               'Add `Duration` to inputs[] and mark it as required.'
             )
           );
         }
 
-        const numOfSegmentsInput = getDeclaredInput(
-          node,
-          SYSTEM_INPUTS.NUM_OF_SEGMENTS
-        );
-        if (!numOfSegmentsInput || numOfSegmentsInput.required !== true) {
+        if (!numOfClipsInput || numOfClipsInput.required !== true) {
           issues.push(
             createError(
-              ValidationErrorCode.SEGMENT_DURATION_REQUIRES_NUM_SEGMENTS_INPUT,
-              'Blueprints that use "SegmentDuration" must declare a required "NumOfSegments" input.',
+              ValidationErrorCode.CLIP_DURATION_REQUIRES_NUM_CLIPS_INPUT,
+              'Blueprints that use "ClipDuration" must declare a required "NumOfClips" input.',
               {
                 filePath: node.sourcePath,
                 namespacePath: node.namespacePath,
-                context: 'derived input "SegmentDuration"',
+                context: 'derived input "ClipDuration"',
               },
-              'Add `NumOfSegments` to inputs[] and mark it as required.'
+              'Add `NumOfClips` to inputs[] and mark it as required.'
             )
           );
         }

@@ -30,7 +30,7 @@ export {
   validateConnectionEndpoints,
   validateProducerInputOutput,
   validateMediaProducerDurationContract,
-  validateSegmentDurationContract,
+  validateClipDurationContract,
   validateInputCountInputs,
   validateLoopCountInputs,
   validateArtifactCountInputs,

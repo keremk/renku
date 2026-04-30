@@ -173,7 +173,7 @@ describe('viewer-parse-projection helpers', () => {
         { name: 'TimelineComposer', producer: 'composition/timeline-composer' },
       ],
       loops: [
-        { name: 'scene', countInput: 'NumOfSegments' },
+        { name: 'scene', countInput: 'NumOfClips' },
       ],
       outputs: [{ name: 'Timeline', type: 'json' }],
       edges: [
@@ -527,7 +527,7 @@ describe('viewer-parse-projection loop grouping', () => {
     );
 
     expect(segmentGroup).toBeDefined();
-    expect(segmentGroup?.countInput).toBe('NumOfSegments');
+    expect(segmentGroup?.countInput).toBe('NumOfClips');
     expect(segmentGroup?.members.map((member) => member.inputName)).toEqual(
       expect.arrayContaining(['CelebrityThenImages', 'CelebrityNowImages'])
     );

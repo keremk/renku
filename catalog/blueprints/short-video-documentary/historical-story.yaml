@@ -11,16 +11,16 @@ inputs:
     description: Total video duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of narrative segments.
+  - name: NumOfClips
+    description: Number of narrative clips.
     type: int
     required: true
   - name: Topic
     description: The historical topic to narrate (e.g., "Opium Wars in 19th century China")
     type: string
     required: true
-  - name: CutScenesPerSegment
-    description: Number of cut-scenes per segment (2-3), used in video prompt [cut] markers
+  - name: CutScenesPerClip
+    description: Number of cut-scenes per clip (2-3), used in video prompt [cut] markers
     type: int
     required: true
   - name: VisualStyle
@@ -44,16 +44,16 @@ outputs:
   - name: InitialImage
     description: The generated opening frame image
     type: image
-  - name: SegmentVideos
-    description: Generated video clips per segment (each contains internal cut-scenes)
+  - name: ClipVideos
+    description: Generated video clips per clip (each contains internal cut-scenes)
     type: array
     itemType: video
-    countInput: NumOfSegments
-  - name: SegmentAudios
-    description: Generated narration audio per segment
+    countInput: NumOfClips
+  - name: ClipAudios
+    description: Generated narration audio per clip
     type: array
     itemType: audio
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: Music
     description: Background music for the video
     type: audio
@@ -68,9 +68,9 @@ outputs:
     type: video
 
 loops:
-  - name: segment
-    description: Iterates over narrative segments
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narrative clips
+    countInput: NumOfClips
 
 imports:
   - name: HistoryScriptwriter
@@ -79,10 +79,10 @@ imports:
     producer: image/text-to-image
   - name: VideoProducer
     producer: video/image-to-video
-    loop: segment
+    loop: clip
   - name: NarrationProducer
     producer: audio/text-to-speech
-    loop: segment
+    loop: clip
   - name: MusicProducer
     producer: audio/text-to-music
   - name: TimelineComposer
@@ -100,12 +100,12 @@ connections:
     to: HistoryScriptwriter.Topic
   - from: Duration
     to: HistoryScriptwriter.Duration
-  - from: NumOfSegments
-    to: HistoryScriptwriter.NumOfSegments
-  - from: SegmentDuration
-    to: HistoryScriptwriter.SegmentDuration
-  - from: CutScenesPerSegment
-    to: HistoryScriptwriter.CutScenesPerSegment
+  - from: NumOfClips
+    to: HistoryScriptwriter.NumOfClips
+  - from: ClipDuration
+    to: HistoryScriptwriter.ClipDuration
+  - from: CutScenesPerClip
+    to: HistoryScriptwriter.CutScenesPerClip
   - from: VisualStyle
     to: HistoryScriptwriter.VisualStyle
   - from: NarratorTone
@@ -122,39 +122,39 @@ connections:
     to: InitialImage
 
   # ============================================
-  # Wire prompts to VideoProducer (per segment)
+  # Wire prompts to VideoProducer (per clip)
   # Video prompts contain [cut] markers for internal scene transitions
   # ============================================
-  - from: HistoryScriptwriter.VideoPrompts[segment]
-    to: VideoProducer[segment].Prompt
+  - from: HistoryScriptwriter.VideoPrompts[clip]
+    to: VideoProducer[clip].Prompt
   - from: Resolution
-    to: VideoProducer[segment].Resolution
-  - from: SegmentDuration
-    to: VideoProducer[segment].Duration
+    to: VideoProducer[clip].Resolution
+  - from: ClipDuration
+    to: VideoProducer[clip].Duration
 
-  # First segment gets the initial generated image as StartImage
+  # First clip gets the initial generated image as StartImage
   - from: InitialImageProducer.GeneratedImage
     to: VideoProducer[0].StartImage
 
-  # Subsequent segments get LastFrame from previous segment (frame continuity)
-  - from: VideoProducer[segment-1].LastFrame
-    to: VideoProducer[segment].StartImage
+  # Subsequent clips get LastFrame from previous clip (frame continuity)
+  - from: VideoProducer[clip-1].LastFrame
+    to: VideoProducer[clip].StartImage
 
-  # Output segment videos
-  - from: VideoProducer[segment].GeneratedVideo
-    to: SegmentVideos[segment]
+  # Output clip videos
+  - from: VideoProducer[clip].GeneratedVideo
+    to: ClipVideos[clip]
 
   # ============================================
-  # Wire narration to NarrationProducer (per segment)
+  # Wire narration to NarrationProducer (per clip)
   # ============================================
-  - from: HistoryScriptwriter.NarrationScripts[segment]
-    to: NarrationProducer[segment].Text
-  - from: SegmentDuration
-    to: NarrationProducer[segment].Duration
+  - from: HistoryScriptwriter.NarrationScripts[clip]
+    to: NarrationProducer[clip].Text
+  - from: ClipDuration
+    to: NarrationProducer[clip].Duration
   - from: VoiceId
-    to: NarrationProducer[segment].VoiceId
-  - from: NarrationProducer[segment].GeneratedAudio
-    to: SegmentAudios[segment]
+    to: NarrationProducer[clip].VoiceId
+  - from: NarrationProducer[clip].GeneratedAudio
+    to: ClipAudios[clip]
 
   # ============================================
   # Wire music prompt to MusicProducer
@@ -169,10 +169,10 @@ connections:
   # ============================================
   # Wire to TimelineComposer
   # ============================================
-  - from: VideoProducer[segment].GeneratedVideo
-    to: TimelineComposer.VideoSegments
-  - from: NarrationProducer[segment].GeneratedAudio
-    to: TimelineComposer.AudioSegments
+  - from: VideoProducer[clip].GeneratedVideo
+    to: TimelineComposer.VideoClips
+  - from: NarrationProducer[clip].GeneratedAudio
+    to: TimelineComposer.AudioClips
   - from: MusicProducer.GeneratedMusic
     to: TimelineComposer.Music
   - from: Duration
@@ -181,7 +181,7 @@ connections:
     to: Timeline
 
   # Wire audio to TimelineComposer for Transcription track
-  - from: NarrationProducer[segment].GeneratedAudio
+  - from: NarrationProducer[clip].GeneratedAudio
     to: TimelineComposer.TranscriptionAudio
 
   # ============================================

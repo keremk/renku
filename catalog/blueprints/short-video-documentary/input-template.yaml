@@ -13,11 +13,11 @@ inputs:
     height: 1280
 
   # Duration and structure
-  # 40 seconds total, 4 segments of 10 seconds each
-  # Each segment has 2-3 cut-scenes via [cut] markers in video prompts
+  # 40 seconds total, 4 clips of 10 seconds each
+  # Each clip has 2-3 cut-scenes via [cut] markers in video prompts
   Duration: 30
-  NumOfSegments: 3
-  CutScenesPerSegment: 2
+  NumOfClips: 3
+  CutScenesPerClip: 2
 
 models:
   # LLM for historical research and script generation
@@ -53,9 +53,9 @@ models:
       timeline:
         masterTracks: ['Audio', 'Video']
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         audioClip:
-          artifact: AudioSegments
+          artifact: AudioClips
         musicClip:
           artifact: Music
           volume: 0.25

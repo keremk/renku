@@ -678,7 +678,7 @@ function collectProducedOutputDefinitions(args: {
  * Extracts artifact path patterns from condition `when` clauses.
  * The patterns are used to match canonical artifact IDs.
  *
- * Example: "DocProducer.VideoScript.Segments[segment].UseNarrationAudio"
+ * Example: "DocProducer.VideoScript.Clips[clip].UseNarrationAudio"
  * Returns regex that treats symbolic indices as wildcards and numeric indices as exact.
  */
 function extractConditionArtifactPatterns(
@@ -904,7 +904,7 @@ function resolveConditionOutputSources(
 /**
  * Converts a condition `when` path to a pattern for matching canonical artifact IDs.
  *
- * Example: "DocProducer.VideoScript.Segments[segment].UseNarrationAudio"
+ * Example: "DocProducer.VideoScript.Clips[clip].UseNarrationAudio"
  * Returns regex that:
  * - Treats symbolic indices (e.g. [segment]) as wildcards that match numeric indices
  * - Keeps explicit numeric indices (e.g. [0]) exact

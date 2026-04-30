@@ -426,9 +426,9 @@ async function determineDurationForSegment(args: {
     }
   }
 
-  // Fallback: use SegmentDuration input
+  // Fallback: use ClipDuration input
   const segmentDuration = readOptionalPositiveNumber(resolvedInputs, [
-    'Input:SegmentDuration',
+    'Input:ClipDuration',
   ]);
   if (segmentDuration !== undefined) {
     return segmentDuration;

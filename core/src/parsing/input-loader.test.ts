@@ -28,7 +28,7 @@ function createTestBlueprintTree(): BlueprintTreeNode {
       meta: { id: 'TestBlueprint', name: 'Test Blueprint' },
       inputs: [
         { name: 'Topic', type: 'string', required: true },
-        { name: 'NumOfSegments', type: 'int', required: false },
+        { name: 'NumOfClips', type: 'int', required: false },
       ],
       outputs: [{ name: 'VideoScript', type: 'json' }],
       producers: [{ name: 'DocProducer' }],
@@ -58,7 +58,7 @@ describe('parsing/input-loader', () => {
       stringifyYaml({
         inputs: {
           Duration: 30,
-          NumOfSegments: 3,
+          NumOfClips: 3,
           InquiryPrompt: 'Test story',
           VoiceId: 'Wise_Woman',
           'Input:AudioProducer.provider': 'replicate',
@@ -263,7 +263,7 @@ describe('artifact override detection', () => {
       stringifyYaml({
         inputs: {
           Duration: 30,
-          NumOfSegments: 3,
+          NumOfClips: 3,
           InquiryPrompt: 'Test story',
           VoiceId: 'Wise_Woman',
           'AudioProducer.provider': 'replicate',
@@ -921,7 +921,7 @@ describe('input-loader edge cases', () => {
       stringifyYaml({
         inputs: {
           Duration: 60,
-          NumOfSegments: 5,
+          NumOfClips: 5,
           InquiryPrompt: 'Tell me about space',
           VoiceId: 'Old_Man',
           // Producer-scoped input
@@ -936,7 +936,7 @@ describe('input-loader edge cases', () => {
 
     // Verify regular inputs are canonicalized
     expect(loaded.values['Input:Duration']).toBe(60);
-    expect(loaded.values['Input:NumOfSegments']).toBe(5);
+    expect(loaded.values['Input:NumOfClips']).toBe(5);
 
     // Verify producer-scoped inputs are handled
     const scriptSelection = loaded.modelSelections.find((s) =>
@@ -963,7 +963,7 @@ describe('input-loader edge cases', () => {
       stringifyYaml({
         inputs: {
           Duration: 60,
-          NumOfSegments: 2,
+          NumOfClips: 2,
           Prompts: ['first prompt', 'second prompt'],
           SourceImages: ['image-1', 'image-2'],
           'SegmentUnit.MainVideo.provider': 'fal-ai',

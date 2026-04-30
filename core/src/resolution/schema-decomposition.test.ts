@@ -77,7 +77,7 @@ describe('decomposeJsonSchema', () => {
         type: 'object',
         properties: {
           Title: { type: 'string' },
-          Segments: {
+          Clips: {
             type: 'array',
             items: {
               type: 'object',
@@ -91,7 +91,7 @@ describe('decomposeJsonSchema', () => {
     };
 
     const arrayMappings: ArrayDimensionMapping[] = [
-      { path: 'Segments', countInput: 'NumOfSegments' },
+      { path: 'Clips', countInput: 'NumOfClips' },
     ];
 
     const result = decomposeJsonSchema(schema, 'VideoScript', arrayMappings);
@@ -105,11 +105,11 @@ describe('decomposeJsonSchema', () => {
       dimensionCountInputs: {},
     });
     expect(result).toContainEqual({
-      path: 'VideoScript.Segments[segment].Script',
-      jsonPath: 'Segments[segment].Script',
+      path: 'VideoScript.Clips[clip].Script',
+      jsonPath: 'Clips[clip].Script',
       type: 'string',
-      dimensions: ['segment'],
-      dimensionCountInputs: { segment: 'NumOfSegments' },
+      dimensions: ['clip'],
+      dimensionCountInputs: { clip: 'NumOfClips' },
     });
   });
 
@@ -119,7 +119,7 @@ describe('decomposeJsonSchema', () => {
       schema: {
         type: 'object',
         properties: {
-          Segments: {
+          Clips: {
             type: 'array',
             items: {
               type: 'object',
@@ -137,28 +137,28 @@ describe('decomposeJsonSchema', () => {
     };
 
     const arrayMappings: ArrayDimensionMapping[] = [
-      { path: 'Segments', countInput: 'NumOfSegments' },
-      { path: 'Segments.ImagePrompts', countInput: 'NumOfImagesPerSegment' },
+      { path: 'Clips', countInput: 'NumOfClips' },
+      { path: 'Clips.ImagePrompts', countInput: 'NumOfImagesPerClip' },
     ];
 
     const result = decomposeJsonSchema(schema, 'VideoScript', arrayMappings);
 
     expect(result).toHaveLength(2);
     expect(result).toContainEqual({
-      path: 'VideoScript.Segments[segment].Script',
-      jsonPath: 'Segments[segment].Script',
+      path: 'VideoScript.Clips[clip].Script',
+      jsonPath: 'Clips[clip].Script',
       type: 'string',
-      dimensions: ['segment'],
-      dimensionCountInputs: { segment: 'NumOfSegments' },
+      dimensions: ['clip'],
+      dimensionCountInputs: { clip: 'NumOfClips' },
     });
     expect(result).toContainEqual({
-      path: 'VideoScript.Segments[segment].ImagePrompts[image]',
-      jsonPath: 'Segments[segment].ImagePrompts[image]',
+      path: 'VideoScript.Clips[clip].ImagePrompts[image]',
+      jsonPath: 'Clips[clip].ImagePrompts[image]',
       type: 'string',
-      dimensions: ['segment', 'image'],
+      dimensions: ['clip', 'image'],
       dimensionCountInputs: {
-        segment: 'NumOfSegments',
-        image: 'NumOfImagesPerSegment',
+        clip: 'NumOfClips',
+        image: 'NumOfImagesPerClip',
       },
     });
   });
@@ -201,7 +201,7 @@ describe('decomposeJsonSchema', () => {
           Summary: { type: 'string' },
           CharacterPrompt: { type: 'string' },
           MusicPrompt: { type: 'string' },
-          Segments: {
+          Clips: {
             type: 'array',
             items: {
               type: 'object',
@@ -222,34 +222,34 @@ describe('decomposeJsonSchema', () => {
     };
 
     const arrayMappings: ArrayDimensionMapping[] = [
-      { path: 'Segments', countInput: 'NumOfSegments' },
-      { path: 'Segments.ImagePrompts', countInput: 'NumOfImagesPerSegment' },
+      { path: 'Clips', countInput: 'NumOfClips' },
+      { path: 'Clips.ImagePrompts', countInput: 'NumOfImagesPerClip' },
     ];
 
     const result = decomposeJsonSchema(schema, 'VideoScript', arrayMappings);
 
     // Should have: Title, Summary, CharacterPrompt, MusicPrompt (4 root fields)
-    // Plus per-segment: Script, NarrationType, UseNarrationAudio, VideoPrompt (4 fields)
-    // Plus per-segment-image: ImagePrompts (1 field)
+    // Plus per-clip: Script, NarrationType, UseNarrationAudio, VideoPrompt (4 fields)
+    // Plus per-clip-image: ImagePrompts (1 field)
     const rootFields = result.filter((a) => a.dimensions.length === 0);
-    const segmentFields = result.filter((a) => a.dimensions.length === 1);
+    const clipFields = result.filter((a) => a.dimensions.length === 1);
     const imageFields = result.filter((a) => a.dimensions.length === 2);
 
     expect(rootFields).toHaveLength(4);
-    expect(segmentFields).toHaveLength(4);
+    expect(clipFields).toHaveLength(4);
     expect(imageFields).toHaveLength(1);
 
     // Check specific paths
     expect(result.map((a) => a.path)).toContain('VideoScript.Title');
-    expect(result.map((a) => a.path)).toContain('VideoScript.Segments[segment].Script');
-    expect(result.map((a) => a.path)).toContain('VideoScript.Segments[segment].ImagePrompts[image]');
+    expect(result.map((a) => a.path)).toContain('VideoScript.Clips[clip].Script');
+    expect(result.map((a) => a.path)).toContain('VideoScript.Clips[clip].ImagePrompts[image]');
   });
 });
 
 describe('deriveDimensionName', () => {
   describe('prefix removal', () => {
     it('removes NumOf prefix', () => {
-      expect(deriveDimensionName('NumOfSegments')).toBe('segment');
+      expect(deriveDimensionName('NumOfClips')).toBe('clip');
     });
 
     it('removes NumberOf prefix', () => {
@@ -280,22 +280,22 @@ describe('deriveDimensionName', () => {
   });
 
   describe('Per pattern removal', () => {
-    it('removes PerSegment suffix', () => {
-      expect(deriveDimensionName('NumOfImagesPerSegment')).toBe('image');
+    it('removes PerClip suffix', () => {
+      expect(deriveDimensionName('NumOfImagesPerClip')).toBe('image');
     });
 
     it('removes PerChapter suffix', () => {
       expect(deriveDimensionName('NumOfPagesPerChapter')).toBe('page');
     });
 
-    it('handles ImagesPerSegment directly', () => {
-      expect(deriveDimensionName('ImagesPerSegment')).toBe('image');
+    it('handles ImagesPerClip directly', () => {
+      expect(deriveDimensionName('ImagesPerClip')).toBe('image');
     });
   });
 
   describe('pluralization', () => {
     it('singularizes plural names', () => {
-      expect(deriveDimensionName('NumOfSegments')).toBe('segment');
+      expect(deriveDimensionName('NumOfClips')).toBe('clip');
       expect(deriveDimensionName('NumOfImages')).toBe('image');
       expect(deriveDimensionName('NumOfPages')).toBe('page');
     });
@@ -329,7 +329,7 @@ describe('deriveDimensionName', () => {
 
     it('handles combined prefix and suffix', () => {
       // NumOf is removed first, then Count suffix is removed, then singularized
-      expect(deriveDimensionName('NumOfSegmentsCount')).toBe('segment');
+      expect(deriveDimensionName('NumOfClipsCount')).toBe('clip');
     });
 
     it('handles simple names without patterns', () => {
@@ -344,12 +344,12 @@ describe('deriveDimensionName', () => {
   });
 
   describe('real-world examples', () => {
-    it('handles NumOfSegments', () => {
-      expect(deriveDimensionName('NumOfSegments')).toBe('segment');
+    it('handles NumOfClips', () => {
+      expect(deriveDimensionName('NumOfClips')).toBe('clip');
     });
 
-    it('handles NumOfImagesPerSegment', () => {
-      expect(deriveDimensionName('NumOfImagesPerSegment')).toBe('image');
+    it('handles NumOfImagesPerClip', () => {
+      expect(deriveDimensionName('NumOfImagesPerClip')).toBe('image');
     });
 
     it('handles SegmentCount', () => {

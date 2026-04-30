@@ -1,6 +1,6 @@
 meta:
   name: Flow Video Generation
-  description: Generate video from segments with first and last frame continuity.
+  description: Generate video from clips with first and last frame continuity.
   id: FlowVideo
   version: 0.1.0
   author: Renku
@@ -11,8 +11,8 @@ inputs:
     description: Total movie duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of narration/video segments.
+  - name: NumOfClips
+    description: Number of narration/video clips.
     type: int
     required: true
   - name: InquiryPrompt
@@ -45,13 +45,13 @@ inputs:
     required: false
 
 outputs:
-  - name: SegmentVideo
-    description: Generated video for each narration segment.
+  - name: ClipVideo
+    description: Generated video for each narration clip.
     type: array
     itemType: video
-    countInput: NumOfSegments
-  - name: SegmentAudio
-    description: The narrated audio segments for the movie.
+    countInput: NumOfClips
+  - name: ClipAudio
+    description: The narrated audio clips for the movie.
     type: array
     itemType: audio
   - name: Timeline
@@ -59,12 +59,12 @@ outputs:
     type: json
 
 loops:
-  - name: segment
-    description: Iterates over narration segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narration clips.
+    countInput: NumOfClips
   - name: image
-    description: Iterates over images for each segment, one more than the number of segments
-    countInput: NumOfSegments
+    description: Iterates over images for each clip, one more than the number of clips
+    countInput: NumOfClips
     countInputOffset: 1
 
 imports:
@@ -72,13 +72,13 @@ imports:
     path: ../../_shared/flow-video/flow-video.yaml
   - name: ImageProducer
     producer: image/text-to-image
-    loop: segment
+    loop: clip
   - name: ImageToVideoProducer
     producer: video/image-to-video
-    loop: segment
+    loop: clip
   - name: AudioProducer
     producer: audio/text-to-speech
-    loop: segment
+    loop: clip
   - name: TimelineComposer
     producer: composition/timeline-composer
 
@@ -91,41 +91,41 @@ connections:
     to: FlowVideoPromptProducer.Duration
   - from: Style
     to: FlowVideoPromptProducer.Style
-  - from: NumOfSegments
-    to: FlowVideoPromptProducer.NumOfSegments
+  - from: NumOfClips
+    to: FlowVideoPromptProducer.NumOfClips
 
   - from: FlowVideoPromptProducer.ImagePrompts[image]
     to: ImageProducer[image].Prompt
   - from: Resolution
     to: ImageProducer[image].Resolution
 
-  - from: FlowVideoPromptProducer.VideoPrompts[segment]
-    to: ImageToVideoProducer[segment].Prompt
+  - from: FlowVideoPromptProducer.VideoPrompts[clip]
+    to: ImageToVideoProducer[clip].Prompt
   - from: ImageProducer[image].GeneratedImage
-    to: ImageToVideoProducer[segment].StartImage
+    to: ImageToVideoProducer[clip].StartImage
   - from: ImageProducer[image+1].GeneratedImage
-    to: ImageToVideoProducer[segment].EndImage
+    to: ImageToVideoProducer[clip].EndImage
   - from: Resolution
-    to: ImageToVideoProducer[segment].Resolution
-  - from: SegmentDuration
-    to: ImageToVideoProducer[segment].Duration
-  - from: ImageToVideoProducer[segment].GeneratedVideo
-    to: SegmentVideo[segment]
-  - from: ImageToVideoProducer[segment].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+    to: ImageToVideoProducer[clip].Resolution
+  - from: ClipDuration
+    to: ImageToVideoProducer[clip].Duration
+  - from: ImageToVideoProducer[clip].GeneratedVideo
+    to: ClipVideo[clip]
+  - from: ImageToVideoProducer[clip].GeneratedVideo
+    to: TimelineComposer.VideoClips
 
-  - from: FlowVideoPromptProducer.NarrationScript[segment]
-    to: AudioProducer[segment].Text
-  - from: SegmentDuration
-    to: AudioProducer[segment].Duration
+  - from: FlowVideoPromptProducer.NarrationScript[clip]
+    to: AudioProducer[clip].Text
+  - from: ClipDuration
+    to: AudioProducer[clip].Duration
   - from: VoiceId
-    to: AudioProducer[segment].VoiceId
+    to: AudioProducer[clip].VoiceId
   - from: Emotion
-    to: AudioProducer[segment].Emotion
-  - from: AudioProducer[segment].GeneratedAudio
-    to: SegmentAudio[segment]
-  - from: AudioProducer[segment].GeneratedAudio
-    to: TimelineComposer.AudioSegments
+    to: AudioProducer[clip].Emotion
+  - from: AudioProducer[clip].GeneratedAudio
+    to: ClipAudio[clip]
+  - from: AudioProducer[clip].GeneratedAudio
+    to: TimelineComposer.AudioClips
 
   - from: Duration
     to: TimelineComposer.Duration

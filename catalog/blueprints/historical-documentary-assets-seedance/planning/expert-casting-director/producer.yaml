@@ -16,8 +16,8 @@ inputs:
   - name: Duration
     description: Total documentary runtime in seconds.
     type: int
-  - name: NumOfSegments
-    description: Number of planned documentary segments.
+  - name: NumOfClips
+    description: Number of planned documentary clips.
     type: int
   - name: NumOfExperts
     description: Number of recurring experts to cast.

@@ -98,19 +98,19 @@ const videoModelMappings: Record<VideoModel, ModelMapping> = {
     Prompt: { field: 'prompt', required: true },
     AspectRatio: { field: 'aspect_ratio', required: true },
     Resolution: { field: 'resolution', required: false },
-    SegmentDuration: { field: 'duration', required: false },
+    ClipDuration: { field: 'duration', required: false },
   },
   'bytedance/seedance-1-lite': {
     Prompt: { field: 'prompt', required: true },
     AspectRatio: { field: 'aspect_ratio', required: true },
     Resolution: { field: 'resolution', required: false },
-    SegmentDuration: { field: 'duration', required: false },
+    ClipDuration: { field: 'duration', required: false },
   },
   'google/veo-3.1-fast': {
     Prompt: { field: 'prompt', required: true },
     AspectRatio: { field: 'aspect_ratio', required: true },
     Resolution: { field: 'resolution', required: false },
-    SegmentDuration: { field: 'duration', required: false },
+    ClipDuration: { field: 'duration', required: false },
   },
 };
 
@@ -173,7 +173,7 @@ const falVideoModelMappings: Record<FalVideoModel, ModelMapping> = {
     Prompt: { field: 'prompt', required: true },
     AspectRatio: { field: 'aspect_ratio', required: false },
     Resolution: { field: 'resolution', required: false },
-    SegmentDuration: { field: 'duration', required: false },
+    ClipDuration: { field: 'duration', required: false },
   },
 };
 

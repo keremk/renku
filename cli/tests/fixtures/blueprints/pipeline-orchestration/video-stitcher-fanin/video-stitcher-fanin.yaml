@@ -13,9 +13,6 @@ inputs:
     itemType: string
     countInput: NumOfClips
     required: true
-  - name: ClipDuration
-    type: int
-    required: true
   - name: Duration
     type: int
     required: true
@@ -53,7 +50,7 @@ connections:
   - from: VideoProducer[clip].GeneratedVideo
     to: ClipVideos[clip]
   - from: VideoProducer[clip].GeneratedVideo
-    to: VideoStitcher.VideoSegments
+    to: VideoStitcher.VideoClips
     groupBy: clip
   - from: Duration
     to: VideoStitcher.Duration

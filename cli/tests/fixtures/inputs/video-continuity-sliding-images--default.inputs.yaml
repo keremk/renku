@@ -1,8 +1,7 @@
 inputs:
   InquiryPrompt: "Sketch an expedition to Europa's ice oceans"
   Duration: 20
-  NumOfSegments: 2
-  SegmentDuration: 10
+  NumOfClips: 2
   Audience: 'Adult'
   Language: 'en'
   Style: 'Illustrated sci-fi field notes'
@@ -34,7 +33,7 @@ models:
         masterTracks: ['Audio']
         numTracks: 2
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         audioClip:
-          artifact: AudioSegments
+          artifact: AudioClips
           volume: 0.9

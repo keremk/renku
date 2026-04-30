@@ -20,8 +20,8 @@ inputs:
 
   # Grid configuration
   GridStyle: '3x3'
-  # For 3x3 grid: PanelCount = 9, NumOfSegments = 8
-  # For 2x2 grid: PanelCount = 4, NumOfSegments = 3
+  # For 3x3 grid: PanelCount = 9, NumOfClips = 8
+  # For 2x2 grid: PanelCount = 4, NumOfClips = 3
   PanelCount: 9
 
   # Video settings
@@ -31,8 +31,8 @@ inputs:
 
   # System inputs
   Duration: 40 # Total video duration in seconds
-  NumOfSegments: 8 # Number of video clips (PanelCount - 1)
-  # SegmentDuration is auto-computed as Duration/NumOfSegments = 5 seconds per clip
+  NumOfClips: 8 # Number of video clips (PanelCount - 1)
+  # ClipDuration is auto-computed as Duration/NumOfClips = 5 seconds per clip
 
 models:
   # LLM for generating prompts
@@ -68,7 +68,7 @@ models:
       timeline:
         masterTracks: ['Video']
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         musicClip:
           artifact: Music
           volume: 0.4

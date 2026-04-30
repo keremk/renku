@@ -70,7 +70,7 @@ describe('buildStoryboardProjection', () => {
       inputs: [
         { name: 'SharedStyleImage', type: 'image', required: true },
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       imports: [
         {
@@ -85,10 +85,10 @@ describe('buildStoryboardProjection', () => {
         },
       ],
       outputs: [
-        { name: 'StoryboardImage', type: 'array', itemType: 'image', countInput: 'NumOfSegments' },
-        { name: 'SceneVideo', type: 'array', itemType: 'video', countInput: 'NumOfSegments' },
+        { name: 'StoryboardImage', type: 'array', itemType: 'image', countInput: 'NumOfClips' },
+        { name: 'SceneVideo', type: 'array', itemType: 'video', countInput: 'NumOfClips' },
       ],
-      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'scene', countInput: 'NumOfClips' }],
       edges: [
         { from: 'SharedStyleImage', to: 'StoryboardProducer[scene].StyleImage' },
         { from: 'ScenePrompt[scene]', to: 'StoryboardProducer[scene].Prompt' },
@@ -135,7 +135,7 @@ describe('buildStoryboardProjection', () => {
       effectiveInputs: {
         SharedStyleImage: 'file:./input-files/style.png',
         ScenePrompt: ['Opening shot', 'Closing shot'],
-        NumOfSegments: 2,
+        NumOfClips: 2,
       },
       artifactStates: {
         'Artifact:StoryboardProducer.GeneratedImage[0]': {
@@ -179,7 +179,7 @@ describe('buildStoryboardProjection', () => {
       inputs: [
         { name: 'InitialImage', type: 'image', required: true },
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       imports: [
         {
@@ -189,9 +189,9 @@ describe('buildStoryboardProjection', () => {
         },
       ],
       outputs: [
-        { name: 'SceneImage', type: 'array', itemType: 'image', countInput: 'NumOfSegments' },
+        { name: 'SceneImage', type: 'array', itemType: 'image', countInput: 'NumOfClips' },
       ],
-      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'scene', countInput: 'NumOfClips' }],
       edges: [
         { from: 'SceneImage[scene-1]', to: 'ImageProducer[scene].StartImage' },
         { from: 'ScenePrompt[scene]', to: 'ImageProducer[scene].Prompt' },
@@ -221,7 +221,7 @@ describe('buildStoryboardProjection', () => {
       effectiveInputs: {
         InitialImage: 'file:./input-files/start.png',
         ScenePrompt: ['Frame one', 'Frame two'],
-        NumOfSegments: 2,
+        NumOfClips: 2,
       },
       artifactStates: {
         'Artifact:ImageProducer.GeneratedImage[0]': {
@@ -309,25 +309,25 @@ describe('buildStoryboardProjection', () => {
       },
       inputs: [
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       outputs: [
         {
           name: 'SceneImage',
           type: 'array',
           itemType: 'image',
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
         },
         {
           name: 'PublishedOptionalImage',
           type: 'array',
           itemType: 'image',
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
         },
       ],
       producers: [],
       imports: [],
-      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'scene', countInput: 'NumOfClips' }],
       edges: [
         { from: 'ScenePrompt[scene]', to: 'MainImageProducer[scene].Prompt' },
         {
@@ -366,7 +366,7 @@ describe('buildStoryboardProjection', () => {
       root,
       effectiveInputs: {
         ScenePrompt: ['Scene one'],
-        NumOfSegments: 1,
+        NumOfClips: 1,
       },
       resolvedArtifactValues: {
         'Artifact:GateProducer.ShouldPublish[0]': false,
@@ -384,7 +384,7 @@ describe('buildStoryboardProjection', () => {
       root,
       effectiveInputs: {
         ScenePrompt: ['Scene one'],
-        NumOfSegments: 1,
+        NumOfClips: 1,
       },
       resolvedArtifactValues: {
         'Artifact:GateProducer.ShouldPublish[0]': true,
@@ -445,25 +445,25 @@ describe('buildStoryboardProjection', () => {
       inputs: [
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
         { name: 'PublishOptionalImage', type: 'array', itemType: 'boolean', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       outputs: [
         {
           name: 'SceneImage',
           type: 'array',
           itemType: 'image',
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
         },
         {
           name: 'PublishedOptionalImage',
           type: 'array',
           itemType: 'image',
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
         },
       ],
       producers: [],
       imports: [],
-      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'scene', countInput: 'NumOfClips' }],
       edges: [
         { from: 'ScenePrompt[scene]', to: 'MainImageProducer[scene].Prompt' },
         {
@@ -501,7 +501,7 @@ describe('buildStoryboardProjection', () => {
       effectiveInputs: {
         ScenePrompt: ['Scene one'],
         PublishOptionalImage: [false],
-        NumOfSegments: 1,
+        NumOfClips: 1,
       },
     });
 
@@ -516,7 +516,7 @@ describe('buildStoryboardProjection', () => {
       effectiveInputs: {
         ScenePrompt: ['Scene one'],
         PublishOptionalImage: [true],
-        NumOfSegments: 1,
+        NumOfClips: 1,
       },
     });
 
@@ -525,12 +525,12 @@ describe('buildStoryboardProjection', () => {
     expect(activeItemIds).toContain('Artifact:OptionalImageProducer.GeneratedImage[0]');
   });
 
-  it('prefers the NumOfSegments-driven segment axis when multiple axes are present', () => {
+  it('prefers the NumOfClips-driven clip axis when multiple axes are present', () => {
     const root: BlueprintTreeNode = {
       ...makeTreeNode({
       meta: { id: 'AxisFixture', name: 'Axis Fixture' },
       inputs: [
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
         { name: 'NumOfImages', type: 'int', required: true },
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
       ],
@@ -538,19 +538,19 @@ describe('buildStoryboardProjection', () => {
         {
           name: 'ImageProducer',
           producer: 'image/text-to-image',
-          loop: 'segment',
+          loop: 'clip',
         },
       ],
       outputs: [
-        { name: 'GeneratedImage', type: 'array', itemType: 'image', countInput: 'NumOfSegments' },
+        { name: 'GeneratedImage', type: 'array', itemType: 'image', countInput: 'NumOfClips' },
       ],
       loops: [
-        { name: 'segment', countInput: 'NumOfSegments' },
+        { name: 'clip', countInput: 'NumOfClips' },
         { name: 'image', countInput: 'NumOfImages' },
       ],
       edges: [
-        { from: 'ScenePrompt[segment]', to: 'ImageProducer[segment].Prompt' },
-        { from: 'ImageProducer[segment].GeneratedImage', to: 'GeneratedImage[segment]' },
+        { from: 'ScenePrompt[clip]', to: 'ImageProducer[clip].Prompt' },
+        { from: 'ImageProducer[clip].GeneratedImage', to: 'GeneratedImage[clip]' },
       ],
       }),
       children: new Map([
@@ -571,7 +571,7 @@ describe('buildStoryboardProjection', () => {
     const projection = buildStoryboardProjection({
       root,
       effectiveInputs: {
-        NumOfSegments: 3,
+        NumOfClips: 3,
         NumOfImages: 2,
         ScenePrompt: ['One', 'Two', 'Three'],
       },
@@ -585,11 +585,11 @@ describe('buildStoryboardProjection', () => {
       },
     });
 
-    expect(projection.meta.axisDimension).toBe('segment');
+    expect(projection.meta.axisDimension).toBe('clip');
     expect(projection.meta.axisCount).toBe(3);
   });
 
-  it('groups nested segment.image media by the segment storyboard axis', async () => {
+  it('groups nested clip.image media by the clip storyboard axis', async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-nested-media-'));
 
     try {
@@ -602,48 +602,48 @@ describe('buildStoryboardProjection', () => {
           '  name: Nested Media Fixture',
           '',
           'inputs:',
-          '  - name: SegmentPrompt',
+          '  - name: ClipPrompt',
           '    type: array',
           '    itemType: text',
-          '    countInput: NumOfSegments',
-          '  - name: NumOfSegments',
+          '    countInput: NumOfClips',
+          '  - name: NumOfClips',
           '    type: int',
-          '  - name: NumOfImagesPerSegment',
+          '  - name: NumOfImagesPerClip',
           '    type: int',
           '',
           'outputs:',
-          '  - name: SegmentImage',
+          '  - name: ClipImage',
           '    type: multiDimArray',
           '    itemType: image',
-          '  - name: SegmentAudio',
+          '  - name: ClipAudio',
           '    type: array',
           '    itemType: audio',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'loops:',
-          '  - name: segment',
-          '    countInput: NumOfSegments',
+          '  - name: clip',
+          '    countInput: NumOfClips',
           '  - name: image',
-          '    parent: segment',
-          '    countInput: NumOfImagesPerSegment',
+          '    parent: clip',
+          '    countInput: NumOfImagesPerClip',
           '',
           'imports:',
           '  - name: ImageProducer',
           '    producer: image/text-to-image',
-          '    loop: segment.image',
+          '    loop: clip.image',
           '  - name: AudioProducer',
           '    producer: audio/text-to-speech',
-          '    loop: segment',
+          '    loop: clip',
           '',
           'connections:',
-          '  - from: SegmentPrompt[segment]',
-          '    to: ImageProducer[segment][image].Prompt',
-          '  - from: ImageProducer[segment][image].GeneratedImage',
-          '    to: SegmentImage[segment][image]',
-          '  - from: SegmentPrompt[segment]',
-          '    to: AudioProducer[segment].Text',
-          '  - from: AudioProducer[segment].GeneratedAudio',
-          '    to: SegmentAudio[segment]',
+          '  - from: ClipPrompt[clip]',
+          '    to: ImageProducer[clip][image].Prompt',
+          '  - from: ImageProducer[clip][image].GeneratedImage',
+          '    to: ClipImage[clip][image]',
+          '  - from: ClipPrompt[clip]',
+          '    to: AudioProducer[clip].Text',
+          '  - from: AudioProducer[clip].GeneratedAudio',
+          '    to: ClipAudio[clip]',
           '',
         ].join('\n')
       );
@@ -652,13 +652,13 @@ describe('buildStoryboardProjection', () => {
       const projection = buildStoryboardProjection({
         root,
         effectiveInputs: {
-          SegmentPrompt: ['First segment', 'Second segment'],
-          NumOfSegments: 2,
-          NumOfImagesPerSegment: 2,
+          ClipPrompt: ['First clip', 'Second clip'],
+          NumOfClips: 2,
+          NumOfImagesPerClip: 2,
         },
       });
 
-      expect(projection.meta.axisDimension).toBe('segment');
+      expect(projection.meta.axisDimension).toBe('clip');
       expect(projection.meta.axisCount).toBe(2);
 
       const firstColumnItems =
@@ -680,7 +680,7 @@ describe('buildStoryboardProjection', () => {
       meta: { id: 'PendingFixture', name: 'Pending Fixture' },
       inputs: [
         { name: 'ScenePrompt', type: 'array', itemType: 'text', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       imports: [
         {
@@ -695,10 +695,10 @@ describe('buildStoryboardProjection', () => {
         },
       ],
       outputs: [
-        { name: 'SceneImage', type: 'array', itemType: 'image', countInput: 'NumOfSegments' },
-        { name: 'SceneVideo', type: 'array', itemType: 'video', countInput: 'NumOfSegments' },
+        { name: 'SceneImage', type: 'array', itemType: 'image', countInput: 'NumOfClips' },
+        { name: 'SceneVideo', type: 'array', itemType: 'video', countInput: 'NumOfClips' },
       ],
-      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'scene', countInput: 'NumOfClips' }],
       edges: [
         { from: 'ScenePrompt[scene]', to: 'ImageProducer[scene].Prompt' },
         { from: 'ImageProducer[scene].GeneratedImage', to: 'SceneImage[scene]' },
@@ -740,7 +740,7 @@ describe('buildStoryboardProjection', () => {
       root,
       effectiveInputs: {
         ScenePrompt: ['Opening shot'],
-        NumOfSegments: 1,
+        NumOfClips: 1,
       },
     });
 
@@ -776,27 +776,27 @@ describe('buildStoryboardProjection', () => {
           '  - name: StoryboardImagePrompt',
           '    type: array',
           '    itemType: text',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '  - name: SceneVideoPrompt',
           '    type: array',
           '    itemType: text',
-          '    countInput: NumOfSegments',
-          '  - name: NumOfSegments',
+          '    countInput: NumOfClips',
+          '  - name: NumOfClips',
           '    type: int',
           '',
           'outputs:',
           '  - name: StoryboardImages',
           '    type: array',
           '    itemType: image',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '  - name: SceneVideos',
           '    type: array',
           '    itemType: video',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'loops:',
           '  - name: scene',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'imports:',
           '  - name: StoryboardImageProducer',
@@ -830,7 +830,7 @@ describe('buildStoryboardProjection', () => {
         effectiveInputs: {
           StoryboardImagePrompt: ['Opening frame prompt', 'Closing frame prompt'],
           SceneVideoPrompt: ['Opening shot prompt', 'Closing shot prompt'],
-          NumOfSegments: 2,
+          NumOfClips: 2,
         },
       });
 
@@ -866,23 +866,23 @@ describe('buildStoryboardProjection', () => {
           '  - name: ScenePrompt',
           '    type: array',
           '    itemType: text',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '  - name: StartImage',
           '    type: array',
           '    itemType: image',
-          '    countInput: NumOfSegments',
-          '  - name: NumOfSegments',
+          '    countInput: NumOfClips',
+          '  - name: NumOfClips',
           '    type: int',
           '',
           'outputs:',
           '  - name: SceneVideo',
           '    type: array',
           '    itemType: video',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'loops:',
           '  - name: scene',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'imports:',
           '  - name: SceneVideoProducer',
@@ -909,7 +909,7 @@ describe('buildStoryboardProjection', () => {
         effectiveInputs: {
           ScenePrompt: ['Scene one'],
           StartImage: ['file:./input-files/scene-1.png'],
-          NumOfSegments: 1,
+          NumOfClips: 1,
         },
         artifactStates: {
           'Artifact:SceneVideoProducer.GeneratedVideo[0]': {
@@ -972,30 +972,30 @@ describe('buildStoryboardProjection', () => {
           'inputs:',
           '  - name: MultiPrompt',
           '    type: array',
-          '    countInput: NumOfSegments',
-          '  - name: NumOfSegments',
+          '    countInput: NumOfClips',
+          '  - name: NumOfClips',
           '    type: int',
           '',
           'outputs:',
-          '  - name: SegmentVideo',
+          '  - name: ClipVideo',
           '    type: array',
           '    itemType: video',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'loops:',
-          '  - name: segment',
-          '    countInput: NumOfSegments',
+          '  - name: clip',
+          '    countInput: NumOfClips',
           '',
           'imports:',
-          '  - name: SegmentVideoProducer',
+          '  - name: ClipVideoProducer',
           '    path: ./secondary-producer.yaml',
-          '    loop: segment',
+          '    loop: clip',
           '',
           'connections:',
-          '  - from: MultiPrompt[segment]',
-          '    to: SegmentVideoProducer[segment].MultiPrompt',
-          '  - from: SegmentVideoProducer[segment].GeneratedVideo',
-          '    to: SegmentVideo[segment]',
+          '  - from: MultiPrompt[clip]',
+          '    to: ClipVideoProducer[clip].MultiPrompt',
+          '  - from: ClipVideoProducer[clip].GeneratedVideo',
+          '    to: ClipVideo[clip]',
           '',
         ].join('\n')
       );
@@ -1005,7 +1005,7 @@ describe('buildStoryboardProjection', () => {
         root,
         effectiveInputs: {
           MultiPrompt: ['Shot one', 'Shot two'],
-          NumOfSegments: 2,
+          NumOfClips: 2,
         },
       });
 
@@ -1027,13 +1027,13 @@ describe('buildStoryboardProjection', () => {
     }
   });
 
-  it('does not treat imported NumOfSegments loops as multiple competing storyboard axes', async () => {
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-imported-segment-'));
+  it('does not treat imported NumOfClips loops as multiple competing storyboard axes', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-imported-clip-'));
 
     try {
       const scriptSchemaPath = path.join(tempDir, 'script-output.json');
       const scriptProducerPath = path.join(tempDir, 'script-producer.yaml');
-      const blueprintPath = path.join(tempDir, 'imported-segment.yaml');
+      const blueprintPath = path.join(tempDir, 'imported-clip.yaml');
 
       await fs.writeFile(
         scriptSchemaPath,
@@ -1042,7 +1042,7 @@ describe('buildStoryboardProjection', () => {
           schema: {
             type: 'object',
             properties: {
-              Segments: {
+              Clips: {
                 type: 'array',
                 items: {
                   type: 'object',
@@ -1053,7 +1053,7 @@ describe('buildStoryboardProjection', () => {
                 },
               },
             },
-            required: ['Segments'],
+            required: ['Clips'],
           },
         })
       );
@@ -1068,19 +1068,19 @@ describe('buildStoryboardProjection', () => {
           '  outputSchema: ./script-output.json',
           '',
           'inputs:',
-          '  - name: NumOfSegments',
+          '  - name: NumOfClips',
           '    type: int',
           '',
           'outputs:',
           '  - name: VideoScript',
           '    type: json',
           '    arrays:',
-          '      - path: Segments',
-          '        countInput: NumOfSegments',
+          '      - path: Clips',
+          '        countInput: NumOfClips',
           '',
           'loops:',
-          '  - name: segment',
-          '    countInput: NumOfSegments',
+          '  - name: clip',
+          '    countInput: NumOfClips',
           '',
         ].join('\n')
       );
@@ -1089,37 +1089,37 @@ describe('buildStoryboardProjection', () => {
         blueprintPath,
         [
           'meta:',
-          '  id: ImportedSegmentFixture',
-          '  name: Imported Segment Fixture',
+          '  id: ImportedClipFixture',
+          '  name: Imported Clip Fixture',
           '',
           'inputs:',
-          '  - name: NumOfSegments',
+          '  - name: NumOfClips',
           '    type: int',
           '',
           'outputs:',
-          '  - name: SegmentAudio',
+          '  - name: ClipAudio',
           '    type: array',
           '    itemType: audio',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'loops:',
-          '  - name: segment',
-          '    countInput: NumOfSegments',
+          '  - name: clip',
+          '    countInput: NumOfClips',
           '',
           'imports:',
           '  - name: ScriptProducer',
           `    path: ${scriptProducerPath}`,
           '  - name: AudioProducer',
           '    producer: audio/text-to-speech',
-          '    loop: segment',
+          '    loop: clip',
           '',
           'connections:',
-          '  - from: NumOfSegments',
-          '    to: ScriptProducer.NumOfSegments',
-          '  - from: ScriptProducer.VideoScript.Segments[segment].NarrationScript',
-          '    to: AudioProducer[segment].Text',
-          '  - from: AudioProducer[segment].GeneratedAudio',
-          '    to: SegmentAudio[segment]',
+          '  - from: NumOfClips',
+          '    to: ScriptProducer.NumOfClips',
+          '  - from: ScriptProducer.VideoScript.Clips[clip].NarrationScript',
+          '    to: AudioProducer[clip].Text',
+          '  - from: AudioProducer[clip].GeneratedAudio',
+          '    to: ClipAudio[clip]',
           '',
         ].join('\n')
       );
@@ -1130,23 +1130,23 @@ describe('buildStoryboardProjection', () => {
       const projection = buildStoryboardProjection({
         root,
         effectiveInputs: {
-          NumOfSegments: 2,
+          NumOfClips: 2,
         },
       });
 
-      expect(projection.meta.axisDimension).toBe('segment');
+      expect(projection.meta.axisDimension).toBe('clip');
       expect(projection.meta.axisCount).toBe(2);
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
   });
 
-  it('renders companion text from producer array artifacts keyed directly by NumOfSegments', async () => {
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-numofsegments-artifacts-'));
+  it('renders companion text from producer array artifacts keyed directly by NumOfClips', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-numofclips-artifacts-'));
 
     try {
       const scriptProducerPath = path.join(tempDir, 'script-producer.yaml');
-      const blueprintPath = path.join(tempDir, 'numofsegments-artifacts.yaml');
+      const blueprintPath = path.join(tempDir, 'numofclips-artifacts.yaml');
 
       await fs.writeFile(
         scriptProducerPath,
@@ -1157,18 +1157,18 @@ describe('buildStoryboardProjection', () => {
           '  kind: producer',
           '',
           'inputs:',
-          '  - name: NumOfSegments',
+          '  - name: NumOfClips',
           '    type: int',
           '',
           'outputs:',
           '  - name: VideoPrompts',
           '    type: array',
           '    itemType: string',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '  - name: NarrationScripts',
           '    type: array',
           '    itemType: string',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
         ].join('\n')
       );
@@ -1177,48 +1177,48 @@ describe('buildStoryboardProjection', () => {
         blueprintPath,
         [
           'meta:',
-          '  id: NumOfSegmentsArtifactsFixture',
-          '  name: NumOfSegments Artifacts Fixture',
+          '  id: NumOfClipsArtifactsFixture',
+          '  name: NumOfClips Artifacts Fixture',
           '',
           'inputs:',
-          '  - name: NumOfSegments',
+          '  - name: NumOfClips',
           '    type: int',
           '',
           'outputs:',
-          '  - name: SegmentVideo',
+          '  - name: ClipVideo',
           '    type: array',
           '    itemType: video',
-          '    countInput: NumOfSegments',
-          '  - name: SegmentAudio',
+          '    countInput: NumOfClips',
+          '  - name: ClipAudio',
           '    type: array',
           '    itemType: audio',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'loops:',
-          '  - name: segment',
-          '    countInput: NumOfSegments',
+          '  - name: clip',
+          '    countInput: NumOfClips',
           '',
           'imports:',
           '  - name: ScriptProducer',
           `    path: ${scriptProducerPath}`,
           '  - name: VideoProducer',
           '    producer: video/image-to-video',
-          '    loop: segment',
+          '    loop: clip',
           '  - name: AudioProducer',
           '    producer: audio/text-to-speech',
-          '    loop: segment',
+          '    loop: clip',
           '',
           'connections:',
-          '  - from: NumOfSegments',
-          '    to: ScriptProducer.NumOfSegments',
-          '  - from: ScriptProducer.VideoPrompts[segment]',
-          '    to: VideoProducer[segment].Prompt',
-          '  - from: ScriptProducer.NarrationScripts[segment]',
-          '    to: AudioProducer[segment].Text',
-          '  - from: VideoProducer[segment].GeneratedVideo',
-          '    to: SegmentVideo[segment]',
-          '  - from: AudioProducer[segment].GeneratedAudio',
-          '    to: SegmentAudio[segment]',
+          '  - from: NumOfClips',
+          '    to: ScriptProducer.NumOfClips',
+          '  - from: ScriptProducer.VideoPrompts[clip]',
+          '    to: VideoProducer[clip].Prompt',
+          '  - from: ScriptProducer.NarrationScripts[clip]',
+          '    to: AudioProducer[clip].Text',
+          '  - from: VideoProducer[clip].GeneratedVideo',
+          '    to: ClipVideo[clip]',
+          '  - from: AudioProducer[clip].GeneratedAudio',
+          '    to: ClipAudio[clip]',
           '',
         ].join('\n')
       );
@@ -1227,7 +1227,7 @@ describe('buildStoryboardProjection', () => {
       const projection = buildStoryboardProjection({
         root,
         effectiveInputs: {
-          NumOfSegments: 2,
+          NumOfClips: 2,
         },
       });
 
@@ -1261,31 +1261,31 @@ describe('buildStoryboardProjection', () => {
           '    type: image',
           '  - name: DrivingVideo',
           '    type: string',
-          '  - name: NumOfSegments',
+          '  - name: NumOfClips',
           '    type: int',
           '',
           'outputs:',
-          '  - name: SegmentVideo',
+          '  - name: ClipVideo',
           '    type: array',
           '    itemType: video',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'loops:',
-          '  - name: segment',
-          '    countInput: NumOfSegments',
+          '  - name: clip',
+          '    countInput: NumOfClips',
           '',
           'imports:',
           '  - name: MotionTransfer',
           '    producer: video/motion-transfer',
-          '    loop: segment',
+          '    loop: clip',
           '',
           'connections:',
           '  - from: CharacterImage',
-          '    to: MotionTransfer[segment].CharacterImage',
+          '    to: MotionTransfer[clip].CharacterImage',
           '  - from: DrivingVideo',
-          '    to: MotionTransfer[segment].DrivingVideo',
-          '  - from: MotionTransfer[segment].GeneratedVideo',
-          '    to: SegmentVideo[segment]',
+          '    to: MotionTransfer[clip].DrivingVideo',
+          '  - from: MotionTransfer[clip].GeneratedVideo',
+          '    to: ClipVideo[clip]',
           '',
         ].join('\n')
       );
@@ -1296,7 +1296,7 @@ describe('buildStoryboardProjection', () => {
         effectiveInputs: {
           CharacterImage: 'file:./character.png',
           DrivingVideo: 'file:./driving.mp4',
-          NumOfSegments: 1,
+          NumOfClips: 1,
         },
       });
 
@@ -1345,19 +1345,19 @@ describe('buildStoryboardProjection', () => {
           '  - name: Description',
           '    type: array',
           '    itemType: string',
-          '    countInput: NumOfSegments',
-          '  - name: NumOfSegments',
+          '    countInput: NumOfClips',
+          '  - name: NumOfClips',
           '    type: int',
           '',
           'outputs:',
           '  - name: SegmentImage',
           '    type: array',
           '    itemType: image',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'loops:',
           '  - name: segment',
-          '    countInput: NumOfSegments',
+          '    countInput: NumOfClips',
           '',
           'imports:',
           '  - name: CustomImage',
@@ -1378,7 +1378,7 @@ describe('buildStoryboardProjection', () => {
         root,
         effectiveInputs: {
           Description: ['Still no storyboard prompt'],
-          NumOfSegments: 1,
+          NumOfClips: 1,
         },
       });
 
@@ -1390,7 +1390,7 @@ describe('buildStoryboardProjection', () => {
     }
   });
 
-  it('fails fast for visible story axes that are not driven by NumOfSegments', () => {
+  it('fails fast for visible story axes that are not driven by NumOfClips', () => {
     const root: BlueprintTreeNode = {
       ...makeTreeNode({
       meta: { id: 'UnsupportedAxisFixture', name: 'Unsupported Axis Fixture' },
@@ -1435,6 +1435,6 @@ describe('buildStoryboardProjection', () => {
           NumOfPairs: 2,
         },
       })
-    ).toThrow(/NumOfSegments/);
+    ).toThrow(/NumOfClips/);
   });
 });

@@ -5,21 +5,18 @@ meta:
   version: 0.1.0
 
 inputs:
-  - name: NumOfSegments
+  - name: NumOfClips
     type: int
     required: true
   - name: FirstClipPrompts
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
     required: true
   - name: SecondClipPrompts
     type: array
     itemType: string
-    countInput: NumOfSegments
-    required: true
-  - name: ClipDuration
-    type: int
+    countInput: NumOfClips
     required: true
   - name: Duration
     type: int
@@ -29,31 +26,31 @@ inputs:
     required: true
 
 outputs:
-  - name: SegmentVideos
+  - name: ClipVideos
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
-  - name: segment
-    countInput: NumOfSegments
+  - name: clip
+    countInput: NumOfClips
 
 imports:
-  - name: SegmentVideoProducer
+  - name: ClipVideoProducer
     path: ./segment-video/segment-video.yaml
-    loop: segment
+    loop: clip
 
 connections:
-  - from: FirstClipPrompts[segment]
-    to: SegmentVideoProducer[segment].FirstClipPrompt
-  - from: SecondClipPrompts[segment]
-    to: SegmentVideoProducer[segment].SecondClipPrompt
+  - from: FirstClipPrompts[clip]
+    to: ClipVideoProducer[clip].FirstClipPrompt
+  - from: SecondClipPrompts[clip]
+    to: ClipVideoProducer[clip].SecondClipPrompt
   - from: ClipDuration
-    to: SegmentVideoProducer[segment].ClipDuration
+    to: ClipVideoProducer[clip].UnitDuration
   - from: Duration
-    to: SegmentVideoProducer[segment].Duration
+    to: ClipVideoProducer[clip].Duration
   - from: Resolution
-    to: SegmentVideoProducer[segment].Resolution
+    to: ClipVideoProducer[clip].Resolution
 
-  - from: SegmentVideoProducer[segment].SegmentVideo
-    to: SegmentVideos[segment]
+  - from: ClipVideoProducer[clip].ClipVideo
+    to: ClipVideos[clip]

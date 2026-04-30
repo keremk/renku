@@ -42,7 +42,7 @@ outputs:
 loops:
   - name: segment
     description: Iterates over narration segments.
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: image
     description: Iterates over images per segment.
     parent: segment
@@ -65,8 +65,8 @@ connections:
     to: ScriptProducer.Audience
   - from: Duration
     to: ScriptProducer.Duration
-  - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments
+  - from: NumOfClips
+    to: ScriptProducer.NumOfClips
 
   - from: ScriptProducer.NarrationScript[segment]
     to: ImagePromptProducer[segment].NarrativeText

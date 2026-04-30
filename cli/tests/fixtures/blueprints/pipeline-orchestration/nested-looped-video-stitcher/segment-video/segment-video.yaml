@@ -1,7 +1,7 @@
 meta:
-  name: Segment Video
-  description: Builds one segment by generating two clips and stitching them into a single video.
-  id: SegmentVideo
+  name: Clip Video
+  description: Builds one clip by generating two clips and stitching them into a single video.
+  id: ClipVideo
   version: 0.1.0
 
 inputs:
@@ -11,7 +11,7 @@ inputs:
   - name: SecondClipPrompt
     type: text
     required: true
-  - name: ClipDuration
+  - name: UnitDuration
     type: int
     required: true
   - name: Duration
@@ -22,7 +22,7 @@ inputs:
     required: true
 
 outputs:
-  - name: SegmentVideo
+  - name: ClipVideo
     type: video
 
 imports:
@@ -36,26 +36,26 @@ imports:
 connections:
   - from: FirstClipPrompt
     to: FirstClipProducer.Prompt
-  - from: ClipDuration
+  - from: UnitDuration
     to: FirstClipProducer.Duration
   - from: Resolution
     to: FirstClipProducer.Resolution
 
   - from: SecondClipPrompt
     to: SecondClipProducer.Prompt
-  - from: ClipDuration
+  - from: UnitDuration
     to: SecondClipProducer.Duration
   - from: Resolution
     to: SecondClipProducer.Resolution
 
   - from: FirstClipProducer.GeneratedVideo
-    to: VideoStitcher.VideoSegments
+    to: VideoStitcher.VideoClips
     groupBy: singleton
   - from: SecondClipProducer.GeneratedVideo
-    to: VideoStitcher.VideoSegments
+    to: VideoStitcher.VideoClips
     groupBy: singleton
   - from: Duration
     to: VideoStitcher.Duration
 
   - from: VideoStitcher.StitchedVideo
-    to: SegmentVideo
+    to: ClipVideo

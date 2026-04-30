@@ -20,15 +20,15 @@
 				"type": "string",
 				"description": "A prompt to generate the background music for the video."
 			},
-			"Segments": {
+			"Clips": {
 				"type": "array",
-				"description": "An array of segments for the video script.",
+				"description": "An array of clips for the video script.",
 				"items": {
 					"type": "object",
 					"properties": {
 						"Script": {
 							"type": "string",
-							"description": "The script to be read by the narrator for this segment."
+							"description": "The script to be read by the narrator for this clip."
 						},
 						"NarrationType": {
 							"type": "string",
@@ -38,15 +38,15 @@
 								"VideoNarration",
 								"MapNarration"
 							],
-							"description": "Type of narration for this segment."
+							"description": "Type of narration for this clip."
 						},
 						"UseNarrationAudio": {
 							"type": "boolean",
-							"description": "Whether to use narration audio for this segment."
+							"description": "Whether to use narration audio for this clip."
 						},
 						"ImagePrompts": {
 							"type": "array",
-							"description": "Image prompts that will be used to generate images for this segment.",
+							"description": "Image prompts that will be used to generate images for this clip.",
 							"items": {
 								"type": "string",
 								"description": "Image prompt to instruct the AI image generator to generate an image depicting the scene described in the script."
@@ -54,7 +54,7 @@
 						},
 						"VideoPrompt": {
 							"type": "string",
-							"description": "Prompt or description for the video content for this segment."
+							"description": "Prompt or description for the video content for this clip."
 						}
 					},
 					"required": [
@@ -73,7 +73,7 @@
 			"Summary",
 			"CharacterPrompt",
 			"MusicPrompt",
-			"Segments"
+			"Clips"
 		],
 		"additionalProperties": false
 	}

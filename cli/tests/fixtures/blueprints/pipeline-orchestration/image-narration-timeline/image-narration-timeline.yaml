@@ -1,6 +1,6 @@
 meta:
   name: Images with Audio Narration
-  description: A blueprint for generating narrated image segments and composing them into a timeline.
+  description: A blueprint for generating narrated image clips and composing them into a timeline.
   id: ImageAudio
   version: 0.1.0
   author: Renku
@@ -11,8 +11,8 @@ inputs:
     description: Total timeline duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of narration segments.
+  - name: NumOfClips
+    description: Number of narration clips.
     type: int
     required: true
   - name: InquiryPrompt
@@ -49,12 +49,12 @@ inputs:
     required: false
 
 outputs:
-  - name: SegmentImage
-    description: The narrated image segments for the movie.
+  - name: ClipImage
+    description: The narrated image clips for the movie.
     type: multiDimArray
     itemType: image
-  - name: SegmentAudio
-    description: The narrated audio segments for the movie.
+  - name: ClipAudio
+    description: The narrated audio clips for the movie.
     type: array
     itemType: audio
   - name: Timeline
@@ -62,12 +62,12 @@ outputs:
     type: json
 
 loops:
-  - name: segment
-    description: Iterates over narration segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narration clips.
+    countInput: NumOfClips
   - name: image
-    description: Iterates over images generated per segment.
-    parent: segment
+    description: Iterates over images generated per clip.
+    parent: clip
     countInput: NumOfImagesPerNarrative
 
 imports:
@@ -75,13 +75,13 @@ imports:
     path: ../../_shared/script/script.yaml
   - name: ImagePromptProducer
     path: ../../_shared/image/image.yaml
-    loop: segment
+    loop: clip
   - name: ImageProducer
     producer: image/text-to-image
-    loop: segment.image
+    loop: clip.image
   - name: AudioProducer
     producer: audio/text-to-speech
-    loop: segment
+    loop: clip
   - name: TimelineComposer
     producer: composition/timeline-composer
 
@@ -92,43 +92,43 @@ connections:
     to: ScriptProducer.Audience
   - from: Duration
     to: ScriptProducer.Duration
-  - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments
+  - from: NumOfClips
+    to: ScriptProducer.NumOfClips
   - from: Language
     to: ScriptProducer.Language
 
-  - from: ScriptProducer.NarrationScript[segment]
-    to: ImagePromptProducer[segment].NarrativeText
+  - from: ScriptProducer.NarrationScript[clip]
+    to: ImagePromptProducer[clip].NarrativeText
   - from: ScriptProducer.MovieSummary
-    to: ImagePromptProducer[segment].OverallSummary
+    to: ImagePromptProducer[clip].OverallSummary
   - from: Style
-    to: ImagePromptProducer[segment].Style
+    to: ImagePromptProducer[clip].Style
   - from: Audience
-    to: ImagePromptProducer[segment].Audience
+    to: ImagePromptProducer[clip].Audience
   - from: NumOfImagesPerNarrative
-    to: ImagePromptProducer[segment].NumOfImagesPerNarrative
+    to: ImagePromptProducer[clip].NumOfImagesPerNarrative
 
-  - from: ImagePromptProducer.ImagePrompt[segment][image]
-    to: ImageProducer[segment][image].Prompt
+  - from: ImagePromptProducer.ImagePrompt[clip][image]
+    to: ImageProducer[clip][image].Prompt
   - from: Resolution
-    to: ImageProducer[segment][image].Resolution
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: SegmentImage[segment][image]
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments
+    to: ImageProducer[clip][image].Resolution
+  - from: ImageProducer[clip][image].GeneratedImage
+    to: ClipImage[clip][image]
+  - from: ImageProducer[clip][image].GeneratedImage
+    to: TimelineComposer.ImageClips
 
-  - from: ScriptProducer.NarrationScript[segment]
-    to: AudioProducer[segment].Text
-  - from: SegmentDuration
-    to: AudioProducer[segment].Duration
+  - from: ScriptProducer.NarrationScript[clip]
+    to: AudioProducer[clip].Text
+  - from: ClipDuration
+    to: AudioProducer[clip].Duration
   - from: VoiceId
-    to: AudioProducer[segment].VoiceId
+    to: AudioProducer[clip].VoiceId
   - from: Emotion
-    to: AudioProducer[segment].Emotion
-  - from: AudioProducer[segment].GeneratedAudio
-    to: SegmentAudio[segment]
-  - from: AudioProducer[segment].GeneratedAudio
-    to: TimelineComposer.AudioSegments
+    to: AudioProducer[clip].Emotion
+  - from: AudioProducer[clip].GeneratedAudio
+    to: ClipAudio[clip]
+  - from: AudioProducer[clip].GeneratedAudio
+    to: TimelineComposer.AudioClips
 
   - from: Duration
     to: TimelineComposer.Duration

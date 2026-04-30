@@ -24,9 +24,9 @@ function makeLoopGroup(
   overrides?: Partial<BlueprintLoopGroup>
 ): BlueprintLoopGroup {
   return {
-    groupId: 'LoopGroup:scene:NumOfSegments:0',
+    groupId: 'LoopGroup:scene:NumOfClips:0',
     primaryDimension: 'scene',
-    countInput: 'NumOfSegments',
+    countInput: 'NumOfClips',
     countInputOffset: 0,
     members: [
       { inputName: 'SceneVideoPrompt' },
@@ -207,17 +207,17 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[
           { name: 'SceneVideoPrompt', value: ['scene 1 video', 'scene 2 video'] },
           {
             name: 'StoryboardImagePrompt',
             value: ['scene 1 storyboard', 'scene 2 storyboard'],
           },
-          { name: 'NumOfSegments', value: 2 },
+          { name: 'NumOfClips', value: 2 },
         ]}
         selectedNodeId={null}
         isEditable={true}
@@ -244,14 +244,14 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[
           { name: 'SceneVideoPrompt', value: ['scene 1', 'scene 2'] },
           { name: 'StoryboardImagePrompt', value: ['board 1', 'board 2'] },
-          { name: 'NumOfSegments', value: 2 },
+          { name: 'NumOfClips', value: 2 },
         ]}
         selectedNodeId={null}
         isEditable={true}
@@ -275,7 +275,7 @@ describe('InputsPanel loop-grouped indexed controls', () => {
     expect((afterAdd.SceneVideoPrompt as unknown[]).length).toBe(3);
     expect(Array.isArray(afterAdd.StoryboardImagePrompt)).toBe(true);
     expect((afterAdd.StoryboardImagePrompt as unknown[]).length).toBe(3);
-    expect(afterAdd.NumOfSegments).toBe(3);
+    expect(afterAdd.NumOfClips).toBe(3);
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove last loop index' }));
 
@@ -287,7 +287,7 @@ describe('InputsPanel loop-grouped indexed controls', () => {
 
     expect((afterRemove.SceneVideoPrompt as unknown[]).length).toBe(2);
     expect((afterRemove.StoryboardImagePrompt as unknown[]).length).toBe(2);
-    expect(afterRemove.NumOfSegments).toBe(2);
+    expect(afterRemove.NumOfClips).toBe(2);
   });
 
   it('enforces minimum group length of 1 by disabling remove-last on first index', () => {
@@ -296,14 +296,14 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[
           { name: 'SceneVideoPrompt', value: ['scene 1'] },
           { name: 'StoryboardImagePrompt', value: ['board 1'] },
-          { name: 'NumOfSegments', value: 1 },
+          { name: 'NumOfClips', value: 1 },
         ]}
         selectedNodeId={null}
         isEditable={true}
@@ -322,17 +322,17 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[
           { name: 'SceneVideoPrompt', value: ['scene 1'] },
           {
             name: 'StoryboardImagePrompt',
             value: ['board 1', 'board 2', 'board 3'],
           },
-          { name: 'NumOfSegments', value: 1 },
+          { name: 'NumOfClips', value: 1 },
         ]}
         selectedNodeId={null}
         isEditable={true}
@@ -363,10 +363,10 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[]}
         isInputValuesLoading={true}
         selectedNodeId={null}
@@ -388,17 +388,17 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[
           { name: 'SceneVideoPrompt', value: ['scene 1'] },
           {
             name: 'StoryboardImagePrompt',
             value: ['board 1', 'board 2', 'board 3'],
           },
-          { name: 'NumOfSegments', value: 1 },
+          { name: 'NumOfClips', value: 1 },
         ]}
         isInputValuesLoading={false}
         selectedNodeId={null}
@@ -426,14 +426,14 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[
           { name: 'SceneVideoPrompt', value: ['scene 1', 'scene 2'] },
           { name: 'StoryboardImagePrompt', value: ['board 1', 'board 2'] },
-          { name: 'NumOfSegments', value: 2 },
+          { name: 'NumOfClips', value: 2 },
         ]}
         isInputValuesLoading={false}
         selectedNodeId={null}
@@ -447,10 +447,10 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[]}
         isInputValuesLoading={true}
         selectedNodeId={null}
@@ -472,17 +472,17 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[
           { name: 'SceneVideoPrompt', value: ['scene 1'] },
           {
             name: 'StoryboardImagePrompt',
             value: ['board 1', 'board 2', 'board 3'],
           },
-          { name: 'NumOfSegments', value: 1 },
+          { name: 'NumOfClips', value: 1 },
         ]}
         selectedNodeId={null}
         isEditable={true}
@@ -498,10 +498,10 @@ describe('InputsPanel loop-grouped indexed controls', () => {
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
           makeInput('StoryboardImagePrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[makeLoopGroup()]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[
           {
             name: 'SceneVideoPrompt',
@@ -511,7 +511,7 @@ describe('InputsPanel loop-grouped indexed controls', () => {
             name: 'StoryboardImagePrompt',
             value: ['board 1', 'board 2', 'board 3'],
           },
-          { name: 'NumOfSegments', value: 3 },
+          { name: 'NumOfClips', value: 3 },
         ]}
         selectedNodeId={null}
         isEditable={true}
@@ -526,22 +526,22 @@ describe('InputsPanel loop-grouped indexed controls', () => {
       <InputsPanel
         inputs={[
           makeInput('SceneVideoPrompt', 'array', 'text'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         loopGroups={[
           makeLoopGroup({ members: [{ inputName: 'SceneVideoPrompt' }] }),
         ]}
-        managedCountInputs={['NumOfSegments']}
+        managedCountInputs={['NumOfClips']}
         inputValues={[
           { name: 'SceneVideoPrompt', value: ['scene 1'] },
-          { name: 'NumOfSegments', value: 1 },
+          { name: 'NumOfClips', value: 1 },
         ]}
         selectedNodeId={null}
         isEditable={true}
       />
     );
 
-    expect(screen.queryByText('NumOfSegments')).toBeNull();
+    expect(screen.queryByText('NumOfClips')).toBeNull();
 
     grouped.unmount();
 
@@ -549,14 +549,14 @@ describe('InputsPanel loop-grouped indexed controls', () => {
       <InputsPanel
         inputs={[
           makeInput('StyleReferenceImages', 'array', 'image'),
-          makeInput('NumOfSegments', 'int'),
+          makeInput('NumOfClips', 'int'),
         ]}
         inputValues={[
           {
             name: 'StyleReferenceImages',
             value: ['file:./input-files/style-1.png'],
           },
-          { name: 'NumOfSegments', value: 2 },
+          { name: 'NumOfClips', value: 2 },
         ]}
         selectedNodeId={null}
         isEditable={true}
@@ -565,7 +565,7 @@ describe('InputsPanel loop-grouped indexed controls', () => {
       />
     );
 
-    expect(screen.getByText('NumOfSegments')).toBeTruthy();
+    expect(screen.getByText('NumOfClips')).toBeTruthy();
     expect(screen.getByText('StyleReferenceImages')).toBeTruthy();
     expect(screen.getByText('Add image')).toBeTruthy();
   });

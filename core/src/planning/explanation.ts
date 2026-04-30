@@ -21,7 +21,9 @@ export interface JobDirtyReason {
     | 'propagated' // Marked dirty because an upstream job is dirty
     | 'forcedBySurgicalTarget' // Included as a direct surgical target source job
     | 'forcedBySurgicalDependency' // Included as downstream dependency of surgical target
-    | 'forcedByUserControl'; // Included by explicit user planning controls
+    | 'forcedByUserControl' // Included by explicit user planning controls
+    | 'includedByClipScope' // Included because its structured clip index is selected
+    | 'includedAsClipUpstream'; // Included because selected clip jobs require it upstream
   /** Missing artifact IDs if reason is 'producesMissing' */
   missingArtifacts?: string[];
   /** Failed artifact IDs if reason is 'latestAttemptFailed' */
@@ -34,6 +36,12 @@ export interface JobDirtyReason {
   staleArtifacts?: string[];
   /** Upstream job ID if reason is 'propagated' */
   propagatedFrom?: string;
+  /** Structured loop dimension when included by clip scope. */
+  clipDimension?: string;
+  /** Structured clip index when included directly by clip scope. */
+  clipIndex?: number;
+  /** Selected clip indices when included as upstream for clip scope. */
+  targetClipIndices?: number[];
 }
 
 /**

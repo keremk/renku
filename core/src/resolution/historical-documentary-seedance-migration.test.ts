@@ -55,9 +55,9 @@ describe('Historical documentary Seedance condition migration', () => {
 
     expect(aliases).toEqual(
       expect.arrayContaining([
-        'SegmentPlainImageProducer',
+        'ClipPlainImageProducer',
         'HistoricalReferenceStillPromptProducer',
-        'SegmentReferenceImageProducer',
+        'ClipReferenceImageProducer',
         'MapImageProducer',
         'ExpertTalkingHeadAudioProducer',
         'ExpertTalkingHeadVideoProducer',
@@ -76,9 +76,9 @@ describe('Historical documentary Seedance condition migration', () => {
       aliases.some((alias) => alias.endsWith('MultiShotPromptCompiler'))
     ).toBe(true);
 
-    expectActivatedJob(result, 'SegmentPlainImageProducer');
+    expectActivatedJob(result, 'ClipPlainImageProducer');
     expectActivatedJob(result, 'HistoricalReferenceStillPromptProducer');
-    expectActivatedJob(result, 'SegmentReferenceImageProducer');
+    expectActivatedJob(result, 'ClipReferenceImageProducer');
     expectActivatedJob(result, 'MapImageProducer');
     expectActivatedJob(result, 'ExpertTalkingHeadAudioProducer');
     expectActivatedJob(result, 'ExpertTalkingHeadVideoProducer');
@@ -114,10 +114,10 @@ describe('Historical documentary Seedance condition migration', () => {
       { catalogRoot: CATALOG_ROOT }
     );
     const startImageEdge = root.document.edges.find(
-      (edge) => edge.to === 'SeedanceVideoGenerator[segment].StartImage'
+      (edge) => edge.to === 'SeedanceVideoGenerator[clip].StartImage'
     );
     const endImageEdge = root.document.edges.find(
-      (edge) => edge.to === 'SeedanceVideoGenerator[segment].EndImage'
+      (edge) => edge.to === 'SeedanceVideoGenerator[clip].EndImage'
     );
 
     expect(startImageEdge?.if).toBe('motionIsStartEndWithPlainAnchors');
@@ -130,7 +130,7 @@ describe('Historical documentary Seedance condition migration', () => {
       { catalogRoot: CATALOG_ROOT }
     );
     const referenceImageEdges = root.document.edges.filter(
-      (edge) => edge.to === 'SeedanceVideoGenerator[segment].ReferenceImages'
+      (edge) => edge.to === 'SeedanceVideoGenerator[clip].ReferenceImages'
     );
 
     expect(referenceImageEdges).toEqual(
@@ -153,11 +153,11 @@ describe('Historical documentary Seedance condition migration', () => {
       expect.arrayContaining([
         expect.objectContaining({
           from: 'HistoricalCharacterAssetsProducer[0].Portrait',
-          to: 'SeedanceVideoGenerator[segment].ReferenceImage1',
+          to: 'SeedanceVideoGenerator[clip].ReferenceImage1',
         }),
         expect.objectContaining({
           from: 'HistoricalCharacterAssetsProducer[0].CharacterSheet',
-          to: 'SeedanceVideoGenerator[segment].ReferenceImage2',
+          to: 'SeedanceVideoGenerator[clip].ReferenceImage2',
         }),
       ])
     );
@@ -257,8 +257,8 @@ function historicalSeedanceInputs(): Record<string, unknown> {
     'Input:InquiryPrompt':
       'How did artisans and engineers shape public life in ancient cities?',
     'Input:Duration': 20,
-    'Input:NumOfSegments': 2,
-    'Input:NumOfImagesPerSegment': 2,
+    'Input:NumOfClips': 2,
+    'Input:NumOfImagesPerClip': 2,
     'Input:NumOfExperts': 1,
     'Input:NumOfHistoricalCharacters': 2,
     'Input:Style':

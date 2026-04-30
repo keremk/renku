@@ -12,7 +12,7 @@
 			},
 			"NarrationScript": {
 				"type": "array",
-				"description": "Provide narration text for the segment.",
+				"description": "Provide narration text for the clip.",
 				"items": { "type": "string" }
 			}
 		},

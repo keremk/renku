@@ -1,12 +1,11 @@
 inputs:
-  NumOfSegments: 3
+  NumOfClips: 3
   NarrationScript:
-    - "Segment one narration for transcription path resolution."
-    - "Segment two narration for transcription path resolution."
-    - "Segment three narration for transcription path resolution."
+    - "Clip one narration for transcription path resolution."
+    - "Clip two narration for transcription path resolution."
+    - "Clip three narration for transcription path resolution."
   VoiceId: Wise_Woman
   Duration: 21
-  SegmentDuration: 7
   LanguageCode: eng
 
 models:
@@ -22,7 +21,7 @@ models:
         masterTracks: ["Audio"]
         numTracks: 2
         audioClip:
-          artifact: AudioSegments
+          artifact: AudioClips
           volume: 1.0
         transcriptionClip:
           artifact: TranscriptionAudio

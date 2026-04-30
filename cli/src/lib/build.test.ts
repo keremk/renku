@@ -13,7 +13,7 @@ import { createCliLogger } from './logger.js';
 describe('createProviderProduce', () => {
 	it('passes all system inputs to providers during execution', async () => {
 		// This test verifies that providers receive all system inputs:
-		// MovieId, StorageRoot, StorageBasePath, Duration, NumOfSegments, SegmentDuration
+		// MovieId, StorageRoot, StorageBasePath, Duration, NumOfClips, ClipDuration
 		const providerOptions = new Map<string, LoadedProducerOption[]>([
 			[
 				'VideoExporter',
@@ -45,8 +45,8 @@ describe('createProviderProduce', () => {
 			'Input:StorageRoot': '/home/user/movies',
 			'Input:StorageBasePath': 'builds',
 			'Input:Duration': 60,
-			'Input:NumOfSegments': 6,
-			'Input:SegmentDuration': 10, // 60/6, computed by injectDerivedSystemInputs
+			'Input:NumOfClips': 6,
+			'Input:ClipDuration': 10, // 60/6, computed by injectDerivedSystemInputs
 			'Artifact:Timeline': { tracks: [], duration: 60 },
 		};
 
@@ -132,8 +132,8 @@ describe('createProviderProduce', () => {
 		expect(forwarded['Input:StorageRoot']).toBe('/home/user/movies');
 		expect(forwarded['Input:StorageBasePath']).toBe('builds');
 		expect(forwarded['Input:Duration']).toBe(60);
-		expect(forwarded['Input:NumOfSegments']).toBe(6);
-		expect(forwarded['Input:SegmentDuration']).toBe(10);
+		expect(forwarded['Input:NumOfClips']).toBe(6);
+		expect(forwarded['Input:ClipDuration']).toBe(10);
 
 		// Verify input bindings are passed through
 		const jobContext = (extras?.jobContext ?? {}) as {
@@ -259,66 +259,66 @@ describe('createProviderProduce', () => {
 });
 
 describe('injectDerivedSystemInputs', () => {
-	describe('SegmentDuration computation', () => {
-		it('computes SegmentDuration from Duration and NumOfSegments', () => {
+	describe('ClipDuration computation', () => {
+		it('computes ClipDuration from Duration and NumOfClips', () => {
 			const inputs = {
 				'Input:Duration': 40,
-				'Input:NumOfSegments': 5,
+				'Input:NumOfClips': 5,
 			};
 			const result = injectDerivedSystemInputs(inputs);
-			expect(result['Input:SegmentDuration']).toBe(8);
+			expect(result['Input:ClipDuration']).toBe(8);
 		});
 
-		it('does not overwrite existing SegmentDuration', () => {
+		it('does not overwrite existing ClipDuration', () => {
 			const inputs = {
 				'Input:Duration': 40,
-				'Input:NumOfSegments': 5,
-				'Input:SegmentDuration': 10, // User override
+				'Input:NumOfClips': 5,
+				'Input:ClipDuration': 10, // User override
 			};
 			const result = injectDerivedSystemInputs(inputs);
-			expect(result['Input:SegmentDuration']).toBe(10);
+			expect(result['Input:ClipDuration']).toBe(10);
 		});
 
 		it('handles missing Duration gracefully', () => {
 			const inputs = {
-				'Input:NumOfSegments': 5,
+				'Input:NumOfClips': 5,
 			};
 			const result = injectDerivedSystemInputs(inputs);
-			expect(result['Input:SegmentDuration']).toBeUndefined();
+			expect(result['Input:ClipDuration']).toBeUndefined();
 		});
 
-		it('handles missing NumOfSegments gracefully', () => {
+		it('handles missing NumOfClips gracefully', () => {
 			const inputs = {
 				'Input:Duration': 40,
 			};
 			const result = injectDerivedSystemInputs(inputs);
-			expect(result['Input:SegmentDuration']).toBeUndefined();
+			expect(result['Input:ClipDuration']).toBeUndefined();
 		});
 
-		it('handles zero NumOfSegments gracefully', () => {
+		it('handles zero NumOfClips gracefully', () => {
 			const inputs = {
 				'Input:Duration': 40,
-				'Input:NumOfSegments': 0,
+				'Input:NumOfClips': 0,
 			};
 			const result = injectDerivedSystemInputs(inputs);
-			expect(result['Input:SegmentDuration']).toBeUndefined();
+			expect(result['Input:ClipDuration']).toBeUndefined();
 		});
 
-		it('handles fractional segment durations', () => {
+			it('handles fractional clip durations', () => {
 			const inputs = {
 				'Input:Duration': 100,
-				'Input:NumOfSegments': 3,
+				'Input:NumOfClips': 3,
 			};
 			const result = injectDerivedSystemInputs(inputs);
-			expect(result['Input:SegmentDuration']).toBeCloseTo(33.333, 2);
+			expect(result['Input:ClipDuration']).toBeCloseTo(33.333, 2);
 		});
 	});
 
 	describe('input preservation', () => {
-		it('preserves all existing inputs when computing SegmentDuration', () => {
+		it('preserves all existing inputs when computing ClipDuration', () => {
 			const inputs = {
 				'Input:Duration': 40,
-				'Input:NumOfSegments': 5,
+				'Input:NumOfClips': 5,
 				'Input:SomeOther': 'value',
 				'Input:AnotherInput': 123,
 			};
@@ -326,14 +326,14 @@ describe('injectDerivedSystemInputs', () => {
 			expect(result['Input:SomeOther']).toBe('value');
 			expect(result['Input:AnotherInput']).toBe(123);
 			expect(result['Input:Duration']).toBe(40);
-			expect(result['Input:NumOfSegments']).toBe(5);
-			expect(result['Input:SegmentDuration']).toBe(8);
+			expect(result['Input:NumOfClips']).toBe(5);
+			expect(result['Input:ClipDuration']).toBe(8);
 		});
 
 		it('preserves existing system inputs (MovieId, StorageRoot, StorageBasePath)', () => {
 			const inputs = {
 				'Input:Duration': 40,
-				'Input:NumOfSegments': 5,
+				'Input:NumOfClips': 5,
 				'Input:MovieId': 'movie-123',
 				'Input:StorageRoot': '/storage/root',
 				'Input:StorageBasePath': 'builds',
@@ -342,7 +342,7 @@ describe('injectDerivedSystemInputs', () => {
 			expect(result['Input:MovieId']).toBe('movie-123');
 			expect(result['Input:StorageRoot']).toBe('/storage/root');
 			expect(result['Input:StorageBasePath']).toBe('builds');
-			expect(result['Input:SegmentDuration']).toBe(8);
+			expect(result['Input:ClipDuration']).toBe(8);
 		});
 	});
 
@@ -351,13 +351,13 @@ describe('injectDerivedSystemInputs', () => {
 		 * This test simulates the full system input injection chain as it happens
 		 * in executeBuild:
 		 * 1. First, MovieId/StorageRoot/StorageBasePath are injected if not present
-		 * 2. Then, injectDerivedSystemInputs adds SegmentDuration
+		 * 2. Then, injectDerivedSystemInputs adds ClipDuration
 		 */
 		it('simulates executeBuild system input injection order', () => {
 			// Simulating resolvedInputsWithBlobs (user-provided inputs)
 			const resolvedInputsWithBlobs: Record<string, unknown> = {
 				'Input:Duration': 60,
-				'Input:NumOfSegments': 6,
+				'Input:NumOfClips': 6,
 				'Input:Prompt': 'Test prompt',
 			};
 
@@ -386,11 +386,11 @@ describe('injectDerivedSystemInputs', () => {
 			expect(resolvedInputsWithDerived['Input:MovieId']).toBe(movieId);
 			expect(resolvedInputsWithDerived['Input:StorageRoot']).toBe(storageRoot);
 			expect(resolvedInputsWithDerived['Input:StorageBasePath']).toBe(storageBasePath);
-			expect(resolvedInputsWithDerived['Input:SegmentDuration']).toBe(10); // 60/6
+			expect(resolvedInputsWithDerived['Input:ClipDuration']).toBe(10); // 60/6
 
 			// Verify original inputs are preserved
 			expect(resolvedInputsWithDerived['Input:Duration']).toBe(60);
-			expect(resolvedInputsWithDerived['Input:NumOfSegments']).toBe(6);
+			expect(resolvedInputsWithDerived['Input:NumOfClips']).toBe(6);
 			expect(resolvedInputsWithDerived['Input:Prompt']).toBe('Test prompt');
 		});
 
@@ -398,7 +398,7 @@ describe('injectDerivedSystemInputs', () => {
 			// User explicitly provided MovieId and StorageRoot
 			const resolvedInputsWithBlobs: Record<string, unknown> = {
 				'Input:Duration': 40,
-				'Input:NumOfSegments': 4,
+				'Input:NumOfClips': 4,
 				'Input:MovieId': 'user-movie-id',
 				'Input:StorageRoot': '/user/custom/path',
 			};
@@ -428,7 +428,7 @@ describe('injectDerivedSystemInputs', () => {
 			expect(resolvedInputsWithDerived['Input:StorageRoot']).toBe('/user/custom/path');
 			// StorageBasePath was not provided by user, so system value is used
 			expect(resolvedInputsWithDerived['Input:StorageBasePath']).toBe(storageBasePath);
-			expect(resolvedInputsWithDerived['Input:SegmentDuration']).toBe(10); // 40/4
+			expect(resolvedInputsWithDerived['Input:ClipDuration']).toBe(10); // 40/4
 		});
 	});
 });

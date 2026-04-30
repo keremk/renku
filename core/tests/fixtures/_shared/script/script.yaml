@@ -16,7 +16,7 @@ inputs:
   - name: Duration
     description: Desired narration duration in seconds.
     type: int
-  - name: NumOfSegments
+  - name: NumOfClips
     description: Number of narration segments to produce.
     type: int
   - name: Audience
@@ -37,9 +37,9 @@ outputs:
     description: Array of narration paragraphs per segment.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
   - name: segment
     description: Iterates over narration segments.
-    countInput: NumOfSegments
+    countInput: NumOfClips

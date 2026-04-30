@@ -1,6 +1,6 @@
 meta:
   name: Audio Only Narration
-  description: Generate narrated audio segments from a textual inquiry.
+  description: Generate narrated audio clips from a textual inquiry.
   id: audio
   version: 0.1.0
   author: Renku
@@ -11,8 +11,8 @@ inputs:
     description: Total narration duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of narration segments.
+  - name: NumOfClips
+    description: Number of narration clips.
     type: int
     required: true
   - name: InquiryPrompt
@@ -37,23 +37,23 @@ inputs:
     required: false
 
 outputs:
-  - name: SegmentAudio
-    description: Generated audio for each narration segment.
+  - name: ClipAudio
+    description: Generated audio for each narration clip.
     type: array
     itemType: audio
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
-  - name: segment
-    description: Iterates over narration segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narration clips.
+    countInput: NumOfClips
 
 imports:
   - name: ScriptProducer
     path: ../../_shared/script/script.yaml
   - name: AudioProducer
     producer: audio/text-to-speech
-    loop: segment
+    loop: clip
 
 connections:
   - from: InquiryPrompt
@@ -64,17 +64,17 @@ connections:
     to: ScriptProducer.Duration
   - from: Language
     to: ScriptProducer.Language
-  - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments
+  - from: NumOfClips
+    to: ScriptProducer.NumOfClips
 
-  - from: ScriptProducer.NarrationScript[segment]
-    to: AudioProducer[segment].Text
-  - from: SegmentDuration
-    to: AudioProducer[segment].Duration
+  - from: ScriptProducer.NarrationScript[clip]
+    to: AudioProducer[clip].Text
+  - from: ClipDuration
+    to: AudioProducer[clip].Duration
   - from: VoiceId
-    to: AudioProducer[segment].VoiceId
+    to: AudioProducer[clip].VoiceId
   - from: Emotion
-    to: AudioProducer[segment].Emotion
+    to: AudioProducer[clip].Emotion
 
-  - from: AudioProducer[segment].GeneratedAudio
-    to: SegmentAudio[segment]
+  - from: AudioProducer[clip].GeneratedAudio
+    to: ClipAudio[clip]

@@ -4,7 +4,7 @@
     "properties": {
       "ImagePrompt": {
         "type": "array",
-        "description": "Provide an image prompt for the image generator per segment.",
+        "description": "Provide an image prompt for the image generator per clip.",
         "items": { "type": "string" }
       }
     },

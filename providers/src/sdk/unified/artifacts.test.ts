@@ -239,12 +239,12 @@ describe('buildArtifactsFromUrls', () => {
   it('generates a valid MP4 in simulated mode using the explicit Duration binding', async () => {
     const result = await buildArtifactsFromUrls({
       produces: ['Artifact:VideoProducer.GeneratedVideo[segment=0]'],
-      durationInputId: 'Input:SegmentDuration',
+      durationInputId: 'Input:ClipDuration',
       urls: ['https://example.com/video.mp4'],
       mimeType: 'video/mp4',
       mode: 'simulated',
       resolvedInputs: {
-        'Input:SegmentDuration': 2,
+        'Input:ClipDuration': 2,
         'Input:Duration': 99,
       },
     });

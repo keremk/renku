@@ -84,7 +84,7 @@ function createInputs(): InputEvent[] {
       createdAt: now,
     },
     {
-      id: 'NumOfSegments',
+      id: 'NumOfClips',
       revision: 'rev-0001',
       hash: 'hash-b',
       payload: 3,

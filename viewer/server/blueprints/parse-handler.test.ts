@@ -42,14 +42,14 @@ describe('parseBlueprintToGraph', () => {
       layerCount: 0,
       loopGroups: [
         {
-          groupId: 'LoopGroup:scene:NumOfSegments:0',
+          groupId: 'LoopGroup:scene:NumOfClips:0',
           primaryDimension: 'scene',
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
           countInputOffset: 0,
           members: [{ inputName: 'SceneVideoPrompt' }],
         },
       ],
-      managedCountInputs: ['NumOfSegments'],
+      managedCountInputs: ['NumOfClips'],
     };
 
     loadYamlBlueprintTreeMock.mockResolvedValue({ root });

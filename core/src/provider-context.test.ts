@@ -16,7 +16,7 @@ describe('prepareJobContext', () => {
 
   it('throws when provided non-canonical inputs', () => {
     const job = createJobDescriptor();
-    const baseInputs = { NumOfSegments: 3 };
+    const baseInputs = { NumOfClips: 3 };
     expect(() => prepareJobContext(job, baseInputs)).toThrow(/canonical ids/i);
   });
 });

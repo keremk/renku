@@ -129,8 +129,8 @@ describe('validatePreparedBlueprintTree', () => {
     const blueprintPath = await createPreparedValidationFixture({
       rootBlueprintReplacements: [
         [
-          'DocProducer.VideoScript.Segments[segment].NarrationType',
-          'DocProducer.VideoScript.Segments[0].NarrationType',
+          'DocProducer.VideoScript.Clips[clip].NarrationType',
+          'DocProducer.VideoScript.Clips[0].NarrationType',
         ],
       ],
     });
@@ -147,7 +147,7 @@ describe('validatePreparedBlueprintTree', () => {
     expect(result.validation.errors).not.toContainEqual(
       expect.objectContaining({
         code: ValidationErrorCode.CONDITION_PATH_INVALID,
-        message: expect.stringContaining('Segments[0].NarrationType'),
+        message: expect.stringContaining('Clips[0].NarrationType'),
       })
     );
   });
@@ -167,7 +167,7 @@ describe('validatePreparedBlueprintTree', () => {
     expect(
       result.context?.graph.nodes.some(
         (node) =>
-          node.id === 'Output:VideoScript.Segments[segment].NarrationType'
+          node.id === 'Output:VideoScript.Clips[clip].NarrationType'
       )
     ).toBe(true);
     expect(
@@ -439,7 +439,7 @@ async function createWholeObjectPreparedValidationFixture(args: {
   version: 0.1.0
 
 inputs:
-  - name: NumOfSegments
+  - name: NumOfClips
     type: int
     required: true
 
@@ -455,8 +455,8 @@ imports:
     path: ./target/target.yaml
 
 connections:
-  - from: NumOfSegments
-    to: SourceDirector.NumOfSegments
+  - from: NumOfClips
+    to: SourceDirector.NumOfClips
   - from: ${args.sourceReference}
     to: TargetDirector.AssetPlan
   - from: TargetDirector.Result
@@ -471,7 +471,7 @@ connections:
   outputSchema: ./source-output.json
 
 inputs:
-  - name: NumOfSegments
+  - name: NumOfClips
     type: int
     required: true
 
@@ -479,8 +479,8 @@ outputs:
   - name: AssetPlan
     type: json
     arrays:
-      - path: Segments
-        countInput: NumOfSegments
+      - path: Clips
+        countInput: NumOfClips
 `;
 
   const targetProducer = `meta:
@@ -506,7 +506,7 @@ outputs:
       schema: {
         type: 'object',
         properties: {
-          Segments: {
+          Clips: {
             type: 'array',
             items: {
               type: 'object',
@@ -518,7 +518,7 @@ outputs:
             },
           },
         },
-        required: ['Segments'],
+        required: ['Clips'],
         additionalProperties: false,
       },
     },

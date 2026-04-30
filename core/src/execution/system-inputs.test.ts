@@ -11,7 +11,7 @@ describe('execution/system-inputs', () => {
   it('classifies system inputs by authoring behavior', () => {
     const duration = getSystemInputDefinition(SYSTEM_INPUTS.DURATION);
     const segmentDuration = getSystemInputDefinition(
-      SYSTEM_INPUTS.SEGMENT_DURATION
+      SYSTEM_INPUTS.CLIP_DURATION
     );
     const movieId = getSystemInputDefinition(SYSTEM_INPUTS.MOVIE_ID);
 
@@ -34,9 +34,9 @@ describe('execution/system-inputs', () => {
 
   it('recognizes known system input names', () => {
     expect(isSystemInputName('Duration')).toBe(true);
-    expect(isSystemInputName('NumOfSegments')).toBe(true);
+    expect(isSystemInputName('NumOfClips')).toBe(true);
     expect(isSystemInputName('Resolution')).toBe(true);
-    expect(isSystemInputName('SegmentDuration')).toBe(true);
+    expect(isSystemInputName('ClipDuration')).toBe(true);
     expect(isSystemInputName('MovieId')).toBe(true);
     expect(isSystemInputName('StorageRoot')).toBe(true);
     expect(isSystemInputName('StorageBasePath')).toBe(true);
@@ -51,12 +51,12 @@ describe('execution/system-inputs', () => {
     expect(resolution.type).toBe('resolution');
   });
 
-  it('injects derived SegmentDuration when missing', () => {
+  it('injects derived ClipDuration when missing', () => {
     const result = injectDerivedSystemInputs({
       'Input:Duration': 60,
-      'Input:NumOfSegments': 6,
+      'Input:NumOfClips': 6,
     });
 
-    expect(result['Input:SegmentDuration']).toBe(10);
+    expect(result['Input:ClipDuration']).toBe(10);
   });
 });

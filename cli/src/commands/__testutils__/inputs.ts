@@ -24,12 +24,12 @@ const DEFAULT_INPUT_VALUES: Record<
 	string | number | { width: number; height: number }
 > = {
 	Duration: 60,
-	NumOfSegments: 3,
+	NumOfClips: 3,
 	Resolution: {
 		width: 1280,
 		height: 720,
 	},
-	SegmentDuration: 10,
+	ClipDuration: 10,
 	Style: 'cinematic',
 	Audience: 'Adult',
 	VoiceId: 'default-voice',

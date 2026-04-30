@@ -92,7 +92,7 @@ function formatCanonicalNodeId(
   node: BlueprintGraphNode,
   indices: Record<string, number>
 ): string {
-  // Check if the node name contains dimension placeholders (e.g., "Segments[segment]")
+  // Check if the node name contains dimension placeholders (e.g., "Clips[clip]")
   // For decomposed artifacts, we need to replace placeholders with indices inline
   const hasPlaceholders = /\[[a-zA-Z_][a-zA-Z0-9_]*\]/.test(node.name);
 

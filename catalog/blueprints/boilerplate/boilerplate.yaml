@@ -12,8 +12,8 @@ inputs:
     description: Total video duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of segments to produce.
+  - name: NumOfClips
+    description: Number of clips to produce.
     type: int
     required: true
 

@@ -13,13 +13,13 @@ inputs:
     description: The narrative text to generate prompts for.
     type: string
   - name: MovieSummary
-    description: The movie summary to help generate prompt for a video that best reflects the given segment.
+    description: The movie summary to help generate prompt for a video that best reflects the given clip.
     type: string
   - name: Style
     description: Desired visual style to feed into prompt.
     type: string
-  - name: SegmentDuration
-    description: The per-segment video duration in seconds. Model default varies.
+  - name: ClipDuration
+    description: The per-clip video duration in seconds. Model default varies.
     type: int
   - name: Audience
     description: Intended audience for tailoring details. Model default varies.

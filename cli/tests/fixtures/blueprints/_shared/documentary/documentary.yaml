@@ -16,11 +16,11 @@ inputs:
   - name: Duration
     description: Desired narration duration in seconds.
     type: int
-  - name: NumOfSegments
-    description: Number of narration segments to produce.
+  - name: NumOfClips
+    description: Number of narration clips to produce.
     type: int
-  - name: NumOfImagesPerSegment
-    description: Number of images to generate per narrative segment. Model default varies.
+  - name: NumOfImagesPerClip
+    description: Number of images to generate per narrative clip. Model default varies.
     type: int
   - name: Style
     description: Text describing the image style to be used.
@@ -31,12 +31,12 @@ outputs:
     description: The generated video script for the documentary.
     type: json
     arrays:
-      - path: Segments
-        countInput: NumOfSegments
-      - path: Segments.ImagePrompts
-        countInput: NumOfImagesPerSegment
+      - path: Clips
+        countInput: NumOfClips
+      - path: Clips.ImagePrompts
+        countInput: NumOfImagesPerClip
 
 loops:
-  - name: segment
-    description: Iterates over narration segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narration clips.
+    countInput: NumOfClips

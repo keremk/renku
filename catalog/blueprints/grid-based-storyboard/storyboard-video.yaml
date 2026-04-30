@@ -11,8 +11,8 @@ inputs:
     description: Total video duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of video segments to generate from the storyboard panels.
+  - name: NumOfClips
+    description: Number of video clips to generate from the storyboard panels.
     type: int
     required: true
   - name: InquiryPrompt
@@ -36,7 +36,7 @@ inputs:
     type: string
     required: true
   - name: PanelCount
-    description: Number of storyboard panels (9 for 3x3 grid, 4 for 2x2 grid). Must equal NumOfSegments + 1.
+    description: Number of storyboard panels (9 for 3x3 grid, 4 for 2x2 grid). Must equal NumOfClips + 1.
     type: int
     required: true
   - name: GridStyle
@@ -57,11 +57,11 @@ outputs:
     type: array
     itemType: image
     countInput: PanelCount
-  - name: SegmentVideo
+  - name: ClipVideo
     description: Generated video clips with panel interpolation.
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: Music
     description: Background music for the video.
     type: audio
@@ -74,11 +74,11 @@ outputs:
 
 loops:
   - name: clip
-    description: Iterates over video clips (NumOfSegments items).
-    countInput: NumOfSegments
+    description: Iterates over video clips (NumOfClips items).
+    countInput: NumOfClips
   - name: panel
-    description: Iterates over panel images (NumOfSegments + 1 = PanelCount items).
-    countInput: NumOfSegments
+    description: Iterates over panel images (NumOfClips + 1 = PanelCount items).
+    countInput: NumOfClips
     countInputOffset: 1
 
 imports:
@@ -110,11 +110,11 @@ connections:
     to: StoryboardDirector.Camera
   - from: PanelCount
     to: StoryboardDirector.PanelCount
-  - from: NumOfSegments
+  - from: NumOfClips
     to: StoryboardDirector.NumOfClips
   - from: GridStyle
     to: StoryboardDirector.GridStyle
-  - from: SegmentDuration
+  - from: ClipDuration
     to: StoryboardDirector.ClipDuration
 
   # Wire to StoryboardImageProducer
@@ -142,12 +142,12 @@ connections:
     to: VideoProducer[clip].EndImage
   - from: Resolution
     to: VideoProducer[clip].Resolution
-  - from: SegmentDuration
+  - from: ClipDuration
     to: VideoProducer[clip].Duration
 
-  # Output segment videos
+  # Output clip videos
   - from: VideoProducer[clip].GeneratedVideo
-    to: SegmentVideo[clip]
+    to: ClipVideo[clip]
 
   # Wire music prompt to MusicProducer
   - from: StoryboardDirector.MusicPrompt
@@ -159,7 +159,7 @@ connections:
 
   # Wire to TimelineComposer
   - from: VideoProducer[clip].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+    to: TimelineComposer.VideoClips
   - from: MusicProducer.GeneratedMusic
     to: TimelineComposer.Music
   - from: Duration

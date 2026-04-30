@@ -1,6 +1,6 @@
 meta:
   name: Image Prompt Generation
-  description: Generate image prompts that capture each narration segment.
+  description: Generate image prompts that capture each narration clip.
   id: ImagePromptProducer
   kind: producer
   version: 0.1.0
@@ -35,5 +35,5 @@ outputs:
 
 loops:
   - name: image
-    description: Iterates over prompts per segment.
+    description: Iterates over prompts per clip.
     countInput: NumOfImagesPerNarrative

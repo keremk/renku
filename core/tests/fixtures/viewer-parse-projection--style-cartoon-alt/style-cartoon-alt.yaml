@@ -27,7 +27,7 @@ inputs:
   - name: NumOfCharacters
     type: int
     required: true
-  - name: NumOfSegments
+  - name: NumOfClips
     type: int
     required: true
 
@@ -39,21 +39,21 @@ outputs:
   - name: StoryboardImages
     type: array
     itemType: image
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: SceneVideos
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
   - name: character
     countInput: NumOfCharacters
   - name: scene
-    countInput: NumOfSegments
+    countInput: NumOfClips
     countInputOffset: 1
   - name: shot
     parent: scene
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 imports:
   - name: CharacterImageProducer

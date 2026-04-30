@@ -181,7 +181,7 @@ describe('resolveEndpoint', () => {
     });
 
     expect(
-      resolveEndpoint('NumOfSegments', inputNames, producerNames, artifactNames)
+      resolveEndpoint('NumOfClips', inputNames, producerNames, artifactNames)
     ).toEqual({
       type: 'input',
     });
@@ -585,7 +585,7 @@ describe('convertTreeToGraph', () => {
       imports: [{ name: 'VideoGen', producer: 'asset/text-to-video' }],
       outputs: [{ name: 'FinalVideo', type: 'video' }],
       edges: [
-        { from: 'SegmentDuration', to: 'VideoGen.Duration' },
+        { from: 'ClipDuration', to: 'VideoGen.Duration' },
         { from: 'VideoGen.Output', to: 'FinalVideo' },
       ],
     });
@@ -602,7 +602,7 @@ describe('convertTreeToGraph', () => {
 
     const graph = convertTreeToGraph(root);
     const segmentDuration = graph.inputs.find(
-      (input) => input.name === 'SegmentDuration'
+      (input) => input.name === 'ClipDuration'
     );
 
     expect(segmentDuration).toBeDefined();
@@ -613,7 +613,7 @@ describe('convertTreeToGraph', () => {
     });
   });
 
-  it('injects NumOfSegments when referenced only through loop cardinality', () => {
+  it('injects NumOfClips when referenced only through loop cardinality', () => {
     const root = makeTreeNode({
       meta: { id: 'id', name: 'test' },
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
@@ -626,10 +626,10 @@ describe('convertTreeToGraph', () => {
           name: 'SceneImages',
           type: 'array',
           itemType: 'image',
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
         },
       ],
-      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      loops: [{ name: 'scene', countInput: 'NumOfClips' }],
       edges: [
         { from: 'Prompt', to: 'ImageGen[scene].Prompt' },
         { from: 'ImageGen[scene].Output', to: 'SceneImages[scene]' },
@@ -648,7 +648,7 @@ describe('convertTreeToGraph', () => {
 
     const graph = convertTreeToGraph(root);
     const numOfSegments = graph.inputs.find(
-      (input) => input.name === 'NumOfSegments'
+      (input) => input.name === 'NumOfClips'
     );
 
     expect(numOfSegments).toBeDefined();

@@ -58,8 +58,8 @@ describe('integration: provider config merging', () => {
 					model: 'timeline/ordered',
 					config: {
 						timeline: {
-							audioClip: { artifact: 'AudioSegments', volume: 0.9 },
-							imageClip: { artifact: 'ImageSegments' },
+							audioClip: { artifact: 'AudioClips', volume: 0.9 },
+							imageClip: { artifact: 'ImageClips' },
 							tracks: ['Image', 'Audio'],
 							masterTracks: ['Audio'],
 							numTracks: 2,
@@ -77,11 +77,11 @@ describe('integration: provider config merging', () => {
 			| Record<string, unknown>
 			| undefined;
 		expect(timeline?.audioClip).toMatchObject({
-			artifact: 'AudioSegments',
+			artifact: 'AudioClips',
 			volume: 0.9,
 		});
 		expect(timeline?.imageClip).toMatchObject({
-			artifact: 'ImageSegments',
+			artifact: 'ImageClips',
 		});
 	});
 });

@@ -15,14 +15,14 @@ inputs:
   - name: MusicalStyle
     description: Desired musical style to feed into prompt.
     type: string
-  - name: NumOfSegments
-    description: Number of narration segments in the movie script.
+  - name: NumOfClips
+    description: Number of narration clips in the movie script.
     type: int
   - name: NarrationScript
-    description: Array of narration paragraphs per segment.
+    description: Array of narration paragraphs per clip.
     type: array
     itemType: string
-    dimensions: segment
+    dimensions: clip
     fanIn: true
   - name: Duration
     description: The duration of the music piece in seconds.

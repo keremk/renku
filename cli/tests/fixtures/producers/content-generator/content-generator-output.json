@@ -8,23 +8,23 @@
         "type": "string",
         "description": "The title of the content."
       },
-      "Segments": {
+      "Clips": {
         "type": "array",
-        "description": "Array of content segments.",
+        "description": "Array of content clips.",
         "items": {
           "type": "object",
           "properties": {
             "ImagePrompt": {
               "type": "string",
-              "description": "Prompt for generating the segment image."
+              "description": "Prompt for generating the clip image."
             },
             "VideoPrompt": {
               "type": "string",
-              "description": "Prompt for generating the segment video."
+              "description": "Prompt for generating the clip video."
             },
             "VideoDescription": {
               "type": "string",
-              "description": "Description for the segment video."
+              "description": "Description for the clip video."
             }
           },
           "required": ["ImagePrompt", "VideoPrompt", "VideoDescription"],
@@ -32,7 +32,7 @@
         }
       }
     },
-    "required": ["Title", "Segments"],
+    "required": ["Title", "Clips"],
     "additionalProperties": false
   }
 }

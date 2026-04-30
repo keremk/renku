@@ -498,12 +498,12 @@ cases:
     conditionHints:
       mode: alternating
       varyingFields:
-        - artifactId: Artifact:DocProducer.VideoScript.Segments[segment].NarrationType
+        - artifactId: Artifact:DocProducer.VideoScript.Clips[clip].NarrationType
           values: [TalkingHead, ImageNarration]
-          dimension: segment
-        - artifactId: Artifact:DocProducer.VideoScript.Segments[segment].UseNarrationAudio
+          dimension: clip
+        - artifactId: Artifact:DocProducer.VideoScript.Clips[clip].UseNarrationAudio
           values: [false, true]
-          dimension: segment
+          dimension: clip
 `;
 
 		try {
@@ -536,7 +536,7 @@ cases:
 			const narrationTypeIds = Object.keys(buildState.artifacts)
 				.filter(
 					(id) =>
-						id.includes('DocProducer.VideoScript.Segments[') &&
+						id.includes('DocProducer.VideoScript.Clips[') &&
 						id.includes('NarrationType')
 				)
 				.sort();
@@ -545,7 +545,7 @@ cases:
 			const useNarrationAudioIds = Object.keys(buildState.artifacts)
 				.filter(
 					(id) =>
-						id.includes('DocProducer.VideoScript.Segments[') &&
+						id.includes('DocProducer.VideoScript.Clips[') &&
 						id.includes('UseNarrationAudio')
 				)
 				.sort();

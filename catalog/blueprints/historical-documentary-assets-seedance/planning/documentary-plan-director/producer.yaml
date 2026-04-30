@@ -16,11 +16,11 @@ inputs:
   - name: Duration
     description: Total documentary runtime in seconds.
     type: int
-  - name: NumOfSegments
-    description: Number of planned documentary segments.
+  - name: NumOfClips
+    description: Number of planned documentary clips.
     type: int
-  - name: NumOfImagesPerSegment
-    description: Number of still-image assets per segment.
+  - name: NumOfImagesPerClip
+    description: Number of still-image assets per clip.
     type: int
   - name: NumOfExperts
     description: Number of recurring experts available.
@@ -28,8 +28,8 @@ inputs:
   - name: NumOfHistoricalCharacters
     description: Number of recurring historical characters available for reference bundles.
     type: int
-  - name: SegmentDuration
-    description: Derived runtime budget per segment in seconds.
+  - name: ClipDuration
+    description: Derived runtime budget per clip in seconds.
     type: int
   - name: Style
     description: Shared visual style direction.
@@ -55,25 +55,25 @@ outputs:
     description: Structured historical documentary asset plan.
     type: json
     arrays:
-      - path: Segments
-        countInput: NumOfSegments
-      - path: Segments.ImagePlans
-        countInput: NumOfImagesPerSegment
-      - path: Segments.ImagePlans.HistoricalCharacterReferences
+      - path: Clips
+        countInput: NumOfClips
+      - path: Clips.ImagePlans
+        countInput: NumOfImagesPerClip
+      - path: Clips.ImagePlans.HistoricalCharacterReferences
         countInput: NumOfHistoricalCharacters
-      - path: Segments.ExpertTalkingHeads
+      - path: Clips.ExpertTalkingHeads
         countInput: NumOfExperts
-      - path: Segments.MotionPlan.HistoricalCharacterReferences
+      - path: Clips.MotionPlan.HistoricalCharacterReferences
         countInput: NumOfHistoricalCharacters
 
 loops:
-  - name: segment
-    description: Iterates over documentary segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over documentary clips.
+    countInput: NumOfClips
   - name: image
-    description: Iterates over still-image assets within a segment.
-    parent: segment
-    countInput: NumOfImagesPerSegment
+    description: Iterates over still-image assets within a clip.
+    parent: clip
+    countInput: NumOfImagesPerClip
   - name: expert
     description: Iterates over recurring experts.
     countInput: NumOfExperts

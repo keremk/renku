@@ -60,7 +60,7 @@
         "title": "Multi Shots",
         "default": false,
         "x-order": 7,
-        "description": "Enable intelligent multi-shot segmentation (only active when enable_prompt_expansion is enabled). True enables multi-shot segmentation, false generates single-shot content."
+        "description": "Enable intelligent multi-shot clipation (only active when enable_prompt_expansion is enabled). True enables multi-shot clipation, false generates single-shot content."
       },
       "negative_prompt": {
         "type": "string",

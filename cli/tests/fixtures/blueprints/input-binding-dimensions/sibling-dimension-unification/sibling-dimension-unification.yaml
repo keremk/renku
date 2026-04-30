@@ -13,64 +13,64 @@ inputs:
     description: The topic for content generation.
     type: string
     required: true
-  - name: NumOfSegments
-    description: Number of segments.
+  - name: NumOfClips
+    description: Number of clips.
     type: int
     required: true
 
 outputs:
   - name: GeneratedImage
-    description: Generated images per segment.
+    description: Generated images per clip.
     type: array
     itemType: image
   - name: FinalVideo
-    description: Final video per segment.
+    description: Final video per clip.
     type: array
     itemType: video
 
 loops:
-  - name: segment
-    countInput: NumOfSegments
+  - name: clip
+    countInput: NumOfClips
 
 imports:
   - name: ContentGenerator
     path: ../../../producers/content-generator/content-generator.yaml
   - name: ImageGenerator
     path: ../../../producers/image-generator/image-generator.yaml
-    loop: segment
+    loop: clip
   - name: VideoGenerator
     path: ../../../producers/video-generator/video-generator.yaml
-    loop: segment
+    loop: clip
 
 connections:
   # ContentGenerator receives the topic
   - from: Topic
     to: ContentGenerator.Topic
-  - from: NumOfSegments
-    to: ContentGenerator.NumOfSegments
+  - from: NumOfClips
+    to: ContentGenerator.NumOfClips
 
   # ImageGenerator receives prompt from ContentGenerator
-  - from: ContentGenerator.Script.Segments[segment].ImagePrompt
-    to: ImageGenerator[segment].Prompt
+  - from: ContentGenerator.Script.Clips[clip].ImagePrompt
+    to: ImageGenerator[clip].Prompt
 
   # Write ImageGenerator output to artifact
-  - from: ImageGenerator[segment].GeneratedImage
-    to: GeneratedImage[segment]
+  - from: ImageGenerator[clip].GeneratedImage
+    to: GeneratedImage[clip]
 
-  # VideoGenerator receives MULTIPLE looped inputs from the SAME array segment
+  # VideoGenerator receives MULTIPLE looped inputs from the SAME array clip
   # This tests the sibling field dimension unification
-  - from: ContentGenerator.Script.Segments[segment].VideoPrompt
-    to: VideoGenerator[segment].Prompt
-  - from: ContentGenerator.Script.Segments[segment].VideoDescription
-    to: VideoGenerator[segment].Description
+  - from: ContentGenerator.Script.Clips[clip].VideoPrompt
+    to: VideoGenerator[clip].Prompt
+  - from: ContentGenerator.Script.Clips[clip].VideoDescription
+    to: VideoGenerator[clip].Description
 
   # VideoGenerator also receives input from another producer's output (different dimension source)
   # This tests cross-producer dimension alignment
-  - from: ImageGenerator[segment].GeneratedImage
-    to: VideoGenerator[segment].ThumbnailImage
-  - from: SegmentDuration
-    to: VideoGenerator[segment].Duration
+  - from: ImageGenerator[clip].GeneratedImage
+    to: VideoGenerator[clip].ThumbnailImage
+  - from: ClipDuration
+    to: VideoGenerator[clip].Duration
 
   # Write VideoGenerator output to artifact
-  - from: VideoGenerator[segment].GeneratedVideo
-    to: FinalVideo[segment]
+  - from: VideoGenerator[clip].GeneratedVideo
+    to: FinalVideo[clip]

@@ -19,13 +19,13 @@ import type {
 export interface DecomposedArtifact {
   /**
    * Full artifact path including the parent artifact name.
-   * E.g., "VideoScript.Title" or "VideoScript.Segments[segment].Script"
+   * E.g., "VideoScript.Title" or "VideoScript.Clips[clip].Script"
    */
   path: string;
 
   /**
    * JSON path for extracting the value at runtime.
-   * E.g., "Title" or "Segments[segment].Script"
+   * E.g., "Title" or "Clips[clip].Script"
    */
   jsonPath: string;
 
@@ -42,7 +42,7 @@ export interface DecomposedArtifact {
 
   /**
    * Maps each dimension name to its countInput.
-   * E.g., { "segment": "NumOfSegments", "image": "NumOfImagesPerSegment" }
+   * E.g., { "clip": "NumOfClips", "image": "NumOfImagesPerClip" }
    */
   dimensionCountInputs: Record<string, string>;
 }
@@ -167,9 +167,9 @@ function isLeafType(type: string): type is 'string' | 'number' | 'integer' | 'bo
  * Derives a dimension name from a countInput name.
  *
  * Examples:
- * - "NumOfSegments" -> "segment"
+ * - "NumOfClips" -> "clip"
  * - "SegmentCount" -> "segment"
- * - "NumOfImagesPerSegment" -> "image"
+ * - "NumOfImagesPerClip" -> "image"
  */
 export function deriveDimensionName(countInput: string): string {
   let name = countInput;

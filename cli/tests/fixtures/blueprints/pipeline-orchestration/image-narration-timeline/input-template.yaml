@@ -1,7 +1,7 @@
 inputs:
   InquiryPrompt: "Sketch an expedition to Europa's ice oceans"
   Duration: 20
-  NumOfSegments: 2
+  NumOfClips: 2
   NumOfImagesPerNarrative: 1
   Style: 'Ghibli'
   Resolution:
@@ -35,7 +35,7 @@ models:
         masterTracks: ['Audio']
         numTracks: 2
         imageClip:
-          artifact: ImageSegments
+          artifact: ImageClips
         audioClip:
-          artifact: AudioSegments
+          artifact: AudioClips
           volume: 0.9

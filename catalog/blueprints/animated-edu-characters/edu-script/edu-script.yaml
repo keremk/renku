@@ -16,11 +16,11 @@ inputs:
   - name: Duration
     description: Total video duration in seconds.
     type: int
-  - name: NumOfSegments
-    description: Number of character segments to produce.
+  - name: NumOfClips
+    description: Number of character clips to produce.
     type: int
-  - name: SegmentDuration
-    description: Duration of each segment in seconds (auto-calculated as Duration / NumOfSegments).
+  - name: ClipDuration
+    description: Duration of each clip in seconds (auto-calculated as Duration / NumOfClips).
     type: int
   - name: TargetAudience
     description: Target audience for the content (e.g., "children ages 6-10").
@@ -35,9 +35,9 @@ outputs:
     type: json
     arrays:
       - path: Characters
-        countInput: NumOfSegments
+        countInput: NumOfClips
 
 loops:
-  - name: segment
-    description: Iterates over character segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over character clips.
+    countInput: NumOfClips

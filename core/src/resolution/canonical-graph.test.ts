@@ -53,11 +53,11 @@ describe('collectLoopDefinitions', () => {
   it('collects loops from root blueprint', () => {
     const doc = makeBlueprintDocument(
       'Test',
-      [{ name: 'NumOfSegments', type: 'int', required: true }],
-      [{ name: 'Script', type: 'array', countInput: 'NumOfSegments' }],
+      [{ name: 'NumOfClips', type: 'int', required: true }],
+      [{ name: 'Script', type: 'array', countInput: 'NumOfClips' }],
       [],
       [],
-      [{ name: 'i', countInput: 'NumOfSegments' }]
+      [{ name: 'i', countInput: 'NumOfClips' }]
     );
 
     const tree = makeTreeNode(doc, []);
@@ -68,7 +68,7 @@ describe('collectLoopDefinitions', () => {
     expect(rootLoops).toBeDefined();
     expect(rootLoops).toHaveLength(1);
     expect(rootLoops![0].name).toBe('i');
-    expect(rootLoops![0].countInput).toBe('NumOfSegments');
+    expect(rootLoops![0].countInput).toBe('NumOfClips');
   });
 
   it('collects loops from child blueprints', () => {
@@ -231,16 +231,16 @@ function createFixtureTree(): BlueprintTreeNode {
     'ScriptGenerator',
     [
       { name: 'InquiryPrompt', type: 'string', required: true },
-      { name: 'NumOfSegments', type: 'int', required: true },
+      { name: 'NumOfClips', type: 'int', required: true },
     ],
     [
-      { name: 'NarrationScript', type: 'array', countInput: 'NumOfSegments' },
+      { name: 'NarrationScript', type: 'array', countInput: 'NumOfClips' },
       { name: 'MovieSummary', type: 'string' },
     ],
     [{ name: 'ScriptProducer', provider: 'openai', model: 'gpt' }],
     [
       { from: 'InquiryPrompt', to: 'ScriptProducer' },
-      { from: 'NumOfSegments', to: 'ScriptProducer' },
+      { from: 'NumOfClips', to: 'ScriptProducer' },
       { from: 'ScriptProducer', to: 'NarrationScript[i]' },
       { from: 'ScriptProducer', to: 'MovieSummary' },
     ]
@@ -288,7 +288,7 @@ function createFixtureTree(): BlueprintTreeNode {
     'ImageOnly',
     [
       { name: 'InquiryPrompt', type: 'string', required: true },
-      { name: 'NumOfSegments', type: 'int', required: true },
+      { name: 'NumOfClips', type: 'int', required: true },
       { name: 'NumOfImagesPerNarrative', type: 'int', required: true },
       { name: 'Size', type: 'string', required: false },
     ],
@@ -296,7 +296,7 @@ function createFixtureTree(): BlueprintTreeNode {
     [],
     [
       { from: 'InquiryPrompt', to: 'ScriptGenerator.InquiryPrompt' },
-      { from: 'NumOfSegments', to: 'ScriptGenerator.NumOfSegments' },
+      { from: 'NumOfClips', to: 'ScriptGenerator.NumOfClips' },
       {
         from: 'ScriptGenerator.NarrationScript[i]',
         to: 'ImagePromptGenerator[i].NarrativeText',
@@ -858,27 +858,27 @@ describe('edge cases', () => {
         {
           name: 'SceneVideos',
           type: 'array',
-          countInput: 'NumOfSegments',
+          countInput: 'NumOfClips',
         },
         {
           name: 'Storyboard',
           type: 'json',
-          arrays: [{ path: 'Frames', countInput: 'SegmentDuration' }],
+          arrays: [{ path: 'Frames', countInput: 'ClipDuration' }],
         },
       ],
       [],
       [],
-      [{ name: 'scene', countInput: 'NumOfSegments' }]
+      [{ name: 'scene', countInput: 'NumOfClips' }]
     );
 
     const tree = makeTreeNode(rootDoc, []);
     const graph = buildBlueprintGraph(tree);
 
     const numOfSegmentsNode = graph.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'NumOfSegments'
+      (n) => n.type === 'InputSource' && n.name === 'NumOfClips'
     );
     const segmentDurationNode = graph.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration'
+      (n) => n.type === 'InputSource' && n.name === 'ClipDuration'
     );
 
     expect(numOfSegmentsNode).toBeDefined();
@@ -888,7 +888,7 @@ describe('edge cases', () => {
   });
 
   it('injects synthetic input declarations for system inputs referenced in edges', () => {
-    // Test scenario: Blueprint references SegmentDuration without declaring it
+    // Test scenario: Blueprint references ClipDuration without declaring it
     // The graph builder should inject a synthetic input declaration
     const producerDoc = makeBlueprintDocument(
       'VideoProducer',
@@ -908,16 +908,16 @@ describe('edge cases', () => {
     const rootDoc = makeBlueprintDocument(
       'Root',
       [
-        // Note: SegmentDuration is NOT declared as an input
+        // Note: ClipDuration is NOT declared as an input
         { name: 'Prompt', type: 'string', required: true },
         { name: 'Duration', type: 'int', required: true },
-        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfClips', type: 'int', required: true },
       ],
       [{ name: 'FinalVideo', type: 'video' }],
       [],
       [
-        // Reference SegmentDuration without declaring it - this is a system input
-        { from: 'SegmentDuration', to: 'VideoProducer.Duration' },
+        // Reference ClipDuration without declaring it - this is a system input
+        { from: 'ClipDuration', to: 'VideoProducer.Duration' },
         { from: 'Prompt', to: 'VideoProducer.Prompt' },
         { from: 'VideoProducer.GeneratedVideo', to: 'FinalVideo' },
       ]
@@ -932,23 +932,23 @@ describe('edge cases', () => {
 
     const graph = buildBlueprintGraph(tree);
 
-    // Verify that SegmentDuration was injected as a synthetic input
+    // Verify that ClipDuration was injected as a synthetic input
     const segmentDurationNode = graph.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration'
+      (n) => n.type === 'InputSource' && n.name === 'ClipDuration'
     );
     expect(segmentDurationNode).toBeDefined();
     expect(segmentDurationNode?.input?.required).toBe(false); // System inputs are optional
 
-    // Verify that the edge from SegmentDuration exists
-    const edgeFromSegmentDuration = graph.edges.find(
-      (e) => e.from.nodeId === 'InputSource:SegmentDuration'
+    // Verify that the edge from ClipDuration exists
+    const edgeFromClipDuration = graph.edges.find(
+      (e) => e.from.nodeId === 'InputSource:ClipDuration'
     );
-    expect(edgeFromSegmentDuration).toBeDefined();
+    expect(edgeFromClipDuration).toBeDefined();
   });
 
   it('injects all system inputs when referenced in edges without declaration', () => {
     // Test scenario: Blueprint references all system inputs without declaring them
-    // System inputs: Duration, NumOfSegments, Resolution, SegmentDuration, MovieId, StorageRoot, StorageBasePath
+    // System inputs: Duration, NumOfClips, Resolution, ClipDuration, MovieId, StorageRoot, StorageBasePath
     const exporterDoc = makeBlueprintDocument(
       'Exporter',
       [
@@ -1091,9 +1091,9 @@ describe('edge cases', () => {
       [
         // Reference various system inputs to trigger injection
         { from: 'Duration', to: 'Producer' },
-        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'NumOfClips', to: 'Producer' },
         { from: 'Resolution', to: 'Producer' },
-        { from: 'SegmentDuration', to: 'Producer' },
+        { from: 'ClipDuration', to: 'Producer' },
         { from: 'MovieId', to: 'Producer' },
         { from: 'StorageRoot', to: 'Producer' },
         { from: 'StorageBasePath', to: 'Producer' },
@@ -1109,10 +1109,10 @@ describe('edge cases', () => {
       (n) => n.type === 'InputSource' && n.name === 'Duration'
     );
     const numOfSegmentsNode = graph.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'NumOfSegments'
+      (n) => n.type === 'InputSource' && n.name === 'NumOfClips'
     );
     const segmentDurationNode = graph.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration'
+      (n) => n.type === 'InputSource' && n.name === 'ClipDuration'
     );
     const resolutionNode = graph.nodes.find(
       (n) => n.type === 'InputSource' && n.name === 'Resolution'
@@ -1141,7 +1141,7 @@ describe('edge cases', () => {
 
   it('does not auto-inject system inputs into producer children - producers must declare their inputs', () => {
     // Test scenario: A producer YAML declares "Duration" as an input (part of its interface).
-    // The blueprint routes "SegmentDuration" (a system input) to "Producer.Duration".
+    // The blueprint routes "ClipDuration" (a system input) to "Producer.Duration".
     // The producer's "Duration" is NOT a system input - it's a regular input that must be declared.
     // System input injection only happens at the ROOT blueprint level.
 
@@ -1164,15 +1164,15 @@ describe('edge cases', () => {
     const rootDoc = makeBlueprintDocument(
       'Root',
       [
-        // Only Prompt is declared - SegmentDuration is a system input (auto-injected)
+        // Only Prompt is declared - ClipDuration is a system input (auto-injected)
         { name: 'Prompt', type: 'string', required: true },
       ],
       [{ name: 'Output', type: 'string' }],
       [],
       [
         { from: 'Prompt', to: 'ScriptProducer.Prompt' },
-        // Route SegmentDuration (system input) to producer's Duration input
-        { from: 'SegmentDuration', to: 'ScriptProducer.Duration' },
+        // Route ClipDuration (system input) to producer's Duration input
+        { from: 'ClipDuration', to: 'ScriptProducer.Duration' },
         { from: 'ScriptProducer.Script', to: 'Output' },
       ]
     );
@@ -1186,11 +1186,11 @@ describe('edge cases', () => {
 
     const graph = buildBlueprintGraph(tree);
 
-    // Verify: SegmentDuration is auto-injected at ROOT level (system input)
+    // Verify: ClipDuration is auto-injected at ROOT level (system input)
     const segmentDurationNode = graph.nodes.find(
       (n) =>
         n.type === 'InputSource' &&
-        n.name === 'SegmentDuration' &&
+        n.name === 'ClipDuration' &&
         n.namespacePath.length === 0
     );
     expect(segmentDurationNode).toBeDefined();
@@ -1206,13 +1206,13 @@ describe('edge cases', () => {
     expect(producerDurationNode).toBeDefined();
     expect(producerDurationNode?.input?.required).toBe(true); // As declared in producer YAML
 
-    // Verify: Edge connects root-level SegmentDuration to producer's Duration
-    const edgeFromSegmentDuration = graph.edges.find(
+    // Verify: Edge connects root-level ClipDuration to producer's Duration
+    const edgeFromClipDuration = graph.edges.find(
       (e) =>
-        e.from.nodeId === 'InputSource:SegmentDuration' &&
+        e.from.nodeId === 'InputSource:ClipDuration' &&
         e.to.nodeId === 'InputSource:ScriptProducer.Duration'
     );
-    expect(edgeFromSegmentDuration).toBeDefined();
+    expect(edgeFromClipDuration).toBeDefined();
 
     // Verify: There is NO root-level Duration node (it was not referenced in root edges)
     const rootDurationNode = graph.nodes.find(
@@ -1225,7 +1225,7 @@ describe('edge cases', () => {
   });
 
   it('allows routing different system inputs to producer Duration input', () => {
-    // Test scenario: Blueprint can route EITHER Duration OR SegmentDuration to producer
+    // Test scenario: Blueprint can route EITHER Duration OR ClipDuration to producer
     // This demonstrates that producer's Duration input is just a regular input,
     // not magically connected to any system input.
 
@@ -1282,45 +1282,45 @@ describe('edge cases', () => {
     );
     expect(edgeFromDuration).toBeDefined();
 
-    // Second: Blueprint routes SegmentDuration to the same producer input
-    const rootDocWithSegmentDuration = makeBlueprintDocument(
+    // Second: Blueprint routes ClipDuration to the same producer input
+    const rootDocWithClipDuration = makeBlueprintDocument(
       'Root',
       [{ name: 'Prompt', type: 'string', required: true }],
       [{ name: 'Output', type: 'video' }],
       [],
       [
         { from: 'Prompt', to: 'VideoProducer.Prompt' },
-        { from: 'SegmentDuration', to: 'VideoProducer.Duration' }, // Route SegmentDuration instead
+        { from: 'ClipDuration', to: 'VideoProducer.Duration' }, // Route ClipDuration instead
         { from: 'VideoProducer.Video', to: 'Output' },
       ]
     );
 
-    const treeWithSegmentDuration: BlueprintTreeNode = {
-      ...makeTreeNode(rootDocWithSegmentDuration, []),
+    const treeWithClipDuration: BlueprintTreeNode = {
+      ...makeTreeNode(rootDocWithClipDuration, []),
       children: new Map([
         ['VideoProducer', makeTreeNode(producerDoc, ['VideoProducer'])],
       ]),
     };
 
-    const graphWithSegmentDuration = buildBlueprintGraph(
-      treeWithSegmentDuration
+    const graphWithClipDuration = buildBlueprintGraph(
+      treeWithClipDuration
     );
 
-    // Verify: SegmentDuration system input is injected and routed to producer
-    const segmentDurationNode = graphWithSegmentDuration.nodes.find(
+    // Verify: ClipDuration system input is injected and routed to producer
+    const segmentDurationNode = graphWithClipDuration.nodes.find(
       (n) =>
         n.type === 'InputSource' &&
-        n.name === 'SegmentDuration' &&
+        n.name === 'ClipDuration' &&
         n.namespacePath.length === 0
     );
     expect(segmentDurationNode).toBeDefined();
 
-    const edgeFromSegmentDuration = graphWithSegmentDuration.edges.find(
+    const edgeFromClipDuration = graphWithClipDuration.edges.find(
       (e) =>
-        e.from.nodeId === 'InputSource:SegmentDuration' &&
+        e.from.nodeId === 'InputSource:ClipDuration' &&
         e.to.nodeId === 'InputSource:VideoProducer.Duration'
     );
-    expect(edgeFromSegmentDuration).toBeDefined();
+    expect(edgeFromClipDuration).toBeDefined();
   });
 
   it('connects whole array artifact to array input (non-indexed binding)', () => {

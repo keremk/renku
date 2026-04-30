@@ -43,9 +43,9 @@ const DEBUG_DIR =
 
 const SYSTEM_INPUT_NAMES = new Set([
   'Duration',
-  'NumOfSegments',
+  'NumOfClips',
   'Resolution',
-  'SegmentDuration',
+  'ClipDuration',
   'MovieId',
   'StorageRoot',
   'StorageBasePath',

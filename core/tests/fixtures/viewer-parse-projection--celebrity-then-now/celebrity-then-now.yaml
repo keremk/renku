@@ -14,7 +14,7 @@ inputs:
   - name: SettingImage
     type: image
     required: true
-  - name: NumOfSegments
+  - name: NumOfClips
     type: int
     required: true
 
@@ -22,15 +22,15 @@ outputs:
   - name: ConsistentThenImages
     type: array
     itemType: image
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: ConsistentNowImages
     type: array
     itemType: image
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
   - name: segment
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 imports:
   - name: ThenImageProducer

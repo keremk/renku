@@ -5,7 +5,7 @@
 	"Input:Duration",
 	"Input:Emotion",
 	"Input:InquiryPrompt",
-	"Input:NumOfSegments",
+	"Input:NumOfClips",
 	"Input:ScriptProducer.model",
 	"Input:ScriptProducer.provider",
 	"Input:ScriptProducer.systemPrompt",

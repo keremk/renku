@@ -1,8 +1,8 @@
 inputs:
   InquiryPrompt: 'The history of the moon landing'
   Duration: 30
-  NumOfSegments: 2
-  NumOfImagesPerSegment: 2
+  NumOfClips: 2
+  NumOfImagesPerClip: 2
   Style: 'Photorealistic documentary style'
   Resolution:
     width: 1280
@@ -24,4 +24,4 @@ models:
         masterTracks: ['Image']
         numTracks: 1
         imageClip:
-          artifact: ImageSegments
+          artifact: ImageClips

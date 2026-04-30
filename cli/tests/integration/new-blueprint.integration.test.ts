@@ -62,7 +62,7 @@ describe('new:blueprint command', () => {
 			// Check boilerplate blueprint structure
 			expect(blueprintContent).toContain('inputs:');
 			expect(blueprintContent).toContain('- name: Duration');
-			expect(blueprintContent).toContain('- name: NumOfSegments');
+			expect(blueprintContent).toContain('- name: NumOfClips');
 			expect(blueprintContent).toContain('outputs:');
 			expect(blueprintContent).toContain('imports:');
 			expect(blueprintContent).toContain(
@@ -91,7 +91,7 @@ describe('new:blueprint command', () => {
 			// Check sections and boilerplate defaults exist
 			expect(inputTemplateContent).toContain('inputs:');
 			expect(inputTemplateContent).toContain('Duration: 30');
-			expect(inputTemplateContent).toContain('NumOfSegments: 3');
+			expect(inputTemplateContent).toContain('NumOfClips: 3');
 			expect(inputTemplateContent).toContain('models:');
 			expect(inputTemplateContent).toContain('producerId: TimelineComposer');
 			expect(inputTemplateContent).toContain('producerId: VideoExporter');

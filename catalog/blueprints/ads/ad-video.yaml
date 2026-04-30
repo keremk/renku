@@ -12,7 +12,7 @@ inputs:
     description: Total video duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
+  - name: NumOfClips
     description: Number of ad clips to generate.
     type: int
     required: true
@@ -56,12 +56,12 @@ outputs:
     description: Generated video clips.
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: ClipAudios
     description: Generated narration audio for clips with narration.
     type: array
     itemType: audio
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: Music
     description: Background music for the ad.
     type: audio
@@ -75,7 +75,7 @@ outputs:
 loops:
   - name: clip
     description: Iterates over video clips.
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 imports:
   - name: AdScriptProducer
@@ -111,7 +111,7 @@ connections:
     to: AdScriptProducer.CharacterDescription
   - from: AdConcept
     to: AdScriptProducer.AdConcept
-  - from: NumOfSegments
+  - from: NumOfClips
     to: AdScriptProducer.NumOfClips
   - from: Duration
     to: AdScriptProducer.Duration
@@ -151,7 +151,7 @@ connections:
     to: VideoProducer[clip].Prompt
   - from: Resolution
     to: VideoProducer[clip].Resolution
-  - from: SegmentDuration
+  - from: ClipDuration
     to: VideoProducer[clip].Duration
 
   # === VideoProducer outputs ===
@@ -161,7 +161,7 @@ connections:
   # === AudioProducer inputs (looped, conditional) ===
   - from: AdScriptProducer.AdScript.Scenes[clip].NarrationScript
     to: AudioProducer[clip].Text
-  - from: SegmentDuration
+  - from: ClipDuration
     to: AudioProducer[clip].Duration
 
   # === AudioProducer outputs ===
@@ -184,9 +184,9 @@ connections:
   - from: Duration
     to: TimelineComposer.Duration
   - from: VideoProducer[clip].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+    to: TimelineComposer.VideoClips
   - from: AudioProducer[clip].GeneratedAudio
-    to: TimelineComposer.AudioSegments
+    to: TimelineComposer.AudioClips
     if: hasNarration
   - from: MusicProducer.GeneratedMusic
     to: TimelineComposer.Music

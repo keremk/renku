@@ -11,8 +11,8 @@ inputs:
     description: Total video duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of character segments to produce.
+  - name: NumOfClips
+    description: Number of character clips to produce.
     type: int
     required: true
   - name: EducationalTopic
@@ -37,22 +37,22 @@ inputs:
 
 outputs:
   - name: CharacterImage
-    description: Generated character images for each segment.
+    description: Generated character images for each clip.
     type: array
     itemType: image
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: NarrationAudio
-    description: Generated narration audio for each segment.
+    description: Generated narration audio for each clip.
     type: array
     itemType: audio
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: LipsyncVideo
-    description: Generated lipsynced character videos for each segment.
+    description: Generated lipsynced character videos for each clip.
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: Timeline
-    description: Composed timeline of all video segments.
+    description: Composed timeline of all video clips.
     type: json
   - name: Transcription
     description: Word-level transcription for karaoke subtitles.
@@ -62,29 +62,29 @@ outputs:
     type: video
 
 loops:
-  - name: segment
-    description: Iterates over character segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over character clips.
+    countInput: NumOfClips
 
 imports:
   # Script and character generation
   - name: EduScriptProducer
     path: ./edu-script/edu-script.yaml
 
-  # Character image generation (one per segment)
+  # Character image generation (one per clip)
   - name: CharacterImageProducer
     producer: image/text-to-image
-    loop: segment
+    loop: clip
 
-  # Narration audio generation (one per segment)
+  # Narration audio generation (one per clip)
   - name: NarrationAudioProducer
     producer: audio/text-to-speech
-    loop: segment
+    loop: clip
 
   # Lipsync video generation (character + audio = talking video)
   - name: LipsyncVideoProducer
     producer: video/talking-head
-    loop: segment
+    loop: clip
 
   # Timeline composition
   - name: TimelineComposer
@@ -106,10 +106,10 @@ connections:
     to: EduScriptProducer.EducationalTopic
   - from: Duration
     to: EduScriptProducer.Duration
-  - from: NumOfSegments
-    to: EduScriptProducer.NumOfSegments
-  - from: SegmentDuration
-    to: EduScriptProducer.SegmentDuration
+  - from: NumOfClips
+    to: EduScriptProducer.NumOfClips
+  - from: ClipDuration
+    to: EduScriptProducer.ClipDuration
   - from: TargetAudience
     to: EduScriptProducer.TargetAudience
   - from: AnimationStyle
@@ -118,46 +118,46 @@ connections:
   # ============================================================
   # Wire script outputs to CharacterImageProducer
   # ============================================================
-  - from: EduScriptProducer.VideoScript.Characters[segment].CharacterImagePrompt
-    to: CharacterImageProducer[segment].Prompt
+  - from: EduScriptProducer.VideoScript.Characters[clip].CharacterImagePrompt
+    to: CharacterImageProducer[clip].Prompt
   - from: Resolution
-    to: CharacterImageProducer[segment].Resolution
-  - from: CharacterImageProducer[segment].GeneratedImage
-    to: CharacterImage[segment]
+    to: CharacterImageProducer[clip].Resolution
+  - from: CharacterImageProducer[clip].GeneratedImage
+    to: CharacterImage[clip]
 
   # ============================================================
   # Wire script outputs to NarrationAudioProducer
   # ============================================================
-  - from: EduScriptProducer.VideoScript.Characters[segment].NarrationScript
-    to: NarrationAudioProducer[segment].Text
-  - from: SegmentDuration
-    to: NarrationAudioProducer[segment].Duration
+  - from: EduScriptProducer.VideoScript.Characters[clip].NarrationScript
+    to: NarrationAudioProducer[clip].Text
+  - from: ClipDuration
+    to: NarrationAudioProducer[clip].Duration
   - from: VoiceId
-    to: NarrationAudioProducer[segment].VoiceId
-  - from: NarrationAudioProducer[segment].GeneratedAudio
-    to: NarrationAudio[segment]
+    to: NarrationAudioProducer[clip].VoiceId
+  - from: NarrationAudioProducer[clip].GeneratedAudio
+    to: NarrationAudio[clip]
 
   # ============================================================
   # Wire character images and audio to LipsyncVideoProducer
   # ============================================================
-  - from: CharacterImageProducer[segment].GeneratedImage
-    to: LipsyncVideoProducer[segment].CharacterImage
-  - from: NarrationAudioProducer[segment].GeneratedAudio
-    to: LipsyncVideoProducer[segment].AudioUrl
+  - from: CharacterImageProducer[clip].GeneratedImage
+    to: LipsyncVideoProducer[clip].CharacterImage
+  - from: NarrationAudioProducer[clip].GeneratedAudio
+    to: LipsyncVideoProducer[clip].AudioUrl
   - from: Resolution
-    to: LipsyncVideoProducer[segment].Resolution
-  - from: SegmentDuration
-    to: LipsyncVideoProducer[segment].Duration
-  - from: EduScriptProducer.VideoScript.Characters[segment].VideoPrompt
-    to: LipsyncVideoProducer[segment].Prompt
-  - from: LipsyncVideoProducer[segment].GeneratedVideo
-    to: LipsyncVideo[segment]
+    to: LipsyncVideoProducer[clip].Resolution
+  - from: ClipDuration
+    to: LipsyncVideoProducer[clip].Duration
+  - from: EduScriptProducer.VideoScript.Characters[clip].VideoPrompt
+    to: LipsyncVideoProducer[clip].Prompt
+  - from: LipsyncVideoProducer[clip].GeneratedVideo
+    to: LipsyncVideo[clip]
 
   # ============================================================
   # Wire videos to TimelineComposer (video already contains audio)
   # ============================================================
-  - from: LipsyncVideoProducer[segment].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+  - from: LipsyncVideoProducer[clip].GeneratedVideo
+    to: TimelineComposer.VideoClips
   - from: Duration
     to: TimelineComposer.Duration
   - from: TimelineComposer.Timeline
@@ -167,7 +167,7 @@ connections:
   # Wire audio to TimelineComposer for Transcription track
   # Use AudioTrack from LipsyncVideoProducer (extracted from generated video)
   # ============================================================
-  - from: LipsyncVideoProducer[segment].AudioTrack
+  - from: LipsyncVideoProducer[clip].AudioTrack
     to: TimelineComposer.TranscriptionAudio
 
   # ============================================================

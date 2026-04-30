@@ -1,6 +1,6 @@
 meta:
-  id: SegmentUnit
-  name: Segment Unit
+  id: ClipUnit
+  name: Clip Unit
   kind: blueprint
 
 inputs:

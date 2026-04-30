@@ -9,7 +9,7 @@ inputs:
     description: Total timeline duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
+  - name: NumOfClips
     description: Number of storyboard/video scenes.
     type: int
     required: true
@@ -32,13 +32,13 @@ inputs:
     description: Harness-provided prompt per scene storyboard image.
     type: array
     itemType: text
-    countInput: NumOfSegments
+    countInput: NumOfClips
     required: true
   - name: SceneVideoPrompt
     description: Harness-provided prompt per scene video.
     type: array
     itemType: text
-    countInput: NumOfSegments
+    countInput: NumOfClips
     required: true
   - name: Resolution
     description: Target output resolution.
@@ -55,12 +55,12 @@ outputs:
     description: Storyboard image per scene index.
     type: array
     itemType: image
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: SceneVideos
     description: Scene video per scene index.
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: Timeline
     description: Ordered timeline manifest.
     type: json
@@ -71,7 +71,7 @@ loops:
     countInput: NumOfCharacters
   - name: scene
     description: Iterates over storyboard/video prompt arrays.
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 imports:
   - name: CharacterImageProducer
@@ -111,12 +111,12 @@ connections:
     to: SceneVideoProducer[scene].Prompt
   - from: Resolution
     to: SceneVideoProducer[scene].Resolution
-  - from: SegmentDuration
+  - from: ClipDuration
     to: SceneVideoProducer[scene].Duration
   - from: SceneVideoProducer[scene].GeneratedVideo
     to: SceneVideos[scene]
   - from: SceneVideoProducer[scene].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+    to: TimelineComposer.VideoClips
 
   - from: Duration
     to: TimelineComposer.Duration

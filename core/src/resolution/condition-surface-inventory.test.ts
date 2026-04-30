@@ -67,8 +67,8 @@ describe('collectBlueprintConditionSurfaceInventory', () => {
       ),
       {
         'Input:Duration': 20,
-        'Input:NumOfSegments': 2,
-        'Input:NumOfImagesPerSegment': 2,
+        'Input:NumOfClips': 2,
+        'Input:NumOfImagesPerClip': 2,
         'Input:NumOfExperts': 1,
         'Input:NumOfHistoricalCharacters': 1,
       }

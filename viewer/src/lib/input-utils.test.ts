@@ -275,7 +275,7 @@ describe('isInputVisibleInPanel', () => {
       source: 'synthetic',
     });
     const derivedSystemInput = makeInput(
-      'SegmentDuration',
+      'ClipDuration',
       'number',
       undefined,
       { kind: 'derived', userSupplied: false, source: 'synthetic' }
@@ -295,7 +295,7 @@ describe('filterPanelVisibleInputs', () => {
         userSupplied: true,
         source: 'synthetic',
       }),
-      makeInput('SegmentDuration', 'number', undefined, {
+      makeInput('ClipDuration', 'number', undefined, {
         kind: 'derived',
         userSupplied: false,
         source: 'synthetic',

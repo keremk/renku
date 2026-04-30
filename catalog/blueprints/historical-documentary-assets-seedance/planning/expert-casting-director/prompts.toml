@@ -1,7 +1,7 @@
 variables = [
   "InquiryPrompt",
   "Duration",
-  "NumOfSegments",
+  "NumOfClips",
   "NumOfExperts",
   "Style",
   "Audience",
@@ -64,7 +64,7 @@ Topic:
 
 Constraints:
 - Total duration: {{Duration}} seconds
-- Number of segments: {{NumOfSegments}}
+- Number of clips: {{NumOfClips}}
 - Number of experts: {{NumOfExperts}}
 - Visual style: {{Style}}
 - Audience: {{Audience}}

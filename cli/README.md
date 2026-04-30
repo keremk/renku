@@ -95,7 +95,7 @@ Edit `my-inputs.yaml` with your desired parameters:
 inputs:
   InquiryPrompt: "Tell me about the history of the Eiffel Tower."
   Duration: 20
-  NumOfSegments: 2
+  NumOfClips: 2
   NumOfImagesPerNarrative: 1
   Style: "Ghibli"
   Size: "1K"

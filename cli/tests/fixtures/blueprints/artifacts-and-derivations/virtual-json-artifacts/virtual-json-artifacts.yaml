@@ -11,8 +11,8 @@ inputs:
     description: The topic describing the desired documentary.
     type: string
     required: true
-  - name: NumOfImagesPerSegment
-    description: Number of images per segment.
+  - name: NumOfImagesPerClip
+    description: Number of images per clip.
     type: int
     required: true
   - name: Style
@@ -25,8 +25,8 @@ inputs:
     required: false
 
 outputs:
-  - name: SegmentImage
-    description: Generated images for each segment.
+  - name: ClipImage
+    description: Generated images for each clip.
     type: multiDimArray
     itemType: image
   - name: Timeline
@@ -34,18 +34,18 @@ outputs:
     type: json
 
 loops:
-  - name: segment
-    countInput: NumOfSegments
+  - name: clip
+    countInput: NumOfClips
   - name: image
-    parent: segment
-    countInput: NumOfImagesPerSegment
+    parent: clip
+    countInput: NumOfImagesPerClip
 
 imports:
   - name: DocProducer
     path: ../../_shared/documentary/documentary.yaml
   - name: ImageProducer
     producer: image/text-to-image
-    loop: segment.image
+    loop: clip.image
   - name: TimelineComposer
     producer: composition/timeline-composer
 
@@ -55,26 +55,26 @@ connections:
     to: DocProducer.InquiryPrompt
   - from: Duration
     to: DocProducer.Duration
-  - from: NumOfSegments
-    to: DocProducer.NumOfSegments
-  - from: NumOfImagesPerSegment
-    to: DocProducer.NumOfImagesPerSegment
+  - from: NumOfClips
+    to: DocProducer.NumOfClips
+  - from: NumOfImagesPerClip
+    to: DocProducer.NumOfImagesPerClip
   - from: Style
     to: DocProducer.Style
 
   # Wire JSON virtual artifacts to ImageProducer
-  - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
-    to: ImageProducer[segment][image].Prompt
+  - from: DocProducer.VideoScript.Clips[clip].ImagePrompts[image]
+    to: ImageProducer[clip][image].Prompt
   - from: Resolution
-    to: ImageProducer[segment][image].Resolution
+    to: ImageProducer[clip][image].Resolution
 
   # Wire ImageProducer outputs to TimelineComposer
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments
+  - from: ImageProducer[clip][image].GeneratedImage
+    to: TimelineComposer.ImageClips
 
   # Wire outputs to blueprint artifacts
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: SegmentImage[segment][image]
+  - from: ImageProducer[clip][image].GeneratedImage
+    to: ClipImage[clip][image]
 
   - from: Duration
     to: TimelineComposer.Duration

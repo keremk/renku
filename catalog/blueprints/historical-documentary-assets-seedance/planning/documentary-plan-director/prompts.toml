@@ -1,11 +1,11 @@
 variables = [
   "InquiryPrompt",
   "Duration",
-  "NumOfSegments",
-  "NumOfImagesPerSegment",
+  "NumOfClips",
+  "NumOfImagesPerClip",
   "NumOfExperts",
   "NumOfHistoricalCharacters",
-  "SegmentDuration",
+  "ClipDuration",
   "Style",
   "Audience",
   "LanguageCode",
@@ -15,7 +15,7 @@ variables = [
 ]
 
 systemPrompt = """
-You are the documentary segment planner for an asset-only historical documentary pipeline.
+You are the documentary clip planner for an asset-only historical documentary pipeline.
 
 You receive:
 - the documentary topic
@@ -24,7 +24,7 @@ You receive:
 - a pre-designed historical character set
 
 Your job is to produce:
-- segment narration
+- clip narration
 - still-image plans
 - map prompts when geography matters
 - Seedance-oriented motion plans when motion adds value
@@ -57,15 +57,15 @@ This blueprint must stay useful across many historical topics, including:
 
 Do not force every topic into a battle-biography format.
 
-## Segment Rules
+## Clip Rules
 
-Each segment always gets:
+Each clip always gets:
 - one narration script
-- exactly NumOfImagesPerSegment image plans
+- exactly NumOfImagesPerClip image plans
 - an ExpertTalkingHeads array with exactly NumOfExperts entries
 - one MotionPlan object
 
-Some segments also get:
+Some clips also get:
 - a map prompt when location, movement, territory, campaign geography, migration, trade routes, or spatial grounding matter
 - a motion clip when movement, process, atmosphere, spectacle, or transformation benefits from animation
 - a single active expert talking head when analysis adds authority or contrast
@@ -77,7 +77,7 @@ Each image plan contains:
 - `UseHistoricalReference`
 - `HistoricalCharacterReferences`
 
-Always return exactly NumOfImagesPerSegment image plans per segment.
+Always return exactly NumOfImagesPerClip image plans per clip.
 
 When `UseHistoricalReference` is false:
 - all `HistoricalCharacterReferences[*].UseReference` must be false
@@ -91,7 +91,7 @@ When `UseHistoricalReference` is true:
 
 Every still prompt must:
 - include {{Style}}
-- depict a distinct visual beat from the segment
+- depict a distinct visual beat from the clip
 - be specific about subject, composition, environment, lighting, and mood
 - say no text, no labels, no watermarks
 - avoid camera movement language, because these are stills
@@ -157,9 +157,9 @@ Use `Reference` when:
 
 Use `StartEnd` when:
 - the clip should evolve from one visual state to another
-- the first two still images of the segment can act as the start and end anchors
+- the first two still images of the clip can act as the start and end anchors
 - image plans 0 and 1 must both be plain stills with `UseHistoricalReference=false`
-- NumOfImagesPerSegment is at least 2
+- NumOfImagesPerClip is at least 2
 
 Use `MultiShot` when:
 - the clip benefits from two or three clearly separated shots inside one short Seedance sequence
@@ -225,7 +225,7 @@ This is required because the downstream Seedance start/end branch uses the first
 
 ExpertTalkingHeads is an array of length NumOfExperts.
 
-For each segment:
+For each clip:
 - usually only one expert entry should be active
 - an active entry sets UseThisExpert=true and supplies TalkingHeadText and TalkingHeadPrompt
 - all inactive entries must set UseThisExpert=false and use empty strings for both text fields
@@ -235,7 +235,7 @@ TalkingHeadText:
 - spoken words only
 - no stage directions
 - natural spoken documentary analysis
-- must fit within SegmentDuration at roughly two words per second
+- must fit within ClipDuration at roughly two words per second
 - must be in the requested language
 
 TalkingHeadPrompt:
@@ -249,7 +249,7 @@ TalkingHeadPrompt:
 NarrationScript:
 - spoken documentary narration only
 - no stage directions
-- must fit within SegmentDuration at roughly two words per second
+- must fit within ClipDuration at roughly two words per second
 - must be in the requested language
 
 ## Markdown Scene Plan
@@ -257,20 +257,20 @@ NarrationScript:
 ScenePlanMarkdown must be plain markdown.
 - Start with a title line using the documentary title.
 - Then list scenes in order as:
-  Scene 1: SegmentStillImages[0][0], SegmentStillImages[0][1], SegmentNarrationAudio[0]
-- Use `SegmentReferenceStillImages[n][i][h]` instead of `SegmentStillImages[n][i]` for any still that uses a historical character reference bundle, where `h` is the selected historical character index.
-- Add SegmentMapImages[n] only when that segment has a map.
-- Add SegmentMotionVideos[n] when that segment has motion.
-- Add SegmentExpertTalkingHeadVideos[n][e] when an expert is active in that segment.
+  Scene 1: ClipStillImages[0][0], ClipStillImages[0][1], ClipNarrationAudio[0]
+- Use `ClipReferenceStillImages[n][i][h]` instead of `ClipStillImages[n][i]` for any still that uses a historical character reference bundle, where `h` is the selected historical character index.
+- Add ClipMapImages[n] only when that clip has a map.
+- Add ClipMotionVideos[n] when that clip has motion.
+- Add ClipExpertTalkingHeadVideos[n][e] when an expert is active in that clip.
 - Do not include timings.
 - Do not include transition language.
 - Do not mention artifacts that are never generated.
 
 ## Output Discipline
 
-- Return exactly NumOfSegments segments.
-- Return exactly NumOfImagesPerSegment image plans per segment.
-- Return exactly NumOfExperts ExpertTalkingHeads entries per segment.
+- Return exactly NumOfClips clips.
+- Return exactly NumOfImagesPerClip image plans per clip.
+- Return exactly NumOfExperts ExpertTalkingHeads entries per clip.
 - Return exactly NumOfHistoricalCharacters HistoricalCharacterReferences entries whenever that array appears.
 - Use empty strings, never placeholders like N/A.
 """
@@ -283,9 +283,9 @@ Topic:
 
 Production constraints:
 - Total duration: {{Duration}} seconds
-- Number of segments: {{NumOfSegments}}
-- Approximate segment duration: {{SegmentDuration}} seconds
-- Still images per segment: {{NumOfImagesPerSegment}}
+- Number of clips: {{NumOfClips}}
+- Approximate clip duration: {{ClipDuration}} seconds
+- Still images per clip: {{NumOfImagesPerClip}}
 - Number of recurring experts: {{NumOfExperts}}
 - Number of recurring historical characters: {{NumOfHistoricalCharacters}}
 - Shared visual style: {{Style}}

@@ -1,6 +1,6 @@
 meta:
   name: Video, Narration, Music, and Subtitles Timeline
-  description: Generate narrated video segments with a looping music bed and compose them into a timeline with the new subtitles composite.
+  description: Generate narrated video clips with a looping music bed and compose them into a timeline with the new subtitles composite.
   id: VideoAudioMusicSubtitlesV2
   version: 0.1.0
   author: Renku
@@ -11,8 +11,8 @@ inputs:
     description: Total timeline duration in seconds.
     type: int
     required: true
-  - name: NumOfSegments
-    description: Number of narration/video segments.
+  - name: NumOfClips
+    description: Number of narration/video clips.
     type: int
     required: true
   - name: InquiryPrompt
@@ -49,16 +49,16 @@ inputs:
     required: false
 
 outputs:
-  - name: SegmentVideo
-    description: Generated video segments for each narration chunk.
+  - name: ClipVideo
+    description: Generated video clips for each narration chunk.
     type: array
     itemType: video
-    countInput: NumOfSegments
-  - name: SegmentAudio
-    description: Generated narration audio per segment.
+    countInput: NumOfClips
+  - name: ClipAudio
+    description: Generated narration audio per clip.
     type: array
     itemType: audio
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: Music
     description: Background music tracks for the movie.
     type: audio
@@ -70,22 +70,22 @@ outputs:
     type: video
 
 loops:
-  - name: segment
-    description: Iterates over narration segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over narration clips.
+    countInput: NumOfClips
 
 imports:
   - name: ScriptProducer
     path: ../../_shared/script/script.yaml
   - name: VideoPromptProducer
     path: ./video-producer/video-producer.yaml
-    loop: segment
+    loop: clip
   - name: VideoProducer
     producer: video/text-to-video
-    loop: segment
+    loop: clip
   - name: AudioProducer
     producer: audio/text-to-speech
-    loop: segment
+    loop: clip
   - name: MusicPromptProducer
     path: ./music-producer/music-producer.yaml
   - name: MusicProducer
@@ -106,50 +106,50 @@ connections:
     to: ScriptProducer.Duration
   - from: Language
     to: ScriptProducer.Language
-  - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments
+  - from: NumOfClips
+    to: ScriptProducer.NumOfClips
 
-  - from: ScriptProducer.NarrationScript[segment]
-    to: VideoPromptProducer[segment].NarrativeText
+  - from: ScriptProducer.NarrationScript[clip]
+    to: VideoPromptProducer[clip].NarrativeText
   - from: ScriptProducer.MovieSummary
-    to: VideoPromptProducer[segment].MovieSummary
+    to: VideoPromptProducer[clip].MovieSummary
   - from: Style
-    to: VideoPromptProducer[segment].Style
-  - from: SegmentDuration
-    to: VideoPromptProducer[segment].SegmentDuration
+    to: VideoPromptProducer[clip].Style
+  - from: ClipDuration
+    to: VideoPromptProducer[clip].ClipDuration
   - from: Audience
-    to: VideoPromptProducer[segment].Audience
+    to: VideoPromptProducer[clip].Audience
 
-  - from: VideoPromptProducer.VideoPrompt[segment]
-    to: VideoProducer[segment].Prompt
+  - from: VideoPromptProducer.VideoPrompt[clip]
+    to: VideoProducer[clip].Prompt
   - from: Resolution
-    to: VideoProducer[segment].Resolution
-  - from: SegmentDuration
-    to: VideoProducer[segment].Duration
-  - from: VideoProducer[segment].GeneratedVideo
-    to: SegmentVideo[segment]
-  - from: VideoProducer[segment].GeneratedVideo
-    to: TimelineComposer.VideoSegments
+    to: VideoProducer[clip].Resolution
+  - from: ClipDuration
+    to: VideoProducer[clip].Duration
+  - from: VideoProducer[clip].GeneratedVideo
+    to: ClipVideo[clip]
+  - from: VideoProducer[clip].GeneratedVideo
+    to: TimelineComposer.VideoClips
 
-  - from: ScriptProducer.NarrationScript[segment]
-    to: AudioProducer[segment].Text
-  - from: SegmentDuration
-    to: AudioProducer[segment].Duration
+  - from: ScriptProducer.NarrationScript[clip]
+    to: AudioProducer[clip].Text
+  - from: ClipDuration
+    to: AudioProducer[clip].Duration
   - from: VoiceId
-    to: AudioProducer[segment].VoiceId
+    to: AudioProducer[clip].VoiceId
   - from: Emotion
-    to: AudioProducer[segment].Emotion
-  - from: AudioProducer[segment].GeneratedAudio
-    to: SegmentAudio[segment]
-  - from: AudioProducer[segment].GeneratedAudio
-    to: TimelineComposer.AudioSegments
+    to: AudioProducer[clip].Emotion
+  - from: AudioProducer[clip].GeneratedAudio
+    to: ClipAudio[clip]
+  - from: AudioProducer[clip].GeneratedAudio
+    to: TimelineComposer.AudioClips
 
   - from: ScriptProducer.MovieSummary
     to: MusicPromptProducer.MovieSummary
   - from: MusicalStyle
     to: MusicPromptProducer.MusicalStyle
-  - from: NumOfSegments
-    to: MusicPromptProducer.NumOfSegments
+  - from: NumOfClips
+    to: MusicPromptProducer.NumOfClips
   - from: Duration
     to: MusicPromptProducer.Duration
   - from: Audience
@@ -171,15 +171,15 @@ connections:
   - from: TimelineComposer.Timeline
     to: Timeline
 
-  - from: AudioProducer[segment].GeneratedAudio
+  - from: AudioProducer[clip].GeneratedAudio
     to: TimelineComposer.TranscriptionAudio
 
-  - from: AudioProducer[segment].GeneratedAudio
-    to: SubtitlesProducer.TranscriptionAudio[segment]
+  - from: AudioProducer[clip].GeneratedAudio
+    to: SubtitlesProducer.TranscriptionAudio[clip]
   - from: Duration
     to: SubtitlesProducer.Duration
-  - from: NumOfSegments
-    to: SubtitlesProducer.NumOfSegments
+  - from: NumOfClips
+    to: SubtitlesProducer.NumOfClips
   - from: Language
     to: SubtitlesProducer.LanguageCode
   - from: TimelineComposer.Timeline

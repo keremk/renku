@@ -28,7 +28,7 @@ const AUDIO_ONLY_MODELS = [
 ];
 const AUDIO_ONLY_OVERRIDES = {
 	Duration: 60,
-	NumOfSegments: 3,
+	NumOfClips: 3,
 	VoiceId: 'default-voice',
 	Audience: 'Adult',
 	Emotion: 'neutral',

@@ -2,7 +2,7 @@ inputs:
   ProductDescription: 'A sleek wireless noise-canceling headphone with premium leather cushions and 40-hour battery life'
   CharacterDescription: 'A young professional woman in her late 20s, stylish casual attire, confident and relaxed demeanor'
   AdConcept: 'Experience focus and freedom - premium headphones for the modern professional who values quality sound and style'
-  NumOfSegments: 3
+  NumOfClips: 3
   Duration: 24
   Audience: 'Young professionals aged 25-35'
   Style: 'Modern, cinematic, warm lighting'
@@ -44,9 +44,9 @@ models:
         tracks: ['Video', 'Audio', 'Music']
         masterTracks: ['Video']
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         audioClip:
-          artifact: AudioSegments
+          artifact: AudioClips
         musicClip:
           artifact: Music
           volume: 0.3

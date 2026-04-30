@@ -68,7 +68,7 @@
         "type": "integer"
       },
       "multi_shots": {
-        "description": "When true, enables intelligent multi-shot segmentation. When false (default), generates a single continuous shot.",
+        "description": "When true, enables intelligent multi-shot clipation. When false (default), generates a single continuous shot.",
         "title": "Multi Shots",
         "default": false,
         "type": "boolean"

@@ -1,8 +1,8 @@
 inputs:
   InquiryPrompt: 'Create a historical documentary asset package about the fall of Constantinople, focusing on the military buildup, the siege, the political stakes, and the long-term consequences.'
   Duration: 72
-  NumOfSegments: 6
-  NumOfImagesPerSegment: 2
+  NumOfClips: 6
+  NumOfImagesPerClip: 2
   NumOfExperts: 2
   NumOfHistoricalCharacters: 3
   Style: 'cinematic historical documentary, realistic, richly textured, atmospheric, grounded lighting'
@@ -32,11 +32,11 @@ models:
 
   - model: openai/gpt-image-2
     provider: fal-ai
-    producerId: SegmentPlainImageProducer
+    producerId: ClipPlainImageProducer
 
   - model: nano-banana-2/edit
     provider: fal-ai
-    producerId: SegmentReferenceImageProducer
+    producerId: ClipReferenceImageProducer
 
   - model: gpt-5.2
     provider: openai

@@ -29,7 +29,7 @@ models:
         tracks: ['Video', 'Music']
         masterTracks: ['Video']
         videoClip:
-          artifact: VideoSegments
+          artifact: VideoClips
         musicClip:
           artifact: Music
           volume: 0.4

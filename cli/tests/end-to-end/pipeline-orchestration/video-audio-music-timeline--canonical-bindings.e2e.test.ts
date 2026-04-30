@@ -82,8 +82,8 @@ describe('end-to-end: video-audio-music dry runs', () => {
 			'Input:InquiryPrompt'
 		);
 		expect(scriptJob?.context?.inputBindings?.Duration).toBe('Input:Duration');
-		expect(scriptJob?.context?.inputBindings?.NumOfSegments).toBe(
-			'Input:NumOfSegments'
+		expect(scriptJob?.context?.inputBindings?.NumOfClips).toBe(
+			'Input:NumOfClips'
 		);
 		expect(scriptJob?.context?.inputBindings?.Language).toBe('Input:Language');
 		expect(scriptJob?.context?.inputBindings?.Audience).toBe('Input:Audience');
@@ -154,21 +154,21 @@ describe('end-to-end: video-audio-music dry runs', () => {
 		}
 		expect(timelineJob.inputs).toEqual(
 			expect.arrayContaining([
-				'Input:TimelineComposer.VideoSegments',
-				'Input:TimelineComposer.AudioSegments',
+				'Input:TimelineComposer.VideoClips',
+				'Input:TimelineComposer.AudioClips',
 				'Input:TimelineComposer.Music',
 				'Input:Duration',
 			])
 		);
 		expect(
-			timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageSegments']
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageClips']
 		).toBeUndefined();
 		expect(
-			timelineJob.context?.fanIn?.['Input:TimelineComposer.VideoSegments']
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.VideoClips']
 				?.members?.length
 		).toBe(2);
 		expect(
-			timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioSegments']
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioClips']
 				?.members?.length
 		).toBe(2);
 		expect(
@@ -213,11 +213,11 @@ describe('end-to-end: video-audio-music dry runs', () => {
 		);
 		const editTimelineJob = findJob(editPlan, 'TimelineComposer');
 		expect(
-			editTimelineJob?.context?.fanIn?.['Input:TimelineComposer.VideoSegments']
+			editTimelineJob?.context?.fanIn?.['Input:TimelineComposer.VideoClips']
 				?.members?.length
 		).toBe(2);
 		expect(
-			editTimelineJob?.context?.fanIn?.['Input:TimelineComposer.AudioSegments']
+			editTimelineJob?.context?.fanIn?.['Input:TimelineComposer.AudioClips']
 				?.members?.length
 		).toBe(2);
 	});

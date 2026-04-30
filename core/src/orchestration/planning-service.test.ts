@@ -33,12 +33,12 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     const tree = makeTreeNode(
       makeBlueprintDocument(
         'TestBlueprint',
-        [{ name: 'NumOfSegments', type: 'int', required: true }],
+        [{ name: 'NumOfClips', type: 'int', required: true }],
         [
           {
             name: 'VideoScript',
             type: 'json',
-            arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+            arrays: [{ path: 'Clips', countInput: 'NumOfClips' }],
             // schema is initially undefined
           },
         ],
@@ -56,7 +56,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
             name: 'VideoScript',
             schema: {
               type: 'object',
-              properties: { Segments: { type: 'array' } },
+              properties: { Clips: { type: 'array' } },
             },
           }),
         },
@@ -70,7 +70,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     expect(artifact.schema?.name).toBe('VideoScript');
     expect(artifact.schema?.schema).toEqual({
       type: 'object',
-      properties: { Segments: { type: 'array' } },
+      properties: { Clips: { type: 'array' } },
     });
   });
 
@@ -87,7 +87,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
           {
             name: 'VideoScript',
             type: 'json',
-            arrays: [{ path: 'Segments', countInput: 'NumOfSegments' }],
+            arrays: [{ path: 'Clips', countInput: 'NumOfClips' }],
             schema: existingSchema,
           },
         ],
@@ -782,13 +782,13 @@ describe('createPlanningService', () => {
     const rootDoc = makeBlueprintDocument(
       'LoopCountSystemInputBlueprint',
       [{ name: 'Prompt', type: 'string', required: true }],
-      [{ name: 'Output', type: 'array', countInput: 'NumOfSegments' }],
+      [{ name: 'Output', type: 'array', countInput: 'NumOfClips' }],
       [],
       [
         { from: 'Prompt', to: 'TestProducer[scene].Prompt' },
         { from: 'TestProducer[scene].Output', to: 'Output[scene]' },
       ],
-      [{ name: 'scene', countInput: 'NumOfSegments' }],
+      [{ name: 'scene', countInput: 'NumOfClips' }],
       {
         imports: [{ name: 'TestProducer', producer: 'test/looped-producer' }],
       }
@@ -814,13 +814,13 @@ describe('createPlanningService', () => {
     const rootDoc = makeBlueprintDocument(
       'DerivedLoopCountBlueprint',
       [{ name: 'Prompt', type: 'string', required: true }],
-      [{ name: 'Output', type: 'array', countInput: 'SegmentDuration' }],
+      [{ name: 'Output', type: 'array', countInput: 'ClipDuration' }],
       [],
       [
         { from: 'Prompt', to: 'TestProducer[scene].Prompt' },
         { from: 'TestProducer[scene].Output', to: 'Output[scene]' },
       ],
-      [{ name: 'scene', countInput: 'SegmentDuration' }],
+      [{ name: 'scene', countInput: 'ClipDuration' }],
       {
         imports: [{ name: 'TestProducer', producer: 'test/looped-producer' }],
       }
@@ -1051,7 +1051,7 @@ describe('createPlanningService', () => {
       );
     });
 
-    it('supports NumOfSegments used only in countInput declarations', async () => {
+    it('supports NumOfClips used only in countInput declarations', async () => {
       const service = createPlanningService();
       const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
@@ -1061,7 +1061,7 @@ describe('createPlanningService', () => {
         blueprintTree: createLoopCountSystemInputBlueprint(),
         inputValues: {
           'Input:Prompt': 'Hello world',
-          'Input:NumOfSegments': 4,
+          'Input:NumOfClips': 4,
         },
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
@@ -1073,7 +1073,7 @@ describe('createPlanningService', () => {
       expect(result.plan.layers.flat()).toHaveLength(4);
     });
 
-    it('uses derived SegmentDuration during graph expansion when countInput depends on it', async () => {
+    it('uses derived ClipDuration during graph expansion when countInput depends on it', async () => {
       const service = createPlanningService();
       const buildStateService = createBuildStateService(storage);
       const eventLog = createEventLog(storage);
@@ -1084,7 +1084,7 @@ describe('createPlanningService', () => {
         inputValues: {
           'Input:Prompt': 'Hello world',
           'Input:Duration': 40,
-          'Input:NumOfSegments': 4,
+          'Input:NumOfClips': 4,
         },
         providerCatalog: defaultCatalog,
         providerOptions: createDefaultOptions(['TestProducer']),
@@ -1093,7 +1093,7 @@ describe('createPlanningService', () => {
         eventLog,
       });
 
-      // SegmentDuration is derived as 10, so the loop expands to 10 instances.
+      // ClipDuration is derived as 10, so the loop expands to 10 instances.
       expect(result.plan.layers.flat()).toHaveLength(10);
     });
 
@@ -2435,68 +2435,68 @@ describe('createPlanningService', () => {
 });
 
 describe('injectDerivedInputs', () => {
-  it('computes SegmentDuration from Duration and NumOfSegments', () => {
+  it('computes ClipDuration from Duration and NumOfClips', () => {
     const inputs = {
       'Input:Duration': 40,
-      'Input:NumOfSegments': 5,
+      'Input:NumOfClips': 5,
     };
     const result = injectDerivedInputs(inputs);
-    expect(result['Input:SegmentDuration']).toBe(8);
+    expect(result['Input:ClipDuration']).toBe(8);
   });
 
-  it('does not overwrite existing SegmentDuration', () => {
+  it('does not overwrite existing ClipDuration', () => {
     const inputs = {
       'Input:Duration': 40,
-      'Input:NumOfSegments': 5,
-      'Input:SegmentDuration': 10, // User override
+      'Input:NumOfClips': 5,
+      'Input:ClipDuration': 10, // User override
     };
     const result = injectDerivedInputs(inputs);
-    expect(result['Input:SegmentDuration']).toBe(10);
+    expect(result['Input:ClipDuration']).toBe(10);
   });
 
   it('handles missing Duration gracefully', () => {
     const inputs = {
-      'Input:NumOfSegments': 5,
+      'Input:NumOfClips': 5,
     };
     const result = injectDerivedInputs(inputs);
-    expect(result['Input:SegmentDuration']).toBeUndefined();
+    expect(result['Input:ClipDuration']).toBeUndefined();
   });
 
-  it('handles missing NumOfSegments gracefully', () => {
+  it('handles missing NumOfClips gracefully', () => {
     const inputs = {
       'Input:Duration': 40,
     };
     const result = injectDerivedInputs(inputs);
-    expect(result['Input:SegmentDuration']).toBeUndefined();
+    expect(result['Input:ClipDuration']).toBeUndefined();
   });
 
-  it('handles zero NumOfSegments gracefully', () => {
+  it('handles zero NumOfClips gracefully', () => {
     const inputs = {
       'Input:Duration': 40,
-      'Input:NumOfSegments': 0,
+      'Input:NumOfClips': 0,
     };
     const result = injectDerivedInputs(inputs);
-    expect(result['Input:SegmentDuration']).toBeUndefined();
+    expect(result['Input:ClipDuration']).toBeUndefined();
   });
 
   it('preserves other inputs', () => {
     const inputs = {
       'Input:Duration': 40,
-      'Input:NumOfSegments': 5,
+      'Input:NumOfClips': 5,
       'Input:SomeOther': 'value',
     };
     const result = injectDerivedInputs(inputs);
     expect(result['Input:SomeOther']).toBe('value');
     expect(result['Input:Duration']).toBe(40);
-    expect(result['Input:NumOfSegments']).toBe(5);
+    expect(result['Input:NumOfClips']).toBe(5);
   });
 
-  it('handles fractional segment durations', () => {
+  it('handles fractional clip durations', () => {
     const inputs = {
       'Input:Duration': 100,
-      'Input:NumOfSegments': 3,
+      'Input:NumOfClips': 3,
     };
     const result = injectDerivedInputs(inputs);
-    expect(result['Input:SegmentDuration']).toBeCloseTo(33.333, 2);
+    expect(result['Input:ClipDuration']).toBeCloseTo(33.333, 2);
   });
 });

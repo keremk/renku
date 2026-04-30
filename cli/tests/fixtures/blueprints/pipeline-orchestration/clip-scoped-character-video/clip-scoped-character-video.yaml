@@ -1,0 +1,120 @@
+meta:
+  name: Clip Scoped Character Video
+  description: Exercises clip-scoped planning with upstream character jobs and nested clip-character jobs.
+  id: ClipScopedCharacterVideo
+  version: 0.1.0
+
+inputs:
+  - name: NumOfClips
+    type: int
+    required: true
+  - name: NumOfCharacters
+    type: int
+    required: true
+  - name: CharacterImagePrompt
+    type: array
+    itemType: text
+    countInput: NumOfCharacters
+    required: true
+  - name: ClipCharacterPrompt
+    type: array
+    itemType: text
+    countInput: NumOfClips
+    required: true
+  - name: ClipVideoPrompt
+    type: array
+    itemType: text
+    countInput: NumOfClips
+    required: true
+  - name: Duration
+    type: int
+    required: true
+  - name: Resolution
+    type: resolution
+    required: true
+
+outputs:
+  - name: CharacterImages
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+  - name: ClipCharacterImages
+    type: multiDimArray
+    itemType: image
+  - name: StoryboardImages
+    type: array
+    itemType: image
+    countInput: NumOfClips
+  - name: ClipVideos
+    type: array
+    itemType: video
+    countInput: NumOfClips
+  - name: StitchedVideo
+    type: video
+
+loops:
+  - name: clip
+    countInput: NumOfClips
+  - name: character
+    countInput: NumOfCharacters
+
+imports:
+  - name: CharacterImageProducer
+    producer: image/text-to-image
+    loop: character
+  - name: ClipCharacterImageProducer
+    producer: image/image-compose
+    loop: clip.character
+  - name: StoryboardImageProducer
+    producer: image/image-compose
+    loop: clip
+  - name: ClipVideoProducer
+    producer: video/image-to-video
+    loop: clip
+  - name: VideoStitcher
+    producer: composition/video-stitcher
+
+connections:
+  - from: CharacterImagePrompt[character]
+    to: CharacterImageProducer[character].Prompt
+  - from: Resolution
+    to: CharacterImageProducer[character].Resolution
+  - from: CharacterImageProducer[character].GeneratedImage
+    to: CharacterImages[character]
+
+  - from: CharacterImageProducer[character].GeneratedImage
+    to: ClipCharacterImageProducer[clip][character].SourceImages[0]
+  - from: ClipCharacterPrompt[clip]
+    to: ClipCharacterImageProducer[clip][character].Prompt
+  - from: Resolution
+    to: ClipCharacterImageProducer[clip][character].Resolution
+  - from: ClipCharacterImageProducer[clip][character].ComposedImage
+    to: ClipCharacterImages[clip][character]
+
+  - from: ClipCharacterImageProducer[clip][character].ComposedImage
+    to: StoryboardImageProducer[clip].SourceImages[character]
+  - from: ClipCharacterPrompt[clip]
+    to: StoryboardImageProducer[clip].Prompt
+  - from: Resolution
+    to: StoryboardImageProducer[clip].Resolution
+  - from: StoryboardImageProducer[clip].ComposedImage
+    to: StoryboardImages[clip]
+
+  - from: StoryboardImageProducer[clip].ComposedImage
+    to: ClipVideoProducer[clip].StartImage
+  - from: ClipVideoPrompt[clip]
+    to: ClipVideoProducer[clip].Prompt
+  - from: ClipDuration
+    to: ClipVideoProducer[clip].Duration
+  - from: Resolution
+    to: ClipVideoProducer[clip].Resolution
+  - from: ClipVideoProducer[clip].GeneratedVideo
+    to: ClipVideos[clip]
+
+  - from: ClipVideoProducer[clip].GeneratedVideo
+    to: VideoStitcher.VideoClips
+    groupBy: clip
+  - from: Duration
+    to: VideoStitcher.Duration
+  - from: VideoStitcher.StitchedVideo
+    to: StitchedVideo

@@ -7,7 +7,7 @@ meta:
   license: MIT
 
 inputs:
-  - name: NumOfSegments
+  - name: NumOfClips
     type: int
     required: true
   - name: Duration
@@ -22,7 +22,7 @@ inputs:
   - name: TranscriptionAudio
     type: array
     itemType: audio
-    countInput: NumOfSegments
+    countInput: NumOfClips
     required: true
 
 outputs:
@@ -30,23 +30,23 @@ outputs:
     type: json
 
 loops:
-  - name: segment
-    countInput: NumOfSegments
+  - name: clip
+    countInput: NumOfClips
 
 imports:
   - name: SubtitlesProducer
     producer: composition/subtitles
 
 connections:
-  - from: NumOfSegments
-    to: SubtitlesProducer.NumOfSegments
+  - from: NumOfClips
+    to: SubtitlesProducer.NumOfClips
   - from: Duration
     to: SubtitlesProducer.Duration
   - from: Language
     to: SubtitlesProducer.LanguageCode
   - from: Timeline
     to: SubtitlesProducer.Timeline
-  - from: TranscriptionAudio[segment]
-    to: SubtitlesProducer.TranscriptionAudio[segment]
+  - from: TranscriptionAudio[clip]
+    to: SubtitlesProducer.TranscriptionAudio[clip]
   - from: SubtitlesProducer.Transcription
     to: Transcription

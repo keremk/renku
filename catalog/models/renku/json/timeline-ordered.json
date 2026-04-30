@@ -2,17 +2,17 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "imageSegments": {
+    "imageClips": {
       "x-renku-shape": "fanIn",
       "x-renku-itemType": "image",
       "description": "Grouped image assets for timeline image tracks."
     },
-    "videoSegments": {
+    "videoClips": {
       "x-renku-shape": "fanIn",
       "x-renku-itemType": "video",
       "description": "Grouped video assets for timeline video tracks."
     },
-    "audioSegments": {
+    "audioClips": {
       "x-renku-shape": "fanIn",
       "x-renku-itemType": "audio",
       "description": "Grouped narration audio assets for timeline audio tracks."
@@ -22,7 +22,7 @@
       "x-renku-itemType": "audio",
       "description": "Grouped audio assets used for transcription tracks."
     },
-    "textSegments": {
+    "textClips": {
       "x-renku-shape": "fanIn",
       "x-renku-itemType": "text",
       "description": "Grouped text snippets for timeline text tracks."
@@ -89,14 +89,14 @@
           "default": [
             "Audio"
           ],
-          "description": "Priority-ordered list of track kinds for segment duration. If primary track is missing a segment, fallback to next."
+          "description": "Priority-ordered list of track kinds for clip duration. If primary track is missing a clip, fallback to next."
         },
         "imageClip": {
           "type": "object",
           "properties": {
             "artifact": {
               "type": "string",
-              "default": "ImageSegments"
+              "default": "ImageClips"
             },
             "effect": {
               "type": "string",
@@ -107,7 +107,7 @@
             }
           },
           "default": {
-            "artifact": "ImageSegments",
+            "artifact": "ImageClips",
             "effect": "KennBurns"
           },
           "required": [
@@ -120,7 +120,7 @@
           "properties": {
             "artifact": {
               "type": "string",
-              "default": "VideoSegments"
+              "default": "VideoClips"
             },
             "volume": {
               "type": "number",
@@ -130,7 +130,7 @@
             }
           },
           "default": {
-            "artifact": "VideoSegments"
+            "artifact": "VideoClips"
           },
           "required": [
             "artifact"
@@ -142,7 +142,7 @@
           "properties": {
             "artifact": {
               "type": "string",
-              "default": "AudioSegments"
+              "default": "AudioClips"
             },
             "volume": {
               "type": "number",
@@ -152,7 +152,7 @@
             }
           },
           "default": {
-            "artifact": "AudioSegments",
+            "artifact": "AudioClips",
             "volume": 1
           },
           "required": [
@@ -213,7 +213,7 @@
           "properties": {
             "artifact": {
               "type": "string",
-              "default": "TextSegments"
+              "default": "TextClips"
             },
             "effect": {
               "type": "string",
@@ -228,7 +228,7 @@
             }
           },
           "default": {
-            "artifact": "TextSegments",
+            "artifact": "TextClips",
             "effect": "fade-in-out"
           },
           "required": [
@@ -247,10 +247,10 @@
           "Audio"
         ],
         "videoClip": {
-          "artifact": "VideoSegments"
+          "artifact": "VideoClips"
         },
         "audioClip": {
-          "artifact": "AudioSegments",
+          "artifact": "AudioClips",
           "volume": 1
         },
         "musicClip": {

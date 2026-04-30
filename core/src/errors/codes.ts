@@ -235,6 +235,8 @@ export const RuntimeErrorCode = {
   LOOP_GROUP_AMBIGUOUS_INPUT: 'R140',
   LOOP_GROUP_MISSING_LOOP_DEFINITION: 'R141',
   LOOP_GROUP_INVALID_INPUT: 'R142',
+  INVALID_CLIP_SCOPE: 'R143',
+  PLANNING_CONFLICT_CLIP_SCOPE: 'R144',
 } as const;
 
 export type RuntimeErrorCodeValue =

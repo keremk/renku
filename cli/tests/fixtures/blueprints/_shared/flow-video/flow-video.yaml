@@ -1,6 +1,6 @@
 meta:
   name: Generate Long Form Video Prompt
-  description: Generate prompts for long form video content from segments with begin and end images
+  description: Generate prompts for long form video content from clips with begin and end images
   id: FlowVideoPromptProducer
   kind: producer
   version: 0.1.0
@@ -16,8 +16,8 @@ inputs:
   - name: Duration
     description: Desired narration duration in seconds.
     type: int
-  - name: NumOfSegments
-    description: Number of narration segments to produce.
+  - name: NumOfClips
+    description: Number of narration clips to produce.
     type: int
   - name: Style
     description: Desired visual style to feed into prompt.
@@ -31,18 +31,18 @@ outputs:
     description: The generated title for the movie.
     type: string
   - name: NarrationScript
-    description: Array of narration paragraphs per segment.
+    description: Array of narration paragraphs per clip.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: VideoPrompts
-    description: Array of video prompts per segment.
+    description: Array of video prompts per clip.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: ImagePrompts
-    description: Array of image prompts per segment.
+    description: Array of image prompts per clip.
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
     countInputOffset: 1

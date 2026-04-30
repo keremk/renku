@@ -128,8 +128,8 @@ describe('end-to-end: harness prompt arrays wired to looped downstream producers
 			expect(job.context?.inputBindings?.StartImage).toBe(
 				`Artifact:StoryboardImageProducer.ComposedImage[${index}]`
 			);
-			expect(job.context?.inputBindings?.Duration).toBe('Input:SegmentDuration');
-			expect(job.inputs).toContain('Input:SegmentDuration');
+			expect(job.context?.inputBindings?.Duration).toBe('Input:ClipDuration');
+			expect(job.inputs).toContain('Input:ClipDuration');
 		}
 
 		const timelineJob = findJob(plan, 'TimelineComposer');
@@ -140,12 +140,12 @@ describe('end-to-end: harness prompt arrays wired to looped downstream producers
 		expect(timelineJob.context?.inputBindings?.Duration).toBe('Input:Duration');
 		expect(timelineJob.inputs).toEqual(
 			expect.arrayContaining([
-				'Input:TimelineComposer.VideoSegments',
+				'Input:TimelineComposer.VideoClips',
 				'Input:Duration',
 			])
 		);
 		expect(
-			timelineJob.context?.fanIn?.['Input:TimelineComposer.VideoSegments']
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.VideoClips']
 				?.members?.length
 		).toBe(3);
 	});

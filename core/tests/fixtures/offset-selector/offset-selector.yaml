@@ -5,8 +5,8 @@ meta:
   version: 0.1.0
 
 inputs:
-  - name: NumOfSegments
-    description: Number of segments.
+  - name: NumOfClips
+    description: Number of clips.
     type: int
     required: true
   - name: Prompt
@@ -16,18 +16,18 @@ inputs:
 
 outputs:
   - name: OutputVideo
-    description: Generated video per segment.
+    description: Generated video per clip.
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
-  - name: segment
-    description: Iterates over segments.
-    countInput: NumOfSegments
+  - name: clip
+    description: Iterates over clips.
+    countInput: NumOfClips
   - name: image
-    description: Iterates over images (NumOfSegments + 1).
-    countInput: NumOfSegments
+    description: Iterates over images (NumOfClips + 1).
+    countInput: NumOfClips
     countInputOffset: 1
 
 imports:
@@ -36,17 +36,17 @@ imports:
     loop: image
   - name: VideoProducer
     producer: video/image-to-video
-    loop: segment
+    loop: clip
 
 connections:
   - from: Prompt
     to: ImageProducer[image].Prompt
 
   - from: ImageProducer[image].GeneratedImage
-    to: VideoProducer[segment].StartImage
+    to: VideoProducer[clip].StartImage
 
   - from: ImageProducer[image+1].GeneratedImage
-    to: VideoProducer[segment].EndImage
+    to: VideoProducer[clip].EndImage
 
-  - from: VideoProducer[segment].GeneratedVideo
-    to: OutputVideo[segment]
+  - from: VideoProducer[clip].GeneratedVideo
+    to: OutputVideo[clip]

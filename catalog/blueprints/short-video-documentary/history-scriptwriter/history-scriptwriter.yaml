@@ -14,14 +14,14 @@ inputs:
   - name: Duration
     description: Total video duration in seconds (20-60)
     type: int
-  - name: NumOfSegments
-    description: Number of narrative segments
+  - name: NumOfClips
+    description: Number of narrative clips
     type: int
-  - name: SegmentDuration
-    description: Duration of each segment in seconds
+  - name: ClipDuration
+    description: Duration of each clip in seconds
     type: int
-  - name: CutScenesPerSegment
-    description: Number of cut-scenes per segment (2-3)
+  - name: CutScenesPerClip
+    description: Number of cut-scenes per clip (2-3)
     type: int
   - name: VisualStyle
     description: Visual/artistic style directions (e.g., cinematic documentary, painterly historical)
@@ -38,15 +38,15 @@ outputs:
     description: Prompt for generating the opening frame image
     type: string
   - name: VideoPrompts
-    description: Array of video prompts per segment (each contains [cut] markers for scene transitions)
+    description: Array of video prompts per clip (each contains [cut] markers for scene transitions)
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: NarrationScripts
-    description: Array of narration text per segment
+    description: Array of narration text per clip
     type: array
     itemType: string
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: MusicPrompt
     description: Prompt for generating thematic background music
     type: string

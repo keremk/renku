@@ -8,15 +8,15 @@ meta:
 
 inputs:
   - name: InitialPrompt
-    description: Prompt for the first video segment.
+    description: Prompt for the first video clip.
     type: string
     required: true
   - name: ContinuationPrompt
-    description: Prompt for the continuation video segment.
+    description: Prompt for the continuation video clip.
     type: string
     required: true
   - name: Duration
-    description: Duration of each video segment in seconds.
+    description: Duration of each video clip in seconds.
     type: integer
     default: 4
 

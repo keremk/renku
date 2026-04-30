@@ -103,8 +103,8 @@ describe('Validators', () => {
   describe('isSystemInput', () => {
     it('returns true for all system inputs', () => {
       expect(isSystemInput(SYSTEM_INPUTS.DURATION)).toBe(true);
-      expect(isSystemInput(SYSTEM_INPUTS.NUM_OF_SEGMENTS)).toBe(true);
-      expect(isSystemInput(SYSTEM_INPUTS.SEGMENT_DURATION)).toBe(true);
+      expect(isSystemInput(SYSTEM_INPUTS.NUM_OF_CLIPS)).toBe(true);
+      expect(isSystemInput(SYSTEM_INPUTS.CLIP_DURATION)).toBe(true);
       expect(isSystemInput(SYSTEM_INPUTS.MOVIE_ID)).toBe(true);
       expect(isSystemInput(SYSTEM_INPUTS.STORAGE_ROOT)).toBe(true);
       expect(isSystemInput(SYSTEM_INPUTS.STORAGE_BASE_PATH)).toBe(true);
@@ -112,8 +112,8 @@ describe('Validators', () => {
 
     it('returns true for system input string values', () => {
       expect(isSystemInput('Duration')).toBe(true);
-      expect(isSystemInput('NumOfSegments')).toBe(true);
-      expect(isSystemInput('SegmentDuration')).toBe(true);
+      expect(isSystemInput('NumOfClips')).toBe(true);
+      expect(isSystemInput('ClipDuration')).toBe(true);
       expect(isSystemInput('MovieId')).toBe(true);
       expect(isSystemInput('StorageRoot')).toBe(true);
       expect(isSystemInput('StorageBasePath')).toBe(true);
@@ -515,14 +515,14 @@ describe('InputIdResolver', () => {
       expect(resolver.toCanonical('Duration')).toBe('Input:Duration');
     });
 
-    it('converts NumOfSegments system input to canonical ID', () => {
+    it('converts NumOfClips system input to canonical ID', () => {
       const resolver = createInputIdResolver(createTestTree());
-      expect(resolver.toCanonical('NumOfSegments')).toBe('Input:NumOfSegments');
+      expect(resolver.toCanonical('NumOfClips')).toBe('Input:NumOfClips');
     });
 
-    it('converts SegmentDuration system input to canonical ID', () => {
+    it('converts ClipDuration system input to canonical ID', () => {
       const resolver = createInputIdResolver(createTestTree());
-      expect(resolver.toCanonical('SegmentDuration')).toBe('Input:SegmentDuration');
+      expect(resolver.toCanonical('ClipDuration')).toBe('Input:ClipDuration');
     });
 
     it('converts MovieId system input to canonical ID', () => {
@@ -560,8 +560,8 @@ describe('InputIdResolver', () => {
 
       // System inputs should still be recognized
       expect(resolver.toCanonical('Duration')).toBe('Input:Duration');
-      expect(resolver.toCanonical('NumOfSegments')).toBe('Input:NumOfSegments');
-      expect(resolver.toCanonical('SegmentDuration')).toBe('Input:SegmentDuration');
+      expect(resolver.toCanonical('NumOfClips')).toBe('Input:NumOfClips');
+      expect(resolver.toCanonical('ClipDuration')).toBe('Input:ClipDuration');
     });
 
     it('prefers declared input over system input if names match', () => {
@@ -591,7 +591,7 @@ describe('InputIdResolver', () => {
     it('handles whitespace around system input names', () => {
       const resolver = createInputIdResolver(createTestTree());
       expect(resolver.toCanonical('  Duration  ')).toBe('Input:Duration');
-      expect(resolver.toCanonical('\tNumOfSegments\t')).toBe('Input:NumOfSegments');
+      expect(resolver.toCanonical('\tNumOfClips\t')).toBe('Input:NumOfClips');
     });
   });
 

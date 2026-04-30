@@ -7,7 +7,7 @@ inputs:
     width: 720
     height: 1280
   Duration: 30
-  NumOfSegments: 3
+  NumOfClips: 3
 models:
   - producerId: 'EduScriptProducer'
     provider: 'openai'
@@ -32,7 +32,7 @@ models:
         masterTracks:
           - 'Video'
         videoClip:
-          artifact: 'VideoSegments'
+          artifact: 'VideoClips'
         transcriptionClip:
           artifact: 'TranscriptionAudio'
   - producerId: 'TranscriptionProducer'

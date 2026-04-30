@@ -6,29 +6,29 @@ inputs:
   - name: Duration
     type: number
     required: true
-  - name: NumOfSegments
+  - name: NumOfClips
     type: int
     required: true
   - name: Prompts
     type: array
     itemType: string
     required: true
-    countInput: NumOfSegments
+    countInput: NumOfClips
   - name: SourceImages
     type: array
     itemType: image
     required: true
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 outputs:
   - name: SegmentVideos
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 loops:
   - name: segment
-    countInput: NumOfSegments
+    countInput: NumOfClips
 
 imports:
   - name: SegmentUnit

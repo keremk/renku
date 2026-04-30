@@ -929,15 +929,15 @@ function deriveStoryboardAxisFamily(args: {
   const labels = new Set(
     Array.from(args.loops.values())
       .flatMap((definitions) => definitions)
-      .filter((definition) => definition.countInput === 'NumOfSegments')
+      .filter((definition) => definition.countInput === 'NumOfClips')
       .map((definition) => definition.name)
   );
-  labels.add('NumOfSegments');
+  labels.add('NumOfClips');
 
   if (labels.size === 0) {
     throw createRuntimeError(
       RuntimeErrorCode.GRAPH_BUILD_ERROR,
-      'Storyboard projection only supports visible story media driven by a NumOfSegments loop, but no such loop was declared.'
+      'Storyboard projection only supports visible story media driven by a NumOfClips loop, but no such loop was declared.'
     );
   }
 
@@ -961,12 +961,12 @@ function deriveStoryboardAxisFamily(args: {
     }
     throw createRuntimeError(
       RuntimeErrorCode.GRAPH_BUILD_ERROR,
-      `Storyboard projection only supports scene or segment loops driven by NumOfSegments. Visible story artifacts were keyed by unsupported axes: ${Array.from(candidateAxes).join(', ')}.`
+      `Storyboard projection only supports scene or segment loops driven by NumOfClips. Visible story artifacts were keyed by unsupported axes: ${Array.from(candidateAxes).join(', ')}.`
     );
   }
 
   const rootLabel = args.root.document.loops?.find(
-    (loop) => loop.countInput === 'NumOfSegments'
+    (loop) => loop.countInput === 'NumOfClips'
   )?.name;
   const publicLabel = rootLabel && visibleAxisLabels.has(rootLabel)
     ? rootLabel

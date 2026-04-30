@@ -14,14 +14,14 @@
       },
       "VideoPrompts": {
         "type": "array",
-        "description": "Video prompts for each segment, containing [cut] markers for internal scene transitions",
+        "description": "Video prompts for each clip, containing [cut] markers for internal scene transitions",
         "items": {
           "type": "string"
         }
       },
       "NarrationScripts": {
         "type": "array",
-        "description": "Narration text for each segment to be spoken by the narrator",
+        "description": "Narration text for each clip to be spoken by the narrator",
         "items": {
           "type": "string"
         }

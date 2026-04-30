@@ -8,17 +8,17 @@
       },
       "NarrationScript": {
         "type": "array",
-        "description": "Provide narration text for the segment, which will be used as a background audio narration for each segment.",
+        "description": "Provide narration text for the clip, which will be used as a background audio narration for each clip.",
         "items": { "type": "string" }
       },
       "ImagePrompts": {
         "type": "array",
-        "description": "Provide an image prompt for the image generator. First image is the starting image and each subsequent image is the end image for a segment. Each segment starts with the ending image of the prior segment.",
+        "description": "Provide an image prompt for the image generator. First image is the starting image and each subsequent image is the end image for a clip. Each clip starts with the ending image of the prior clip.",
         "items": { "type": "string" }
       },
       "VideoPrompts": {
         "type": "array",
-        "description": "Provide a video prompt for the video generator that describes the actions and general progression of the video in that segment that ends with the end image.",
+        "description": "Provide a video prompt for the video generator that describes the actions and general progression of the video in that clip that ends with the end image.",
         "items": { "type": "string" }
       }
     },

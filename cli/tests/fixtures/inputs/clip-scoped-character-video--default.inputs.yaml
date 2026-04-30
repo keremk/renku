@@ -1,0 +1,35 @@
+inputs:
+  NumOfClips: 3
+  NumOfCharacters: 2
+  CharacterImagePrompt:
+    - 'Lead engineer portrait, clean production design'
+    - 'Field producer portrait, clean production design'
+  ClipCharacterPrompt:
+    - 'Clip 1 character pose, morning briefing'
+    - 'Clip 2 character pose, equipment setup'
+    - 'Clip 3 character pose, final inspection'
+  ClipVideoPrompt:
+    - 'Clip 1 camera move through the briefing room'
+    - 'Clip 2 camera move around the equipment table'
+    - 'Clip 3 camera move across the finished set'
+  Duration: 12
+  Resolution:
+    width: 1280
+    height: 720
+
+models:
+  - model: bytedance/seedream/v4.5/text-to-image
+    provider: fal-ai
+    producerId: CharacterImageProducer
+  - model: bytedance/seedream-4
+    provider: replicate
+    producerId: ClipCharacterImageProducer
+  - model: bytedance/seedream-4
+    provider: replicate
+    producerId: StoryboardImageProducer
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: ClipVideoProducer
+  - model: ffmpeg/video-stitch
+    provider: renku
+    producerId: VideoStitcher
