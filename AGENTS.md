@@ -78,7 +78,17 @@ Write strict TypeScript and prefer functional components with kebab-case filenam
 ## Testing Guidelines
 The repo relies on linting and type checks as the baseline gate, and all packages are wired for Vitest. Add tests for new behaviour (`.test.ts`/`.test.tsx` next to the code) in core, CLI, and providers packages. Ensure each package exposes `test` scripts and use `pnpm test:core`, `pnpm test:cli`, or `pnpm test:providers` from the root. Document fixture data inside its package and keep runs deterministic.
 
-> **Agent Rule**: Final verification must always include first running `pnpm build` and then `pnpm test` from the repository root. Package-level or focused test runs are useful during development, but they are not sufficient as the last verification step.
+> **Agent Rule**: Final verification must always include `pnpm build` from the repository root. Test scope depends on the packages touched: if changes touch exactly one package, run `pnpm test` only for that package; if changes touch multiple packages, run `pnpm test` from the repository root to catch cross-package regressions.
+
+> **Agent Rule**: For Movie Studio-only work, prefer:
+```bash
+pnpm --filter movie-studio build
+pnpm --filter movie-studio test
+pnpm --filter movie-studio test:typecheck
+pnpm --filter movie-studio lint
+```
+
+> **Agent Rule**: If Movie Studio work also changes a shared package such as `core/`, treat it as a multi-package change and run root `pnpm test`.
 
 ## Commit & Pull Request Guidelines
 Follow the `<type>: <summary>` pattern seen in history (example `init: first version that runs on Next.js`). Keep subjects imperative and scope commits to one concern. Pull requests should explain the change, link tracking issues, and include screenshots or clips for UI updates. Add a testing note listing the commands you ran (at minimum `pnpm check`). Call out required follow-ups such as database pushes or environment changes before requesting review.

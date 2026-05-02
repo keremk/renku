@@ -39,6 +39,9 @@ export interface CliConfig {
     root: string;
     basePath: string;
   };
+  movieStudio?: {
+    storageRoot: string;
+  };
   artifacts?: CliArtifactsConfig;
   catalog?: {
     root: string;
@@ -61,6 +64,14 @@ export const DEFAULT_CLI_ARTIFACTS_CONFIG: CliArtifactsConfig = {
   enabled: true,
   mode: 'copy',
 };
+
+export function getDefaultMovieStudioStorageRoot(): string {
+  return resolve(os.homedir(), 'renku-movies');
+}
+
+export function getMovieStudioStorageRoot(config: CliConfig): string {
+  return config.movieStudio?.storageRoot ?? getDefaultMovieStudioStorageRoot();
+}
 
 // ---------------------------------------------------------------------------
 // Config path helpers
@@ -125,6 +136,7 @@ export async function readCliConfig(
     }
     return {
       storage: parsed.storage,
+      movieStudio: parsed.movieStudio,
       artifacts: normalizeCliArtifactsConfig(parsed.artifacts),
       catalog: parsed.catalog,
       concurrency: normalizeCliConcurrency(parsed.concurrency),
@@ -146,6 +158,9 @@ export async function writeCliConfig(
     JSON.stringify(
       {
         ...config,
+        movieStudio: config.movieStudio ?? {
+          storageRoot: getDefaultMovieStudioStorageRoot(),
+        },
         artifacts: normalizeCliArtifactsConfig(config.artifacts),
         concurrency: normalizeCliConcurrency(config.concurrency),
       },
@@ -240,6 +255,9 @@ export async function initWorkspace(
     storage: {
       root: rootFolder,
       basePath: 'builds',
+    },
+    movieStudio: {
+      storageRoot: getDefaultMovieStudioStorageRoot(),
     },
     artifacts: {
       ...DEFAULT_CLI_ARTIFACTS_CONFIG,

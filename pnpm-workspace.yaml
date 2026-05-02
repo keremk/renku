@@ -4,6 +4,7 @@ packages:
   - 'compositions'
   - 'providers'
   - 'viewer'
+  - 'movie-studio'
   - 'web'
   - 'desktop'
 

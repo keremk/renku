@@ -3,6 +3,7 @@ import os from 'node:os';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import {
   getCliArtifactsConfig,
+  getMovieStudioStorageRoot,
   normalizeCliArtifactsConfig,
   normalizeCliConcurrency,
   readApiKeysEnvFile,
@@ -41,6 +42,9 @@ export interface SettingsApiTokens {
 export interface SettingsSnapshot {
   storageRoot: string;
   storageFolderName: string;
+  movieStudio: {
+    storageRoot: string;
+  };
   apiTokens: SettingsApiTokens;
   artifacts: CliArtifactsConfig;
   concurrency: number;
@@ -150,6 +154,9 @@ export async function readSettingsSnapshot(options?: {
   return {
     storageRoot: cliConfig.storage.root,
     storageFolderName: getStorageFolderName(cliConfig.storage.root),
+    movieStudio: {
+      storageRoot: getMovieStudioStorageRoot(cliConfig),
+    },
     apiTokens,
     artifacts: getCliArtifactsConfig(cliConfig),
     concurrency: normalizeCliConcurrency(cliConfig.concurrency),

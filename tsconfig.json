@@ -16,6 +16,9 @@
     },
     {
       "path": "./viewer"
+    },
+    {
+      "path": "./movie-studio"
     }
   ]
 }

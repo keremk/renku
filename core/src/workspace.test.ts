@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, readFile, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, parse, resolve } from 'node:path';
 import {
   readCliConfig,
@@ -54,10 +54,24 @@ describe('readCliConfig', () => {
     const result = await readCliConfig(configPath);
     expect(result).toMatchObject({
       storage: { root: '/some/root', basePath: 'builds' },
+      movieStudio: undefined,
       catalog: { root: '/some/root/catalog' },
       concurrency: 2,
       artifacts: { enabled: true, mode: 'copy' },
     });
+  });
+
+  it('returns movie studio storage root when configured', async () => {
+    const configPath = join(tempDir, 'cli-config.json');
+    const config: CliConfig = {
+      storage: { root: '/some/root', basePath: 'builds' },
+      movieStudio: { storageRoot: '/some/movies' },
+    };
+    await writeFile(configPath, JSON.stringify(config), 'utf8');
+
+    const result = await readCliConfig(configPath);
+
+    expect(result?.movieStudio?.storageRoot).toBe('/some/movies');
   });
 
   it('clips concurrency to max when config is hand-edited above range', async () => {
@@ -142,6 +156,9 @@ describe('writeCliConfig', () => {
     const contents = await readFile(configPath, 'utf8');
     const parsed = JSON.parse(contents);
     expect(parsed.storage.root).toBe('/some/root');
+    expect(parsed.movieStudio.storageRoot).toBe(
+      join(homedir(), 'renku-movies')
+    );
   });
 
   it('creates parent directories as needed', async () => {
@@ -251,6 +268,9 @@ describe('initWorkspace', () => {
     const config = await readCliConfig(configPath);
     expect(config).not.toBeNull();
     expect(config?.storage.root).toBe(rootFolder);
+    expect(config?.movieStudio?.storageRoot).toBe(
+      join(homedir(), 'renku-movies')
+    );
     expect(config?.catalog?.root).toBe(join(rootFolder, 'catalog'));
 
     // Catalog files should be copied
