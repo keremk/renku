@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "vitest/globals"
+    ],
+    "noEmit": true,
+    "rootDir": ".",
+    "typeRoots": [
+      "./node_modules/@types",
+      "../node_modules/@types",
+      "../core/node_modules/@types",
+      "../cli/node_modules/@types",
+      "./node_modules",
+      "../node_modules",
+      "../core/node_modules",
+      "../cli/node_modules"
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.test.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

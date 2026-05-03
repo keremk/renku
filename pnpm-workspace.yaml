@@ -1,6 +1,8 @@
 packages:
   - 'core'
+  - 'movie-core'
   - 'cli'
+  - 'movie-cli'
   - 'compositions'
   - 'providers'
   - 'viewer'

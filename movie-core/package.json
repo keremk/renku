@@ -1,0 +1,56 @@
+{
+  "name": "@gorenku/movie-core",
+  "version": "0.1.0",
+  "description": "Movie Studio domain model, validation, workflows, queue and projection primitives",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:typecheck": "tsc --project tsconfig.vitest.json --noEmit",
+    "check:all": "pnpm type-check && pnpm lint && pnpm test:typecheck",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
+  },
+  "keywords": [
+    "ai",
+    "movie",
+    "movie-studio",
+    "workflow",
+    "queue"
+  ],
+  "author": "",
+  "packageManager": "pnpm@10.15.0",
+  "dependencies": {
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.36.0",
+    "@types/node": "^20.16.11",
+    "@typescript-eslint/parser": "^8.18.2",
+    "@vitest/ui": "^3.2.4",
+    "eslint": "^8",
+    "eslint-config-prettier": "^10.1.8",
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.4"
+  }
+}
