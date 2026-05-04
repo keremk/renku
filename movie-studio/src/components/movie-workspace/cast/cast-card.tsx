@@ -1,5 +1,5 @@
 import type { CastEntry } from '@/types/movie-project';
-import { ReadinessDot } from '../shared/readiness-dot';
+import { ReadinessDot } from '@movie-workspace/shared/readiness-dot';
 
 export function CastCard({ castEntry }: { castEntry: CastEntry }) {
   return (

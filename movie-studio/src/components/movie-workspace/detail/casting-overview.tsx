@@ -1,5 +1,5 @@
 import type { CastEntry } from '@/types/movie-project';
-import { CastCard } from './cast-card';
+import { CastCard } from '@movie-workspace/cast/cast-card';
 
 export function CastingOverview({ cast }: { cast: CastEntry[] }) {
   return (

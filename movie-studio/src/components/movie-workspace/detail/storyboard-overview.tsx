@@ -1,5 +1,5 @@
-import { ReadinessDot } from '../shared/readiness-dot';
-import type { ResolvedSelection } from '../model/movie-selection';
+import type { ResolvedSelection } from '@movie-workspace/model/movie-selection';
+import { ReadinessDot } from '@movie-workspace/shared/readiness-dot';
 
 export function StoryboardOverview({
   selected,

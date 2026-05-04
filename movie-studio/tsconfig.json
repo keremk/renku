@@ -6,7 +6,8 @@
   ],
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@movie-workspace/*": ["./src/components/movie-workspace/*"]
     }
   }
 }

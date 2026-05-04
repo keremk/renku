@@ -15,6 +15,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@movie-workspace': path.resolve(
+        __dirname,
+        './src/components/movie-workspace'
+      ),
       '@gorenku/core': path.resolve(__dirname, '../core/src/index.ts'),
       '@gorenku/providers': path.resolve(__dirname, '../providers/src/index.ts'),
       '@gorenku/compositions': path.resolve(

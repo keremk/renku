@@ -1,7 +1,7 @@
 import type { MovieStudioProject, Selection } from '@/types/movie-project';
-import type { MovieLookup } from '../model/movie-selection';
-import { resolveMovieSelection } from '../model/movie-selection';
-import { CastWorkspace } from './cast-workspace';
+import { CastWorkspace } from '@movie-workspace/cast/cast-workspace';
+import type { MovieLookup } from '@movie-workspace/model/movie-selection';
+import { resolveMovieSelection } from '@movie-workspace/model/movie-selection';
 import { CastingOverview } from './casting-overview';
 import { ClipWorkspace } from './clip-workspace';
 import { StoryboardOverview } from './storyboard-overview';
@@ -14,6 +14,10 @@ interface DetailAreaProps {
 
 export function DetailArea({ project, selection, lookup }: DetailAreaProps) {
   const selected = resolveMovieSelection(selection, lookup);
+
+  if (selection.type === 'cast' && selected.castEntry) {
+    return <CastWorkspace castEntry={selected.castEntry} />;
+  }
 
   return (
     <section className='min-h-0 rounded-(--radius-panel) border border-panel-border bg-panel-bg overflow-hidden flex flex-col'>
@@ -32,8 +36,6 @@ export function DetailArea({ project, selection, lookup }: DetailAreaProps) {
       <div className='flex-1 min-h-0 overflow-y-auto p-4'>
         {selection.type === 'clip' && selected.clip ? (
           <ClipWorkspace clip={selected.clip} project={project} />
-        ) : selection.type === 'cast' && selected.castEntry ? (
-          <CastWorkspace castEntry={selected.castEntry} />
         ) : selection.type === 'casting' ? (
           <CastingOverview cast={project.cast} />
         ) : (

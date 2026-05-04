@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { MovieStudioHeader } from '@/components/layout/movie-studio-header';
 import type { MovieStudioProject, Selection } from '@/types/movie-project';
-import { DetailArea } from './detail/detail-area';
-import { buildMovieLookup } from './model/movie-selection';
-import { MovieNavigation } from './navigation/movie-navigation';
-import { QueueBar } from './queue/queue-bar';
+import { DetailArea } from '@movie-workspace/detail/detail-area';
+import { buildMovieLookup } from '@movie-workspace/model/movie-selection';
+import { MovieNavigation } from '@movie-workspace/navigation/movie-navigation';
+import { QueueBar } from '@movie-workspace/queue/queue-bar';
 
 interface MovieWorkspaceProps {
   project: MovieStudioProject;

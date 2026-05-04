@@ -1,7 +1,7 @@
 import { FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { MovieStudioProject } from '@/types/movie-project';
-import { StatPill } from '../shared/stat-pill';
+import { StatPill } from '@movie-workspace/shared/stat-pill';
 
 export function QueueBar({ project }: { project: MovieStudioProject }) {
   return (

@@ -19,7 +19,8 @@
       "../node_modules"
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@movie-workspace/*": ["./src/components/movie-workspace/*"]
     }
   },
   "include": [

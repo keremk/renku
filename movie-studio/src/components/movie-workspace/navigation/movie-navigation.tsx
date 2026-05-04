@@ -8,7 +8,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import type { MovieStudioProject, Selection } from '@/types/movie-project';
-import { toggleSetValue } from '../model/movie-selection';
+import { toggleSetValue } from '@movie-workspace/model/movie-selection';
 import { NavButton } from './nav-button';
 import { NavigationSection } from './navigation-section';
 
